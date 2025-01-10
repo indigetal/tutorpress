@@ -1,0 +1,5 @@
+# Ignore OS generated files
+.DS_Store
+
+# Ignore IDE/editor specific files
+.vscode/
