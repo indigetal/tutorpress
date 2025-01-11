@@ -26,9 +26,6 @@ function override_tutor_lms_template_loader() {
         // Remove the course archive template loader.
         remove_filter( 'template_include', array( $template_class, 'load_course_archive_template' ), 99 );
 
-        // Log success for debugging (commented out for cleanup).
-        // error_log( "Successfully removed Tutor LMS course archive template loader." );
-
         // Initialize custom template loader.
         Custom_Tutor_LMS_Template_Loader::init();
     } else {
