@@ -172,7 +172,9 @@ use Tutor\Models\CourseModel;
 							<div data-course_content_id="<?php echo esc_attr( $content->ID ); ?>" id="tutor-lesson-<?php echo esc_attr( $content->ID ); ?>" class="course-content-item tutor-lesson tutor-lesson-<?php echo esc_attr( $content->ID ); ?>">
 								<div class="tutor-course-content-top tutor-d-flex tutor-align-center">
 									<span class="tutor-icon-hamburger-menu tutor-cursor-move tutor-px-12"></span>
-									<a href="javascript:;" class="<?php echo $is_topic ? 'open-tutor-lesson-modal' : ''; ?>" data-lesson-id="<?php echo esc_attr( $content->ID ); ?>" data-topic-id="<?php echo esc_attr( $topic->ID ); ?>">
+									<a href="<?php echo esc_url( get_edit_post_link( $content->ID ) ); ?>" class="tutor-lesson-edit-link">
+										<?php echo esc_html__( 'Lesson', 'tutor' ) . ' ' . esc_html( $counter['lesson'] ) . ': ' . esc_html( stripslashes( $content->post_title ) ); ?>
+									</a>
 										<?php echo esc_html__( 'Lesson', 'tutor' ) . ' ' . esc_html( $counter['lesson'] ) . ': ' . esc_html( stripslashes( $content->post_title ) ); ?>
 									</a>
 									<div class="tutor-course-content-top-right-action">
