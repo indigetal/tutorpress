@@ -179,7 +179,7 @@ use Tutor\Models\CourseModel;
 									</a>
 									<div class="tutor-course-content-top-right-action">
 										<?php if ( $is_topic ) : ?>
-											<a href="javascript:;" class="open-tutor-lesson-modal tutor-iconic-btn" data-lesson-id="<?php echo esc_attr( $content->ID ); ?>" data-topic-id="<?php echo esc_attr( $topic->ID ); ?>">
+											<a href="<?php echo esc_url( get_edit_post_link( $content->ID ) ); ?>" class="tutor-lesson-edit-link tutor-iconic-btn">
 												<span class="tutor-icon-edit" area-hidden="true"></span>
 											</a>
 										<?php endif; ?>
