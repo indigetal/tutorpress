@@ -3,6 +3,8 @@ assets/css/*
 !assets/css/.gitkeep
 assets/js/*
 !assets/js/lib/
+!assets/css/course-editor-sidebar.css
+!assets/js/course-editor-sidebar.js
 languages/*
 !languages/.gitkeep
 test/

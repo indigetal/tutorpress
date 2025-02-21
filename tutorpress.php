@@ -2,9 +2,9 @@
 /**
  * Plugin Name: TutorPress LMS
  * Plugin URI: https://www.themeum.com/product/tutor-lms/
- * Description: Tutor is a complete solution for creating a Learning Management System in WordPress way. It can help you to create small to large scale online education site very conveniently. Power features like report, certificate, course preview, private file sharing make Tutor a robust plugin for any educational institutes.
+ * Description: Forked version of Tutor LMS with Gutenberg support and workflow improvements.
  * Author: Themeum, Brandon Meyer
- * Version: 2.7.8
+ * Version: 2.7.9
  * Author URI: https://themeum.com
  * Requires PHP: 7.4
  * Requires at least: 5.3

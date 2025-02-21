@@ -1,6 +1,13 @@
 <?php
-namespace TutorLMS\Helpers;
+namespace Tutor\Helpers;
 
+/**
+ * MetaKeysHelper class contains static helper methods to manage
+ * meta keys for course settings.
+ *
+ * @package Tutor\Helpers
+ * @since v2.7.9
+ */
 class MetaKeysHelper {
     // Course Difficulty Level
     const COURSE_DIFFICULTY = '_tutor_course_level';
@@ -13,4 +20,18 @@ class MetaKeysHelper {
 
     // Q&A Enable Toggle
     const ENABLE_QA = '_tutor_enable_qa';
+
+    /**
+     * Retrieve the list of course meta fields.
+     *
+     * @return array List of meta keys with their attributes.
+     */
+    public static function get_meta_fields() {
+        return [
+            self::COURSE_DIFFICULTY => ['type' => 'string', 'label' => __('Course Difficulty', 'tutor')],
+            self::COURSE_DURATION => ['type' => 'array', 'label' => __('Course Duration', 'tutor')],
+            self::IS_PUBLIC_COURSE => ['type' => 'boolean', 'label' => __('Public Course', 'tutor')],
+            self::ENABLE_QA => ['type' => 'boolean', 'label' => __('Enable Q&A', 'tutor')],
+        ];
+    }
 }

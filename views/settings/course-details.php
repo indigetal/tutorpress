@@ -7,6 +7,6 @@ if (!defined('ABSPATH')) {
 
 ?>
 <div class="tutor-course-details-sidebar">
-    <h3><?php esc_html_e('Course Details', 'tutorpress'); ?></h3>
-    <p><?php esc_html_e('This section will contain course details settings.', 'tutorpress'); ?></p>
+    <h3><?php esc_html_e('Course Details', 'tutor'); ?></h3>
+    <p><?php esc_html_e('This section will contain course details settings.', 'tutor'); ?></p>
 </div>

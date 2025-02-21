@@ -7,6 +7,12 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
+// Ensure helper file is loaded
+require_once plugin_dir_path(__DIR__) . '/helpers/MetaKeysHelper.php';
+
+// Import the helper class
+use Tutor\Helpers\MetaKeysHelper;
+
 class Course_Editor_Sidebar {
     public function __construct() {
         add_action('enqueue_block_editor_assets', [$this, 'enqueue_assets']);
@@ -37,13 +43,24 @@ class Course_Editor_Sidebar {
     }
 
     /**
-     * Register meta fields for future use (optional for now)
+     * Register meta fields using MetaKeysHelper.
      */
     public function register_meta() {
-        register_post_meta('courses', '_course_details', [
-            'type' => 'string',
-            'single' => true,
-            'show_in_rest' => true,
-        ]);
+        $meta_fields = MetaKeysHelper::get_meta_fields();
+
+        if (!is_array($meta_fields)) {
+            return;
+        }
+
+        foreach ($meta_fields as $key => $data) {
+            if (isset($data['type'], $data['label'])) {
+                register_post_meta('courses', $key, [
+                    'type' => $data['type'],
+                    'single' => true,
+                    'show_in_rest' => true,
+                    'description' => $data['label']
+                ]);
+            }
+        }
     }
 }
