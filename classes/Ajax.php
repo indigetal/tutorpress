@@ -463,7 +463,7 @@ class Ajax {
 		$prepared_addons = array();
 
 		foreach ( $free_addon_list as $addon_name => $addon ) {
-			$key = "tutor-pro/addons/{$addon_name}/{$addon_name}.php";
+			$key = "tutorpress-pro/addons/{$addon_name}/{$addon_name}.php";
 			if ( isset( $plugins_data[ $key ] ) ) {
 				$prepared_addons[] = $plugins_data[ $key ];
 			}

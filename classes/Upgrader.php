@@ -183,8 +183,8 @@ class Upgrader {
 	 */
 	public function init_email_table_deployment( $upgrader_object, $options ) {
 
-		if ( is_object( $upgrader_object ) && is_array( $upgrader_object->result ) && isset( $upgrader_object->result['destination_name'] ) && 'tutor-pro' == $upgrader_object->result['destination_name'] ) {
-			$addon_config = tutor_utils()->get_addon_config( 'tutor-pro/addons/tutor-email/tutor-email.php' );
+		if ( is_object( $upgrader_object ) && is_array( $upgrader_object->result ) && isset( $upgrader_object->result['destination_name'] ) && 'tutorpress-pro' == $upgrader_object->result['destination_name'] ) {
+			$addon_config = tutor_utils()->get_addon_config( 'tutorpress-pro/addons/tutor-email/tutor-email.php' );
 			$is_enable    = (bool) tutor_utils()->avalue_dot( 'is_enable', $addon_config );
 
 			$is_enable ? $this->install_tutor_email_queue() : 0;

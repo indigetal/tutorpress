@@ -114,7 +114,7 @@ use TUTOR\WhatsNew;
 
 			<?php if ( ! tutor()->has_pro ) : ?>
 			<!-- PRO section -->
-			<div class="tutor-whats-new-pro-section tutor-pro-section-top">
+			<div class="tutor-whats-new-pro-section tutorpress-pro-section-top">
 				<div>
 					<h2>Upgrade to Tutor LMS Pro and Maximize <br/> Your Revenue Potential!</h2>
 

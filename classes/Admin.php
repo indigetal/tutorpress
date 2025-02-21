@@ -103,7 +103,7 @@ class Admin {
 		do_action( 'tutor_after_courses_menu' );
 
 		if ( ! $has_pro ) {
-			add_submenu_page( 'tutor', __( 'Email', 'tutor' ), __( 'Email <span class="tutor-pro-badge">Hot</span>', 'tutor' ), 'manage_tutor', 'new-key-feature', array( $this, 'feature_promotion_page' ) );
+			add_submenu_page( 'tutor', __( 'Email', 'tutor' ), __( 'Email <span class="tutorpress-pro-badge">Hot</span>', 'tutor' ), 'manage_tutor', 'new-key-feature', array( $this, 'feature_promotion_page' ) );
 		}
 
 		add_submenu_page( 'tutor', __( 'Categories', 'tutor' ), __( 'Categories', 'tutor' ), 'manage_tutor', 'edit-tags.php?taxonomy=course-category&post_type=' . $course_post_type, null );
@@ -223,7 +223,7 @@ class Admin {
 		if ( defined( 'TUTOR_PRO_VERSION' ) ) {
 			include tutor()->path . 'views/pages/enable_disable_addons.php';
 		} else {
-			include tutor()->path . 'views/pages/tutor-pro-addons.php';
+			include tutor()->path . 'views/pages/tutorpress-pro-addons.php';
 		}
 	}
 

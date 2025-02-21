@@ -69,7 +69,7 @@ class WhatsNew {
 		<?php
 		if ( isset( $obj->is_pro ) && $obj->is_pro ) :
 			?>
-			<span class="tutor-pro-badge">Pro</span> <?php endif; ?></li>
+			<span class="tutorpress-pro-badge">Pro</span> <?php endif; ?></li>
 			<?php
 	}
 

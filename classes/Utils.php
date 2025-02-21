@@ -568,7 +568,7 @@ class Utils {
 	 * @return boolean
 	 */
 	public function is_addon_enabled( $basename ) {
-		if ( $this->is_plugin_active( 'tutor-pro/tutor-pro.php' ) ) {
+		if ( $this->is_plugin_active( 'tutorpress-pro/tutorpress-pro.php' ) ) {
 			$addon_config = $this->get_addon_config( $basename );
 
 			return (bool) $this->avalue_dot( 'is_enable', $addon_config );
@@ -8700,12 +8700,12 @@ class Utils {
 	 */
 	public function report_frequencies() {
 		$frequencies = array(
-			'alltime'     => __( 'All Time', 'tutor-pro' ),
-			'today'       => __( 'Today', 'tutor-pro' ),
-			'last30days'  => __( 'Last 30 Days', 'tutor-pro' ),
-			'last90days'  => __( 'Last 90 Days', 'tutor-pro' ),
-			'last365days' => __( 'Last 365 Days', 'tutor-pro' ),
-			'custom'      => __( 'Custom', 'tutor-pro' ),
+			'alltime'     => __( 'All Time', 'tutorpress-pro' ),
+			'today'       => __( 'Today', 'tutorpress-pro' ),
+			'last30days'  => __( 'Last 30 Days', 'tutorpress-pro' ),
+			'last90days'  => __( 'Last 90 Days', 'tutorpress-pro' ),
+			'last365days' => __( 'Last 365 Days', 'tutorpress-pro' ),
+			'custom'      => __( 'Custom', 'tutorpress-pro' ),
 		);
 		return $frequencies;
 	}

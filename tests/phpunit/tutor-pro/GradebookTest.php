@@ -10,7 +10,7 @@ class GradebookTest extends \WP_UnitTestCase {
 	private $gradebook;
 
 	protected function setUp(): void {
-		$class = '/Applications/MAMP/htdocs/tutor-v2/wp-content/plugins/tutor-pro/addons/gradebook/classes/GradeBook.php';
+		$class = '/Applications/MAMP/htdocs/tutor-v2/wp-content/plugins/tutorpress-pro/addons/gradebook/classes/GradeBook.php';
 		if ( file_exists( $class ) ) {
 			include_once $class;
 		} else {
