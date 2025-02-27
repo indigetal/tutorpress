@@ -1,0 +1,1 @@
+// Handles the Course Builder UI (topics, lessons, quizzes). Currently, this is in a metabox but will be moved to a top-level Gutenberg tab.

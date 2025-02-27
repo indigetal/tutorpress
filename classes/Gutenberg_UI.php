@@ -141,8 +141,8 @@ class Course extends Tutor_Base {
         $post = get_post();
         
         if ($post && get_post_type($post) === 'courses') {
-            $asset_path = plugin_dir_path(__FILE__) . '../assets/js/';
-            $asset_url  = plugin_dir_url(__FILE__) . '../assets/js/';
+            $asset_path = plugin_dir_path(__FILE__) . '../assets/core-wp/';
+            $asset_url  = plugin_dir_url(__FILE__) . '../assets/core-wp/';
 
             $scripts = [
                 'course-settings'     => 'course-settings.js',

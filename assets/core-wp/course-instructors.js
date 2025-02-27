@@ -1,0 +1,1 @@
+// Manages adding and removing instructors from courses
