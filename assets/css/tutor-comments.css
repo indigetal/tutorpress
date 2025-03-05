@@ -1,0 +1,99 @@
+/* Sidebar Tabs - General Layout */
+.tutorpress-sidebar-tabs {
+  padding-top: 19px;
+}
+
+.tutor-course-single-sidebar-title .tutor-d-block {
+  display: none !important;
+}
+
+#wpdiscuz_hidden_secondary_form {
+  display: none !important;
+}
+
+/* Make the sidebar tabs sticky at the top */
+.tutorpress-sidebar-tabs {
+  position: sticky;
+  top: 0px; /* Adjust if you have a fixed header */
+  background: white; /* Ensures it doesn’t overlap visually */
+  z-index: 10; /* Keeps it above other content */
+}
+
+/* Ensure course content and discussion take up the full height */
+.tutorpress-tab-content {
+  flex-grow: 1; /* Allows it to expand */
+  max-height: calc(100vh - 50px); /* Adjust 50px based on tab height */
+  overflow-y: auto; /* Enable scrolling for long content */
+  display: flex;
+  flex-direction: column;
+}
+
+.tutor-sidebar-close-mobile {
+  display: none;
+}
+
+.tutor-hide-course-single-sidebar {
+  font-size: 30px !important;
+  font-weight: 300 !important;
+  padding-bottom: 5px !important;
+  padding-left: 1px !important;
+}
+
+@media (max-width: 1199px) {
+  .tutor-sidebar-close-mobile {
+    display: block;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+  }
+}
+
+.tutorpress-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 0px;
+  list-style: none;
+  border-bottom: 1px solid #ccc;
+}
+
+.tutorpress-tab {
+  cursor: pointer;
+  padding: 10px 15px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  transition: background 0.3s ease;
+}
+
+.tutorpress-tab.active {
+  background: #fff;
+  border-top: 2px solid var(--tutor-color-primary);
+  font-weight: bold;
+}
+
+/* Sidebar Content Areas */
+.tutorpress-tab-content {
+  border-top: none;
+  background: #fff;
+}
+
+#discussion.tutorpress-tab-content {
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+/* Remove unwanted margins from wpDiscuz comments */
+#discussion #comments {
+  margin: 0 !important;
+}
+
+#discussion #wpdcom {
+  margin: 0 !important;
+}
+
+[data-tutor-query-value="comments"],
+[data-tutor-query-value="overview"] {
+  display: none !important;
+}
