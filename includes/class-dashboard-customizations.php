@@ -9,7 +9,6 @@ class TutorPress_Dashboard_Customizations {
 
     public static function init() {
         add_filter('tutor_dashboard/instructor_nav_items', [__CLASS__, 'add_extra_dashboard_links']);
-        add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_create_course'], 10, 2);
         add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
     }
 
@@ -30,11 +29,6 @@ class TutorPress_Dashboard_Customizations {
         return array_merge($nav_items, $extra_links);
     }
 
-    // Redirect "Create A New Course" button in Dashboard to Gutenberg
-    public static function override_dashboard_create_course($url, $sub_url) {
-        return $sub_url === 'create-course' ? admin_url('post-new.php?post_type=courses') : $url;
-    }
-
     // Redirect "Edit Course" button icons in Dashboard to Gutenberg
     public static function override_dashboard_edit_buttons($url, $sub_url) {
         if (strpos($sub_url, 'create-course?course_id=') !== false) {
@@ -45,6 +39,7 @@ class TutorPress_Dashboard_Customizations {
         }
         return $url;
     }
+    
 }
 
 // Initialize the class
