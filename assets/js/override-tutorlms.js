@@ -1,14 +1,19 @@
 document.addEventListener("DOMContentLoaded", function () {
   console.log("TutorPress: override-tutorlms.js loaded");
 
-  // Remove unnecessary tabs in lesson pages
-  let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
-  tabsToRemove.forEach((selector) => {
-    let tab = document.querySelector(selector);
-    if (tab) {
-      tab.remove();
-    }
-  });
+  // Check if the sidebar tabs feature is enabled before modifying lesson tabs
+  if (typeof TutorPressData !== "undefined" && TutorPressData.enableSidebarTabs) {
+    console.log("TutorPress: Sidebar tabs feature is enabled");
+
+    // Remove unnecessary tabs in lesson pages
+    let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
+    tabsToRemove.forEach((selector) => {
+      let tab = document.querySelector(selector);
+      if (tab) {
+        tab.remove();
+      }
+    });
+  }
 
   // Function to override "Create A New Course" button
   function overrideCreateCourseButton() {

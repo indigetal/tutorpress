@@ -6,8 +6,13 @@
 defined('ABSPATH') || exit;
 
 class TutorPress_Sidebar_Tabs {
-
     public static function init() {
+        // Check if the feature is enabled in the settings
+        $options = get_option('tutorpress_settings', []);
+        if (!isset($options['enable_sidebar_tabs']) || !$options['enable_sidebar_tabs']) {
+            return;
+        }
+        
         add_filter('tutor_lesson/single/lesson_sidebar', [__CLASS__, 'modify_sidebar']);
         add_filter('tutor_get_template', [__CLASS__, 'block_tutor_comments_templates'], 10, 2);
     }
@@ -38,7 +43,7 @@ class TutorPress_Sidebar_Tabs {
         </div>
         <?php
         return ob_get_clean();
-    }    
+    }
 
     /**
      * Prevent Tutor LMS from loading its custom comment templates.
