@@ -8,6 +8,12 @@ defined( 'ABSPATH' ) || exit;
 class TutorPress_Admin_Customizations {
 
     public static function init() {
+        $options = get_option('tutorpress_settings', []);
+        
+        if (!isset($options['enable_admin_redirects']) || !$options['enable_admin_redirects']) {
+            return;
+        }
+        
         add_action('admin_menu', [__CLASS__, 'add_lessons_menu_item']);
         add_action('admin_menu', [__CLASS__, 'reorder_tutor_submenus'], 100);
         add_action('tutor_admin_after_course_list_action', [__CLASS__, 'override_course_edit_redirect']);
