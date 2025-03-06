@@ -21,7 +21,7 @@ class TutorPress_Scripts {
         $options = get_option('tutorpress_settings', []);
         
         // Conditionally load override-tutorlms.js
-        if (!empty($options['enable_sidebar_tabs'])) {
+        if (!empty($options['enable_sidebar_tabs']) || !empty($options['enable_dashboard_redirects'])) {
             wp_enqueue_script(
                 'tutorpress-override-tutorlms',
                 TUTORPRESS_URL . 'assets/js/override-tutorlms.js',
@@ -71,7 +71,7 @@ class TutorPress_Scripts {
         }
 
         $options = get_option('tutorpress_settings', []);
-        if (!empty($options['enable_sidebar_tabs'])) {
+        if (!empty($options['enable_dashboard_redirects'])) {
             wp_enqueue_script(
                 'tutorpress-override-tutorlms',
                 TUTORPRESS_URL . 'assets/js/override-tutorlms.js',
@@ -90,6 +90,7 @@ class TutorPress_Scripts {
         
         wp_localize_script('tutorpress-override-tutorlms', 'TutorPressData', [
             'enableSidebarTabs' => !empty($options['enable_sidebar_tabs']),
+            'enableDashboardRedirects' => !empty($options['enable_dashboard_redirects']),
             'adminUrl' => admin_url(),
         ]);
     }

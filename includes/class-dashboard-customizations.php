@@ -8,7 +8,14 @@ defined( 'ABSPATH' ) || exit;
 class TutorPress_Dashboard_Customizations {
 
     public static function init() {
+        $options = get_option('tutorpress_settings', []);
+        
         add_filter('tutor_dashboard/instructor_nav_items', [__CLASS__, 'add_extra_dashboard_links']);
+        
+        if (!isset($options['enable_dashboard_redirects']) || !$options['enable_dashboard_redirects']) {
+            return;
+        }
+        
         add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
     }
 
