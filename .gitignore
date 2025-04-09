@@ -3,3 +3,8 @@
 
 # Ignore IDE/editor specific files
 .vscode/
+
+# Ignore IDE files and memory bank directories
+.cursor/
+memory-bank/
+tutor-master/
