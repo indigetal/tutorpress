@@ -1,0 +1,24 @@
+{
+  "name": "tutorpress",
+  "version": "0.1.0",
+  "description": "TutorPress is a comprehensive solution for Tutor LMS that extends the WordPress editor with advanced Gutenberg functionalities. It includes the innovative Course Curriculum metabox and is designed to evolve with additional features for enhanced course management, enrollment, and content delivery.",
+  "main": "index.js",
+  "scripts": {
+    "start": "wp-scripts start",
+    "build": "wp-scripts build"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^26.0.0",
+    "typescript": "^5.8.0",
+    "ts-loader": "^9.0.0"
+  },
+  "dependencies": {
+    "@wordpress/components": "^29.5.0",
+    "@wordpress/element": "^5.24.0",
+    "@wordpress/i18n": "^4.47.0",
+    "@wordpress/data": "^9.24.0",
+    "@wordpress/api-fetch": "^6.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

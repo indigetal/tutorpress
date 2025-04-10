@@ -8,3 +8,6 @@
 .cursor/
 memory-bank/
 tutor-master/
+
+node_modules/
+src/
