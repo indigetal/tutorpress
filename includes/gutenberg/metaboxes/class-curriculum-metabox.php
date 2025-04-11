@@ -8,26 +8,43 @@
  * provided via React/TypeScript.
  *
  * @package TutorPress
+ * @since 0.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly.
 }
 
+/**
+ * Curriculum_Metabox class.
+ *
+ * @since 0.1.0
+ */
 class Curriculum_Metabox {
+
+    /**
+     * The nonce action for the metabox.
+     *
+     * @since 0.1.0
+     * @var string
+     */
+    const NONCE_ACTION = 'tutorpress_curriculum_nonce';
 
     /**
      * Initialize the metabox registration.
      *
+     * @since 0.1.0
      * @return void
      */
     public static function init() {
         add_action( 'add_meta_boxes', array( __CLASS__, 'register_metabox' ) );
+        add_action( 'admin_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_editor_assets' ) );
     }
 
     /**
      * Register the Curriculum Metabox for Courses and Lessons.
      *
+     * @since 0.1.0
      * @return void
      */
     public static function register_metabox() {
@@ -42,32 +59,64 @@ class Curriculum_Metabox {
     }
 
     /**
+     * Conditionally enqueue editor assets when on course or lesson edit screen.
+     *
+     * @since 0.1.0
+     * @param string $hook_suffix The current admin page.
+     * @return void
+     */
+    public static function maybe_enqueue_editor_assets( $hook_suffix ) {
+        if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if ( ! $screen || ! in_array( $screen->post_type, array( 'courses', 'lesson' ), true ) ) {
+            return;
+        }
+
+        // Enqueue is handled in TutorPress_Scripts class
+    }
+
+    /**
      * Display the metabox content.
      * 
      * Renders the PHP-based UI structure that will be enhanced with React/TypeScript
      * for interactive functionality. The display logic is premium-only (controlled via
      * Freemius's @fs_premium_only directory exclusion).
      *
+     * @since 0.1.0
      * @param WP_Post $post Current post object.
      * @return void
      */
     public static function display_metabox( $post ) {
+        wp_nonce_field( self::NONCE_ACTION, 'tutorpress_curriculum_nonce' );
+
+        $post_type_object = get_post_type_object( $post->post_type );
+        if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->edit_post, $post->ID ) ) {
+            return;
+        }
         ?>
         <div 
             id="tutorpress-curriculum-builder" 
             class="tutorpress-curriculum-metabox"
             data-post-id="<?php echo esc_attr( $post->ID ); ?>"
             data-post-type="<?php echo esc_attr( $post->post_type ); ?>"
+            data-nonce="<?php echo esc_attr( wp_create_nonce( self::NONCE_ACTION ) ); ?>"
+            data-rest-url="<?php echo esc_url( get_rest_url() ); ?>"
+            data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
         >
             <div class="tutorpress-curriculum-container">
                 <div class="tutorpress-curriculum-header">
-                    <h2><?php _e( 'Course Curriculum', 'tutorpress' ); ?></h2>
+                    <h2><?php esc_html_e( 'Course Curriculum', 'tutorpress' ); ?></h2>
                     <p class="description">
-                        <?php _e( 'Organize and manage your course curriculum.', 'tutorpress' ); ?>
+                        <?php esc_html_e( 'Organize and manage your course curriculum.', 'tutorpress' ); ?>
                     </p>
                 </div>
                 <div class="tutorpress-curriculum-content">
-                    <div id="tutorpress-curriculum-root"></div>
+                    <div id="tutorpress-curriculum-root">
+                        <?php esc_html_e( 'Loading curriculum builder...', 'tutorpress' ); ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -75,4 +124,5 @@ class Curriculum_Metabox {
     }
 }
 
+// Initialize the class
 Curriculum_Metabox::init();

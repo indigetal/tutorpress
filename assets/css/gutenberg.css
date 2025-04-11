@@ -1,0 +1,80 @@
+/**
+ * TutorPress Gutenberg Styles
+ * Version: 0.1.0
+ */
+
+/**
+ * Course Curriculum Metabox
+ * Basic styles for the curriculum metabox structure.
+ * Using WordPress admin color variables for consistency.
+ */
+.tutorpress-curriculum-metabox {
+  /* Box model */
+  padding: 16px;
+  margin: -6px -12px -12px -12px; /* Adjust for WP metabox padding */
+
+  /* Colors - using WP admin variables */
+  background: var(--wp-admin-theme-color-0, #f0f0f1);
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+}
+
+.tutorpress-curriculum-container {
+  /* Box model */
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.tutorpress-curriculum-header {
+  /* Box model */
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--wp-admin-theme-color-darker-10, #c3c4c7);
+
+  /* Typography */
+  text-align: left;
+}
+
+.tutorpress-curriculum-header h2 {
+  /* Typography */
+  margin: 0 0 8px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--wp-admin-theme-color-darker-20, #1e1e1e);
+}
+
+.tutorpress-curriculum-header .description {
+  /* Typography */
+  margin: 0;
+  font-size: 13px;
+  color: var(--wp-admin-theme-color-darker-10, #50575e);
+}
+
+.tutorpress-curriculum-content {
+  /* Box model */
+  min-height: 100px;
+  padding: 16px;
+  border-radius: 2px;
+
+  /* Colors */
+  background: #fff;
+  border: 1px solid var(--wp-admin-theme-color-darker-10, #c3c4c7);
+}
+
+#tutorpress-curriculum-root {
+  /* Box model */
+  width: 100%;
+  min-height: 50px;
+
+  /* Typography */
+  text-align: center;
+  color: var(--wp-admin-theme-color-darker-10, #50575e);
+}
+
+/* Loading state */
+#tutorpress-curriculum-root:empty::before {
+  content: attr(data-loading);
+  display: block;
+  padding: 20px;
+  color: var(--wp-admin-theme-color-darker-10, #50575e);
+  font-style: italic;
+}
