@@ -1,1 +1,0 @@
-(()=>{"use strict";const e=window.React,t=window.wp.element,n=()=>(0,e.createElement)("div",null,"TypeScript setup successful! Ready for topic implementation.");document.addEventListener("DOMContentLoaded",(()=>{const c=document.getElementById("tutorpress-curriculum-root");c&&(0,t.render)((0,e.createElement)(n,null),c)}))})();
