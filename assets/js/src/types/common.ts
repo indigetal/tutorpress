@@ -9,10 +9,3 @@
 declare module "@wordpress/element" {
   export function render(element: JSX.Element, container: Element | null): void;
 }
-
-// Topic-related types
-export interface Topic {
-  id: number;
-  title: string;
-  isExpanded?: boolean;
-}

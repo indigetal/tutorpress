@@ -107,12 +107,6 @@ class Curriculum_Metabox {
             data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
         >
             <div class="tutorpress-curriculum-container">
-                <div class="tutorpress-curriculum-header">
-                    <h2><?php esc_html_e( 'Course Curriculum', 'tutorpress' ); ?></h2>
-                    <p class="description">
-                        <?php esc_html_e( 'Organize and manage your course curriculum.', 'tutorpress' ); ?>
-                    </p>
-                </div>
                 <div class="tutorpress-curriculum-content">
                     <div id="tutorpress-curriculum-root">
                         <?php esc_html_e( 'Loading curriculum builder...', 'tutorpress' ); ?>

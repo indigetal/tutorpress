@@ -24,41 +24,13 @@
   margin: 0 auto;
 }
 
-.tutorpress-curriculum-header {
-  /* Box model */
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--wp-admin-theme-color-darker-10, #c3c4c7);
-
-  /* Typography */
-  text-align: left;
-}
-
-.tutorpress-curriculum-header h2 {
-  /* Typography */
-  margin: 0 0 8px 0;
-  font-size: 1.3em;
-  font-weight: 600;
-  color: var(--wp-admin-theme-color-darker-20, #1e1e1e);
-}
-
-.tutorpress-curriculum-header .description {
-  /* Typography */
-  margin: 0;
-  font-size: 13px;
-  color: var(--wp-admin-theme-color-darker-10, #50575e);
-}
-
 .tutorpress-curriculum-content {
   /* Box model */
   min-height: 100px;
   padding: 16px;
-  border-radius: 2px;
 
   /* Colors */
   background: #fff;
-  border: 1px solid var(--wp-admin-theme-color-darker-10, #c3c4c7);
-}
 
 #tutorpress-curriculum-root {
   /* Box model */
