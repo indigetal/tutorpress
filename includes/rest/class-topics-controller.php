@@ -119,6 +119,46 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 ],
             ]
         );
+
+        // Reorder topics
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/reorder',
+            [
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'callback'            => [$this, 'reorder_items'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'course_id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the course to reorder topics in.', 'tutorpress'),
+                        ],
+                        'topic_orders' => [
+                            'required'          => true,
+                            'type'             => 'array',
+                            'items'            => [
+                                'type'       => 'object',
+                                'required'   => ['id', 'order'],
+                                'properties' => [
+                                    'id'    => [
+                                        'type'    => 'integer',
+                                        'minimum' => 1,
+                                    ],
+                                    'order' => [
+                                        'type'    => 'integer',
+                                        'minimum' => 0,
+                                    ],
+                                ],
+                            ],
+                            'description'       => __('Array of topic IDs and their new order positions.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
@@ -460,6 +500,117 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
         } catch (Exception $e) {
             return new WP_Error(
                 'topic_deletion_error',
+                $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Reorder topics within a course.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function reorder_items($request) {
+        try {
+            global $wpdb;
+
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $course_id = $request->get_param('course_id');
+            $topic_orders = $request->get_param('topic_orders');
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Start transaction
+            $wpdb->query('START TRANSACTION');
+
+            try {
+                // Update each topic's menu_order
+                foreach ($topic_orders as $topic_order) {
+                    $topic_id = $topic_order['id'];
+                    $order = $topic_order['order'];
+
+                    // Verify topic belongs to course
+                    $topic = get_post($topic_id);
+                    if (!$topic || $topic->post_type !== 'topics' || $topic->post_parent != $course_id) {
+                        throw new Exception(
+                            sprintf(
+                                __('Topic %d does not belong to course %d.', 'tutorpress'),
+                                $topic_id,
+                                $course_id
+                            )
+                        );
+                    }
+
+                    // Update menu_order
+                    $result = $wpdb->update(
+                        $wpdb->posts,
+                        ['menu_order' => $order],
+                        ['ID' => $topic_id]
+                    );
+
+                    if ($result === false) {
+                        throw new Exception(
+                            sprintf(
+                                __('Failed to update order for topic %d.', 'tutorpress'),
+                                $topic_id
+                            )
+                        );
+                    }
+                }
+
+                // Commit transaction
+                $wpdb->query('COMMIT');
+
+                // Get updated topics
+                $topics = get_posts([
+                    'post_type'      => 'topics',
+                    'post_parent'    => $course_id,
+                    'posts_per_page' => -1,
+                    'orderby'        => 'menu_order',
+                    'order'          => 'ASC',
+                    'post_status'    => ['publish', 'draft', 'private'],
+                ]);
+
+                // Format topics for response
+                $formatted_topics = array_map(function($topic) {
+                    return [
+                        'id'         => $topic->ID,
+                        'title'      => $topic->post_title,
+                        'content'    => $topic->post_content,
+                        'menu_order' => (int) $topic->menu_order,
+                        'status'     => $topic->post_status,
+                        'contents'   => $this->get_topic_contents($topic->ID),
+                    ];
+                }, $topics);
+
+                return rest_ensure_response(
+                    $this->format_response(
+                        $formatted_topics,
+                        __('Topics reordered successfully.', 'tutorpress')
+                    )
+                );
+
+            } catch (Exception $e) {
+                // Rollback transaction on error
+                $wpdb->query('ROLLBACK');
+                throw $e;
+            }
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'topics_reorder_error',
                 $e->getMessage(),
                 ['status' => 500]
             );

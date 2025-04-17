@@ -8,7 +8,6 @@ import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup 
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import type { Topic, ContentItem, ApiResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
-import { getTopics } from "../../api/topics";
 import apiFetch from "@wordpress/api-fetch";
 
 /**
@@ -95,29 +94,59 @@ const TopicSection: React.FC<{ topic: Topic }> = ({ topic }) => (
  */
 const Curriculum: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
   // Get the current course ID from the URL
   const courseId = new URLSearchParams(window.location.search).get("post");
 
-  // We'll use this structure for the reorder endpoint testing
-  const testReorderTopics = async () => {
-    // TODO: Implement reorder testing when endpoint is ready
-  };
+  // Fetch topics when component mounts
+  React.useEffect(() => {
+    const fetchTopics = async () => {
+      if (!courseId) return;
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await apiFetch<ApiResponse<Topic[]>>({
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        });
+
+        if (response?.data) {
+          setTopics(response.data);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch topics");
+        console.error("Error fetching topics:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTopics();
+  }, [courseId]);
+
+  if (!courseId) {
+    return <div>No course ID found</div>;
+  }
 
   return (
     <div className="tutorpress-curriculum">
+      {error && (
+        <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
+          {error}
+        </div>
+      )}
+
       <div style={{ textAlign: "left" }}>
-        <Button variant="secondary" className="tutorpress-add-topic" icon={plus}>
+        <Button variant="secondary" className="tutorpress-add-topic" icon={plus} disabled={isLoading}>
           Add Topic
         </Button>
-        {process.env.NODE_ENV === "development" && (
-          <div style={{ marginTop: "10px" }}>
-            <ButtonGroup>
-              <Button variant="secondary" onClick={testReorderTopics} disabled={isLoading}>
-                {__("Test: Reorder Topics", "tutorpress")}
-              </Button>
-            </ButtonGroup>
-          </div>
-        )}
+
+        {topics.map((topic) => (
+          <TopicSection key={topic.id} topic={topic} />
+        ))}
       </div>
     </div>
   );
