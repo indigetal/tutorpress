@@ -25,8 +25,14 @@ require_once TUTORPRESS_PATH . 'includes/class-admin-customizations.php';
 require_once TUTORPRESS_PATH . 'includes/class-dashboard-customizations.php';
 require_once TUTORPRESS_PATH . 'includes/class-sidebar-tabs.php';
 require_once TUTORPRESS_PATH . 'includes/class-scripts.php';
+require_once TUTORPRESS_PATH . 'includes/class-rest.php';
 
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
+
+// Initialize REST API early
+add_action('init', function() {
+    new TutorPress_REST();
+});
 
 // Initialize classes when Tutor LMS is fully loaded.
 add_action('tutor_loaded', function () {
