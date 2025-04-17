@@ -1,4 +1,6 @@
 import apiFetch from "@wordpress/api-fetch";
+import { Topic } from "../types/courses";
+import { TutorResponse, TopicResponse, transformTopicResponse } from "../types/api";
 
 /**
  * Topic content item interface
@@ -24,32 +26,30 @@ export interface TopicData {
 }
 
 /**
- * API response interface
+ * Topic reorder request interface
  */
-interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
+interface TopicReorderRequest {
+  course_id: number;
+  topic_orders: Array<{
+    id: number;
+    order: number;
+  }>;
 }
 
 /**
  * Get topics for a course
- *
- * @param courseId The ID of the course to get topics for
- * @returns Promise resolving to an array of topics
- * @throws Error if the request fails
  */
-export const getTopics = async (courseId: number): Promise<TopicData[]> => {
+export const getTopics = async (courseId: number): Promise<Topic[]> => {
   try {
-    const response = await apiFetch<ApiResponse<TopicData[]>>({
+    const response = await apiFetch<TutorResponse<TopicResponse[]>>({
       path: `/tutorpress/v1/topics?course_id=${courseId}`,
     });
 
-    if (!response.success) {
+    if (response.status_code !== 200) {
       throw new Error(response.message);
     }
 
-    return response.data;
+    return response.data.map(transformTopicResponse);
   } catch (error) {
     console.error("Error fetching topics:", error);
     throw error;
@@ -57,38 +57,36 @@ export const getTopics = async (courseId: number): Promise<TopicData[]> => {
 };
 
 /**
- * Test function to debug the topics endpoint in browser console
- * Usage: window.testTopicsEndpoint(courseId)
+ * Reorder topics in a course
+ *
+ * @param courseId The ID of the course containing the topics
+ * @param topicOrders Array of topic IDs and their new order positions
+ * @returns Promise resolving to the updated array of topics
+ * @throws Error if the request fails
  */
-declare global {
-  interface Window {
-    testTopicsEndpoint: (courseId: number) => Promise<void>;
-  }
-}
-
-window.testTopicsEndpoint = async (courseId: number) => {
-  console.log(`Testing topics endpoint for course ID: ${courseId}`);
+export const reorderTopics = async (
+  courseId: number,
+  topicOrders: Array<{ id: number; order: number }>
+): Promise<TopicData[]> => {
   try {
-    const topics = await getTopics(courseId);
-    console.log("Success! Topics retrieved:", topics);
+    const payload: TopicReorderRequest = {
+      course_id: courseId,
+      topic_orders: topicOrders,
+    };
 
-    // Log some helpful statistics
-    console.log("\nSummary:");
-    console.log(`Total topics: ${topics.length}`);
-    console.log("Topics with content:", topics.filter((t) => t.contents.length > 0).length);
-    console.log(
-      "Content items by type:",
-      topics.reduce(
-        (acc, topic) => {
-          topic.contents.forEach((item) => {
-            acc[item.type] = (acc[item.type] || 0) + 1;
-          });
-          return acc;
-        },
-        {} as Record<string, number>
-      )
-    );
+    const response = await apiFetch<TutorResponse<TopicData[]>>({
+      path: "/tutorpress/v1/topics/reorder",
+      method: "POST",
+      data: payload,
+    });
+
+    if (response.status_code !== 200) {
+      throw new Error(response.message);
+    }
+
+    return response.data;
   } catch (error) {
-    console.error("Test failed:", error);
+    console.error("Error reordering topics:", error);
+    throw error;
   }
 };

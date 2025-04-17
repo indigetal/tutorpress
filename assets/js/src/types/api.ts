@@ -1,36 +1,98 @@
 /**
- * API Response Types
+ * API-related type definitions
+ *
+ * Contains types specific to API responses and requests for TutorPress.
  */
 
+import { BaseCourse, BaseTopic, BaseContentItem, Topic, ContentItem, Course } from "./courses";
+
 /**
- * Generic API Response interface
+ * Generic response type for TutorPress API endpoints
  */
-export interface ApiResponse<T> {
-  success: boolean;
+export interface TutorResponse<T> {
+  status_code: number;
   message: string;
   data: T;
 }
 
 /**
- * Topic Response interface
+ * API-specific Types
  */
-export interface Topic {
-  id: number;
-  title: string;
-  content: string;
-  menu_order: number;
-  status: string;
-  contents: ContentItem[];
-  isCollapsed?: boolean; // Optional UI state property
+
+/**
+ * API response for a topic
+ */
+export interface TopicResponse extends BaseTopic {
+  course_id: number;
+  content_items: BaseContentItem[];
+  order: number;
 }
 
 /**
- * Content Item Response interface
+ * API response for a course with topics
  */
-export interface ContentItem {
-  id: number;
-  title: string;
-  type: "lesson" | "quiz" | "interactive_quiz" | "assignment" | "meet_lesson" | "zoom_lesson";
-  menu_order: number;
-  status: string;
+export interface CourseResponse extends BaseCourse {
+  topics: TopicResponse[];
 }
+
+/**
+ * API request types
+ */
+
+/**
+ * Request body for creating/updating a topic
+ */
+export interface TopicRequest {
+  title: string;
+  course_id: number;
+  order?: number;
+}
+
+/**
+ * Request body for updating topic order
+ */
+export interface UpdateTopicOrderRequest {
+  course_id: number;
+  topics: {
+    topic_id: number;
+    order: number;
+  }[];
+}
+
+/**
+ * Request body for updating content order
+ */
+export interface UpdateContentOrderRequest {
+  topic_id: number;
+  contents: {
+    content_id: number;
+    order: number;
+  }[];
+}
+
+/**
+ * Type transformation utilities
+ */
+
+/**
+ * Transform a TopicResponse to a Topic (UI format)
+ */
+export const transformTopicResponse = (response: TopicResponse): Topic => ({
+  ...response,
+  isCollapsed: false,
+  contents: response.content_items.map(
+    (item): ContentItem => ({
+      ...item,
+      topic_id: response.id,
+      order: 0, // Default order, should be updated from API
+    })
+  ),
+});
+
+/**
+ * Transform a CourseResponse to a Course (UI format)
+ */
+export const transformCourseResponse = (response: CourseResponse): Course => ({
+  ...response,
+  topics: response.topics.map(transformTopicResponse),
+});

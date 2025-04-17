@@ -6,7 +6,8 @@
 import React, { useState } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup } from "@wordpress/components";
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
-import type { Topic, ContentItem, ApiResponse } from "../../types/api";
+import type { Topic, ContentItem } from "../../types/courses";
+import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 
@@ -108,13 +109,15 @@ const Curriculum: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await apiFetch<ApiResponse<Topic[]>>({
+        const response = await apiFetch<TutorResponse<Topic[]>>({
           path: `/tutorpress/v1/topics?course_id=${courseId}`,
           method: "GET",
         });
 
-        if (response?.data) {
+        if (response.status_code === 200) {
           setTopics(response.data);
+        } else {
+          throw new Error(response.message);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch topics");
