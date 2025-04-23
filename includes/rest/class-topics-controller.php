@@ -10,12 +10,6 @@
 
 defined('ABSPATH') || exit;
 
-// Import WordPress REST dependencies
-use WP_REST_Server;
-use WP_REST_Request;
-use WP_REST_Response;
-use WP_Error;
-
 class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
 
     /**

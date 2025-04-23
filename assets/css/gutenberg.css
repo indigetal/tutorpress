@@ -84,3 +84,69 @@
 .tutorpress-add-topic {
   margin-top: 8px;
 }
+
+.tutorpress-topics-list {
+  position: relative;
+}
+
+.tutorpress-topic-wrapper {
+  position: relative;
+}
+
+.tutorpress-topic-wrapper.show-indicator::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--wp-admin-theme-color);
+}
+
+.tutorpress-topic-wrapper.show-indicator::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--wp-admin-theme-color);
+}
+
+.tutorpress-topic-wrapper.last-topic.show-indicator::before {
+  top: auto;
+  bottom: 0;
+}
+
+.tutorpress-topic-wrapper.last-topic.show-indicator::after {
+  top: auto;
+  bottom: 0;
+}
+
+/* Sortable Topic Styles */
+.tutorpress-sortable-topic {
+  position: relative;
+  margin-bottom: 16px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.tutorpress-sortable-topic--dragging {
+  z-index: 1000;
+}
+
+.tutorpress-sortable-topic--dragging .tutorpress-topic {
+  opacity: 0.8;
+  background: var(--wp-admin-theme-color-darker-10);
+  border-color: var(--wp-admin-theme-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Remove conflicting styles */
+.tutorpress-topic-placeholder,
+.tutorpress-drag-overlay,
+.tutorpress-drop-bar,
+.tutorpress-topic--placeholder {
+  display: none;
+}
