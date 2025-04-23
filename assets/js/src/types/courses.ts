@@ -78,3 +78,31 @@ export interface ContentOrder {
   topic_id: number;
   order: number;
 }
+
+/**
+ * Drag and Drop Types
+ */
+
+/**
+ * Props for drag handle elements
+ */
+export interface DragHandleProps {
+  ref: (element: HTMLElement | null) => void;
+  style?: React.CSSProperties;
+  [key: string]: any;
+}
+
+/**
+ * Props for sortable topic components
+ */
+export interface SortableTopicProps {
+  topic: Topic;
+}
+
+/**
+ * Props for topic section components
+ */
+export interface TopicSectionProps {
+  topic: Topic;
+  dragHandleProps?: DragHandleProps;
+}

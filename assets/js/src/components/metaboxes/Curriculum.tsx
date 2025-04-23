@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup } from "@wordpress/components";
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
-import type { Topic, ContentItem } from "../../types/courses";
+import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
 import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
@@ -53,7 +53,7 @@ const ContentItemRow: React.FC<{ item: ContentItem }> = ({ item }) => (
 /**
  * Renders a topic section with its content items and accepts drag handle props
  */
-const TopicSection: React.FC<{ topic: Topic; dragHandleProps?: any }> = ({ topic, dragHandleProps }) => (
+const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }) => (
   <Card className="tutorpress-topic">
     <CardHeader>
       <Flex align="center" gap={2}>
@@ -94,17 +94,13 @@ const TopicSection: React.FC<{ topic: Topic; dragHandleProps?: any }> = ({ topic
   </Card>
 );
 
-interface SortableTopicProps {
-  topic: Topic;
-}
 /**
  * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
  * to apply pure-CSS placeholder and dragging styles.
  */
 const SortableTopic: React.FC<SortableTopicProps> = ({ topic }) => {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: topic.id,
-  });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging, isOver } =
+    useSortable({ id: topic.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
