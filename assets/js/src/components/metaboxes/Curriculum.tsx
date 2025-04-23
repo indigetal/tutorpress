@@ -10,7 +10,7 @@ import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSect
 import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
-import type { DragEndEvent } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -166,41 +166,59 @@ const Curriculum: React.FC = () => {
   }, [courseId]);
 
   /** Handle drag start: track active item */
-  const handleDragStart = ({ active }: { active: { id: number } }) => {
-    setActiveId(active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(Number(event.active.id));
   };
 
   /** Handle drag over: track item being dragged over */
-  const handleDragOver = ({ over }: { over: { id: number } | null }) => {
-    setOverId(over?.id ?? null);
+  const handleDragOver = (event: DragOverEvent) => {
+    setOverId(event.over ? Number(event.over.id) : null);
   };
 
   /** Handle drag end: reorder topics via API */
-  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
+    // Clear drag states immediately
     setActiveId(null);
     setOverId(null);
 
-    if (!over) return;
-    const activeId = active.id as number;
-    const dropId = over.id as number;
-    if (activeId === dropId) return;
+    if (!event.over || !courseId) return;
+
+    const activeId = Number(event.active.id);
+    const dropId = Number(event.over.id);
+
+    if (activeId === dropId || isNaN(activeId) || isNaN(dropId)) return;
+
     const oldIndex = topics.findIndex((t) => t.id === activeId);
     const newIndex = topics.findIndex((t) => t.id === dropId);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
     const newOrder = arrayMove(topics, oldIndex, newIndex);
     const snapshot = topics;
     setTopics(newOrder);
+
     try {
       const res = await apiFetch<{ success: boolean; message: string; data: any }>({
         path: `/tutorpress/v1/topics/reorder`,
         method: "POST",
-        data: { course_id: Number(courseId), topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })) },
+        data: {
+          course_id: Number(courseId),
+          topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
+        },
       });
+
       if (!res.success) throw new Error(res.message);
     } catch (err) {
       console.error("Error reordering topics:", err);
       setError(err instanceof Error ? err.message : "Failed to reorder topics");
       setTopics(snapshot);
     }
+  };
+
+  /** Handle drag cancel: clean up states */
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
   };
 
   if (!courseId) {
@@ -225,6 +243,7 @@ const Curriculum: React.FC = () => {
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <SortableContext items={topics.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             <div className="tutorpress-topics-list">
