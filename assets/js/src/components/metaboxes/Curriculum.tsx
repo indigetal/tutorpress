@@ -27,39 +27,86 @@ const contentTypeIcons = {
   zoom_lesson: "video-alt3",
 } as const;
 
+/** Props for action buttons */
+interface ActionButtonsProps {
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+}
+
+/** Props for content item row */
+interface ContentItemRowProps {
+  item: ContentItem;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+}
+
+/** Props for sortable topic wrapper */
+interface SortableTopicWrapperProps {
+  topic: Topic;
+  isActive: boolean;
+  isOver: boolean;
+}
+
+/** API response type for topic operations */
+interface TopicApiResponse {
+  success: boolean;
+  message: string;
+  data: Topic[];
+}
+
+/** API response type for reordering */
+interface ReorderApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    orders: Array<{
+      topic_id: number;
+      order: number;
+    }>;
+  };
+}
+
 /**
  * Action buttons for items and topics
  */
-const ActionButtons: React.FC = (): JSX.Element => (
+const ActionButtons: React.FC<ActionButtonsProps> = ({ onEdit, onDuplicate, onDelete }): JSX.Element => (
   <Flex gap={1} justify="flex-end" style={{ width: "auto" }}>
-    <Button icon={edit} label="Edit" isSmall />
-    <Button icon={copy} label="Duplicate" isSmall />
-    <Button icon={trash} label="Delete" isSmall />
+    <Button icon={edit} label="Edit" isSmall onClick={onEdit} />
+    <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />
+    <Button icon={trash} label="Delete" isSmall onClick={onDelete} />
   </Flex>
 );
 
 /**
  * Renders a single content item
  */
-const ContentItemRow: React.FC<{ item: ContentItem }> = ({ item }): JSX.Element => (
+const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplicate, onDelete }): JSX.Element => (
   <Flex className="tutorpress-content-item" align="center" gap={2}>
     <Button icon={dragHandle} label="Drag to reorder" isSmall />
     <Icon icon={contentTypeIcons[item.type]} />
     <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
-    <ActionButtons />
+    <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
   </Flex>
 );
 
 /**
  * Renders a topic section with its content items and accepts drag handle props
  */
-const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }): JSX.Element => (
+const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
+  topic,
+  dragHandleProps,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}): JSX.Element => (
   <Card className="tutorpress-topic">
     <CardHeader>
       <Flex align="center" gap={2}>
         <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
         <FlexBlock style={{ textAlign: "left" }}>{topic.title}</FlexBlock>
-        <ActionButtons />
+        <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
         <Button
           icon={topic.isCollapsed ? chevronRight : chevronDown}
           label={topic.isCollapsed ? "Expand" : "Collapse"}
@@ -70,7 +117,13 @@ const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }): 
     <CardBody>
       <div className="tutorpress-content-items">
         {topic.contents.map((item) => (
-          <ContentItemRow key={item.id} item={item} />
+          <ContentItemRow
+            key={item.id}
+            item={item}
+            onEdit={() => console.log("Edit content:", item.id)}
+            onDuplicate={() => console.log("Duplicate content:", item.id)}
+            onDelete={() => console.log("Delete content:", item.id)}
+          />
         ))}
       </div>
       <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
@@ -98,7 +151,12 @@ const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }): 
  * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
  * to apply pure-CSS placeholder and dragging styles.
  */
-const SortableTopic: React.FC<SortableTopicProps> = ({ topic }): JSX.Element => {
+const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
+  topic,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}): JSX.Element => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging, isOver } =
     useSortable({ id: topic.id });
 
@@ -115,7 +173,13 @@ const SortableTopic: React.FC<SortableTopicProps> = ({ topic }): JSX.Element => 
 
   return (
     <div ref={setNodeRef} className={classNames} style={style}>
-      <TopicSection topic={topic} dragHandleProps={{ ...attributes, ...listeners, ref: setActivatorNodeRef }} />
+      <TopicSection
+        topic={topic}
+        dragHandleProps={{ ...attributes, ...listeners, ref: setActivatorNodeRef }}
+        onEdit={onEdit}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />
     </div>
   );
 };
@@ -144,7 +208,7 @@ const Curriculum: React.FC = (): JSX.Element => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await apiFetch<{ success: boolean; message: string; data: Topic[] }>({
+        const response = await apiFetch<TopicApiResponse>({
           path: `/tutorpress/v1/topics?course_id=${courseId}`,
           method: "GET",
         });
@@ -198,7 +262,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     setTopics(newOrder);
 
     try {
-      const res = await apiFetch<{ success: boolean; message: string; data: any }>({
+      const res = await apiFetch<ReorderApiResponse>({
         path: `/tutorpress/v1/topics/reorder`,
         method: "POST",
         data: {
@@ -250,11 +314,14 @@ const Curriculum: React.FC = (): JSX.Element => {
               {topics.map((topic) => (
                 <div
                   key={topic.id}
-                  className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""} ${
-                    topic.id === topics[topics.length - 1].id ? "last-topic" : ""
-                  }`}
+                  className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
                 >
-                  <SortableTopic topic={topic} />
+                  <SortableTopic
+                    topic={topic}
+                    onEdit={() => console.log("Edit topic:", topic.id)}
+                    onDuplicate={() => console.log("Duplicate topic:", topic.id)}
+                    onDelete={() => console.log("Delete topic:", topic.id)}
+                  />
                 </div>
               ))}
             </div>
