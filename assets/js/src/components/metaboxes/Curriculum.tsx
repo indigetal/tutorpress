@@ -3,7 +3,7 @@
  *
  * Implements the curriculum builder UI using WordPress components.
  */
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup } from "@wordpress/components";
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
@@ -224,6 +224,9 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Configure pointer sensor for immediate drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
 
+  // Memoize topic IDs array to prevent unnecessary recalculations
+  const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
+
   // Fetch topics on mount
   React.useEffect(() => {
     const fetchTopics = async (): Promise<void> => {
@@ -378,7 +381,7 @@ const Curriculum: React.FC = (): JSX.Element => {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <SortableContext items={topics.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={topicIds} strategy={verticalListSortingStrategy}>
             <div className="tutorpress-topics-list">
               {topics.map((topic) => (
                 <div
