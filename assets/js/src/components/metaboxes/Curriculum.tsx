@@ -30,7 +30,7 @@ const contentTypeIcons = {
 /**
  * Action buttons for items and topics
  */
-const ActionButtons: React.FC = () => (
+const ActionButtons: React.FC = (): JSX.Element => (
   <Flex gap={1} justify="flex-end" style={{ width: "auto" }}>
     <Button icon={edit} label="Edit" isSmall />
     <Button icon={copy} label="Duplicate" isSmall />
@@ -41,7 +41,7 @@ const ActionButtons: React.FC = () => (
 /**
  * Renders a single content item
  */
-const ContentItemRow: React.FC<{ item: ContentItem }> = ({ item }) => (
+const ContentItemRow: React.FC<{ item: ContentItem }> = ({ item }): JSX.Element => (
   <Flex className="tutorpress-content-item" align="center" gap={2}>
     <Button icon={dragHandle} label="Drag to reorder" isSmall />
     <Icon icon={contentTypeIcons[item.type]} />
@@ -53,7 +53,7 @@ const ContentItemRow: React.FC<{ item: ContentItem }> = ({ item }) => (
 /**
  * Renders a topic section with its content items and accepts drag handle props
  */
-const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }) => (
+const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }): JSX.Element => (
   <Card className="tutorpress-topic">
     <CardHeader>
       <Flex align="center" gap={2}>
@@ -98,7 +98,7 @@ const TopicSection: React.FC<TopicSectionProps> = ({ topic, dragHandleProps }) =
  * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
  * to apply pure-CSS placeholder and dragging styles.
  */
-const SortableTopic: React.FC<SortableTopicProps> = ({ topic }) => {
+const SortableTopic: React.FC<SortableTopicProps> = ({ topic }): JSX.Element => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging, isOver } =
     useSortable({ id: topic.id });
 
@@ -123,7 +123,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({ topic }) => {
 /**
  * Main Curriculum component
  */
-const Curriculum: React.FC = () => {
+const Curriculum: React.FC = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +138,7 @@ const Curriculum: React.FC = () => {
 
   // Fetch topics on mount
   React.useEffect(() => {
-    const fetchTopics = async () => {
+    const fetchTopics = async (): Promise<void> => {
       if (!courseId) return;
 
       setIsLoading(true);
@@ -166,17 +166,17 @@ const Curriculum: React.FC = () => {
   }, [courseId]);
 
   /** Handle drag start: track active item */
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = (event: DragStartEvent): void => {
     setActiveId(Number(event.active.id));
   };
 
   /** Handle drag over: track item being dragged over */
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = (event: DragOverEvent): void => {
     setOverId(event.over ? Number(event.over.id) : null);
   };
 
   /** Handle drag end: reorder topics via API */
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
     // Clear drag states immediately
     setActiveId(null);
     setOverId(null);
@@ -216,7 +216,7 @@ const Curriculum: React.FC = () => {
   };
 
   /** Handle drag cancel: clean up states */
-  const handleDragCancel = () => {
+  const handleDragCancel = (): void => {
     setActiveId(null);
     setOverId(null);
   };
