@@ -49,34 +49,13 @@ interface SortableTopicWrapperProps {
   isOver: boolean;
 }
 
-/** API response type for topic operations */
-interface TopicApiResponse {
-  success: boolean;
-  message: string;
-  data: Topic[];
-}
-
-/** API response type for reordering */
-interface ReorderApiResponse {
-  success: boolean;
-  message: string;
-  data: {
-    orders: Array<{
-      topic_id: number;
-      order: number;
-    }>;
-  };
-}
-
 /** API response status */
 type ApiStatus = "idle" | "loading" | "success" | "error";
 
-/** API error types */
-type ApiErrorType =
-  | { type: "network"; message: string }
-  | { type: "validation"; message: string; field?: string }
-  | { type: "auth"; message: string }
-  | { type: "unknown"; message: string };
+/** API error */
+type ApiErrorType = {
+  message: string;
+};
 
 /** Topic operation state */
 type TopicOperationState =
@@ -91,6 +70,23 @@ type ReorderOperationState =
   | { status: "reordering" }
   | { status: "success" }
   | { status: "error"; error: ApiErrorType };
+
+// Type guard for WP REST API response
+const isWpRestResponse = (response: unknown): response is { success: boolean; message: string; data: unknown } => {
+  return typeof response === "object" && response !== null && "success" in response && "data" in response;
+};
+
+// Topic validation focusing on essential fields
+const isValidTopic = (topic: unknown): topic is Topic => {
+  return (
+    typeof topic === "object" &&
+    topic !== null &&
+    "id" in topic &&
+    "title" in topic &&
+    "contents" in topic &&
+    Array.isArray((topic as Topic).contents)
+  );
+};
 
 /**
  * Action buttons for items and topics
@@ -218,8 +214,12 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
 
-  // Get course ID from URL
-  const courseId = new URLSearchParams(window.location.search).get("post");
+  // Get course ID from URL - simplified as we trust WordPress context
+  const courseId = Number(new URLSearchParams(window.location.search).get("post"));
+
+  if (!courseId) {
+    return <div>{__("Unable to load curriculum - missing course ID", "tutorpress")}</div>;
+  }
 
   // Configure pointer sensor for immediate drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
@@ -227,23 +227,26 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Fetch topics on mount
   React.useEffect(() => {
     const fetchTopics = async (): Promise<void> => {
-      if (!courseId) return;
-
       setOperationState({ status: "loading" });
 
       try {
-        const response = await apiFetch<TopicApiResponse>({
+        const response = await apiFetch<unknown>({
           path: `/tutorpress/v1/topics?course_id=${courseId}`,
           method: "GET",
         });
 
-        if (response.success) {
-          setTopics(response.data);
-          setOperationState({ status: "success", data: response.data });
+        if (!isWpRestResponse(response)) {
+          throw new Error(__("Invalid response from server", "tutorpress"));
+        }
+
+        if (response.success && Array.isArray(response.data)) {
+          const validTopics = response.data.filter(isValidTopic);
+          setTopics(validTopics);
+          setOperationState({ status: "success", data: validTopics });
         } else {
           setOperationState({
             status: "error",
-            error: { type: "validation", message: response.message },
+            error: { message: response.message || __("Failed to load topics", "tutorpress") },
           });
         }
       } catch (err) {
@@ -251,8 +254,7 @@ const Curriculum: React.FC = (): JSX.Element => {
         setOperationState({
           status: "error",
           error: {
-            type: "network",
-            message: err instanceof Error ? err.message : "Failed to fetch topics",
+            message: __("Failed to load topics. Please try again.", "tutorpress"),
           },
         });
       }
@@ -277,12 +279,12 @@ const Curriculum: React.FC = (): JSX.Element => {
     setActiveId(null);
     setOverId(null);
 
-    if (!event.over || !courseId) return;
+    if (!event.over) return;
 
     const activeId = Number(event.active.id);
     const dropId = Number(event.over.id);
 
-    if (activeId === dropId || isNaN(activeId) || isNaN(dropId)) return;
+    if (activeId === dropId) return;
 
     const oldIndex = topics.findIndex((t) => t.id === activeId);
     const newIndex = topics.findIndex((t) => t.id === dropId);
@@ -295,14 +297,18 @@ const Curriculum: React.FC = (): JSX.Element => {
     setReorderState({ status: "reordering" });
 
     try {
-      const res = await apiFetch<ReorderApiResponse>({
+      const res = await apiFetch<unknown>({
         path: `/tutorpress/v1/topics/reorder`,
         method: "POST",
         data: {
-          course_id: Number(courseId),
+          course_id: courseId,
           topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
         },
       });
+
+      if (!isWpRestResponse(res)) {
+        throw new Error(__("Invalid response from server", "tutorpress"));
+      }
 
       if (!res.success) {
         throw new Error(res.message);
@@ -315,8 +321,7 @@ const Curriculum: React.FC = (): JSX.Element => {
       setReorderState({
         status: "error",
         error: {
-          type: "network",
-          message: err instanceof Error ? err.message : "Failed to reorder topics",
+          message: __("Failed to reorder topics. Please try again.", "tutorpress"),
         },
       });
     }
@@ -327,10 +332,6 @@ const Curriculum: React.FC = (): JSX.Element => {
     setActiveId(null);
     setOverId(null);
   };
-
-  if (!courseId) {
-    return <div>No course ID found</div>;
-  }
 
   // Render error state
   if (operationState.status === "error") {
