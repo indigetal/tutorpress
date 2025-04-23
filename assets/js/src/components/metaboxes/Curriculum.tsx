@@ -68,6 +68,30 @@ interface ReorderApiResponse {
   };
 }
 
+/** API response status */
+type ApiStatus = "idle" | "loading" | "success" | "error";
+
+/** API error types */
+type ApiErrorType =
+  | { type: "network"; message: string }
+  | { type: "validation"; message: string; field?: string }
+  | { type: "auth"; message: string }
+  | { type: "unknown"; message: string };
+
+/** Topic operation state */
+type TopicOperationState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: Topic[] }
+  | { status: "error"; error: ApiErrorType };
+
+/** Reorder operation state */
+type ReorderOperationState =
+  | { status: "idle" }
+  | { status: "reordering" }
+  | { status: "success" }
+  | { status: "error"; error: ApiErrorType };
+
 /**
  * Action buttons for items and topics
  */
@@ -188,9 +212,9 @@ const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
  * Main Curriculum component
  */
 const Curriculum: React.FC = (): JSX.Element => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [operationState, setOperationState] = useState<TopicOperationState>({ status: "idle" });
+  const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
 
@@ -205,8 +229,8 @@ const Curriculum: React.FC = (): JSX.Element => {
     const fetchTopics = async (): Promise<void> => {
       if (!courseId) return;
 
-      setIsLoading(true);
-      setError(null);
+      setOperationState({ status: "loading" });
+
       try {
         const response = await apiFetch<TopicApiResponse>({
           path: `/tutorpress/v1/topics?course_id=${courseId}`,
@@ -215,14 +239,22 @@ const Curriculum: React.FC = (): JSX.Element => {
 
         if (response.success) {
           setTopics(response.data);
+          setOperationState({ status: "success", data: response.data });
         } else {
-          throw new Error(response.message);
+          setOperationState({
+            status: "error",
+            error: { type: "validation", message: response.message },
+          });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch topics");
         console.error("Error fetching topics:", err);
-      } finally {
-        setIsLoading(false);
+        setOperationState({
+          status: "error",
+          error: {
+            type: "network",
+            message: err instanceof Error ? err.message : "Failed to fetch topics",
+          },
+        });
       }
     };
 
@@ -260,6 +292,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     const newOrder = arrayMove(topics, oldIndex, newIndex);
     const snapshot = topics;
     setTopics(newOrder);
+    setReorderState({ status: "reordering" });
 
     try {
       const res = await apiFetch<ReorderApiResponse>({
@@ -271,11 +304,21 @@ const Curriculum: React.FC = (): JSX.Element => {
         },
       });
 
-      if (!res.success) throw new Error(res.message);
+      if (!res.success) {
+        throw new Error(res.message);
+      }
+
+      setReorderState({ status: "success" });
     } catch (err) {
       console.error("Error reordering topics:", err);
-      setError(err instanceof Error ? err.message : "Failed to reorder topics");
       setTopics(snapshot);
+      setReorderState({
+        status: "error",
+        error: {
+          type: "network",
+          message: err instanceof Error ? err.message : "Failed to reorder topics",
+        },
+      });
     }
   };
 
@@ -289,16 +332,41 @@ const Curriculum: React.FC = (): JSX.Element => {
     return <div>No course ID found</div>;
   }
 
+  // Render error state
+  if (operationState.status === "error") {
+    return (
+      <div className="tutorpress-curriculum">
+        <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
+          {operationState.error.message}
+        </div>
+      </div>
+    );
+  }
+
+  // Render loading state
+  if (operationState.status === "loading") {
+    return (
+      <div className="tutorpress-curriculum">
+        <div>Loading topics...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="tutorpress-curriculum">
-      {error && (
+      {reorderState.status === "error" && (
         <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-          {error}
+          {reorderState.error.message}
         </div>
       )}
 
       <div style={{ textAlign: "left" }}>
-        <Button variant="secondary" className="tutorpress-add-topic" icon={plus} disabled={isLoading}>
+        <Button
+          variant="secondary"
+          className="tutorpress-add-topic"
+          icon={plus}
+          disabled={["loading", "reordering"].includes(operationState.status) || reorderState.status === "reordering"}
+        >
           Add Topic
         </Button>
 
