@@ -49,27 +49,57 @@ interface SortableTopicWrapperProps {
   isOver: boolean;
 }
 
+/** Error codes for curriculum operations */
+enum CurriculumErrorCode {
+  FETCH_FAILED = "fetch_failed",
+  REORDER_FAILED = "reorder_failed",
+  INVALID_RESPONSE = "invalid_response",
+  SERVER_ERROR = "server_error",
+}
+
+/** Structured error type for curriculum operations */
+interface CurriculumError {
+  code: CurriculumErrorCode;
+  message: string;
+  // Include additional context that might help users or support
+  context?: {
+    action?: string;
+    topicId?: number;
+  };
+}
+
 /** API response status */
 type ApiStatus = "idle" | "loading" | "success" | "error";
 
-/** API error */
-type ApiErrorType = {
-  message: string;
-};
-
-/** Topic operation state */
+/** Topic operation state with structured error */
 type TopicOperationState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "success"; data: Topic[] }
-  | { status: "error"; error: ApiErrorType };
+  | { status: "error"; error: CurriculumError };
 
-/** Reorder operation state */
+/** Reorder operation state with structured error */
 type ReorderOperationState =
   | { status: "idle" }
   | { status: "reordering" }
   | { status: "success" }
-  | { status: "error"; error: ApiErrorType };
+  | { status: "error"; error: CurriculumError };
+
+/** Get user-friendly error message based on error code */
+const getErrorMessage = (error: CurriculumError): string => {
+  switch (error.code) {
+    case CurriculumErrorCode.FETCH_FAILED:
+      return __("Unable to load topics. Please refresh the page to try again.", "tutorpress");
+    case CurriculumErrorCode.REORDER_FAILED:
+      return __("Unable to save topic order. Your changes will be restored.", "tutorpress");
+    case CurriculumErrorCode.INVALID_RESPONSE:
+      return __("Received invalid response from server. Please try again.", "tutorpress");
+    case CurriculumErrorCode.SERVER_ERROR:
+      return __("The server encountered an error. Please try again.", "tutorpress");
+    default:
+      return __("An unexpected error occurred. Please try again.", "tutorpress");
+  }
+};
 
 // Type guard for WP REST API response
 const isWpRestResponse = (response: unknown): response is { success: boolean; message: string; data: unknown } => {
@@ -239,7 +269,10 @@ const Curriculum: React.FC = (): JSX.Element => {
         });
 
         if (!isWpRestResponse(response)) {
-          throw new Error(__("Invalid response from server", "tutorpress"));
+          throw {
+            code: CurriculumErrorCode.INVALID_RESPONSE,
+            message: __("Invalid response format from server", "tutorpress"),
+          };
         }
 
         if (response.success && Array.isArray(response.data)) {
@@ -247,17 +280,19 @@ const Curriculum: React.FC = (): JSX.Element => {
           setTopics(validTopics);
           setOperationState({ status: "success", data: validTopics });
         } else {
-          setOperationState({
-            status: "error",
-            error: { message: response.message || __("Failed to load topics", "tutorpress") },
-          });
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: response.message || __("Server returned an error", "tutorpress"),
+          };
         }
       } catch (err) {
         console.error("Error fetching topics:", err);
         setOperationState({
           status: "error",
           error: {
-            message: __("Failed to load topics. Please try again.", "tutorpress"),
+            code: CurriculumErrorCode.FETCH_FAILED,
+            message: err instanceof Error ? err.message : __("Failed to load topics", "tutorpress"),
+            context: { action: "fetch_topics" },
           },
         });
       }
@@ -311,11 +346,17 @@ const Curriculum: React.FC = (): JSX.Element => {
         });
 
         if (!isWpRestResponse(res)) {
-          throw new Error(__("Invalid response from server", "tutorpress"));
+          throw {
+            code: CurriculumErrorCode.INVALID_RESPONSE,
+            message: __("Invalid response format from server", "tutorpress"),
+          };
         }
 
         if (!res.success) {
-          throw new Error(res.message);
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: res.message || __("Server returned an error", "tutorpress"),
+          };
         }
 
         setReorderState({ status: "success" });
@@ -325,7 +366,12 @@ const Curriculum: React.FC = (): JSX.Element => {
         setReorderState({
           status: "error",
           error: {
-            message: __("Failed to reorder topics. Please try again.", "tutorpress"),
+            code: CurriculumErrorCode.REORDER_FAILED,
+            message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
+            context: {
+              action: "reorder_topics",
+              topicId: activeId,
+            },
           },
         });
       }
@@ -344,7 +390,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     return (
       <div className="tutorpress-curriculum">
         <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-          {operationState.error.message}
+          {getErrorMessage(operationState.error)}
         </div>
       </div>
     );
@@ -363,7 +409,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     <div className="tutorpress-curriculum">
       {reorderState.status === "error" && (
         <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-          {reorderState.error.message}
+          {getErrorMessage(reorderState.error)}
         </div>
       )}
 
