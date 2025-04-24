@@ -4,7 +4,19 @@
  * Implements the curriculum builder UI using WordPress components.
  */
 import React, { useState, useMemo, useCallback } from "react";
-import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup, Spinner } from "@wordpress/components";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Icon,
+  Flex,
+  FlexBlock,
+  ButtonGroup,
+  Spinner,
+  TextControl,
+  TextareaControl,
+} from "@wordpress/components";
 import {
   moreVertical,
   plus,
@@ -112,6 +124,19 @@ interface TopicSectionProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   onToggle?: () => void;
+}
+
+/** Topic form data */
+interface TopicFormData {
+  title: string;
+  summary: string;
+}
+
+/** Topic form props */
+interface TopicFormProps {
+  initialData?: TopicFormData;
+  onSave: (data: TopicFormData) => void;
+  onCancel: () => void;
 }
 
 // ============================================================================
@@ -299,6 +324,54 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
   );
 };
 
+/**
+ * Topic form component for adding/editing topics
+ */
+const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel }): JSX.Element => {
+  const [formData, setFormData] = useState<TopicFormData>({
+    title: initialData?.title ?? "",
+    summary: initialData?.summary ?? "",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <Card className="tutorpress-topic" style={{ boxShadow: "0 0 0 2px #007cba33" }}>
+      <form onSubmit={handleSubmit}>
+        <CardBody>
+          <Flex direction="column" gap={3}>
+            <TextControl
+              label={__("Topic Title", "tutorpress")}
+              placeholder={__("Add title", "tutorpress")}
+              value={formData.title}
+              onChange={(title) => setFormData((prev) => ({ ...prev, title }))}
+              autoFocus
+            />
+            <TextareaControl
+              label={__("Topic Summary", "tutorpress")}
+              placeholder={__("Add summary", "tutorpress")}
+              value={formData.summary}
+              onChange={(summary) => setFormData((prev) => ({ ...prev, summary }))}
+              rows={4}
+            />
+            <Flex justify="flex-end" gap={2}>
+              <Button variant="secondary" onClick={onCancel}>
+                {__("Cancel", "tutorpress")}
+              </Button>
+              <Button variant="primary" type="submit">
+                {__("Save", "tutorpress")}
+              </Button>
+            </Flex>
+          </Flex>
+        </CardBody>
+      </form>
+    </Card>
+  );
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -317,6 +390,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [overId, setOverId] = useState<number | null>(null);
   const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
   const [showError, setShowError] = useState(false);
+  const [isAddingTopic, setIsAddingTopic] = useState(false);
 
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
@@ -502,6 +576,30 @@ const Curriculum: React.FC = (): JSX.Element => {
     );
   }, []);
 
+  /** Handle starting topic addition */
+  const handleAddTopicClick = useCallback(() => {
+    // Close all topics when adding a new one
+    setTopics((currentTopics) =>
+      currentTopics.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }))
+    );
+    setIsAddingTopic(true);
+  }, []);
+
+  /** Handle topic form cancel */
+  const handleTopicFormCancel = useCallback(() => {
+    setIsAddingTopic(false);
+  }, []);
+
+  /** Handle topic form save */
+  const handleTopicFormSave = useCallback((data: TopicFormData) => {
+    console.log("Saving topic:", data);
+    // TODO: Implement API call to save topic
+    setIsAddingTopic(false);
+  }, []);
+
   // =============================
   // Effects
   // =============================
@@ -632,6 +730,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                   </div>
                 ))
               )}
+              {isAddingTopic && <TopicForm onSave={handleTopicFormSave} onCancel={handleTopicFormCancel} />}
             </div>
           </SortableContext>
         </DndContext>
@@ -641,7 +740,12 @@ const Curriculum: React.FC = (): JSX.Element => {
             variant="secondary"
             className="tutorpress-add-topic"
             icon={plus}
-            disabled={["loading", "reordering"].includes(operationState.status) || reorderState.status === "reordering"}
+            onClick={handleAddTopicClick}
+            disabled={
+              ["loading", "reordering"].includes(operationState.status) ||
+              reorderState.status === "reordering" ||
+              isAddingTopic
+            }
           >
             {__("Add Topic", "tutorpress")}
           </Button>
