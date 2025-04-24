@@ -26,17 +26,18 @@ import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-/**
- * Content item icon mapping
- */
-const contentTypeIcons = {
-  lesson: "text-page",
-  quiz: "star-filled",
-  interactive_quiz: "chart-bar",
-  assignment: "clipboard",
-  meet_lesson: "video-alt2",
-  zoom_lesson: "video-alt3",
-} as const;
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Error codes for curriculum operations */
+enum CurriculumErrorCode {
+  FETCH_FAILED = "fetch_failed",
+  REORDER_FAILED = "reorder_failed",
+  INVALID_RESPONSE = "invalid_response",
+  SERVER_ERROR = "server_error",
+  NETWORK_ERROR = "network_error",
+}
 
 /** Props for action buttons */
 interface ActionButtonsProps {
@@ -60,20 +61,10 @@ interface SortableTopicWrapperProps {
   isOver: boolean;
 }
 
-/** Error codes for curriculum operations */
-enum CurriculumErrorCode {
-  FETCH_FAILED = "fetch_failed",
-  REORDER_FAILED = "reorder_failed",
-  INVALID_RESPONSE = "invalid_response",
-  SERVER_ERROR = "server_error",
-  NETWORK_ERROR = "network_error",
-}
-
 /** Structured error type for curriculum operations */
 interface CurriculumError {
   code: CurriculumErrorCode;
   message: string;
-  // Include additional context that might help users or support
   context?: {
     action?: string;
     topicId?: number;
@@ -96,6 +87,40 @@ type ReorderOperationState =
   | { status: "reordering" }
   | { status: "success" }
   | { status: "error"; error: CurriculumError };
+
+/** Snapshot of curriculum state */
+interface CurriculumSnapshot {
+  topics: Topic[];
+  timestamp: number;
+  operation: "reorder" | "edit" | "delete";
+}
+
+/** Operation result type */
+type OperationResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: CurriculumError;
+};
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Content item icon mapping
+ */
+const contentTypeIcons = {
+  lesson: "text-page",
+  quiz: "star-filled",
+  interactive_quiz: "chart-bar",
+  assignment: "clipboard",
+  meet_lesson: "video-alt2",
+  zoom_lesson: "video-alt3",
+} as const;
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
 /** Get user-friendly error message based on error code */
 const getErrorMessage = (error: CurriculumError): string => {
@@ -134,6 +159,10 @@ const isValidTopic = (topic: unknown): topic is Topic => {
     Array.isArray((topic as Topic).contents)
   );
 };
+
+// ============================================================================
+// Sub-Components
+// ============================================================================
 
 /**
  * Action buttons for items and topics
@@ -224,8 +253,9 @@ const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
   onDuplicate,
   onDelete,
 }): JSX.Element => {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging, isOver } =
-    useSortable({ id: topic.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: topic.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -251,24 +281,17 @@ const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
   );
 };
 
-/** Snapshot of curriculum state */
-interface CurriculumSnapshot {
-  topics: Topic[];
-  timestamp: number;
-  operation: "reorder" | "edit" | "delete";
-}
-
-/** Operation result type */
-type OperationResult<T> = {
-  success: boolean;
-  data?: T;
-  error?: CurriculumError;
-};
+// ============================================================================
+// Main Component
+// ============================================================================
 
 /**
  * Main Curriculum component
  */
 const Curriculum: React.FC = (): JSX.Element => {
+  // =============================
+  // State
+  // =============================
   const [operationState, setOperationState] = useState<TopicOperationState>({ status: "idle" });
   const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -280,59 +303,15 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
 
-  if (!courseId) {
-    return <div>{__("Unable to load curriculum - missing course ID", "tutorpress")}</div>;
-  }
-
   // Configure pointer sensor for immediate drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
 
   // Memoize topic IDs array to prevent unnecessary recalculations
   const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
 
-  // Fetch topics on mount
-  React.useEffect(() => {
-    const fetchTopics = async (): Promise<void> => {
-      setOperationState({ status: "loading" });
-
-      try {
-        const response = await apiFetch<unknown>({
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        });
-
-        if (!isWpRestResponse(response)) {
-          throw {
-            code: CurriculumErrorCode.INVALID_RESPONSE,
-            message: __("Invalid response format from server", "tutorpress"),
-          };
-        }
-
-        if (response.success && Array.isArray(response.data)) {
-          const validTopics = response.data.filter(isValidTopic);
-          setTopics(validTopics);
-          setOperationState({ status: "success", data: validTopics });
-        } else {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: response.message || __("Server returned an error", "tutorpress"),
-          };
-        }
-      } catch (err) {
-        console.error("Error fetching topics:", err);
-        setOperationState({
-          status: "error",
-          error: {
-            code: CurriculumErrorCode.FETCH_FAILED,
-            message: err instanceof Error ? err.message : __("Failed to load topics", "tutorpress"),
-            context: { action: "fetch_topics" },
-          },
-        });
-      }
-    };
-
-    fetchTopics();
-  }, [courseId]);
+  // =============================
+  // Callbacks
+  // =============================
 
   /** Create a snapshot of current state */
   const createSnapshot = useCallback(
@@ -366,6 +345,11 @@ const Curriculum: React.FC = (): JSX.Element => {
     }
   }, []);
 
+  /** Handle error dismissal */
+  const handleDismissError = useCallback(() => {
+    setShowError(false);
+  }, []);
+
   /** Retry last failed operation */
   const retryOperation = useCallback(async () => {
     if (!snapshot) return;
@@ -374,12 +358,16 @@ const Curriculum: React.FC = (): JSX.Element => {
 
     switch (snapshot.operation) {
       case "reorder":
-        // Retry reordering with current topic order
         await handleReorderTopics(topics);
         break;
-      // Add cases for other operations as they're implemented
     }
   }, [snapshot, topics, clearErrors]);
+
+  /** Clear error on successful retry */
+  const handleRetry = useCallback(async () => {
+    await retryOperation();
+    setShowError(false);
+  }, [retryOperation]);
 
   /** Handle topic reordering */
   const handleReorderTopics = async (newOrder: Topic[]): Promise<OperationResult<void>> => {
@@ -415,7 +403,6 @@ const Curriculum: React.FC = (): JSX.Element => {
     } catch (err) {
       console.error("Error reordering topics:", err);
 
-      // Handle network errors specifically
       const isNetworkError =
         err instanceof Error &&
         (err.message.includes("offline") || err.message.includes("network") || err.message.includes("fetch"));
@@ -483,13 +470,55 @@ const Curriculum: React.FC = (): JSX.Element => {
     setOverId(null);
   }, []);
 
-  /** Handle error dismissal */
-  const handleDismissError = useCallback(() => {
-    setShowError(false);
-    // Don't clear the error state itself, in case we need it for retry
-  }, []);
+  // =============================
+  // Effects
+  // =============================
 
-  /** Show error notification when error state changes */
+  // Fetch topics on mount
+  React.useEffect(() => {
+    const fetchTopics = async (): Promise<void> => {
+      setOperationState({ status: "loading" });
+
+      try {
+        const response = await apiFetch<unknown>({
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        });
+
+        if (!isWpRestResponse(response)) {
+          throw {
+            code: CurriculumErrorCode.INVALID_RESPONSE,
+            message: __("Invalid response format from server", "tutorpress"),
+          };
+        }
+
+        if (response.success && Array.isArray(response.data)) {
+          const validTopics = response.data.filter(isValidTopic);
+          setTopics(validTopics);
+          setOperationState({ status: "success", data: validTopics });
+        } else {
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: response.message || __("Server returned an error", "tutorpress"),
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching topics:", err);
+        setOperationState({
+          status: "error",
+          error: {
+            code: CurriculumErrorCode.FETCH_FAILED,
+            message: err instanceof Error ? err.message : __("Failed to load topics", "tutorpress"),
+            context: { action: "fetch_topics" },
+          },
+        });
+      }
+    };
+
+    fetchTopics();
+  }, [courseId]);
+
+  // Show error notification when error state changes
   React.useEffect(() => {
     if (reorderState.status === "error") {
       setShowError(true);
@@ -498,11 +527,9 @@ const Curriculum: React.FC = (): JSX.Element => {
     }
   }, [reorderState]);
 
-  /** Clear error on successful retry */
-  const handleRetry = useCallback(async () => {
-    await retryOperation();
-    setShowError(false);
-  }, [retryOperation]);
+  // =============================
+  // Render Methods
+  // =============================
 
   // Render error state with retry button
   if (operationState.status === "error") {
@@ -532,40 +559,10 @@ const Curriculum: React.FC = (): JSX.Element => {
     );
   }
 
+  // Main render
   return (
     <div className="tutorpress-curriculum">
-      {reorderState.status === "error" && (
-        <Flex
-          direction="column"
-          align="center"
-          gap={2}
-          style={{
-            marginBottom: "16px",
-            padding: "12px",
-            background: "#f8d7da",
-            border: "1px solid #f5c2c7",
-            borderRadius: "4px",
-          }}
-        >
-          <div className="tutorpress-error" style={{ color: "#842029" }}>
-            {getErrorMessage(reorderState.error)}
-          </div>
-          <Button variant="secondary" icon={update} onClick={retryOperation}>
-            {__("Retry", "tutorpress")}
-          </Button>
-        </Flex>
-      )}
-
       <div style={{ textAlign: "left" }}>
-        <Button
-          variant="secondary"
-          className="tutorpress-add-topic"
-          icon={plus}
-          disabled={["loading", "reordering"].includes(operationState.status) || reorderState.status === "reordering"}
-        >
-          Add Topic
-        </Button>
-
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
@@ -575,30 +572,47 @@ const Curriculum: React.FC = (): JSX.Element => {
         >
           <SortableContext items={topicIds} strategy={verticalListSortingStrategy}>
             <div className="tutorpress-topics-list">
-              {topics.map((topic) => (
-                <div
-                  key={topic.id}
-                  className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
-                >
-                  <SortableTopic
-                    topic={topic}
-                    onEdit={() => console.log("Edit topic:", topic.id)}
-                    onDuplicate={() => console.log("Duplicate topic:", topic.id)}
-                    onDelete={() => console.log("Delete topic:", topic.id)}
-                  />
-                  {reorderState.status === "reordering" && activeId === topic.id && (
-                    <div className="tutorpress-saving-indicator">
-                      <Flex align="center" gap={2}>
-                        <Spinner />
-                        <div>{__("Saving...", "tutorpress")}</div>
-                      </Flex>
-                    </div>
-                  )}
+              {topics.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#757575" }}>
+                  {__("Start building your course", "tutorpress")}
                 </div>
-              ))}
+              ) : (
+                topics.map((topic) => (
+                  <div
+                    key={topic.id}
+                    className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
+                  >
+                    <SortableTopic
+                      topic={topic}
+                      onEdit={() => console.log("Edit topic:", topic.id)}
+                      onDuplicate={() => console.log("Duplicate topic:", topic.id)}
+                      onDelete={() => console.log("Delete topic:", topic.id)}
+                    />
+                    {reorderState.status === "reordering" && activeId === topic.id && (
+                      <div className="tutorpress-saving-indicator">
+                        <Flex align="center" gap={2}>
+                          <Spinner />
+                          <div>{__("Saving...", "tutorpress")}</div>
+                        </Flex>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </SortableContext>
         </DndContext>
+
+        <div style={{ marginTop: "16px" }}>
+          <Button
+            variant="secondary"
+            className="tutorpress-add-topic"
+            icon={plus}
+            disabled={["loading", "reordering"].includes(operationState.status) || reorderState.status === "reordering"}
+          >
+            {__("Add Topic", "tutorpress")}
+          </Button>
+        </div>
       </div>
 
       {/* Floating error notification */}
