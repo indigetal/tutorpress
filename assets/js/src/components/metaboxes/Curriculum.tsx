@@ -49,6 +49,14 @@ enum CurriculumErrorCode {
   INVALID_RESPONSE = "invalid_response",
   SERVER_ERROR = "server_error",
   NETWORK_ERROR = "network_error",
+  CREATION_FAILED = "creation_failed",
+  VALIDATION_ERROR = "validation_error",
+}
+
+/** API error codes for topic operations */
+enum TopicErrorCode {
+  CREATION_FAILED = "creation_failed",
+  VALIDATION_ERROR = "validation_error",
 }
 
 /** Props for action buttons */
@@ -82,6 +90,7 @@ interface CurriculumError {
   context?: {
     action?: string;
     topicId?: number;
+    details?: string;
   };
 }
 
@@ -132,11 +141,20 @@ interface TopicFormData {
   summary: string;
 }
 
+/** Topic creation state with structured error */
+type TopicCreationState =
+  | { status: "idle" }
+  | { status: "creating" }
+  | { status: "success"; data: Topic }
+  | { status: "error"; error: CurriculumError };
+
 /** Topic form props */
 interface TopicFormProps {
   initialData?: TopicFormData;
   onSave: (data: TopicFormData) => void;
   onCancel: () => void;
+  error?: CurriculumError;
+  isCreating?: boolean;
 }
 
 // ============================================================================
@@ -162,6 +180,10 @@ const contentTypeIcons = {
 /** Get user-friendly error message based on error code */
 const getErrorMessage = (error: CurriculumError): string => {
   switch (error.code) {
+    case CurriculumErrorCode.CREATION_FAILED:
+      return __("Unable to create topic. Please try again.", "tutorpress");
+    case CurriculumErrorCode.VALIDATION_ERROR:
+      return __("Please fill in all required fields.", "tutorpress");
     case CurriculumErrorCode.NETWORK_ERROR:
       return __(
         "Unable to save changes - you appear to be offline. Please check your connection and try again.",
@@ -327,7 +349,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
 /**
  * Topic form component for adding/editing topics
  */
-const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel }): JSX.Element => {
+const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel, error, isCreating }): JSX.Element => {
   const [formData, setFormData] = useState<TopicFormData>({
     title: initialData?.title ?? "",
     summary: initialData?.summary ?? "",
@@ -338,17 +360,22 @@ const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel }):
     onSave(formData);
   };
 
+  // Check if form is valid (title is required)
+  const isValid = formData.title.trim().length > 0;
+
   return (
     <Card className="tutorpress-topic" style={{ boxShadow: "0 0 0 2px #007cba33" }}>
       <form onSubmit={handleSubmit}>
         <CardBody>
           <Flex direction="column" gap={3}>
+            {error && <div style={{ color: "#cc1818", marginBottom: "8px" }}>{getErrorMessage(error)}</div>}
             <TextControl
               label={__("Topic Title", "tutorpress")}
               placeholder={__("Add title", "tutorpress")}
               value={formData.title}
               onChange={(title) => setFormData((prev) => ({ ...prev, title }))}
               autoFocus
+              required
             />
             <TextareaControl
               label={__("Topic Summary", "tutorpress")}
@@ -361,7 +388,7 @@ const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel }):
               <Button variant="secondary" onClick={onCancel}>
                 {__("Cancel", "tutorpress")}
               </Button>
-              <Button variant="primary" type="submit">
+              <Button variant="primary" type="submit" isBusy={isCreating} disabled={!isValid || isCreating}>
                 {__("Save", "tutorpress")}
               </Button>
             </Flex>
@@ -391,6 +418,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
   const [showError, setShowError] = useState(false);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
+  const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
 
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
@@ -588,15 +616,134 @@ const Curriculum: React.FC = (): JSX.Element => {
     setIsAddingTopic(true);
   }, []);
 
-  /** Handle topic form cancel */
-  const handleTopicFormCancel = useCallback(() => {
-    setIsAddingTopic(false);
-  }, []);
+  /** Create a new topic */
+  const createTopic = async (data: TopicFormData): Promise<OperationResult<Topic>> => {
+    try {
+      // Validate required fields
+      if (!data.title.trim()) {
+        return {
+          success: false,
+          error: {
+            code: CurriculumErrorCode.VALIDATION_ERROR,
+            message: __("Topic title is required", "tutorpress"),
+            context: { action: "create_topic" },
+          },
+        };
+      }
+
+      const response = await apiFetch<unknown>({
+        path: `/tutorpress/v1/topics`,
+        method: "POST",
+        data: {
+          course_id: courseId,
+          title: data.title.trim(),
+          content: data.summary.trim() || " ", // Ensure content is never null
+          order: topics.length, // Add to end of list
+        },
+      });
+
+      if (!isWpRestResponse(response)) {
+        return {
+          success: false,
+          error: {
+            code: CurriculumErrorCode.INVALID_RESPONSE,
+            message: __("Invalid response format from server", "tutorpress"),
+            context: { action: "create_topic" },
+          },
+        };
+      }
+
+      // Type guard for database error response
+      const isDbError = (data: unknown): data is { code: string; message: string } => {
+        return (
+          typeof data === "object" &&
+          data !== null &&
+          "code" in data &&
+          typeof data.code === "string" &&
+          "message" in data &&
+          typeof data.message === "string"
+        );
+      };
+
+      if (!response.success || !isValidTopic(response.data)) {
+        // Handle specific database errors
+        if (isDbError(response.data) && response.data.code === "db_insert_error") {
+          return {
+            success: false,
+            error: {
+              code: CurriculumErrorCode.SERVER_ERROR,
+              message: __("Database error while creating topic. Please try again.", "tutorpress"),
+              context: {
+                action: "create_topic",
+                details: response.data.message,
+              },
+            },
+          };
+        }
+
+        return {
+          success: false,
+          error: {
+            code: CurriculumErrorCode.CREATION_FAILED,
+            message: response.message || __("Failed to create topic", "tutorpress"),
+            context: { action: "create_topic" },
+          },
+        };
+      }
+
+      const newTopic = response.data as Topic;
+      return { success: true, data: newTopic };
+    } catch (error: unknown) {
+      console.error("Error creating topic:", error);
+
+      // Handle known error types
+      if (error && typeof error === "object" && "code" in error && "message" in error) {
+        return {
+          success: false,
+          error: {
+            code: (error as { code: CurriculumErrorCode }).code,
+            message: (error as { message: string }).message,
+            context: { action: "create_topic" },
+          },
+        };
+      }
+
+      // Default error for unknown types
+      return {
+        success: false,
+        error: {
+          code: CurriculumErrorCode.CREATION_FAILED,
+          message: error instanceof Error ? error.message : __("Failed to create topic", "tutorpress"),
+          context: { action: "create_topic" },
+        },
+      };
+    }
+  };
 
   /** Handle topic form save */
-  const handleTopicFormSave = useCallback((data: TopicFormData) => {
-    console.log("Saving topic:", data);
-    // TODO: Implement API call to save topic
+  const handleTopicFormSave = useCallback(
+    async (data: TopicFormData) => {
+      setTopicCreationState({ status: "creating" });
+
+      const result = await createTopic(data);
+
+      if (result.success && result.data) {
+        // Ensure we're working with a valid Topic
+        const newTopic: Topic = result.data;
+        setTopics((currentTopics) => [...currentTopics, newTopic]);
+        setTopicCreationState({ status: "success", data: newTopic });
+        setIsAddingTopic(false);
+      } else {
+        setTopicCreationState({ status: "error", error: result.error! });
+        // Keep form open to allow retry
+      }
+    },
+    [courseId, topics]
+  );
+
+  /** Handle topic form cancel */
+  const handleTopicFormCancel = useCallback(() => {
+    setTopicCreationState({ status: "idle" });
     setIsAddingTopic(false);
   }, []);
 
@@ -730,7 +877,14 @@ const Curriculum: React.FC = (): JSX.Element => {
                   </div>
                 ))
               )}
-              {isAddingTopic && <TopicForm onSave={handleTopicFormSave} onCancel={handleTopicFormCancel} />}
+              {isAddingTopic && (
+                <TopicForm
+                  onSave={handleTopicFormSave}
+                  onCancel={handleTopicFormCancel}
+                  error={topicCreationState.status === "error" ? topicCreationState.error : undefined}
+                  isCreating={topicCreationState.status === "creating"}
+                />
+              )}
             </div>
           </SortableContext>
         </DndContext>
