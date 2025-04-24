@@ -3,7 +3,7 @@
  *
  * Implements the curriculum builder UI using WordPress components.
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup } from "@wordpress/components";
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
@@ -267,74 +267,77 @@ const Curriculum: React.FC = (): JSX.Element => {
   }, [courseId]);
 
   /** Handle drag start: track active item */
-  const handleDragStart = (event: DragStartEvent): void => {
+  const handleDragStart = useCallback((event: DragStartEvent): void => {
     setActiveId(Number(event.active.id));
-  };
+  }, []);
 
   /** Handle drag over: track item being dragged over */
-  const handleDragOver = (event: DragOverEvent): void => {
+  const handleDragOver = useCallback((event: DragOverEvent): void => {
     setOverId(event.over ? Number(event.over.id) : null);
-  };
+  }, []);
 
   /** Handle drag end: reorder topics via API */
-  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
-    // Clear drag states immediately
-    setActiveId(null);
-    setOverId(null);
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent): Promise<void> => {
+      // Clear drag states immediately
+      setActiveId(null);
+      setOverId(null);
 
-    if (!event.over) return;
+      if (!event.over) return;
 
-    const activeId = Number(event.active.id);
-    const dropId = Number(event.over.id);
+      const activeId = Number(event.active.id);
+      const dropId = Number(event.over.id);
 
-    if (activeId === dropId) return;
+      if (activeId === dropId) return;
 
-    const oldIndex = topics.findIndex((t) => t.id === activeId);
-    const newIndex = topics.findIndex((t) => t.id === dropId);
+      const oldIndex = topics.findIndex((t) => t.id === activeId);
+      const newIndex = topics.findIndex((t) => t.id === dropId);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+      if (oldIndex === -1 || newIndex === -1) return;
 
-    const newOrder = arrayMove(topics, oldIndex, newIndex);
-    const snapshot = topics;
-    setTopics(newOrder);
-    setReorderState({ status: "reordering" });
+      const newOrder = arrayMove(topics, oldIndex, newIndex);
+      const snapshot = topics;
+      setTopics(newOrder);
+      setReorderState({ status: "reordering" });
 
-    try {
-      const res = await apiFetch<unknown>({
-        path: `/tutorpress/v1/topics/reorder`,
-        method: "POST",
-        data: {
-          course_id: courseId,
-          topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
-        },
-      });
+      try {
+        const res = await apiFetch<unknown>({
+          path: `/tutorpress/v1/topics/reorder`,
+          method: "POST",
+          data: {
+            course_id: courseId,
+            topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
+          },
+        });
 
-      if (!isWpRestResponse(res)) {
-        throw new Error(__("Invalid response from server", "tutorpress"));
+        if (!isWpRestResponse(res)) {
+          throw new Error(__("Invalid response from server", "tutorpress"));
+        }
+
+        if (!res.success) {
+          throw new Error(res.message);
+        }
+
+        setReorderState({ status: "success" });
+      } catch (err) {
+        console.error("Error reordering topics:", err);
+        setTopics(snapshot);
+        setReorderState({
+          status: "error",
+          error: {
+            message: __("Failed to reorder topics. Please try again.", "tutorpress"),
+          },
+        });
       }
-
-      if (!res.success) {
-        throw new Error(res.message);
-      }
-
-      setReorderState({ status: "success" });
-    } catch (err) {
-      console.error("Error reordering topics:", err);
-      setTopics(snapshot);
-      setReorderState({
-        status: "error",
-        error: {
-          message: __("Failed to reorder topics. Please try again.", "tutorpress"),
-        },
-      });
-    }
-  };
+    },
+    [courseId, topics]
+  );
 
   /** Handle drag cancel: clean up states */
-  const handleDragCancel = (): void => {
+  const handleDragCancel = useCallback((): void => {
     setActiveId(null);
     setOverId(null);
-  };
+  }, []);
 
   // Render error state
   if (operationState.status === "error") {
