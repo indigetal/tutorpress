@@ -5,7 +5,18 @@
  */
 import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup, Spinner } from "@wordpress/components";
-import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
+import {
+  moreVertical,
+  plus,
+  edit,
+  copy,
+  trash,
+  dragHandle,
+  chevronDown,
+  chevronRight,
+  update,
+  close,
+} from "@wordpress/icons";
 import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
 import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
@@ -55,6 +66,7 @@ enum CurriculumErrorCode {
   REORDER_FAILED = "reorder_failed",
   INVALID_RESPONSE = "invalid_response",
   SERVER_ERROR = "server_error",
+  NETWORK_ERROR = "network_error",
 }
 
 /** Structured error type for curriculum operations */
@@ -88,6 +100,11 @@ type ReorderOperationState =
 /** Get user-friendly error message based on error code */
 const getErrorMessage = (error: CurriculumError): string => {
   switch (error.code) {
+    case CurriculumErrorCode.NETWORK_ERROR:
+      return __(
+        "Unable to save changes - you appear to be offline. Please check your connection and try again.",
+        "tutorpress"
+      );
     case CurriculumErrorCode.FETCH_FAILED:
       return __("Unable to load topics. Please refresh the page to try again.", "tutorpress");
     case CurriculumErrorCode.REORDER_FAILED:
@@ -234,6 +251,20 @@ const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
   );
 };
 
+/** Snapshot of curriculum state */
+interface CurriculumSnapshot {
+  topics: Topic[];
+  timestamp: number;
+  operation: "reorder" | "edit" | "delete";
+}
+
+/** Operation result type */
+type OperationResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: CurriculumError;
+};
+
 /**
  * Main Curriculum component
  */
@@ -243,6 +274,8 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
+  const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
+  const [showError, setShowError] = useState(false);
 
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
@@ -301,6 +334,105 @@ const Curriculum: React.FC = (): JSX.Element => {
     fetchTopics();
   }, [courseId]);
 
+  /** Create a snapshot of current state */
+  const createSnapshot = useCallback(
+    (operation: CurriculumSnapshot["operation"]) => {
+      setSnapshot({
+        topics: [...topics],
+        timestamp: Date.now(),
+        operation,
+      });
+    },
+    [topics]
+  );
+
+  /** Restore from snapshot */
+  const restoreFromSnapshot = useCallback(() => {
+    if (snapshot) {
+      setTopics(snapshot.topics);
+      setSnapshot(null);
+      return true;
+    }
+    return false;
+  }, [snapshot]);
+
+  /** Clear error states */
+  const clearErrors = useCallback(() => {
+    if (operationState.status === "error") {
+      setOperationState({ status: "idle" });
+    }
+    if (reorderState.status === "error") {
+      setReorderState({ status: "idle" });
+    }
+  }, []);
+
+  /** Retry last failed operation */
+  const retryOperation = useCallback(async () => {
+    if (!snapshot) return;
+
+    clearErrors();
+
+    switch (snapshot.operation) {
+      case "reorder":
+        // Retry reordering with current topic order
+        await handleReorderTopics(topics);
+        break;
+      // Add cases for other operations as they're implemented
+    }
+  }, [snapshot, topics, clearErrors]);
+
+  /** Handle topic reordering */
+  const handleReorderTopics = async (newOrder: Topic[]): Promise<OperationResult<void>> => {
+    setReorderState({ status: "reordering" });
+
+    try {
+      const res = await apiFetch<unknown>({
+        path: `/tutorpress/v1/topics/reorder`,
+        method: "POST",
+        data: {
+          course_id: courseId,
+          topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
+        },
+      });
+
+      if (!isWpRestResponse(res)) {
+        throw {
+          code: CurriculumErrorCode.INVALID_RESPONSE,
+          message: __("Invalid response format from server", "tutorpress"),
+        };
+      }
+
+      if (!res.success) {
+        throw {
+          code: CurriculumErrorCode.SERVER_ERROR,
+          message: res.message || __("Server returned an error", "tutorpress"),
+        };
+      }
+
+      setReorderState({ status: "success" });
+      setSnapshot(null); // Clear snapshot on success
+      return { success: true };
+    } catch (err) {
+      console.error("Error reordering topics:", err);
+
+      // Handle network errors specifically
+      const isNetworkError =
+        err instanceof Error &&
+        (err.message.includes("offline") || err.message.includes("network") || err.message.includes("fetch"));
+
+      const error: CurriculumError = {
+        code: isNetworkError ? CurriculumErrorCode.NETWORK_ERROR : CurriculumErrorCode.REORDER_FAILED,
+        message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
+        context: {
+          action: "reorder_topics",
+        },
+      };
+
+      setReorderState({ status: "error", error });
+      return { success: false, error };
+    }
+  };
+
   /** Handle drag start: track active item */
   const handleDragStart = useCallback((event: DragStartEvent): void => {
     setActiveId(Number(event.active.id));
@@ -331,52 +463,18 @@ const Curriculum: React.FC = (): JSX.Element => {
       if (oldIndex === -1 || newIndex === -1) return;
 
       const newOrder = arrayMove(topics, oldIndex, newIndex);
-      const snapshot = topics;
+
+      // Create snapshot before updating state
+      createSnapshot("reorder");
       setTopics(newOrder);
-      setReorderState({ status: "reordering" });
 
-      try {
-        const res = await apiFetch<unknown>({
-          path: `/tutorpress/v1/topics/reorder`,
-          method: "POST",
-          data: {
-            course_id: courseId,
-            topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
-          },
-        });
+      const result = await handleReorderTopics(newOrder);
 
-        if (!isWpRestResponse(res)) {
-          throw {
-            code: CurriculumErrorCode.INVALID_RESPONSE,
-            message: __("Invalid response format from server", "tutorpress"),
-          };
-        }
-
-        if (!res.success) {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: res.message || __("Server returned an error", "tutorpress"),
-          };
-        }
-
-        setReorderState({ status: "success" });
-      } catch (err) {
-        console.error("Error reordering topics:", err);
-        setTopics(snapshot);
-        setReorderState({
-          status: "error",
-          error: {
-            code: CurriculumErrorCode.REORDER_FAILED,
-            message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
-            context: {
-              action: "reorder_topics",
-              topicId: activeId,
-            },
-          },
-        });
+      if (!result.success) {
+        restoreFromSnapshot();
       }
     },
-    [courseId, topics]
+    [courseId, topics, createSnapshot, restoreFromSnapshot]
   );
 
   /** Handle drag cancel: clean up states */
@@ -385,13 +483,39 @@ const Curriculum: React.FC = (): JSX.Element => {
     setOverId(null);
   }, []);
 
-  // Render error state
+  /** Handle error dismissal */
+  const handleDismissError = useCallback(() => {
+    setShowError(false);
+    // Don't clear the error state itself, in case we need it for retry
+  }, []);
+
+  /** Show error notification when error state changes */
+  React.useEffect(() => {
+    if (reorderState.status === "error") {
+      setShowError(true);
+    } else {
+      setShowError(false);
+    }
+  }, [reorderState]);
+
+  /** Clear error on successful retry */
+  const handleRetry = useCallback(async () => {
+    await retryOperation();
+    setShowError(false);
+  }, [retryOperation]);
+
+  // Render error state with retry button
   if (operationState.status === "error") {
     return (
       <div className="tutorpress-curriculum">
-        <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-          {getErrorMessage(operationState.error)}
-        </div>
+        <Flex direction="column" align="center" gap={2} style={{ padding: "20px" }}>
+          <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
+            {getErrorMessage(operationState.error)}
+          </div>
+          <Button variant="secondary" icon={update} onClick={retryOperation}>
+            {__("Retry", "tutorpress")}
+          </Button>
+        </Flex>
       </div>
     );
   }
@@ -411,9 +535,25 @@ const Curriculum: React.FC = (): JSX.Element => {
   return (
     <div className="tutorpress-curriculum">
       {reorderState.status === "error" && (
-        <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-          {getErrorMessage(reorderState.error)}
-        </div>
+        <Flex
+          direction="column"
+          align="center"
+          gap={2}
+          style={{
+            marginBottom: "16px",
+            padding: "12px",
+            background: "#f8d7da",
+            border: "1px solid #f5c2c7",
+            borderRadius: "4px",
+          }}
+        >
+          <div className="tutorpress-error" style={{ color: "#842029" }}>
+            {getErrorMessage(reorderState.error)}
+          </div>
+          <Button variant="secondary" icon={update} onClick={retryOperation}>
+            {__("Retry", "tutorpress")}
+          </Button>
+        </Flex>
       )}
 
       <div style={{ textAlign: "left" }}>
@@ -460,6 +600,29 @@ const Curriculum: React.FC = (): JSX.Element => {
           </SortableContext>
         </DndContext>
       </div>
+
+      {/* Floating error notification */}
+      {showError && reorderState.status === "error" && (
+        <div className="tutorpress-error-notification">
+          <Flex direction="column" gap={2} style={{ padding: "12px" }}>
+            <Flex justify="space-between" align="center">
+              <div style={{ color: "#842029", fontWeight: "500" }}>{__("Error Saving Changes", "tutorpress")}</div>
+              <Button
+                icon={close}
+                label={__("Dismiss", "tutorpress")}
+                onClick={handleDismissError}
+                style={{ padding: 0, height: "auto" }}
+              />
+            </Flex>
+            <div style={{ color: "#842029" }}>{getErrorMessage(reorderState.error)}</div>
+            <Flex justify="flex-end">
+              <Button variant="secondary" icon={update} onClick={handleRetry} style={{ marginTop: "8px" }}>
+                {__("Retry", "tutorpress")}
+              </Button>
+            </Flex>
+          </Flex>
+        </div>
+      )}
     </div>
   );
 };

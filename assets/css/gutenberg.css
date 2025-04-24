@@ -185,3 +185,28 @@
     opacity: 1;
   }
 }
+
+.tutorpress-error-notification {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 100000;
+  max-width: 400px;
+  min-width: 320px;
+  background: #f8d7da;
+  border: 1px solid #f5c2c7;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: tutorpress-slide-in 0.2s ease-out;
+}
+
+@keyframes tutorpress-slide-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
