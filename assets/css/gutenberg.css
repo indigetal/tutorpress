@@ -150,3 +150,38 @@
 .tutorpress-topic--placeholder {
   display: none;
 }
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper.show-indicator {
+  /* existing indicator styles */
+}
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper .tutorpress-saving-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  z-index: 1;
+  opacity: 0;
+  animation: tutorpress-fade-in 0.2s ease forwards;
+}
+
+@keyframes tutorpress-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

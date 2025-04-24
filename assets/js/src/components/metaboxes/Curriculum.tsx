@@ -4,7 +4,7 @@
  * Implements the curriculum builder UI using WordPress components.
  */
 import React, { useState, useMemo, useCallback } from "react";
-import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup } from "@wordpress/components";
+import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup, Spinner } from "@wordpress/components";
 import { moreVertical, plus, edit, copy, trash, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
 import type { TutorResponse } from "../../types/api";
@@ -397,10 +397,13 @@ const Curriculum: React.FC = (): JSX.Element => {
   }
 
   // Render loading state
-  if (operationState.status === "loading") {
+  if (operationState.status === "loading" || operationState.status === "idle") {
     return (
       <div className="tutorpress-curriculum">
-        <div>Loading topics...</div>
+        <Flex direction="column" align="center" justify="center" style={{ padding: "20px", gap: "8px" }}>
+          <Spinner />
+          <span>{__("Loading curriculum...", "tutorpress")}</span>
+        </Flex>
       </div>
     );
   }
@@ -443,6 +446,14 @@ const Curriculum: React.FC = (): JSX.Element => {
                     onDuplicate={() => console.log("Duplicate topic:", topic.id)}
                     onDelete={() => console.log("Delete topic:", topic.id)}
                   />
+                  {reorderState.status === "reordering" && activeId === topic.id && (
+                    <div className="tutorpress-saving-indicator">
+                      <Flex align="center" gap={2}>
+                        <Spinner />
+                        <div>{__("Saving...", "tutorpress")}</div>
+                      </Flex>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
