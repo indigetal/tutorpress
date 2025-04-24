@@ -17,7 +17,7 @@ import {
   update,
   close,
 } from "@wordpress/icons";
-import type { Topic, ContentItem, DragHandleProps, SortableTopicProps, TopicSectionProps } from "../../types/courses";
+import type { Topic, ContentItem, DragHandleProps } from "../../types/courses";
 import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
@@ -55,10 +55,12 @@ interface ContentItemRowProps {
 }
 
 /** Props for sortable topic wrapper */
-interface SortableTopicWrapperProps {
+interface SortableTopicProps {
   topic: Topic;
-  isActive: boolean;
-  isOver: boolean;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onToggle?: () => void;
 }
 
 /** Structured error type for curriculum operations */
@@ -101,6 +103,16 @@ type OperationResult<T> = {
   data?: T;
   error?: CurriculumError;
 };
+
+/** Props for topic section */
+interface TopicSectionProps {
+  topic: Topic;
+  dragHandleProps: DragHandleProps;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onToggle?: () => void;
+}
 
 // ============================================================================
 // Constants
@@ -196,6 +208,7 @@ const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
   onEdit,
   onDuplicate,
   onDelete,
+  onToggle,
 }): JSX.Element => (
   <Card className="tutorpress-topic">
     <CardHeader>
@@ -205,41 +218,44 @@ const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
         <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
         <Button
           icon={topic.isCollapsed ? chevronRight : chevronDown}
-          label={topic.isCollapsed ? "Expand" : "Collapse"}
+          label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
+          onClick={onToggle}
           isSmall
         />
       </Flex>
     </CardHeader>
-    <CardBody>
-      <div className="tutorpress-content-items">
-        {topic.contents.map((item) => (
-          <ContentItemRow
-            key={item.id}
-            item={item}
-            onEdit={() => console.log("Edit content:", item.id)}
-            onDuplicate={() => console.log("Duplicate content:", item.id)}
-            onDelete={() => console.log("Delete content:", item.id)}
-          />
-        ))}
-      </div>
-      <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
-        <Flex gap={2} style={{ width: "auto" }}>
-          <Button variant="secondary" isSmall icon={plus}>
-            Lesson
-          </Button>
-          <Button variant="secondary" isSmall icon={plus}>
-            Quiz
-          </Button>
-          <Button variant="secondary" isSmall icon={plus}>
-            Interactive Quiz
-          </Button>
-          <Button variant="secondary" isSmall icon={plus}>
-            Assignment
-          </Button>
+    {!topic.isCollapsed && (
+      <CardBody>
+        <div className="tutorpress-content-items">
+          {topic.contents.map((item) => (
+            <ContentItemRow
+              key={item.id}
+              item={item}
+              onEdit={() => console.log("Edit content:", item.id)}
+              onDuplicate={() => console.log("Duplicate content:", item.id)}
+              onDelete={() => console.log("Delete content:", item.id)}
+            />
+          ))}
+        </div>
+        <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
+          <Flex gap={2} style={{ width: "auto" }}>
+            <Button variant="secondary" isSmall icon={plus}>
+              Lesson
+            </Button>
+            <Button variant="secondary" isSmall icon={plus}>
+              Quiz
+            </Button>
+            <Button variant="secondary" isSmall icon={plus}>
+              Interactive Quiz
+            </Button>
+            <Button variant="secondary" isSmall icon={plus}>
+              Assignment
+            </Button>
+          </Flex>
+          <Button icon={moreVertical} label="More options" isSmall />
         </Flex>
-        <Button icon={moreVertical} label="More options" isSmall />
-      </Flex>
-    </CardBody>
+      </CardBody>
+    )}
   </Card>
 );
 
@@ -247,11 +263,12 @@ const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
  * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
  * to apply pure-CSS placeholder and dragging styles.
  */
-const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
+const SortableTopic: React.FC<SortableTopicProps> = ({
   topic,
   onEdit,
   onDuplicate,
   onDelete,
+  onToggle,
 }): JSX.Element => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: topic.id,
@@ -276,6 +293,7 @@ const SortableTopic: React.FC<SortableTopicProps & ActionButtonsProps> = ({
         onEdit={onEdit}
         onDuplicate={onDuplicate}
         onDelete={onDelete}
+        onToggle={onToggle}
       />
     </div>
   );
@@ -420,9 +438,16 @@ const Curriculum: React.FC = (): JSX.Element => {
     }
   };
 
-  /** Handle drag start: track active item */
+  /** Handle drag start: track active item and close all topics */
   const handleDragStart = useCallback((event: DragStartEvent): void => {
     setActiveId(Number(event.active.id));
+    // Close all topics when dragging starts
+    setTopics((currentTopics) =>
+      currentTopics.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }))
+    );
   }, []);
 
   /** Handle drag over: track item being dragged over */
@@ -468,6 +493,13 @@ const Curriculum: React.FC = (): JSX.Element => {
   const handleDragCancel = useCallback((): void => {
     setActiveId(null);
     setOverId(null);
+  }, []);
+
+  /** Handle topic toggle */
+  const handleTopicToggle = useCallback((topicId: number) => {
+    setTopics((currentTopics) =>
+      currentTopics.map((topic) => (topic.id === topicId ? { ...topic, isCollapsed: !topic.isCollapsed } : topic))
+    );
   }, []);
 
   // =============================
@@ -583,10 +615,11 @@ const Curriculum: React.FC = (): JSX.Element => {
                     className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
                   >
                     <SortableTopic
-                      topic={topic}
+                      topic={{ ...topic, isCollapsed: topic.isCollapsed ?? true }}
                       onEdit={() => console.log("Edit topic:", topic.id)}
                       onDuplicate={() => console.log("Duplicate topic:", topic.id)}
                       onDelete={() => console.log("Delete topic:", topic.id)}
+                      onToggle={() => handleTopicToggle(topic.id)}
                     />
                     {reorderState.status === "reordering" && activeId === topic.id && (
                       <div className="tutorpress-saving-indicator">
