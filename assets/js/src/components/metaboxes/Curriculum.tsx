@@ -4,31 +4,8 @@
  * Implements the curriculum builder UI using WordPress components.
  */
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  Button,
-  Icon,
-  Flex,
-  FlexBlock,
-  ButtonGroup,
-  Spinner,
-  TextControl,
-  TextareaControl,
-} from "@wordpress/components";
-import {
-  moreVertical,
-  plus,
-  edit,
-  copy,
-  trash,
-  dragHandle,
-  chevronDown,
-  chevronRight,
-  update,
-  close,
-} from "@wordpress/icons";
+import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup, Spinner } from "@wordpress/components";
+import { moreVertical, plus, dragHandle, chevronDown, chevronRight, update, close } from "@wordpress/icons";
 import { CurriculumErrorCode } from "../../types/curriculum";
 import type {
   Topic,
@@ -56,19 +33,12 @@ import type { MouseEvent } from "react";
 import { getTopics, reorderTopics, duplicateTopic } from "../../api/topics";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
+import ActionButtons from "./curriculum/ActionButtons";
+import TopicForm from "./curriculum/TopicForm";
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
-
-/**
- * Props for action buttons
- */
-interface ActionButtonsProps {
-  onEdit?: () => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-}
 
 /**
  * Props for content item row
@@ -78,17 +48,6 @@ interface ContentItemRowProps {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
-}
-
-/**
- * Topic form props
- */
-interface TopicFormProps {
-  initialData?: TopicFormData;
-  onSave: (data: TopicFormData) => void;
-  onCancel: () => void;
-  error?: CurriculumError;
-  isCreating?: boolean;
 }
 
 // ============================================================================
@@ -158,17 +117,6 @@ const isValidTopic = (topic: unknown): topic is Topic => {
 // ============================================================================
 // Sub-Components
 // ============================================================================
-
-/**
- * Action buttons for items and topics
- */
-const ActionButtons: React.FC<ActionButtonsProps> = ({ onEdit, onDuplicate, onDelete }): JSX.Element => (
-  <Flex gap={1} justify="flex-end" style={{ width: "auto" }}>
-    <Button icon={edit} label="Edit" isSmall onClick={onEdit} />
-    <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />
-    <Button icon={trash} label="Delete" isSmall onClick={onDelete} />
-  </Flex>
-);
 
 /**
  * Renders a single content item
@@ -340,59 +288,6 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
         isEditing={isEditing}
       />
     </div>
-  );
-};
-
-/**
- * Topic form component for adding/editing topics
- */
-const TopicForm: React.FC<TopicFormProps> = ({ initialData, onSave, onCancel, error, isCreating }): JSX.Element => {
-  const [formData, setFormData] = useState<TopicFormData>({
-    title: initialData?.title ?? "",
-    summary: initialData?.summary ?? "",
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  // Check if form is valid (title is required)
-  const isValid = formData.title.trim().length > 0;
-
-  return (
-    <Card className="tutorpress-topic" style={{ boxShadow: "0 0 0 2px #007cba33" }}>
-      <form onSubmit={handleSubmit}>
-        <CardBody>
-          <Flex direction="column" gap={3}>
-            {error && <div style={{ color: "#cc1818", marginBottom: "8px" }}>{getErrorMessage(error)}</div>}
-            <TextControl
-              label={__("Topic Title", "tutorpress")}
-              placeholder={__("Add title", "tutorpress")}
-              value={formData.title}
-              onChange={(title) => setFormData((prev) => ({ ...prev, title }))}
-              autoFocus
-              required
-            />
-            <TextareaControl
-              label={__("Topic Summary", "tutorpress")}
-              placeholder={__("Add summary", "tutorpress")}
-              value={formData.summary}
-              onChange={(summary) => setFormData((prev) => ({ ...prev, summary }))}
-              rows={4}
-            />
-            <Flex justify="flex-end" gap={2}>
-              <Button variant="secondary" onClick={onCancel}>
-                {__("Cancel", "tutorpress")}
-              </Button>
-              <Button variant="primary" type="submit" isBusy={isCreating} disabled={!isValid || isCreating}>
-                {__("Save", "tutorpress")}
-              </Button>
-            </Flex>
-          </Flex>
-        </CardBody>
-      </form>
-    </Card>
   );
 };
 
