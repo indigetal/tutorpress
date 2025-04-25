@@ -37,6 +37,7 @@ import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core"
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MouseEvent } from "react";
 
 // ============================================================================
 // Type Definitions
@@ -250,12 +251,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onEdit, onDuplicate, onDe
  * Renders a single content item
  */
 const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplicate, onDelete }): JSX.Element => (
-  <Flex className="tutorpress-content-item" align="center" gap={2}>
-    <Button icon={dragHandle} label="Drag to reorder" isSmall />
-    <Icon icon={contentTypeIcons[item.type]} />
-    <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
-    <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-  </Flex>
+  <div className="tutorpress-content-item">
+    <Flex align="center" gap={2}>
+      <div className="tutorpress-content-item-icon">
+        <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
+        <Icon icon={dragHandle} className="drag-icon" />
+      </div>
+      <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
+      <div className="tutorpress-content-item-actions">
+        <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+      </div>
+    </Flex>
+  </div>
 );
 
 /**
@@ -278,21 +285,38 @@ const TopicSection: React.FC<TopicSectionProps> = ({
     onEdit();
   };
 
+  // Handle header click for toggle
+  const handleHeaderClick = (e: MouseEvent<HTMLDivElement>) => {
+    // Don't toggle if clicking on a button or dragging
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
+    onToggle?.();
+  };
+
+  const headerClassName = `tutorpress-topic-header ${!topic.isCollapsed ? "is-open" : ""}`;
+  const cardClassName = `tutorpress-topic ${!topic.isCollapsed ? "is-open" : ""}`;
+
   return (
-    <Card className="tutorpress-topic">
-      <CardHeader>
+    <Card className={cardClassName}>
+      <CardHeader className={headerClassName} onClick={handleHeaderClick}>
         <Flex align="center" gap={2}>
           <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
           <FlexBlock style={{ textAlign: "left" }}>
             {!isEditing ? <div onDoubleClick={handleTitleDoubleClick}>{topic.title}</div> : null}
           </FlexBlock>
-          <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-          <Button
-            icon={topic.isCollapsed ? chevronRight : chevronDown}
-            label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
-            onClick={onToggle}
-            isSmall
-          />
+          <div className="tutorpress-topic-actions">
+            <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+            <Button
+              icon={topic.isCollapsed ? chevronRight : chevronDown}
+              label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
+              onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                e.stopPropagation();
+                onToggle?.();
+              }}
+              isSmall
+            />
+          </div>
         </Flex>
       </CardHeader>
       {isEditing ? (

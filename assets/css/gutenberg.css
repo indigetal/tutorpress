@@ -61,23 +61,127 @@
 
 .tutorpress-topic {
   margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.tutorpress-topic.is-open {
+  border-color: #007cba;
+}
+
+.tutorpress-topic.is-open:hover {
+  background-color: rgb(245, 246, 250);
+}
+
+.tutorpress-topic-header {
+  cursor: pointer;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Fix action buttons layout */
+.tutorpress-topic-header .components-flex {
+  min-height: 36px;
+}
+
+.tutorpress-topic-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto; /* Push to right */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+.tutorpress-topic-header:not(.is-open) .tutorpress-topic-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic-header:not(.is-open):hover .tutorpress-topic-actions {
+  opacity: 1;
 }
 
 .tutorpress-content-items {
   margin-bottom: 16px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Use gap instead of margins for spacing */
 }
 
 .tutorpress-content-item {
+  position: relative;
   padding: 8px;
-  border-bottom: 1px solid #e0e0e0;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  z-index: 1; /* Ensure proper stacking */
 }
 
-.tutorpress-content-item:last-child {
+.tutorpress-content-item:hover {
+  background-color: #fff;
+  border-color: #e0e0e0;
+  z-index: 2; /* Raise above siblings when hovered */
+}
+
+.tutorpress-content-item-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.tutorpress-content-item-icon .item-icon,
+.tutorpress-content-item-icon .drag-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-content-item-icon .drag-icon {
+  opacity: 0;
+}
+
+.tutorpress-content-item:hover .tutorpress-content-item-icon .item-icon {
+  opacity: 0;
+}
+
+.tutorpress-content-item:hover .tutorpress-content-item-icon .drag-icon {
+  opacity: 1;
+}
+
+.tutorpress-content-item-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-left: auto; /* Push to right */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+.tutorpress-content-item:hover .tutorpress-content-item-actions {
+  opacity: 1;
+}
+
+/* Content action buttons */
+.tutorpress-content-actions {
+  padding-top: 16px;
+  /* Remove the top border */
+}
+
+.tutorpress-content-actions button.components-button.is-secondary {
+  transition: all 0.2s ease;
+}
+
+.tutorpress-content-actions button.components-button.is-secondary:hover {
+  background-color: #fff;
+}
+
+/* Remove bottom borders from content items */
+.tutorpress-content-item:not(:last-child) {
   border-bottom: none;
 }
 
-.tutorpress-content-actions {
-  padding-top: 8px;
+/* Form styles */
+.tutorpress-topic form {
   border-top: 1px solid #e0e0e0;
 }
 
