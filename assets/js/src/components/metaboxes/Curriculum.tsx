@@ -648,9 +648,7 @@ const Curriculum: React.FC = (): JSX.Element => {
       // Update topic in list with response data and ensure it's collapsed
       setTopics((currentTopics) =>
         currentTopics.map((topic) =>
-          topic.id === topicId
-            ? { ...topic, title: response.data.title, content: response.data.content, order: response.data.order }
-            : topic
+          topic.id === topicId ? { ...topic, title: response.data.title, content: response.data.content } : topic
         )
       );
       setEditState({ isEditing: false, topicId: null });
@@ -758,6 +756,13 @@ const Curriculum: React.FC = (): JSX.Element => {
         };
       }
 
+      // Calculate the new topic's menu_order (always at the end)
+      const lastTopic =
+        topics.length > 0
+          ? topics.reduce((max, topic) => (topic.menu_order > max.menu_order ? topic : max), topics[0])
+          : null;
+      const newMenuOrder = lastTopic ? lastTopic.menu_order + 1 : 0;
+
       const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
         path: `/tutorpress/v1/topics`,
         method: "POST",
@@ -765,7 +770,7 @@ const Curriculum: React.FC = (): JSX.Element => {
           course_id: courseId,
           title: data.title.trim(),
           content: data.summary.trim() || " ", // Ensure content is never null
-          order: topics.length, // Add to end of list
+          menu_order: newMenuOrder,
         },
       });
 

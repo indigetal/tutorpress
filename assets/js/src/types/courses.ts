@@ -54,7 +54,7 @@ export interface ContentItem extends BaseContentItem {
  */
 export interface Topic extends BaseTopic {
   isCollapsed: boolean;
-  order: number;
+  menu_order: number;
   contents: ContentItem[];
 }
 
@@ -71,7 +71,7 @@ export interface Course extends BaseCourse {
 
 export interface TopicOrder {
   topic_id: number;
-  order: number;
+  menu_order: number;
 }
 
 export interface ContentOrder {
