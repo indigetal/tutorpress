@@ -153,6 +153,27 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 ],
             ]
         );
+
+        // Duplicate topic
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/(?P<id>[\d]+)/duplicate',
+            [
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'callback'            => [$this, 'duplicate_item'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'course_id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the course containing the topic.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
@@ -605,6 +626,149 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
         } catch (Exception $e) {
             return new WP_Error(
                 'topics_reorder_error',
+                $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Duplicate a topic and its content items.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function duplicate_item($request) {
+        try {
+            global $wpdb;
+
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $topic_id = $request['id'];
+            $course_id = $request->get_param('course_id');
+
+            // Start transaction
+            $wpdb->query('START TRANSACTION');
+
+            // Get the source topic
+            $topic = get_post($topic_id);
+            if (!$topic || $topic->post_type !== 'topics') {
+                throw new Exception(__('Invalid topic ID.', 'tutorpress'));
+            }
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                throw new Exception($validation_result->get_error_message());
+            }
+
+            // Get the highest menu_order for the course
+            $max_order = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(menu_order) FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'topics'",
+                $course_id
+            ));
+
+            // Create the duplicate topic
+            $new_topic_data = array(
+                'post_type'    => $topic->post_type,
+                'post_title'   => sprintf('%s (copy)', $topic->post_title),
+                'post_content' => $topic->post_content,
+                'post_status'  => $topic->post_status,
+                'post_parent'  => $course_id,
+                'menu_order'   => (int) $max_order + 1,
+            );
+
+            // Insert the new topic
+            $new_topic_id = wp_insert_post($new_topic_data, true);
+            if (is_wp_error($new_topic_id)) {
+                throw new Exception($new_topic_id->get_error_message());
+            }
+
+            // Copy topic meta
+            $topic_meta = get_post_meta($topic_id);
+            if ($topic_meta) {
+                foreach ($topic_meta as $meta_key => $meta_values) {
+                    // Skip internal meta
+                    if (in_array($meta_key, ['_edit_lock', '_edit_last'])) {
+                        continue;
+                    }
+                    foreach ($meta_values as $meta_value) {
+                        add_post_meta($new_topic_id, $meta_key, maybe_unserialize($meta_value));
+                    }
+                }
+            }
+
+            // Get content items
+            $content_items = get_posts([
+                'post_parent'    => $topic_id,
+                'post_type'      => ['lesson', 'quiz', 'assignment'],
+                'posts_per_page' => -1,
+                'orderby'        => 'menu_order',
+                'order'          => 'ASC',
+            ]);
+
+            // Duplicate content items
+            foreach ($content_items as $item) {
+                $new_item_data = array(
+                    'post_type'    => $item->post_type,
+                    'post_title'   => $item->post_title, // Don't append "Copy of" to content items
+                    'post_content' => $item->post_content,
+                    'post_status'  => $item->post_status,
+                    'post_parent'  => $new_topic_id,
+                    'menu_order'   => $item->menu_order,
+                );
+
+                $new_item_id = wp_insert_post($new_item_data, true);
+                if (is_wp_error($new_item_id)) {
+                    throw new Exception($new_item_id->get_error_message());
+                }
+
+                // Copy item meta
+                $item_meta = get_post_meta($item->ID);
+                if ($item_meta) {
+                    foreach ($item_meta as $meta_key => $meta_values) {
+                        if (in_array($meta_key, ['_edit_lock', '_edit_last'])) {
+                            continue;
+                        }
+                        foreach ($meta_values as $meta_value) {
+                            add_post_meta($new_item_id, $meta_key, maybe_unserialize($meta_value));
+                        }
+                    }
+                }
+            }
+
+            // Commit transaction
+            $wpdb->query('COMMIT');
+
+            // Get the newly created topic with its contents
+            $new_topic = get_post($new_topic_id);
+            $formatted_topic = [
+                'id'         => $new_topic->ID,
+                'title'      => $new_topic->post_title,
+                'content'    => $new_topic->post_content,
+                'menu_order' => (int) $new_topic->menu_order,
+                'status'     => $new_topic->post_status,
+                'contents'   => $this->get_topic_contents($new_topic_id),
+            ];
+
+            return rest_ensure_response([
+                'status_code' => 200,
+                'success'    => true,
+                'message'    => __('Topic duplicated successfully.', 'tutorpress'),
+                'data'       => $formatted_topic,
+            ]);
+
+        } catch (Exception $e) {
+            // Rollback on error
+            $wpdb->query('ROLLBACK');
+
+            return new WP_Error(
+                'topic_duplication_error',
                 $e->getMessage(),
                 ['status' => 500]
             );

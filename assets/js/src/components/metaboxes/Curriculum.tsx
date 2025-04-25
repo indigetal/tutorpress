@@ -3,7 +3,7 @@
  *
  * Implements the curriculum builder UI using WordPress components.
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -38,12 +38,17 @@ import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MouseEvent } from "react";
+import { getTopics, reorderTopics, duplicateTopic } from "../../api/topics";
+import { store as noticesStore } from "@wordpress/notices";
+import { useDispatch } from "@wordpress/data";
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
-/** Error codes for curriculum operations */
+/**
+ * Error codes for curriculum operations
+ */
 enum CurriculumErrorCode {
   FETCH_FAILED = "fetch_failed",
   REORDER_FAILED = "reorder_failed",
@@ -54,20 +59,26 @@ enum CurriculumErrorCode {
   VALIDATION_ERROR = "validation_error",
 }
 
-/** API error codes for topic operations */
+/**
+ * API error codes for topic operations
+ */
 enum TopicErrorCode {
   CREATION_FAILED = "creation_failed",
   VALIDATION_ERROR = "validation_error",
 }
 
-/** Props for action buttons */
+/**
+ * Props for action buttons
+ */
 interface ActionButtonsProps {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
 }
 
-/** Props for content item row */
+/**
+ * Props for content item row
+ */
 interface ContentItemRowProps {
   item: ContentItem;
   onEdit?: () => void;
@@ -75,7 +86,9 @@ interface ContentItemRowProps {
   onDelete?: () => void;
 }
 
-/** Props for sortable topic wrapper */
+/**
+ * Props for sortable topic wrapper
+ */
 interface SortableTopicProps {
   topic: Topic;
   onEdit: () => void;
@@ -87,7 +100,9 @@ interface SortableTopicProps {
   isEditing: boolean;
 }
 
-/** Structured error type for curriculum operations */
+/**
+ * Structured error type for curriculum operations
+ */
 interface CurriculumError {
   code: CurriculumErrorCode;
   message: string;
@@ -98,10 +113,14 @@ interface CurriculumError {
   };
 }
 
-/** API response status */
+/**
+ * API response status
+ */
 type ApiStatus = "idle" | "loading" | "success" | "error";
 
-/** Topic operation state with structured error */
+/**
+ * Topic operation state with structured error
+ */
 type TopicOperationState =
   | { status: "idle" }
   | { status: "loading" }
@@ -109,28 +128,36 @@ type TopicOperationState =
   | { status: "success"; data: Topic[] }
   | { status: "error"; error: CurriculumError };
 
-/** Reorder operation state with structured error */
+/**
+ * Reorder operation state with structured error
+ */
 type ReorderOperationState =
   | { status: "idle" }
   | { status: "reordering" }
   | { status: "success" }
   | { status: "error"; error: CurriculumError };
 
-/** Snapshot of curriculum state */
+/**
+ * Snapshot of curriculum state
+ */
 interface CurriculumSnapshot {
   topics: Topic[];
   timestamp: number;
-  operation: "reorder" | "edit" | "delete";
+  operation: "reorder" | "edit" | "delete" | "duplicate";
 }
 
-/** Operation result type */
+/**
+ * Operation result type
+ */
 type OperationResult<T> = {
   success: boolean;
   data?: T;
   error?: CurriculumError;
 };
 
-/** Props for topic section */
+/**
+ * Props for topic section
+ */
 interface TopicSectionProps {
   topic: Topic;
   dragHandleProps: DragHandleProps;
@@ -143,20 +170,26 @@ interface TopicSectionProps {
   isEditing: boolean;
 }
 
-/** Topic form data */
+/**
+ * Topic form data
+ */
 interface TopicFormData {
   title: string;
   summary: string;
 }
 
-/** Topic creation state with structured error */
+/**
+ * Topic creation state with structured error
+ */
 type TopicCreationState =
   | { status: "idle" }
   | { status: "creating" }
   | { status: "success"; data: Topic }
   | { status: "error"; error: CurriculumError };
 
-/** Topic form props */
+/**
+ * Topic form props
+ */
 interface TopicFormProps {
   initialData?: TopicFormData;
   onSave: (data: TopicFormData) => void;
@@ -165,7 +198,9 @@ interface TopicFormProps {
   isCreating?: boolean;
 }
 
-/** Topic edit state */
+/**
+ * Topic edit state
+ */
 type TopicEditState = {
   isEditing: boolean;
   topicId: number | null;
@@ -191,7 +226,9 @@ const contentTypeIcons = {
 // Utility Functions
 // ============================================================================
 
-/** Get user-friendly error message based on error code */
+/**
+ * Get user-friendly error message based on error code
+ */
 const getErrorMessage = (error: CurriculumError): string => {
   switch (error.code) {
     case CurriculumErrorCode.CREATION_FAILED:
@@ -495,6 +532,9 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
   const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
+
+  // Move useDispatch to component level
+  const { createNotice } = useDispatch(noticesStore);
 
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
@@ -918,12 +958,35 @@ const Curriculum: React.FC = (): JSX.Element => {
     [createSnapshot, restoreFromSnapshot]
   );
 
+  /**
+   * Handle duplicating a topic
+   */
+  const handleTopicDuplicate = useCallback(
+    async (topicId: number) => {
+      try {
+        const duplicatedTopic = await duplicateTopic(courseId, topicId);
+
+        // Only proceed if we got a valid topic back
+        if (duplicatedTopic && duplicatedTopic.id) {
+          // Add the duplicated topic to the end of the list with isCollapsed set to true
+          setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
+        }
+      } catch (error) {
+        if (error instanceof Error && !error.message.includes("successfully")) {
+          console.error("Error duplicating topic:", error);
+          createNotice("error", error.message);
+        }
+      }
+    },
+    [courseId, createNotice]
+  );
+
   // =============================
   // Effects
   // =============================
 
   // Fetch topics on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchTopics = async (): Promise<void> => {
       setOperationState({ status: "loading" });
 
@@ -967,7 +1030,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   }, [courseId]);
 
   // Show error notification when error state changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (reorderState.status === "error") {
       setShowError(true);
     } else {
@@ -1035,7 +1098,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                       onEdit={() => handleTopicEdit(topic.id)}
                       onEditCancel={handleTopicEditCancel}
                       onEditSave={handleTopicEditSave}
-                      onDuplicate={() => console.log("Duplicate topic:", topic.id)}
+                      onDuplicate={() => handleTopicDuplicate(topic.id)}
                       onDelete={() => handleTopicDelete(topic.id)}
                       onToggle={() => handleTopicToggle(topic.id)}
                       isEditing={editState.isEditing && editState.topicId === topic.id}
