@@ -1,5 +1,5 @@
 import apiFetch from "@wordpress/api-fetch";
-import { Topic, ContentItem } from "../types/courses";
+import { Topic, ContentItem } from "../types/curriculum";
 import { TutorResponse, TopicResponse, transformTopicResponse } from "../types/api";
 
 /**
@@ -118,26 +118,17 @@ export const duplicateTopic = async (courseId: number, topicId: number): Promise
       course_id: courseId,
     };
 
-    const response = await apiFetch<TutorResponse<TopicData>>({
+    const response = await apiFetch<TutorResponse<TopicResponse>>({
       path: `/tutorpress/v1/topics/${topicId}/duplicate`,
       method: "POST",
       data: payload,
     });
 
-    // Check if we have valid data
     if (!response.data || !response.data.id) {
       throw new Error("Invalid response data from server");
     }
 
-    // Transform the response data to match our Topic type
-    return {
-      id: response.data.id,
-      title: response.data.title,
-      content: response.data.content,
-      contents: (response.data.contents || []).map((content) => transformTopicContent(content, response.data.id)),
-      menu_order: response.data.menu_order,
-      isCollapsed: true,
-    };
+    return transformTopicResponse(response.data);
   } catch (error) {
     // Only treat it as an error if it's not a success message
     if (error instanceof Error && !error.message.includes("successfully")) {

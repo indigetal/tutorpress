@@ -4,7 +4,8 @@
  * Contains types specific to API responses and requests for TutorPress.
  */
 
-import { BaseCourse, BaseTopic, BaseContentItem, Topic, ContentItem, Course } from "./courses";
+import { Course } from "./courses";
+import { BaseTopic, BaseContentItem, Topic, ContentItem } from "./curriculum";
 
 /**
  * Generic response type for TutorPress API endpoints
@@ -24,14 +25,15 @@ export interface TutorResponse<T> {
  */
 export interface TopicResponse extends BaseTopic {
   course_id: number;
-  content_items: BaseContentItem[];
-  order: number;
+  content_items?: BaseContentItem[]; // Make optional since some endpoints use contents
+  contents?: BaseContentItem[]; // Add contents as an alternative field
+  menu_order: number;
 }
 
 /**
- * API response for a course with topics
+ * API response for a course
  */
-export interface CourseResponse extends BaseCourse {
+export interface CourseResponse extends Omit<Course, "topics"> {
   topics: TopicResponse[];
 }
 
@@ -45,7 +47,7 @@ export interface CourseResponse extends BaseCourse {
 export interface TopicRequest {
   title: string;
   course_id: number;
-  order?: number;
+  menu_order?: number;
 }
 
 /**
@@ -55,7 +57,7 @@ export interface UpdateTopicOrderRequest {
   course_id: number;
   topics: {
     topic_id: number;
-    order: number;
+    menu_order: number;
   }[];
 }
 
@@ -78,9 +80,12 @@ export interface UpdateContentOrderRequest {
  * Transform a TopicResponse to a Topic (UI format)
  */
 export const transformTopicResponse = (response: TopicResponse): Topic => ({
-  ...response,
+  id: response.id,
+  title: response.title,
+  content: response.content,
+  menu_order: response.menu_order,
   isCollapsed: false,
-  contents: response.content_items.map(
+  contents: (response.content_items || response.contents || []).map(
     (item): ContentItem => ({
       ...item,
       topic_id: response.id,

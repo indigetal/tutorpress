@@ -29,7 +29,22 @@ import {
   update,
   close,
 } from "@wordpress/icons";
-import type { Topic, ContentItem, DragHandleProps } from "../../types/courses";
+import { CurriculumErrorCode } from "../../types/curriculum";
+import type {
+  Topic,
+  ContentItem,
+  DragHandleProps,
+  CurriculumError,
+  TopicFormData,
+  TopicEditState,
+  TopicCreationState,
+  TopicOperationState,
+  ReorderOperationState,
+  CurriculumSnapshot,
+  OperationResult,
+  SortableTopicProps,
+  TopicSectionProps,
+} from "../../types/curriculum";
 import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
@@ -45,27 +60,6 @@ import { useDispatch } from "@wordpress/data";
 // ============================================================================
 // Type Definitions
 // ============================================================================
-
-/**
- * Error codes for curriculum operations
- */
-enum CurriculumErrorCode {
-  FETCH_FAILED = "fetch_failed",
-  REORDER_FAILED = "reorder_failed",
-  INVALID_RESPONSE = "invalid_response",
-  SERVER_ERROR = "server_error",
-  NETWORK_ERROR = "network_error",
-  CREATION_FAILED = "creation_failed",
-  VALIDATION_ERROR = "validation_error",
-}
-
-/**
- * API error codes for topic operations
- */
-enum TopicErrorCode {
-  CREATION_FAILED = "creation_failed",
-  VALIDATION_ERROR = "validation_error",
-}
 
 /**
  * Props for action buttons
@@ -87,107 +81,6 @@ interface ContentItemRowProps {
 }
 
 /**
- * Props for sortable topic wrapper
- */
-interface SortableTopicProps {
-  topic: Topic;
-  onEdit: () => void;
-  onEditCancel: () => void;
-  onEditSave: (topicId: number, data: TopicFormData) => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onToggle?: () => void;
-  isEditing: boolean;
-}
-
-/**
- * Structured error type for curriculum operations
- */
-interface CurriculumError {
-  code: CurriculumErrorCode;
-  message: string;
-  context?: {
-    action?: string;
-    topicId?: number;
-    details?: string;
-  };
-}
-
-/**
- * API response status
- */
-type ApiStatus = "idle" | "loading" | "success" | "error";
-
-/**
- * Topic operation state with structured error
- */
-type TopicOperationState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "deleting" }
-  | { status: "success"; data: Topic[] }
-  | { status: "error"; error: CurriculumError };
-
-/**
- * Reorder operation state with structured error
- */
-type ReorderOperationState =
-  | { status: "idle" }
-  | { status: "reordering" }
-  | { status: "success" }
-  | { status: "error"; error: CurriculumError };
-
-/**
- * Snapshot of curriculum state
- */
-interface CurriculumSnapshot {
-  topics: Topic[];
-  timestamp: number;
-  operation: "reorder" | "edit" | "delete" | "duplicate";
-}
-
-/**
- * Operation result type
- */
-type OperationResult<T> = {
-  success: boolean;
-  data?: T;
-  error?: CurriculumError;
-};
-
-/**
- * Props for topic section
- */
-interface TopicSectionProps {
-  topic: Topic;
-  dragHandleProps: DragHandleProps;
-  onEdit: () => void;
-  onEditCancel: () => void;
-  onEditSave: (topicId: number, data: TopicFormData) => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onToggle?: () => void;
-  isEditing: boolean;
-}
-
-/**
- * Topic form data
- */
-interface TopicFormData {
-  title: string;
-  summary: string;
-}
-
-/**
- * Topic creation state with structured error
- */
-type TopicCreationState =
-  | { status: "idle" }
-  | { status: "creating" }
-  | { status: "success"; data: Topic }
-  | { status: "error"; error: CurriculumError };
-
-/**
  * Topic form props
  */
 interface TopicFormProps {
@@ -197,14 +90,6 @@ interface TopicFormProps {
   error?: CurriculumError;
   isCreating?: boolean;
 }
-
-/**
- * Topic edit state
- */
-type TopicEditState = {
-  isEditing: boolean;
-  topicId: number | null;
-};
 
 // ============================================================================
 // Constants
@@ -968,17 +853,28 @@ const Curriculum: React.FC = (): JSX.Element => {
 
         // Only proceed if we got a valid topic back
         if (duplicatedTopic && duplicatedTopic.id) {
+          // Create snapshot before updating state
+          createSnapshot("duplicate");
+
           // Add the duplicated topic to the end of the list with isCollapsed set to true
           setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
+
+          // Clear snapshot on success
+          setSnapshot(null);
         }
       } catch (error) {
-        if (error instanceof Error && !error.message.includes("successfully")) {
-          console.error("Error duplicating topic:", error);
-          createNotice("error", error.message);
+        console.error("Error duplicating topic:", error);
+
+        // Show error message
+        createNotice("error", error instanceof Error ? error.message : __("Failed to duplicate topic", "tutorpress"));
+
+        // Restore previous state if needed
+        if (snapshot?.operation === "duplicate") {
+          restoreFromSnapshot();
         }
       }
     },
-    [courseId, createNotice]
+    [courseId, createNotice, createSnapshot, restoreFromSnapshot, snapshot]
   );
 
   // =============================
