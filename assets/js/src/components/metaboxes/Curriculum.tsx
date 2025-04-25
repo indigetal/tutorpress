@@ -105,6 +105,7 @@ type ApiStatus = "idle" | "loading" | "success" | "error";
 type TopicOperationState =
   | { status: "idle" }
   | { status: "loading" }
+  | { status: "deleting" }
   | { status: "success"; data: Topic[] }
   | { status: "error"; error: CurriculumError };
 
@@ -873,6 +874,45 @@ const Curriculum: React.FC = (): JSX.Element => {
     setIsAddingTopic(false);
   }, []);
 
+  /** Handle topic deletion */
+  const handleTopicDelete = useCallback(
+    async (topicId: number) => {
+      if (!window.confirm(__("Are you sure you want to delete this topic?", "tutorpress"))) {
+        return;
+      }
+
+      try {
+        // Create snapshot before updating state
+        createSnapshot("delete");
+
+        // Optimistically update UI
+        setTopics((currentTopics) => currentTopics.filter((t) => t.id !== topicId));
+
+        const response = await apiFetch<{ success: boolean; message?: string }>({
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "DELETE",
+        });
+
+        if (!response.success) {
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: response.message || __("Failed to delete topic", "tutorpress"),
+          };
+        }
+
+        // Clear snapshot on success
+        setSnapshot(null);
+      } catch (err) {
+        console.error("Error deleting topic:", err);
+        // Restore previous state
+        restoreFromSnapshot();
+        // Show error notification
+        setShowError(true);
+      }
+    },
+    [createSnapshot, restoreFromSnapshot]
+  );
+
   // =============================
   // Effects
   // =============================
@@ -991,7 +1031,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                       onEditCancel={handleTopicEditCancel}
                       onEditSave={handleTopicEditSave}
                       onDuplicate={() => console.log("Duplicate topic:", topic.id)}
-                      onDelete={() => console.log("Delete topic:", topic.id)}
+                      onDelete={() => handleTopicDelete(topic.id)}
                       onToggle={() => handleTopicToggle(topic.id)}
                       isEditing={editState.isEditing && editState.topicId === topic.id}
                     />
