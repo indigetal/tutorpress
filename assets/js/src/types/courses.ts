@@ -24,6 +24,7 @@ export interface BaseContentItem {
 export interface BaseTopic {
   id: number;
   title: string;
+  content?: string;
 }
 
 /**

@@ -77,10 +77,13 @@ interface ContentItemRowProps {
 /** Props for sortable topic wrapper */
 interface SortableTopicProps {
   topic: Topic;
-  onEdit?: () => void;
+  onEdit: () => void;
+  onEditCancel: () => void;
+  onEditSave: (topicId: number, data: TopicFormData) => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onToggle?: () => void;
+  isEditing: boolean;
 }
 
 /** Structured error type for curriculum operations */
@@ -129,10 +132,13 @@ type OperationResult<T> = {
 interface TopicSectionProps {
   topic: Topic;
   dragHandleProps: DragHandleProps;
-  onEdit?: () => void;
+  onEdit: () => void;
+  onEditCancel: () => void;
+  onEditSave: (topicId: number, data: TopicFormData) => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onToggle?: () => void;
+  isEditing: boolean;
 }
 
 /** Topic form data */
@@ -156,6 +162,12 @@ interface TopicFormProps {
   error?: CurriculumError;
   isCreating?: boolean;
 }
+
+/** Topic edit state */
+type TopicEditState = {
+  isEditing: boolean;
+  topicId: number | null;
+};
 
 // ============================================================================
 // Constants
@@ -249,62 +261,81 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplica
 /**
  * Renders a topic section with its content items and accepts drag handle props
  */
-const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
+const TopicSection: React.FC<TopicSectionProps> = ({
   topic,
   dragHandleProps,
   onEdit,
+  onEditCancel,
+  onEditSave,
   onDuplicate,
   onDelete,
   onToggle,
-}): JSX.Element => (
-  <Card className="tutorpress-topic">
-    <CardHeader>
-      <Flex align="center" gap={2}>
-        <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
-        <FlexBlock style={{ textAlign: "left" }}>{topic.title}</FlexBlock>
-        <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-        <Button
-          icon={topic.isCollapsed ? chevronRight : chevronDown}
-          label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
-          onClick={onToggle}
-          isSmall
-        />
-      </Flex>
-    </CardHeader>
-    {!topic.isCollapsed && (
-      <CardBody>
-        <div className="tutorpress-content-items">
-          {topic.contents.map((item) => (
-            <ContentItemRow
-              key={item.id}
-              item={item}
-              onEdit={() => console.log("Edit content:", item.id)}
-              onDuplicate={() => console.log("Duplicate content:", item.id)}
-              onDelete={() => console.log("Delete content:", item.id)}
-            />
-          ))}
-        </div>
-        <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
-          <Flex gap={2} style={{ width: "auto" }}>
-            <Button variant="secondary" isSmall icon={plus}>
-              Lesson
-            </Button>
-            <Button variant="secondary" isSmall icon={plus}>
-              Quiz
-            </Button>
-            <Button variant="secondary" isSmall icon={plus}>
-              Interactive Quiz
-            </Button>
-            <Button variant="secondary" isSmall icon={plus}>
-              Assignment
-            </Button>
-          </Flex>
-          <Button icon={moreVertical} label="More options" isSmall />
+  isEditing,
+}): JSX.Element => {
+  // Handle double-click on title
+  const handleTitleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onEdit();
+  };
+
+  return (
+    <Card className="tutorpress-topic">
+      <CardHeader>
+        <Flex align="center" gap={2}>
+          <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
+          <FlexBlock style={{ textAlign: "left" }}>
+            {!isEditing ? <div onDoubleClick={handleTitleDoubleClick}>{topic.title}</div> : null}
+          </FlexBlock>
+          <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+          <Button
+            icon={topic.isCollapsed ? chevronRight : chevronDown}
+            label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
+            onClick={onToggle}
+            isSmall
+          />
         </Flex>
-      </CardBody>
-    )}
-  </Card>
-);
+      </CardHeader>
+      {isEditing ? (
+        <TopicForm
+          initialData={{ title: topic.title, summary: topic.content || "" }}
+          onSave={(data) => onEditSave(topic.id, data)}
+          onCancel={onEditCancel}
+        />
+      ) : !topic.isCollapsed ? (
+        <CardBody>
+          <div className="tutorpress-content-items">
+            {topic.contents.map((item) => (
+              <ContentItemRow
+                key={item.id}
+                item={item}
+                onEdit={() => console.log("Edit content:", item.id)}
+                onDuplicate={() => console.log("Duplicate content:", item.id)}
+                onDelete={() => console.log("Delete content:", item.id)}
+              />
+            ))}
+          </div>
+          <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
+            <Flex gap={2} style={{ width: "auto" }}>
+              <Button variant="secondary" isSmall icon={plus}>
+                Lesson
+              </Button>
+              <Button variant="secondary" isSmall icon={plus}>
+                Quiz
+              </Button>
+              <Button variant="secondary" isSmall icon={plus}>
+                Interactive Quiz
+              </Button>
+              <Button variant="secondary" isSmall icon={plus}>
+                Assignment
+              </Button>
+            </Flex>
+            <Button icon={moreVertical} label="More options" isSmall />
+          </Flex>
+        </CardBody>
+      ) : null}
+    </Card>
+  );
+};
 
 /**
  * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
@@ -313,9 +344,12 @@ const TopicSection: React.FC<TopicSectionProps & ActionButtonsProps> = ({
 const SortableTopic: React.FC<SortableTopicProps> = ({
   topic,
   onEdit,
+  onEditCancel,
+  onEditSave,
   onDuplicate,
   onDelete,
   onToggle,
+  isEditing,
 }): JSX.Element => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: topic.id,
@@ -338,9 +372,12 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
         topic={topic}
         dragHandleProps={{ ...attributes, ...listeners, ref: setActivatorNodeRef }}
         onEdit={onEdit}
+        onEditCancel={onEditCancel}
+        onEditSave={onEditSave}
         onDuplicate={onDuplicate}
         onDelete={onDelete}
         onToggle={onToggle}
+        isEditing={isEditing}
       />
     </div>
   );
@@ -419,6 +456,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [showError, setShowError] = useState(false);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
+  const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
 
   // Get course ID from URL - simplified as we trust WordPress context
   const courseId = Number(new URLSearchParams(window.location.search).get("post"));
@@ -540,17 +578,72 @@ const Curriculum: React.FC = (): JSX.Element => {
     }
   };
 
-  /** Handle drag start: track active item and close all topics */
-  const handleDragStart = useCallback((event: DragStartEvent): void => {
-    setActiveId(Number(event.active.id));
-    // Close all topics when dragging starts
-    setTopics((currentTopics) =>
-      currentTopics.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }))
-    );
+  /** Handle topic edit start */
+  const handleTopicEdit = useCallback((topicId: number) => {
+    setEditState({ isEditing: true, topicId });
   }, []);
+
+  /** Handle topic edit cancel */
+  const handleTopicEditCancel = useCallback(() => {
+    setEditState({ isEditing: false, topicId: null });
+  }, []);
+
+  /** Handle topic edit save */
+  const handleTopicEditSave = useCallback(async (topicId: number, data: TopicFormData) => {
+    try {
+      const response = await apiFetch<unknown>({
+        path: `/tutorpress/v1/topics/${topicId}`,
+        method: "PATCH",
+        data: {
+          title: data.title.trim(),
+          content: data.summary.trim() || " ", // Ensure content is never null
+        },
+      });
+
+      if (!isWpRestResponse(response)) {
+        throw {
+          code: CurriculumErrorCode.INVALID_RESPONSE,
+          message: __("Invalid response format from server", "tutorpress"),
+        };
+      }
+
+      if (!response.success || !isValidTopic(response.data)) {
+        throw {
+          code: CurriculumErrorCode.CREATION_FAILED,
+          message: response.message || __("Failed to update topic", "tutorpress"),
+        };
+      }
+
+      // Update topic in list with response data and ensure it's collapsed
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) => (topic.id === topicId ? { ...response.data, isCollapsed: true } : topic))
+      );
+      setEditState({ isEditing: false, topicId: null });
+    } catch (err) {
+      console.error("Error updating topic:", err);
+      // Show error notification
+      setShowError(true);
+    }
+  }, []);
+
+  /** Handle drag start: cancel edit mode and close all topics */
+  const handleDragStart = useCallback(
+    (event: DragStartEvent): void => {
+      setActiveId(Number(event.active.id));
+      // Cancel edit mode if active
+      if (editState.isEditing) {
+        setEditState({ isEditing: false, topicId: null });
+      }
+      // Close all topics when dragging starts
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+        }))
+      );
+    },
+    [editState.isEditing]
+  );
 
   /** Handle drag over: track item being dragged over */
   const handleDragOver = useCallback((event: DragOverEvent): void => {
@@ -770,7 +863,7 @@ const Curriculum: React.FC = (): JSX.Element => {
         }
 
         if (response.success && Array.isArray(response.data)) {
-          const validTopics = response.data.filter(isValidTopic);
+          const validTopics = response.data.filter(isValidTopic).map((topic) => ({ ...topic, isCollapsed: true }));
           setTopics(validTopics);
           setOperationState({ status: "success", data: validTopics });
         } else {
@@ -860,11 +953,14 @@ const Curriculum: React.FC = (): JSX.Element => {
                     className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
                   >
                     <SortableTopic
-                      topic={{ ...topic, isCollapsed: topic.isCollapsed ?? true }}
-                      onEdit={() => console.log("Edit topic:", topic.id)}
+                      topic={topic}
+                      onEdit={() => handleTopicEdit(topic.id)}
+                      onEditCancel={handleTopicEditCancel}
+                      onEditSave={handleTopicEditSave}
                       onDuplicate={() => console.log("Duplicate topic:", topic.id)}
                       onDelete={() => console.log("Delete topic:", topic.id)}
                       onToggle={() => handleTopicToggle(topic.id)}
+                      isEditing={editState.isEditing && editState.topicId === topic.id}
                     />
                     {reorderState.status === "reordering" && activeId === topic.id && (
                       <div className="tutorpress-saving-indicator">
