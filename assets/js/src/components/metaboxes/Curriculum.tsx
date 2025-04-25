@@ -279,8 +279,8 @@ const TopicSection: React.FC<TopicSectionProps> = ({
   onToggle,
   isEditing,
 }): JSX.Element => {
-  // Handle double-click on title
-  const handleTitleDoubleClick = (e: React.MouseEvent) => {
+  // Handle double-click on title or summary
+  const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     onEdit();
   };
@@ -303,7 +303,11 @@ const TopicSection: React.FC<TopicSectionProps> = ({
         <Flex align="center" gap={2}>
           <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
           <FlexBlock style={{ textAlign: "left" }}>
-            {!isEditing ? <div onDoubleClick={handleTitleDoubleClick}>{topic.title}</div> : null}
+            {!isEditing && (
+              <div className="tutorpress-topic-title" onDoubleClick={handleDoubleClick}>
+                {topic.title}
+              </div>
+            )}
           </FlexBlock>
           <div className="tutorpress-topic-actions">
             <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
@@ -327,6 +331,15 @@ const TopicSection: React.FC<TopicSectionProps> = ({
         />
       ) : !topic.isCollapsed ? (
         <CardBody>
+          {topic.content && (
+            <div
+              className="tutorpress-topic-summary"
+              onDoubleClick={handleDoubleClick}
+              style={{ marginBottom: "16px" }}
+            >
+              {topic.content}
+            </div>
+          )}
           <div className="tutorpress-content-items">
             {topic.contents.map((item) => (
               <ContentItemRow
@@ -615,7 +628,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   /** Handle topic edit save */
   const handleTopicEditSave = useCallback(async (topicId: number, data: TopicFormData) => {
     try {
-      const response = await apiFetch<unknown>({
+      const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
         path: `/tutorpress/v1/topics/${topicId}`,
         method: "PATCH",
         data: {
@@ -623,13 +636,6 @@ const Curriculum: React.FC = (): JSX.Element => {
           content: data.summary.trim() || " ", // Ensure content is never null
         },
       });
-
-      if (!isWpRestResponse(response)) {
-        throw {
-          code: CurriculumErrorCode.INVALID_RESPONSE,
-          message: __("Invalid response format from server", "tutorpress"),
-        };
-      }
 
       if (!response.success || !isValidTopic(response.data)) {
         throw {
@@ -640,12 +646,15 @@ const Curriculum: React.FC = (): JSX.Element => {
 
       // Update topic in list with response data and ensure it's collapsed
       setTopics((currentTopics) =>
-        currentTopics.map((topic) => (topic.id === topicId ? { ...response.data, isCollapsed: true } : topic))
+        currentTopics.map((topic) =>
+          topic.id === topicId
+            ? { ...topic, title: response.data.title, content: response.data.content, order: response.data.order }
+            : topic
+        )
       );
       setEditState({ isEditing: false, topicId: null });
     } catch (err) {
       console.error("Error updating topic:", err);
-      // Show error notification
       setShowError(true);
     }
   }, []);
@@ -748,7 +757,7 @@ const Curriculum: React.FC = (): JSX.Element => {
         };
       }
 
-      const response = await apiFetch<unknown>({
+      const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
         path: `/tutorpress/v1/topics`,
         method: "POST",
         data: {

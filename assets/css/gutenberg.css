@@ -64,17 +64,28 @@
   transition: all 0.2s ease;
 }
 
-.tutorpress-topic.is-open {
-  border-color: #007cba;
+.tutorpress-topic:hover {
+  background-color: rgb(245, 246, 250);
 }
 
-.tutorpress-topic.is-open:hover {
-  background-color: rgb(245, 246, 250);
+.tutorpress-topic.is-open {
+  border-color: #007cba;
 }
 
 .tutorpress-topic-header {
   cursor: pointer;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.tutorpress-topic-title {
+  cursor: pointer;
+}
+
+.tutorpress-topic-summary {
+  margin-top: 4px;
+  color: #757575;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 /* Fix action buttons layout */
