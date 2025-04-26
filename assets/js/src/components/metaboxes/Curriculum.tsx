@@ -135,6 +135,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     setEditState,
     reorderState,
     setReorderState,
+    deletionState,
     isAddingTopic,
     setIsAddingTopic,
     handleTopicToggle,
@@ -144,6 +145,9 @@ const Curriculum: React.FC = (): JSX.Element => {
     handleTopicEditSave,
     handleTopicFormSave,
     handleTopicFormCancel,
+    handleTopicDelete,
+    createSnapshot,
+    restoreFromSnapshot,
     isLoading,
     error,
   } = useTopics({ courseId });
@@ -152,8 +156,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
 
-  // Snapshot state for undo operations
-  const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
+  // Error notification state
   const [showError, setShowError] = useState(false);
 
   // Move useDispatch to component level
@@ -169,61 +172,10 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Callbacks
   // =============================
 
-  /** Create a snapshot of current state */
-  const createSnapshot = useCallback(
-    (operation: CurriculumSnapshot["operation"]) => {
-      setSnapshot({
-        topics: [...topics],
-        timestamp: Date.now(),
-        operation,
-      });
-    },
-    [topics]
-  );
-
-  /** Restore from snapshot */
-  const restoreFromSnapshot = useCallback(() => {
-    if (snapshot) {
-      setTopics(snapshot.topics);
-      setSnapshot(null);
-      return true;
-    }
-    return false;
-  }, [snapshot]);
-
-  /** Clear error states */
-  const clearErrors = useCallback(() => {
-    if (operationState.status === "error") {
-      setOperationState({ status: "idle" });
-    }
-    if (reorderState.status === "error") {
-      setReorderState({ status: "idle" });
-    }
-  }, []);
-
   /** Handle error dismissal */
   const handleDismissError = useCallback(() => {
     setShowError(false);
   }, []);
-
-  /** Retry last failed operation */
-  const retryOperation = useCallback(async () => {
-    if (!snapshot) return;
-
-    clearErrors();
-
-    switch (snapshot.operation) {
-      case "reorder":
-        await handleReorderTopics(topics);
-        break;
-    }
-  }, [snapshot, topics, clearErrors]);
-
-  /** Clear error on successful retry */
-  const handleRetry = useCallback(async () => {
-    await retryOperation();
-    setShowError(false);
-  }, [retryOperation]);
 
   /** Handle topic reordering */
   const handleReorderTopics = async (newOrder: Topic[]): Promise<OperationResult<void>> => {
@@ -254,7 +206,6 @@ const Curriculum: React.FC = (): JSX.Element => {
       }
 
       setReorderState({ status: "success" });
-      setSnapshot(null); // Clear snapshot on success
       return { success: true };
     } catch (err) {
       console.error("Error reordering topics:", err);
@@ -340,44 +291,15 @@ const Curriculum: React.FC = (): JSX.Element => {
     setOverId(null);
   }, []);
 
-  /** Handle topic deletion */
-  const handleTopicDelete = useCallback(
-    async (topicId: number) => {
-      if (!window.confirm(__("Are you sure you want to delete this topic?", "tutorpress"))) {
-        return;
-      }
-
-      try {
-        // Create snapshot before updating state
-        createSnapshot("delete");
-
-        // Optimistically update UI
-        setTopics((currentTopics) => currentTopics.filter((t) => t.id !== topicId));
-
-        const response = await apiFetch<{ success: boolean; message?: string }>({
-          path: `/tutorpress/v1/topics/${topicId}`,
-          method: "DELETE",
-        });
-
-        if (!response.success) {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: response.message || __("Failed to delete topic", "tutorpress"),
-          };
-        }
-
-        // Clear snapshot on success
-        setSnapshot(null);
-      } catch (err) {
-        console.error("Error deleting topic:", err);
-        // Restore previous state
-        restoreFromSnapshot();
-        // Show error notification
-        setShowError(true);
-      }
-    },
-    [createSnapshot, restoreFromSnapshot]
-  );
+  /** Handle retry for failed operations */
+  const handleRetry = useCallback(async () => {
+    if (reorderState.status === "error") {
+      await handleReorderTopics(topics);
+    } else if (deletionState.status === "error" && deletionState.topicId) {
+      await handleTopicDelete(deletionState.topicId);
+    }
+    setShowError(false);
+  }, [reorderState.status, deletionState, topics, handleReorderTopics, handleTopicDelete]);
 
   /**
    * Handle duplicating a topic
@@ -394,9 +316,6 @@ const Curriculum: React.FC = (): JSX.Element => {
 
           // Add the duplicated topic to the end of the list with isCollapsed set to true
           setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
-
-          // Clear snapshot on success
-          setSnapshot(null);
         }
       } catch (error) {
         console.error("Error duplicating topic:", error);
@@ -405,26 +324,24 @@ const Curriculum: React.FC = (): JSX.Element => {
         createNotice("error", error instanceof Error ? error.message : __("Failed to duplicate topic", "tutorpress"));
 
         // Restore previous state if needed
-        if (snapshot?.operation === "duplicate") {
-          restoreFromSnapshot();
-        }
+        restoreFromSnapshot();
       }
     },
-    [courseId, createNotice, createSnapshot, restoreFromSnapshot, snapshot]
+    [courseId, createNotice, createSnapshot, restoreFromSnapshot]
   );
 
   // =============================
   // Effects
   // =============================
 
-  // Show error notification when error state changes
+  // Show error notification when error states change
   useEffect(() => {
-    if (reorderState.status === "error") {
+    if (reorderState.status === "error" || deletionState.status === "error") {
       setShowError(true);
     } else {
       setShowError(false);
     }
-  }, [reorderState]);
+  }, [reorderState, deletionState]);
 
   // =============================
   // Render Methods
@@ -438,7 +355,7 @@ const Curriculum: React.FC = (): JSX.Element => {
           <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
             {getErrorMessage(error)}
           </div>
-          <Button variant="secondary" icon={update} onClick={retryOperation}>
+          <Button variant="secondary" icon={update} onClick={handleRetry}>
             {__("Retry", "tutorpress")}
           </Button>
         </Flex>
@@ -532,7 +449,7 @@ const Curriculum: React.FC = (): JSX.Element => {
       </div>
 
       {/* Error notification */}
-      {showError && reorderState.status === "error" && (
+      {showError && (reorderState.status === "error" || deletionState.status === "error") && (
         <div className="tutorpress-error-notification">
           <Flex direction="column" gap={2} style={{ padding: "12px" }}>
             <Flex justify="space-between" align="center">
@@ -544,7 +461,13 @@ const Curriculum: React.FC = (): JSX.Element => {
                 style={{ padding: 0, height: "auto" }}
               />
             </Flex>
-            <div style={{ color: "#842029" }}>{getErrorMessage(reorderState.error)}</div>
+            <div style={{ color: "#842029" }}>
+              {reorderState.status === "error"
+                ? getErrorMessage(reorderState.error)
+                : deletionState.status === "error"
+                ? getErrorMessage(deletionState.error!)
+                : ""}
+            </div>
             <Flex justify="flex-end">
               <Button variant="secondary" icon={update} onClick={handleRetry} style={{ marginTop: "8px" }}>
                 {__("Retry", "tutorpress")}

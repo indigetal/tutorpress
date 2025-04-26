@@ -15,6 +15,7 @@ import {
   CurriculumError,
   CurriculumErrorCode,
   OperationResult,
+  CurriculumSnapshot,
   isValidTopic,
 } from "../../types/curriculum";
 import { getTopics } from "../../api/topics";
@@ -38,6 +39,13 @@ const isDbError = (data: unknown): data is DbError => {
   );
 };
 
+// New interface for deletion state
+interface TopicDeletionState {
+  status: "idle" | "deleting" | "error" | "success";
+  error?: CurriculumError;
+  topicId?: number;
+}
+
 export interface UseTopicsOptions {
   courseId: number;
 }
@@ -49,7 +57,9 @@ export interface UseTopicsReturn {
   topicCreationState: TopicCreationState;
   editState: TopicEditState;
   reorderState: ReorderOperationState;
+  deletionState: TopicDeletionState;
   isAddingTopic: boolean;
+  snapshot: CurriculumSnapshot | null;
 
   // State setters
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
@@ -72,6 +82,13 @@ export interface UseTopicsReturn {
   handleTopicFormSave: (data: TopicFormData) => Promise<void>;
   handleTopicFormCancel: () => void;
 
+  // Topic Deletion Operations
+  handleTopicDelete: (topicId: number) => Promise<void>;
+
+  // Snapshot Operations
+  createSnapshot: (operation: CurriculumSnapshot["operation"]) => void;
+  restoreFromSnapshot: () => boolean;
+
   // Computed
   isLoading: boolean;
   error: CurriculumError | null;
@@ -92,7 +109,35 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
   const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
   const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
+  const [deletionState, setDeletionState] = useState<TopicDeletionState>({ status: "idle" });
   const [isAddingTopic, setIsAddingTopic] = useState(false);
+  const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
+
+  // =============================
+  // Snapshot Management
+  // =============================
+
+  /** Create a snapshot of current state */
+  const createSnapshot = useCallback(
+    (operation: CurriculumSnapshot["operation"]) => {
+      setSnapshot({
+        topics: [...topics],
+        timestamp: Date.now(),
+        operation,
+      });
+    },
+    [topics]
+  );
+
+  /** Restore from snapshot */
+  const restoreFromSnapshot = useCallback(() => {
+    if (snapshot) {
+      setTopics(snapshot.topics);
+      setSnapshot(null);
+      return true;
+    }
+    return false;
+  }, [snapshot]);
 
   // =============================
   // Effects
@@ -313,6 +358,64 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   }, []);
 
   // =============================
+  // Topic Deletion Operations
+  // =============================
+
+  /** Handle topic deletion */
+  const handleTopicDelete = useCallback(
+    async (topicId: number) => {
+      if (!window.confirm(__("Are you sure you want to delete this topic?", "tutorpress"))) {
+        return;
+      }
+
+      setDeletionState({ status: "deleting", topicId });
+
+      try {
+        // Create snapshot before updating state
+        createSnapshot("delete");
+
+        // Optimistically update UI
+        setTopics((currentTopics) => currentTopics.filter((t) => t.id !== topicId));
+
+        const response = await apiFetch<{ success: boolean; message?: string }>({
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "DELETE",
+        });
+
+        if (!response.success) {
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: response.message || __("Failed to delete topic", "tutorpress"),
+          };
+        }
+
+        // Clear snapshot and set success state
+        setSnapshot(null);
+        setDeletionState({ status: "success" });
+      } catch (err) {
+        console.error("Error deleting topic:", err);
+
+        // Restore previous state
+        restoreFromSnapshot();
+
+        // Set error state
+        const error: CurriculumError = {
+          code: CurriculumErrorCode.SERVER_ERROR,
+          message: err instanceof Error ? err.message : __("Failed to delete topic", "tutorpress"),
+          context: { action: "delete_topic" },
+        };
+
+        setDeletionState({
+          status: "error",
+          error,
+          topicId,
+        });
+      }
+    },
+    [createSnapshot, restoreFromSnapshot]
+  );
+
+  // =============================
   // Return Values
   // =============================
   return {
@@ -322,7 +425,9 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     topicCreationState,
     editState,
     reorderState,
+    deletionState,
     isAddingTopic,
+    snapshot,
 
     // State setters
     setTopics,
@@ -344,6 +449,13 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     // Topic Creation Operations
     handleTopicFormSave,
     handleTopicFormCancel,
+
+    // Topic Deletion Operations
+    handleTopicDelete,
+
+    // Snapshot Operations
+    createSnapshot,
+    restoreFromSnapshot,
 
     // Computed
     isLoading: operationState.status === "loading",
