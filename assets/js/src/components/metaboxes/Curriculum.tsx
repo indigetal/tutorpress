@@ -32,6 +32,7 @@ import { useDispatch } from "@wordpress/data";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
 import { useTopics, useCourseId, useDragDrop } from "../../hooks/curriculum";
+import { useCurriculumError } from "../../hooks/curriculum/useCurriculumError";
 
 // ============================================================================
 // Utility Functions
@@ -163,8 +164,15 @@ const Curriculum: React.FC = (): JSX.Element => {
       setReorderState,
     });
 
-  // Error notification state
-  const [showError, setShowError] = useState(false);
+  const { showError, handleDismissError, handleRetry, getErrorMessage } = useCurriculumError({
+    reorderState,
+    deletionState,
+    duplicationState,
+    topics,
+    handleReorderTopics,
+    handleTopicDelete,
+    handleTopicDuplicate,
+  });
 
   // Move useDispatch to component level
   const { createNotice } = useDispatch(noticesStore);
@@ -174,44 +182,6 @@ const Curriculum: React.FC = (): JSX.Element => {
 
   // Memoize topic IDs array to prevent unnecessary recalculations
   const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
-
-  /** Handle error dismissal */
-  const handleDismissError = useCallback(() => {
-    setShowError(false);
-  }, []);
-
-  /** Handle retry for failed operations */
-  const handleRetry = useCallback(async () => {
-    if (reorderState.status === "error") {
-      await handleReorderTopics(topics);
-    } else if (deletionState.status === "error" && deletionState.topicId) {
-      await handleTopicDelete(deletionState.topicId);
-    } else if (duplicationState.status === "error" && duplicationState.sourceTopicId) {
-      await handleTopicDuplicate(duplicationState.sourceTopicId);
-    }
-    setShowError(false);
-  }, [
-    reorderState.status,
-    deletionState,
-    duplicationState,
-    topics,
-    handleReorderTopics,
-    handleTopicDelete,
-    handleTopicDuplicate,
-  ]);
-
-  // =============================
-  // Effects
-  // =============================
-
-  // Show error notification when error states change
-  useEffect(() => {
-    if (reorderState.status === "error" || deletionState.status === "error" || duplicationState.status === "error") {
-      setShowError(true);
-    } else {
-      setShowError(false);
-    }
-  }, [reorderState, deletionState, duplicationState]);
 
   // =============================
   // Render Methods

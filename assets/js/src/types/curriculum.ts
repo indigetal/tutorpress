@@ -211,3 +211,16 @@ export interface ContentOrder {
   topic_id: number;
   order: number;
 }
+
+export interface TopicDeletionState {
+  status: "idle" | "deleting" | "error" | "success";
+  error?: CurriculumError;
+  topicId?: number;
+}
+
+export interface TopicDuplicationState {
+  status: "idle" | "duplicating" | "error" | "success";
+  error?: CurriculumError;
+  sourceTopicId?: number;
+  duplicatedTopicId?: number;
+}
