@@ -18,9 +18,11 @@ import {
   CurriculumSnapshot,
   isValidTopic,
 } from "../../types/curriculum";
-import { getTopics } from "../../api/topics";
+import { getTopics, duplicateTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
+import { store as noticesStore } from "@wordpress/notices";
+import { useDispatch } from "@wordpress/data";
 
 // Type guard for database error response
 interface DbError {
@@ -46,6 +48,14 @@ interface TopicDeletionState {
   topicId?: number;
 }
 
+// New interface for duplication state
+interface TopicDuplicationState {
+  status: "idle" | "duplicating" | "error" | "success";
+  error?: CurriculumError;
+  sourceTopicId?: number;
+  duplicatedTopicId?: number;
+}
+
 export interface UseTopicsOptions {
   courseId: number;
 }
@@ -58,6 +68,7 @@ export interface UseTopicsReturn {
   editState: TopicEditState;
   reorderState: ReorderOperationState;
   deletionState: TopicDeletionState;
+  duplicationState: TopicDuplicationState;
   isAddingTopic: boolean;
   snapshot: CurriculumSnapshot | null;
 
@@ -85,6 +96,9 @@ export interface UseTopicsReturn {
   // Topic Deletion Operations
   handleTopicDelete: (topicId: number) => Promise<void>;
 
+  // Topic Duplication Operations
+  handleTopicDuplicate: (topicId: number) => Promise<void>;
+
   // Snapshot Operations
   createSnapshot: (operation: CurriculumSnapshot["operation"]) => void;
   restoreFromSnapshot: () => boolean;
@@ -110,8 +124,12 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
   const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
   const [deletionState, setDeletionState] = useState<TopicDeletionState>({ status: "idle" });
+  const [duplicationState, setDuplicationState] = useState<TopicDuplicationState>({ status: "idle" });
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
+
+  // WordPress notices
+  const { createNotice } = useDispatch(noticesStore);
 
   // =============================
   // Snapshot Management
@@ -416,6 +434,64 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   );
 
   // =============================
+  // Topic Duplication Operations
+  // =============================
+
+  /** Handle topic duplication */
+  const handleTopicDuplicate = useCallback(
+    async (topicId: number) => {
+      setDuplicationState({ status: "duplicating", sourceTopicId: topicId });
+
+      try {
+        // Create snapshot before duplication
+        createSnapshot("duplicate");
+
+        const duplicatedTopic = await duplicateTopic(courseId, topicId);
+
+        // Validate the response
+        if (!duplicatedTopic || !isValidTopic(duplicatedTopic)) {
+          throw new Error(__("Invalid response from server", "tutorpress"));
+        }
+
+        // Add the duplicated topic to the end of the list
+        setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
+
+        // Update state on success
+        setDuplicationState({
+          status: "success",
+          sourceTopicId: topicId,
+          duplicatedTopicId: duplicatedTopic.id,
+        });
+
+        // Show success notice
+        createNotice("success", __("Topic duplicated successfully", "tutorpress"), { type: "snackbar" });
+      } catch (error) {
+        console.error("Error duplicating topic:", error);
+
+        // Restore previous state
+        restoreFromSnapshot();
+
+        // Set error state
+        const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic", "tutorpress");
+
+        setDuplicationState({
+          status: "error",
+          sourceTopicId: topicId,
+          error: {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: errorMessage,
+            context: { action: "duplicate_topic" },
+          },
+        });
+
+        // Show error notice
+        createNotice("error", errorMessage, { type: "snackbar" });
+      }
+    },
+    [courseId, createSnapshot, restoreFromSnapshot, createNotice]
+  );
+
+  // =============================
   // Return Values
   // =============================
   return {
@@ -426,6 +502,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     editState,
     reorderState,
     deletionState,
+    duplicationState,
     isAddingTopic,
     snapshot,
 
@@ -452,6 +529,9 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
 
     // Topic Deletion Operations
     handleTopicDelete,
+
+    // Topic Duplication Operations
+    handleTopicDuplicate,
 
     // Snapshot Operations
     createSnapshot,

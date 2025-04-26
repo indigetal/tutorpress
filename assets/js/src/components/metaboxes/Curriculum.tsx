@@ -136,6 +136,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     reorderState,
     setReorderState,
     deletionState,
+    duplicationState,
     isAddingTopic,
     setIsAddingTopic,
     handleTopicToggle,
@@ -146,6 +147,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     handleTopicFormSave,
     handleTopicFormCancel,
     handleTopicDelete,
+    handleTopicDuplicate,
     createSnapshot,
     restoreFromSnapshot,
     isLoading,
@@ -297,38 +299,19 @@ const Curriculum: React.FC = (): JSX.Element => {
       await handleReorderTopics(topics);
     } else if (deletionState.status === "error" && deletionState.topicId) {
       await handleTopicDelete(deletionState.topicId);
+    } else if (duplicationState.status === "error" && duplicationState.sourceTopicId) {
+      await handleTopicDuplicate(duplicationState.sourceTopicId);
     }
     setShowError(false);
-  }, [reorderState.status, deletionState, topics, handleReorderTopics, handleTopicDelete]);
-
-  /**
-   * Handle duplicating a topic
-   */
-  const handleTopicDuplicate = useCallback(
-    async (topicId: number) => {
-      try {
-        const duplicatedTopic = await duplicateTopic(courseId, topicId);
-
-        // Only proceed if we got a valid topic back
-        if (duplicatedTopic && duplicatedTopic.id) {
-          // Create snapshot before updating state
-          createSnapshot("duplicate");
-
-          // Add the duplicated topic to the end of the list with isCollapsed set to true
-          setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
-        }
-      } catch (error) {
-        console.error("Error duplicating topic:", error);
-
-        // Show error message
-        createNotice("error", error instanceof Error ? error.message : __("Failed to duplicate topic", "tutorpress"));
-
-        // Restore previous state if needed
-        restoreFromSnapshot();
-      }
-    },
-    [courseId, createNotice, createSnapshot, restoreFromSnapshot]
-  );
+  }, [
+    reorderState.status,
+    deletionState,
+    duplicationState,
+    topics,
+    handleReorderTopics,
+    handleTopicDelete,
+    handleTopicDuplicate,
+  ]);
 
   // =============================
   // Effects
@@ -336,12 +319,12 @@ const Curriculum: React.FC = (): JSX.Element => {
 
   // Show error notification when error states change
   useEffect(() => {
-    if (reorderState.status === "error" || deletionState.status === "error") {
+    if (reorderState.status === "error" || deletionState.status === "error" || duplicationState.status === "error") {
       setShowError(true);
     } else {
       setShowError(false);
     }
-  }, [reorderState, deletionState]);
+  }, [reorderState, deletionState, duplicationState]);
 
   // =============================
   // Render Methods
@@ -449,33 +432,38 @@ const Curriculum: React.FC = (): JSX.Element => {
       </div>
 
       {/* Error notification */}
-      {showError && (reorderState.status === "error" || deletionState.status === "error") && (
-        <div className="tutorpress-error-notification">
-          <Flex direction="column" gap={2} style={{ padding: "12px" }}>
-            <Flex justify="space-between" align="center">
-              <div style={{ color: "#842029", fontWeight: "500" }}>{__("Error Saving Changes", "tutorpress")}</div>
-              <Button
-                icon={close}
-                label={__("Dismiss", "tutorpress")}
-                onClick={handleDismissError}
-                style={{ padding: 0, height: "auto" }}
-              />
+      {showError &&
+        (reorderState.status === "error" ||
+          deletionState.status === "error" ||
+          duplicationState.status === "error") && (
+          <div className="tutorpress-error-notification">
+            <Flex direction="column" gap={2} style={{ padding: "12px" }}>
+              <Flex justify="space-between" align="center">
+                <div style={{ color: "#842029", fontWeight: "500" }}>{__("Error Saving Changes", "tutorpress")}</div>
+                <Button
+                  icon={close}
+                  label={__("Dismiss", "tutorpress")}
+                  onClick={handleDismissError}
+                  style={{ padding: 0, height: "auto" }}
+                />
+              </Flex>
+              <div style={{ color: "#842029" }}>
+                {reorderState.status === "error"
+                  ? getErrorMessage(reorderState.error)
+                  : deletionState.status === "error"
+                  ? getErrorMessage(deletionState.error!)
+                  : duplicationState.status === "error"
+                  ? getErrorMessage(duplicationState.error!)
+                  : ""}
+              </div>
+              <Flex justify="flex-end">
+                <Button variant="secondary" icon={update} onClick={handleRetry} style={{ marginTop: "8px" }}>
+                  {__("Retry", "tutorpress")}
+                </Button>
+              </Flex>
             </Flex>
-            <div style={{ color: "#842029" }}>
-              {reorderState.status === "error"
-                ? getErrorMessage(reorderState.error)
-                : deletionState.status === "error"
-                ? getErrorMessage(deletionState.error!)
-                : ""}
-            </div>
-            <Flex justify="flex-end">
-              <Button variant="secondary" icon={update} onClick={handleRetry} style={{ marginTop: "8px" }}>
-                {__("Retry", "tutorpress")}
-              </Button>
-            </Flex>
-          </Flex>
-        </div>
-      )}
+          </div>
+        )}
     </div>
   );
 };
