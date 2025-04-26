@@ -14,9 +14,12 @@ import {
   ReorderOperationState,
   CurriculumError,
   CurriculumErrorCode,
+  OperationResult,
+  isValidTopic,
 } from "../../types/curriculum";
 import { getTopics } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
+import apiFetch from "@wordpress/api-fetch";
 
 export interface UseTopicsOptions {
   courseId: number;
@@ -42,6 +45,11 @@ export interface UseTopicsReturn {
   // Topic UI Operations
   handleTopicToggle: (topicId: number) => void;
   handleAddTopicClick: () => void;
+
+  // Topic Edit Operations
+  handleTopicEdit: (topicId: number) => void;
+  handleTopicEditCancel: () => void;
+  handleTopicEditSave: (topicId: number, data: TopicFormData) => Promise<void>;
 
   // Computed
   isLoading: boolean;
@@ -117,6 +125,52 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   }, []);
 
   // =============================
+  // Topic Edit Operations
+  // =============================
+
+  /** Handle topic edit start */
+  const handleTopicEdit = useCallback((topicId: number) => {
+    setEditState({ isEditing: true, topicId });
+  }, []);
+
+  /** Handle topic edit cancel */
+  const handleTopicEditCancel = useCallback(() => {
+    setEditState({ isEditing: false, topicId: null });
+  }, []);
+
+  /** Handle topic edit save */
+  const handleTopicEditSave = useCallback(async (topicId: number, data: TopicFormData) => {
+    try {
+      const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
+        path: `/tutorpress/v1/topics/${topicId}`,
+        method: "PATCH",
+        data: {
+          title: data.title.trim(),
+          content: data.summary.trim() || " ", // Ensure content is never null
+        },
+      });
+
+      if (!response.success || !isValidTopic(response.data)) {
+        throw {
+          code: CurriculumErrorCode.CREATION_FAILED,
+          message: response.message || __("Failed to update topic", "tutorpress"),
+        };
+      }
+
+      // Update topic in list with response data and ensure it's collapsed
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) =>
+          topic.id === topicId ? { ...topic, title: response.data.title, content: response.data.content } : topic
+        )
+      );
+      setEditState({ isEditing: false, topicId: null });
+    } catch (err) {
+      console.error("Error updating topic:", err);
+      throw err;
+    }
+  }, []);
+
+  // =============================
   // Return Values
   // =============================
   return {
@@ -139,6 +193,11 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     // Topic UI Operations
     handleTopicToggle,
     handleAddTopicClick,
+
+    // Topic Edit Operations
+    handleTopicEdit,
+    handleTopicEditCancel,
+    handleTopicEditSave,
 
     // Computed
     isLoading: operationState.status === "loading",

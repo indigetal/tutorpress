@@ -19,6 +19,7 @@ import type {
   OperationResult,
   SortableTopicProps,
 } from "../../types/curriculum";
+import { isValidTopic } from "../../types/curriculum";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
@@ -66,19 +67,6 @@ const getErrorMessage = (error: CurriculumError): string => {
 // Type guard for WP REST API response
 const isWpRestResponse = (response: unknown): response is { success: boolean; message: string; data: unknown } => {
   return typeof response === "object" && response !== null && "success" in response && "data" in response;
-};
-
-// Topic validation focusing on essential fields
-const isValidTopic = (topic: unknown): topic is Topic => {
-  return (
-    typeof topic === "object" &&
-    topic !== null &&
-    "id" in topic &&
-    "title" in topic &&
-    "content" in topic &&
-    "contents" in topic &&
-    Array.isArray((topic as Topic).contents)
-  );
 };
 
 /**
@@ -151,6 +139,9 @@ const Curriculum: React.FC = (): JSX.Element => {
     setIsAddingTopic,
     handleTopicToggle,
     handleAddTopicClick,
+    handleTopicEdit,
+    handleTopicEditCancel,
+    handleTopicEditSave,
     isLoading,
     error,
   } = useTopics({ courseId });
@@ -282,48 +273,6 @@ const Curriculum: React.FC = (): JSX.Element => {
       return { success: false, error };
     }
   };
-
-  /** Handle topic edit start */
-  const handleTopicEdit = useCallback((topicId: number) => {
-    setEditState({ isEditing: true, topicId });
-  }, []);
-
-  /** Handle topic edit cancel */
-  const handleTopicEditCancel = useCallback(() => {
-    setEditState({ isEditing: false, topicId: null });
-  }, []);
-
-  /** Handle topic edit save */
-  const handleTopicEditSave = useCallback(async (topicId: number, data: TopicFormData) => {
-    try {
-      const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
-        path: `/tutorpress/v1/topics/${topicId}`,
-        method: "PATCH",
-        data: {
-          title: data.title.trim(),
-          content: data.summary.trim() || " ", // Ensure content is never null
-        },
-      });
-
-      if (!response.success || !isValidTopic(response.data)) {
-        throw {
-          code: CurriculumErrorCode.CREATION_FAILED,
-          message: response.message || __("Failed to update topic", "tutorpress"),
-        };
-      }
-
-      // Update topic in list with response data and ensure it's collapsed
-      setTopics((currentTopics) =>
-        currentTopics.map((topic) =>
-          topic.id === topicId ? { ...topic, title: response.data.title, content: response.data.content } : topic
-        )
-      );
-      setEditState({ isEditing: false, topicId: null });
-    } catch (err) {
-      console.error("Error updating topic:", err);
-      setShowError(true);
-    }
-  }, []);
 
   /** Handle drag start: cancel edit mode and close all topics */
   const handleDragStart = useCallback(

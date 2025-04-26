@@ -28,6 +28,25 @@ export interface BaseTopic {
 }
 
 // ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Type guard for validating Topic objects
+ */
+export const isValidTopic = (topic: unknown): topic is Topic => {
+  return (
+    typeof topic === "object" &&
+    topic !== null &&
+    "id" in topic &&
+    "title" in topic &&
+    "content" in topic &&
+    "contents" in topic &&
+    Array.isArray((topic as Topic).contents)
+  );
+};
+
+// ============================================================================
 // UI Types
 // ============================================================================
 
