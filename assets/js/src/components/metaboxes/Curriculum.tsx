@@ -4,13 +4,11 @@
  * Implements the curriculum builder UI using WordPress components.
  */
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, ButtonGroup, Spinner } from "@wordpress/components";
-import { moreVertical, plus, dragHandle, chevronDown, chevronRight, update, close } from "@wordpress/icons";
+import { Button, Flex, FlexBlock, Spinner } from "@wordpress/components";
+import { plus, update, close } from "@wordpress/icons";
 import { CurriculumErrorCode } from "../../types/curriculum";
 import type {
   Topic,
-  ContentItem,
-  DragHandleProps,
   CurriculumError,
   TopicFormData,
   TopicEditState,
@@ -20,51 +18,18 @@ import type {
   CurriculumSnapshot,
   OperationResult,
   SortableTopicProps,
-  TopicSectionProps,
 } from "../../types/curriculum";
-import type { TutorResponse } from "../../types/api";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { MouseEvent } from "react";
 import { getTopics, reorderTopics, duplicateTopic } from "../../api/topics";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
-import ActionButtons from "./curriculum/ActionButtons";
+import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
-
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
-/**
- * Props for content item row
- */
-interface ContentItemRowProps {
-  item: ContentItem;
-  onEdit?: () => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-}
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Content item icon mapping
- */
-const contentTypeIcons = {
-  lesson: "text-page",
-  quiz: "star-filled",
-  interactive_quiz: "chart-bar",
-  assignment: "clipboard",
-  meet_lesson: "video-alt2",
-  zoom_lesson: "video-alt3",
-} as const;
 
 // ============================================================================
 // Utility Functions
@@ -109,139 +74,9 @@ const isValidTopic = (topic: unknown): topic is Topic => {
     topic !== null &&
     "id" in topic &&
     "title" in topic &&
+    "content" in topic &&
     "contents" in topic &&
     Array.isArray((topic as Topic).contents)
-  );
-};
-
-// ============================================================================
-// Sub-Components
-// ============================================================================
-
-/**
- * Renders a single content item
- */
-const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplicate, onDelete }): JSX.Element => (
-  <div className="tutorpress-content-item">
-    <Flex align="center" gap={2}>
-      <div className="tutorpress-content-item-icon">
-        <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
-        <Icon icon={dragHandle} className="drag-icon" />
-      </div>
-      <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
-      <div className="tutorpress-content-item-actions">
-        <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-      </div>
-    </Flex>
-  </div>
-);
-
-/**
- * Renders a topic section with its content items and accepts drag handle props
- */
-const TopicSection: React.FC<TopicSectionProps> = ({
-  topic,
-  dragHandleProps,
-  onEdit,
-  onEditCancel,
-  onEditSave,
-  onDuplicate,
-  onDelete,
-  onToggle,
-  isEditing,
-}): JSX.Element => {
-  // Handle double-click on title or summary
-  const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    onEdit();
-  };
-
-  // Handle header click for toggle
-  const handleHeaderClick = (e: MouseEvent<HTMLDivElement>) => {
-    // Don't toggle if clicking on a button or dragging
-    if ((e.target as HTMLElement).closest("button")) {
-      return;
-    }
-    onToggle?.();
-  };
-
-  const headerClassName = `tutorpress-topic-header ${!topic.isCollapsed ? "is-open" : ""}`;
-  const cardClassName = `tutorpress-topic ${!topic.isCollapsed ? "is-open" : ""}`;
-
-  return (
-    <Card className={cardClassName}>
-      <CardHeader className={headerClassName} onClick={handleHeaderClick}>
-        <Flex align="center" gap={2}>
-          <Button icon={dragHandle} label="Drag to reorder" isSmall {...dragHandleProps} />
-          <FlexBlock style={{ textAlign: "left" }}>
-            {!isEditing && (
-              <div className="tutorpress-topic-title" onDoubleClick={handleDoubleClick}>
-                {topic.title}
-              </div>
-            )}
-          </FlexBlock>
-          <div className="tutorpress-topic-actions">
-            <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-            <Button
-              icon={topic.isCollapsed ? chevronRight : chevronDown}
-              label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}
-              onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation();
-                onToggle?.();
-              }}
-              isSmall
-            />
-          </div>
-        </Flex>
-      </CardHeader>
-      {isEditing ? (
-        <TopicForm
-          initialData={{ title: topic.title, summary: topic.content || "" }}
-          onSave={(data) => onEditSave(topic.id, data)}
-          onCancel={onEditCancel}
-        />
-      ) : !topic.isCollapsed ? (
-        <CardBody>
-          {topic.content && (
-            <div
-              className="tutorpress-topic-summary"
-              onDoubleClick={handleDoubleClick}
-              style={{ marginBottom: "16px" }}
-            >
-              {topic.content}
-            </div>
-          )}
-          <div className="tutorpress-content-items">
-            {topic.contents.map((item) => (
-              <ContentItemRow
-                key={item.id}
-                item={item}
-                onEdit={() => console.log("Edit content:", item.id)}
-                onDuplicate={() => console.log("Duplicate content:", item.id)}
-                onDelete={() => console.log("Delete content:", item.id)}
-              />
-            ))}
-          </div>
-          <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
-            <Flex gap={2} style={{ width: "auto" }}>
-              <Button variant="secondary" isSmall icon={plus}>
-                Lesson
-              </Button>
-              <Button variant="secondary" isSmall icon={plus}>
-                Quiz
-              </Button>
-              <Button variant="secondary" isSmall icon={plus}>
-                Interactive Quiz
-              </Button>
-              <Button variant="secondary" isSmall icon={plus}>
-                Assignment
-              </Button>
-            </Flex>
-            <Button icon={moreVertical} label="More options" isSmall />
-          </Flex>
-        </CardBody>
-      ) : null}
-    </Card>
   );
 };
 
@@ -934,7 +769,7 @@ const Curriculum: React.FC = (): JSX.Element => {
         </div>
       </div>
 
-      {/* Floating error notification */}
+      {/* Error notification */}
       {showError && reorderState.status === "error" && (
         <div className="tutorpress-error-notification">
           <Flex direction="column" gap={2} style={{ padding: "12px" }}>
