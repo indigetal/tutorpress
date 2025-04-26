@@ -142,6 +142,8 @@ const Curriculum: React.FC = (): JSX.Element => {
     handleTopicEdit,
     handleTopicEditCancel,
     handleTopicEditSave,
+    handleTopicFormSave,
+    handleTopicFormCancel,
     isLoading,
     error,
   } = useTopics({ courseId });
@@ -336,144 +338,6 @@ const Curriculum: React.FC = (): JSX.Element => {
   const handleDragCancel = useCallback((): void => {
     setActiveId(null);
     setOverId(null);
-  }, []);
-
-  /** Create a new topic */
-  const createTopic = async (data: TopicFormData): Promise<OperationResult<Topic>> => {
-    try {
-      // Validate required fields
-      if (!data.title.trim()) {
-        return {
-          success: false,
-          error: {
-            code: CurriculumErrorCode.VALIDATION_ERROR,
-            message: __("Topic title is required", "tutorpress"),
-            context: { action: "create_topic" },
-          },
-        };
-      }
-
-      // Calculate the new topic's menu_order (always at the end)
-      const lastTopic =
-        topics.length > 0
-          ? topics.reduce((max, topic) => (topic.menu_order > max.menu_order ? topic : max), topics[0])
-          : null;
-      const newMenuOrder = lastTopic ? lastTopic.menu_order + 1 : 0;
-
-      const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
-        path: `/tutorpress/v1/topics`,
-        method: "POST",
-        data: {
-          course_id: courseId,
-          title: data.title.trim(),
-          content: data.summary.trim() || " ", // Ensure content is never null
-          menu_order: newMenuOrder,
-        },
-      });
-
-      if (!isWpRestResponse(response)) {
-        return {
-          success: false,
-          error: {
-            code: CurriculumErrorCode.INVALID_RESPONSE,
-            message: __("Invalid response format from server", "tutorpress"),
-            context: { action: "create_topic" },
-          },
-        };
-      }
-
-      // Type guard for database error response
-      const isDbError = (data: unknown): data is { code: string; message: string } => {
-        return (
-          typeof data === "object" &&
-          data !== null &&
-          "code" in data &&
-          typeof data.code === "string" &&
-          "message" in data &&
-          typeof data.message === "string"
-        );
-      };
-
-      if (!response.success || !isValidTopic(response.data)) {
-        // Handle specific database errors
-        if (isDbError(response.data) && response.data.code === "db_insert_error") {
-          return {
-            success: false,
-            error: {
-              code: CurriculumErrorCode.SERVER_ERROR,
-              message: __("Database error while creating topic. Please try again.", "tutorpress"),
-              context: {
-                action: "create_topic",
-                details: response.data.message,
-              },
-            },
-          };
-        }
-
-        return {
-          success: false,
-          error: {
-            code: CurriculumErrorCode.CREATION_FAILED,
-            message: response.message || __("Failed to create topic", "tutorpress"),
-            context: { action: "create_topic" },
-          },
-        };
-      }
-
-      const newTopic = response.data as Topic;
-      return { success: true, data: newTopic };
-    } catch (error: unknown) {
-      console.error("Error creating topic:", error);
-
-      // Handle known error types
-      if (error && typeof error === "object" && "code" in error && "message" in error) {
-        return {
-          success: false,
-          error: {
-            code: (error as { code: CurriculumErrorCode }).code,
-            message: (error as { message: string }).message,
-            context: { action: "create_topic" },
-          },
-        };
-      }
-
-      // Default error for unknown types
-      return {
-        success: false,
-        error: {
-          code: CurriculumErrorCode.CREATION_FAILED,
-          message: error instanceof Error ? error.message : __("Failed to create topic", "tutorpress"),
-          context: { action: "create_topic" },
-        },
-      };
-    }
-  };
-
-  /** Handle topic form save */
-  const handleTopicFormSave = useCallback(
-    async (data: TopicFormData) => {
-      setTopicCreationState({ status: "creating" });
-
-      const result = await createTopic(data);
-
-      if (result.success && result.data) {
-        // Ensure we're working with a valid Topic
-        const newTopic: Topic = result.data;
-        setTopics((currentTopics) => [...currentTopics, newTopic]);
-        setTopicCreationState({ status: "success", data: newTopic });
-        setIsAddingTopic(false); // Close the form after successful creation
-      } else {
-        setTopicCreationState({ status: "error", error: result.error! });
-        // Keep form open to allow retry
-      }
-    },
-    [courseId, topics]
-  );
-
-  /** Handle topic form cancel */
-  const handleTopicFormCancel = useCallback(() => {
-    setTopicCreationState({ status: "idle" });
-    setIsAddingTopic(false); // Close the form when cancelled
   }, []);
 
   /** Handle topic deletion */
