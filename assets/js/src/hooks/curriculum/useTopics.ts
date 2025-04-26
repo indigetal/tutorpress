@@ -29,6 +29,7 @@ export interface UseTopicsReturn {
   topicCreationState: TopicCreationState;
   editState: TopicEditState;
   reorderState: ReorderOperationState;
+  isAddingTopic: boolean;
 
   // State setters
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
@@ -36,6 +37,11 @@ export interface UseTopicsReturn {
   setTopicCreationState: React.Dispatch<React.SetStateAction<TopicCreationState>>;
   setEditState: React.Dispatch<React.SetStateAction<TopicEditState>>;
   setReorderState: React.Dispatch<React.SetStateAction<ReorderOperationState>>;
+  setIsAddingTopic: React.Dispatch<React.SetStateAction<boolean>>;
+
+  // Topic UI Operations
+  handleTopicToggle: (topicId: number) => void;
+  handleAddTopicClick: () => void;
 
   // Computed
   isLoading: boolean;
@@ -57,6 +63,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
   const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
   const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
+  const [isAddingTopic, setIsAddingTopic] = useState(false);
 
   // =============================
   // Effects
@@ -87,6 +94,29 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   }, [courseId]);
 
   // =============================
+  // Topic UI Operations
+  // =============================
+
+  /** Handle topic toggle (collapse/expand) */
+  const handleTopicToggle = useCallback((topicId: number) => {
+    setTopics((currentTopics) =>
+      currentTopics.map((topic) => (topic.id === topicId ? { ...topic, isCollapsed: !topic.isCollapsed } : topic))
+    );
+  }, []);
+
+  /** Handle starting topic addition */
+  const handleAddTopicClick = useCallback(() => {
+    // Close all topics when adding a new one
+    setTopics((currentTopics) =>
+      currentTopics.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }))
+    );
+    setIsAddingTopic(true);
+  }, []);
+
+  // =============================
   // Return Values
   // =============================
   return {
@@ -96,6 +126,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     topicCreationState,
     editState,
     reorderState,
+    isAddingTopic,
 
     // State setters
     setTopics,
@@ -103,6 +134,11 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     setTopicCreationState,
     setEditState,
     setReorderState,
+    setIsAddingTopic,
+
+    // Topic UI Operations
+    handleTopicToggle,
+    handleAddTopicClick,
 
     // Computed
     isLoading: operationState.status === "loading",

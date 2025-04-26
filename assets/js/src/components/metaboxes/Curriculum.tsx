@@ -30,7 +30,7 @@ import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
-import { useTopics } from "../../hooks/curriculum";
+import { useTopics, useCourseId } from "../../hooks/curriculum";
 
 // ============================================================================
 // Utility Functions
@@ -135,31 +135,33 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
  * Main Curriculum component
  */
 const Curriculum: React.FC = (): JSX.Element => {
-  // Get course ID from URL - simplified as we trust WordPress context
-  const courseId = Number(new URLSearchParams(window.location.search).get("post"));
-
-  // Use the topics hook for state management
+  const courseId = useCourseId();
   const {
     topics,
-    operationState,
-    topicCreationState,
-    editState,
-    reorderState,
     setTopics,
+    operationState,
     setOperationState,
+    topicCreationState,
     setTopicCreationState,
+    editState,
     setEditState,
+    reorderState,
     setReorderState,
+    isAddingTopic,
+    setIsAddingTopic,
+    handleTopicToggle,
+    handleAddTopicClick,
     isLoading,
     error,
   } = useTopics({ courseId });
 
-  // Remaining state that hasn't been moved to the hook yet
+  // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
+
+  // Snapshot state for undo operations
   const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
   const [showError, setShowError] = useState(false);
-  const [isAddingTopic, setIsAddingTopic] = useState(false);
 
   // Move useDispatch to component level
   const { createNotice } = useDispatch(noticesStore);
@@ -387,25 +389,6 @@ const Curriculum: React.FC = (): JSX.Element => {
     setOverId(null);
   }, []);
 
-  /** Handle topic toggle */
-  const handleTopicToggle = useCallback((topicId: number) => {
-    setTopics((currentTopics) =>
-      currentTopics.map((topic) => (topic.id === topicId ? { ...topic, isCollapsed: !topic.isCollapsed } : topic))
-    );
-  }, []);
-
-  /** Handle starting topic addition */
-  const handleAddTopicClick = useCallback(() => {
-    // Close all topics when adding a new one
-    setTopics((currentTopics) =>
-      currentTopics.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }))
-    );
-    setIsAddingTopic(true);
-  }, []);
-
   /** Create a new topic */
   const createTopic = async (data: TopicFormData): Promise<OperationResult<Topic>> => {
     try {
@@ -529,7 +512,7 @@ const Curriculum: React.FC = (): JSX.Element => {
         const newTopic: Topic = result.data;
         setTopics((currentTopics) => [...currentTopics, newTopic]);
         setTopicCreationState({ status: "success", data: newTopic });
-        setIsAddingTopic(false);
+        setIsAddingTopic(false); // Close the form after successful creation
       } else {
         setTopicCreationState({ status: "error", error: result.error! });
         // Keep form open to allow retry
@@ -541,7 +524,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   /** Handle topic form cancel */
   const handleTopicFormCancel = useCallback(() => {
     setTopicCreationState({ status: "idle" });
-    setIsAddingTopic(false);
+    setIsAddingTopic(false); // Close the form when cancelled
   }, []);
 
   /** Handle topic deletion */
