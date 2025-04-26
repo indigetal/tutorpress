@@ -52,8 +52,10 @@ export const getTopics = async (courseId: number): Promise<Topic[]> => {
       path: `/tutorpress/v1/topics?course_id=${courseId}`,
     });
 
-    if (response.status_code !== 200) {
-      throw new Error(response.message);
+    // A success message with status code 200 is expected
+    // The message "Topics retrieved successfully" is not an error
+    if (!response.data) {
+      throw new Error("No topics data received from server");
     }
 
     return response.data.map(transformTopicResponse);

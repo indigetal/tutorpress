@@ -30,6 +30,7 @@ import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
+import { useTopics } from "../../hooks/curriculum";
 
 // ============================================================================
 // Utility Functions
@@ -134,25 +135,34 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
  * Main Curriculum component
  */
 const Curriculum: React.FC = (): JSX.Element => {
-  // =============================
-  // State
-  // =============================
-  const [operationState, setOperationState] = useState<TopicOperationState>({ status: "idle" });
-  const [reorderState, setReorderState] = useState<ReorderOperationState>({ status: "idle" });
-  const [topics, setTopics] = useState<Topic[]>([]);
+  // Get course ID from URL - simplified as we trust WordPress context
+  const courseId = Number(new URLSearchParams(window.location.search).get("post"));
+
+  // Use the topics hook for state management
+  const {
+    topics,
+    operationState,
+    topicCreationState,
+    editState,
+    reorderState,
+    setTopics,
+    setOperationState,
+    setTopicCreationState,
+    setEditState,
+    setReorderState,
+    isLoading,
+    error,
+  } = useTopics({ courseId });
+
+  // Remaining state that hasn't been moved to the hook yet
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
   const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
   const [showError, setShowError] = useState(false);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
-  const [topicCreationState, setTopicCreationState] = useState<TopicCreationState>({ status: "idle" });
-  const [editState, setEditState] = useState<TopicEditState>({ isEditing: false, topicId: null });
 
   // Move useDispatch to component level
   const { createNotice } = useDispatch(noticesStore);
-
-  // Get course ID from URL - simplified as we trust WordPress context
-  const courseId = Number(new URLSearchParams(window.location.search).get("post"));
 
   // Configure pointer sensor for immediate drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
@@ -611,50 +621,6 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Effects
   // =============================
 
-  // Fetch topics on mount
-  useEffect(() => {
-    const fetchTopics = async (): Promise<void> => {
-      setOperationState({ status: "loading" });
-
-      try {
-        const response = await apiFetch<unknown>({
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        });
-
-        if (!isWpRestResponse(response)) {
-          throw {
-            code: CurriculumErrorCode.INVALID_RESPONSE,
-            message: __("Invalid response format from server", "tutorpress"),
-          };
-        }
-
-        if (response.success && Array.isArray(response.data)) {
-          const validTopics = response.data.filter(isValidTopic).map((topic) => ({ ...topic, isCollapsed: true }));
-          setTopics(validTopics);
-          setOperationState({ status: "success", data: validTopics });
-        } else {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: response.message || __("Server returned an error", "tutorpress"),
-          };
-        }
-      } catch (err) {
-        console.error("Error fetching topics:", err);
-        setOperationState({
-          status: "error",
-          error: {
-            code: CurriculumErrorCode.FETCH_FAILED,
-            message: err instanceof Error ? err.message : __("Failed to load topics", "tutorpress"),
-            context: { action: "fetch_topics" },
-          },
-        });
-      }
-    };
-
-    fetchTopics();
-  }, [courseId]);
-
   // Show error notification when error state changes
   useEffect(() => {
     if (reorderState.status === "error") {
@@ -669,12 +635,12 @@ const Curriculum: React.FC = (): JSX.Element => {
   // =============================
 
   // Render error state with retry button
-  if (operationState.status === "error") {
+  if (error) {
     return (
       <div className="tutorpress-curriculum">
         <Flex direction="column" align="center" gap={2} style={{ padding: "20px" }}>
           <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
-            {getErrorMessage(operationState.error)}
+            {getErrorMessage(error)}
           </div>
           <Button variant="secondary" icon={update} onClick={retryOperation}>
             {__("Retry", "tutorpress")}
@@ -685,7 +651,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   }
 
   // Render loading state
-  if (operationState.status === "loading" || operationState.status === "idle") {
+  if (isLoading) {
     return (
       <div className="tutorpress-curriculum">
         <Flex direction="column" align="center" justify="center" style={{ padding: "20px", gap: "8px" }}>
