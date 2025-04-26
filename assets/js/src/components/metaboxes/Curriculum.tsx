@@ -31,7 +31,7 @@ import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
-import { useTopics, useCourseId } from "../../hooks/curriculum";
+import { useTopics, useCourseId, useDragDrop } from "../../hooks/curriculum";
 
 // ============================================================================
 // Utility Functions
@@ -154,9 +154,14 @@ const Curriculum: React.FC = (): JSX.Element => {
     error,
   } = useTopics({ courseId });
 
-  // Drag and drop state
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [overId, setOverId] = useState<number | null>(null);
+  const { activeId, overId, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel, handleReorderTopics } =
+    useDragDrop({
+      courseId,
+      topics,
+      setTopics,
+      setEditState,
+      setReorderState,
+    });
 
   // Error notification state
   const [showError, setShowError] = useState(false);
@@ -170,127 +175,9 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Memoize topic IDs array to prevent unnecessary recalculations
   const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
 
-  // =============================
-  // Callbacks
-  // =============================
-
   /** Handle error dismissal */
   const handleDismissError = useCallback(() => {
     setShowError(false);
-  }, []);
-
-  /** Handle topic reordering */
-  const handleReorderTopics = async (newOrder: Topic[]): Promise<OperationResult<void>> => {
-    setReorderState({ status: "reordering" });
-
-    try {
-      const res = await apiFetch<unknown>({
-        path: `/tutorpress/v1/topics/reorder`,
-        method: "POST",
-        data: {
-          course_id: courseId,
-          topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
-        },
-      });
-
-      if (!isWpRestResponse(res)) {
-        throw {
-          code: CurriculumErrorCode.INVALID_RESPONSE,
-          message: __("Invalid response format from server", "tutorpress"),
-        };
-      }
-
-      if (!res.success) {
-        throw {
-          code: CurriculumErrorCode.SERVER_ERROR,
-          message: res.message || __("Server returned an error", "tutorpress"),
-        };
-      }
-
-      setReorderState({ status: "success" });
-      return { success: true };
-    } catch (err) {
-      console.error("Error reordering topics:", err);
-
-      const isNetworkError =
-        err instanceof Error &&
-        (err.message.includes("offline") || err.message.includes("network") || err.message.includes("fetch"));
-
-      const error: CurriculumError = {
-        code: isNetworkError ? CurriculumErrorCode.NETWORK_ERROR : CurriculumErrorCode.REORDER_FAILED,
-        message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
-        context: {
-          action: "reorder_topics",
-        },
-      };
-
-      setReorderState({ status: "error", error });
-      return { success: false, error };
-    }
-  };
-
-  /** Handle drag start: cancel edit mode and close all topics */
-  const handleDragStart = useCallback(
-    (event: DragStartEvent): void => {
-      setActiveId(Number(event.active.id));
-      // Cancel edit mode if active
-      if (editState.isEditing) {
-        setEditState({ isEditing: false, topicId: null });
-      }
-      // Close all topics when dragging starts
-      setTopics((currentTopics) =>
-        currentTopics.map((topic) => ({
-          ...topic,
-          isCollapsed: true,
-        }))
-      );
-    },
-    [editState.isEditing]
-  );
-
-  /** Handle drag over: track item being dragged over */
-  const handleDragOver = useCallback((event: DragOverEvent): void => {
-    setOverId(event.over ? Number(event.over.id) : null);
-  }, []);
-
-  /** Handle drag end: reorder topics via API */
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent): Promise<void> => {
-      // Clear drag states immediately
-      setActiveId(null);
-      setOverId(null);
-
-      if (!event.over) return;
-
-      const activeId = Number(event.active.id);
-      const dropId = Number(event.over.id);
-
-      if (activeId === dropId) return;
-
-      const oldIndex = topics.findIndex((t) => t.id === activeId);
-      const newIndex = topics.findIndex((t) => t.id === dropId);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      const newOrder = arrayMove(topics, oldIndex, newIndex);
-
-      // Create snapshot before updating state
-      createSnapshot("reorder");
-      setTopics(newOrder);
-
-      const result = await handleReorderTopics(newOrder);
-
-      if (!result.success) {
-        restoreFromSnapshot();
-      }
-    },
-    [courseId, topics, createSnapshot, restoreFromSnapshot]
-  );
-
-  /** Handle drag cancel: clean up states */
-  const handleDragCancel = useCallback((): void => {
-    setActiveId(null);
-    setOverId(null);
   }, []);
 
   /** Handle retry for failed operations */
