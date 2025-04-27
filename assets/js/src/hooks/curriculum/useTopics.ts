@@ -15,9 +15,9 @@ import {
   CurriculumError,
   CurriculumErrorCode,
   OperationResult,
-  CurriculumSnapshot,
   isValidTopic,
 } from "../../types/curriculum";
+import type { CurriculumSnapshot } from "./useSnapshot";
 import { getTopics, duplicateTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";

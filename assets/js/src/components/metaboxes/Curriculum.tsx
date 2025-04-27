@@ -15,10 +15,10 @@ import type {
   TopicCreationState,
   TopicOperationState,
   ReorderOperationState,
-  CurriculumSnapshot,
   OperationResult,
   SortableTopicProps,
 } from "../../types/curriculum";
+import type { CurriculumSnapshot } from "../../hooks/curriculum";
 import { isValidTopic } from "../../types/curriculum";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
