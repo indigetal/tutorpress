@@ -4,6 +4,7 @@
  * Provides a generic mechanism for creating, restoring, and managing snapshots
  * of curriculum state, without knowledge of specific operations.
  */
+import { useState, useCallback } from "react";
 import { Topic } from "../../types/curriculum";
 
 // ============================================================================
@@ -47,4 +48,53 @@ export interface UseSnapshotReturn {
   clearSnapshot: () => void;
 }
 
-// Hook implementation will be added in the next phase
+/**
+ * Hook for managing curriculum state snapshots
+ *
+ * @param options Hook configuration options
+ * @returns Snapshot state and operations
+ */
+export function useSnapshot({ topics, setTopics }: UseSnapshotOptions): UseSnapshotReturn {
+  // =============================
+  // State
+  // =============================
+  const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
+
+  // =============================
+  // Operations
+  // =============================
+
+  /** Create a new snapshot of the current state */
+  const createSnapshot = useCallback(
+    (operation: CurriculumSnapshot["operation"]) => {
+      setSnapshot({
+        topics: [...topics],
+        timestamp: Date.now(),
+        operation,
+      });
+    },
+    [topics]
+  );
+
+  /** Restore state from the current snapshot */
+  const restoreFromSnapshot = useCallback(() => {
+    if (snapshot) {
+      setTopics(snapshot.topics);
+      setSnapshot(null);
+      return true;
+    }
+    return false;
+  }, [snapshot, setTopics]);
+
+  /** Clear the current snapshot */
+  const clearSnapshot = useCallback(() => {
+    setSnapshot(null);
+  }, []);
+
+  return {
+    snapshot,
+    createSnapshot,
+    restoreFromSnapshot,
+    clearSnapshot,
+  };
+}

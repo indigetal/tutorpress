@@ -18,6 +18,7 @@ import {
   isValidTopic,
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
+import { useSnapshot } from "./useSnapshot";
 import { getTopics, duplicateTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
@@ -126,36 +127,15 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   const [deletionState, setDeletionState] = useState<TopicDeletionState>({ status: "idle" });
   const [duplicationState, setDuplicationState] = useState<TopicDuplicationState>({ status: "idle" });
   const [isAddingTopic, setIsAddingTopic] = useState(false);
-  const [snapshot, setSnapshot] = useState<CurriculumSnapshot | null>(null);
 
   // WordPress notices
   const { createNotice } = useDispatch(noticesStore);
 
-  // =============================
-  // Snapshot Management
-  // =============================
-
-  /** Create a snapshot of current state */
-  const createSnapshot = useCallback(
-    (operation: CurriculumSnapshot["operation"]) => {
-      setSnapshot({
-        topics: [...topics],
-        timestamp: Date.now(),
-        operation,
-      });
-    },
-    [topics]
-  );
-
-  /** Restore from snapshot */
-  const restoreFromSnapshot = useCallback(() => {
-    if (snapshot) {
-      setTopics(snapshot.topics);
-      setSnapshot(null);
-      return true;
-    }
-    return false;
-  }, [snapshot]);
+  // Use the new snapshot hook
+  const { snapshot, createSnapshot, restoreFromSnapshot, clearSnapshot } = useSnapshot({
+    topics,
+    setTopics,
+  });
 
   // =============================
   // Effects
@@ -408,7 +388,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         }
 
         // Clear snapshot and set success state
-        setSnapshot(null);
+        clearSnapshot();
         setDeletionState({ status: "success" });
       } catch (err) {
         console.error("Error deleting topic:", err);
@@ -430,7 +410,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         });
       }
     },
-    [createSnapshot, restoreFromSnapshot]
+    [createSnapshot, restoreFromSnapshot, clearSnapshot]
   );
 
   // =============================
