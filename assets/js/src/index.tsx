@@ -4,6 +4,7 @@
 import { render } from "@wordpress/element";
 import React from "react";
 import Curriculum from "./components/metaboxes/Curriculum";
+import "./api"; // Import API module to expose it to window
 
 // Wait for DOM to be ready
 document.addEventListener("DOMContentLoaded", () => {
