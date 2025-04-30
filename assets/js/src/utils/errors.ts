@@ -34,3 +34,10 @@ export function getErrorMessage(error: CurriculumError): string {
 export function isNetworkError(error: Error): boolean {
   return error.message.includes("offline") || error.message.includes("network") || error.message.includes("fetch");
 }
+
+/**
+ * Type guard for WordPress REST API response
+ */
+export function isWpRestResponse(response: unknown): response is { success: boolean; message: string; data: unknown } {
+  return typeof response === "object" && response !== null && "success" in response && "data" in response;
+}
