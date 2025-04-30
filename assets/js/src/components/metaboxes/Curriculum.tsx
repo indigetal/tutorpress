@@ -1,47 +1,38 @@
 /**
  * Course Curriculum Metabox Component
  *
- * Implements the curriculum builder UI using WordPress components.
+ * Implements the curriculum builder UI for managing course topics. Uses WordPress Data
+ * store for global state management and @dnd-kit for drag-and-drop functionality.
+ *
+ * State Management:
+ * - Topics and related states are managed through the curriculum store
+ * - Drag and drop state is managed locally through useDragDrop hook
+ * - Error handling is managed through useCurriculumError hook
  */
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useMemo } from "react";
 import { Button, Flex, FlexBlock, Spinner } from "@wordpress/components";
 import { plus, update, close } from "@wordpress/icons";
 import { CurriculumErrorCode } from "../../types/curriculum";
-import type {
-  Topic,
-  CurriculumError,
-  TopicFormData,
-  TopicEditState,
-  TopicCreationState,
-  TopicOperationState,
-  ReorderOperationState,
-  OperationResult,
-  SortableTopicProps,
-} from "../../types/curriculum";
-import type { CurriculumSnapshot } from "../../hooks/curriculum";
-import { isValidTopic } from "../../types/curriculum";
+import type { Topic, SortableTopicProps, OperationResult } from "../../types/curriculum";
 import { __ } from "@wordpress/i18n";
-import apiFetch from "@wordpress/api-fetch";
-import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { getTopics, reorderTopics, duplicateTopic } from "../../api/topics";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
+import { curriculumStore } from "../../store/curriculum";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
 import { useTopics, useCourseId, useDragDrop } from "../../hooks/curriculum";
 import { useCurriculumError } from "../../hooks/curriculum/useCurriculumError";
-import { getErrorMessage, isWpRestResponse } from "../../utils/errors";
 
 // ============================================================================
 // Components
 // ============================================================================
 
 /**
- * Wraps a TopicSection for DnD; uses internal isOver/isDragging flags
- * to apply pure-CSS placeholder and dragging styles.
+ * Wraps a TopicSection component with drag-and-drop functionality.
+ * Uses @dnd-kit/sortable for handling drag operations and CSS transforms.
  */
 const SortableTopic: React.FC<SortableTopicProps> = ({
   topic,
@@ -90,25 +81,30 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
 // ============================================================================
 
 /**
- * Main Curriculum component
+ * Main Curriculum component for managing course topics.
+ *
+ * Features:
+ * - Topic list with drag-and-drop reordering
+ * - Topic creation, editing, deletion, and duplication
+ * - Error handling and retry functionality
+ * - Loading and empty states
+ *
+ * State Management:
+ * - Uses curriculum store for global state (topics, operations, etc.)
+ * - Local state for drag-and-drop operations
+ * - Error handling through dedicated hook
  */
 const Curriculum: React.FC = (): JSX.Element => {
   const courseId = useCourseId();
   const {
     topics,
-    setTopics,
     operationState,
-    setOperationState,
     topicCreationState,
-    setTopicCreationState,
     editState,
-    setEditState,
     reorderState,
-    setReorderState,
     deletionState,
     duplicationState,
     isAddingTopic,
-    setIsAddingTopic,
     handleTopicToggle,
     handleAddTopicClick,
     handleTopicEdit,
@@ -118,38 +114,50 @@ const Curriculum: React.FC = (): JSX.Element => {
     handleTopicFormCancel,
     handleTopicDelete,
     handleTopicDuplicate,
-    createSnapshot,
-    restoreFromSnapshot,
     isLoading,
     error,
   } = useTopics({ courseId });
 
-  const { activeId, overId, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel, handleReorderTopics } =
-    useDragDrop({
-      courseId,
-      topics,
-      setTopics,
-      setEditState,
-      setReorderState,
-    });
+  // Get store actions
+  const { setTopics, setEditState, setReorderState } = useDispatch(curriculumStore);
+
+  const { activeId, overId, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel } = useDragDrop({
+    courseId,
+    topics,
+    setTopics,
+    setEditState,
+    setReorderState,
+  });
 
   const { showError, handleDismissError, handleRetry, getErrorMessage } = useCurriculumError({
     reorderState,
     deletionState,
     duplicationState,
     topics,
-    handleReorderTopics,
     handleTopicDelete,
     handleTopicDuplicate,
+    handleReorderTopics: async (topics: Topic[]): Promise<OperationResult<void>> => {
+      setReorderState({ status: "reordering" });
+      try {
+        setTopics(topics);
+        setReorderState({ status: "success" });
+        return { success: true };
+      } catch (err) {
+        const error = {
+          code: CurriculumErrorCode.REORDER_FAILED,
+          message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
+        };
+        setReorderState({
+          status: "error",
+          error,
+        });
+        return { success: false, error };
+      }
+    },
   });
 
-  // Move useDispatch to component level
   const { createNotice } = useDispatch(noticesStore);
-
-  // Configure pointer sensor for immediate drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
-
-  // Memoize topic IDs array to prevent unnecessary recalculations
   const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
 
   // =============================

@@ -1,8 +1,9 @@
 /**
  * Hook for managing topics in a course curriculum
  *
- * Handles topic state management and operations like fetching, creating,
- * editing, deleting, and reordering topics.
+ * Orchestrates topic operations and coordinates with the curriculum store.
+ * The store handles all state management, while this hook provides the
+ * operations interface for components.
  */
 import { useCallback, useEffect } from "react";
 import {
@@ -63,7 +64,7 @@ export interface UseTopicsOptions {
 }
 
 export interface UseTopicsReturn {
-  // State
+  // State from store
   topics: Topic[];
   operationState: TopicOperationState;
   topicCreationState: TopicCreationState;
@@ -73,14 +74,6 @@ export interface UseTopicsReturn {
   duplicationState: TopicDuplicationState;
   isAddingTopic: boolean;
   snapshot: CurriculumSnapshot | null;
-
-  // State setters
-  setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
-  setOperationState: React.Dispatch<React.SetStateAction<TopicOperationState>>;
-  setTopicCreationState: React.Dispatch<React.SetStateAction<TopicCreationState>>;
-  setEditState: React.Dispatch<React.SetStateAction<TopicEditState>>;
-  setReorderState: React.Dispatch<React.SetStateAction<ReorderOperationState>>;
-  setIsAddingTopic: React.Dispatch<React.SetStateAction<boolean>>;
 
   // Topic UI Operations
   handleTopicToggle: (topicId: number) => void;
@@ -117,15 +110,12 @@ export interface UseTopicsReturn {
  * @returns Topic state and operations
  */
 export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
-  // =============================
-  // State
-  // =============================
   // Get all state from store
   const {
     topics,
     operationState,
-    editState,
     topicCreationState,
+    editState,
     reorderState,
     deletionState,
     duplicationState,
@@ -159,15 +149,11 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   // WordPress notices
   const { createNotice } = useDispatch(noticesStore);
 
-  // Use the new snapshot hook
+  // Use the snapshot hook
   const { snapshot, createSnapshot, restoreFromSnapshot, clearSnapshot } = useSnapshot({
     topics,
     setTopics,
   });
-
-  // =============================
-  // Effects
-  // =============================
 
   // Fetch topics on mount and when courseId changes
   useEffect(() => {
@@ -193,10 +179,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     fetchTopics();
   }, [courseId]);
 
-  // =============================
-  // Topic UI Operations
-  // =============================
-
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
     setTopics((currentTopics: Topic[]) =>
@@ -208,7 +190,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
 
   /** Handle starting topic addition */
   const handleAddTopicClick = useCallback(() => {
-    // Close all topics when adding a new one
     setTopics((currentTopics: Topic[]) =>
       currentTopics.map((topic: Topic) => ({
         ...topic,
@@ -217,10 +198,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     );
     setIsAddingTopic(true);
   }, []);
-
-  // =============================
-  // Topic Edit Operations
-  // =============================
 
   /** Handle topic edit start */
   const handleTopicEdit = useCallback((topicId: number) => {
@@ -246,16 +223,25 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
 
       if (!response.success || !isValidTopic(response.data)) {
         throw {
-          code: CurriculumErrorCode.CREATION_FAILED,
+          code: CurriculumErrorCode.SERVER_ERROR,
           message: response.message || __("Failed to update topic", "tutorpress"),
         };
       }
 
-      // Update topic in list with response data and ensure it's collapsed
       setTopics((currentTopics) =>
-        currentTopics.map((topic) =>
-          topic.id === topicId ? { ...topic, title: response.data.title, content: response.data.content } : topic
-        )
+        currentTopics.map((topic) => {
+          if (topic.id === topicId) {
+            return {
+              id: response.data.id,
+              title: response.data.title,
+              content: response.data.content,
+              isCollapsed: topic.isCollapsed,
+              menu_order: topic.menu_order ?? 0,
+              contents: topic.contents ?? [],
+            } as Topic;
+          }
+          return topic;
+        })
       );
       setEditState({ isEditing: false, topicId: null });
     } catch (err) {
@@ -264,15 +250,10 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     }
   }, []);
 
-  // =============================
-  // Topic Creation Operations
-  // =============================
-
   /** Create a new topic */
   const createTopic = useCallback(
     async (data: TopicFormData): Promise<OperationResult<Topic>> => {
       try {
-        // Validate required fields
         if (!data.title.trim()) {
           return {
             success: false,
@@ -284,11 +265,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           };
         }
 
-        // Calculate the new topic's menu_order (always at the end)
-        const lastTopic =
-          topics.length > 0
-            ? topics.reduce((max, topic) => (topic.menu_order > max.menu_order ? topic : max), topics[0])
-            : null;
+        const lastTopic = topics.length > 0 ? topics[topics.length - 1] : null;
         const newMenuOrder = lastTopic ? lastTopic.menu_order + 1 : 0;
 
         const response = await apiFetch<{ success: boolean; data: Topic; message?: string }>({
@@ -297,13 +274,12 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           data: {
             course_id: courseId,
             title: data.title.trim(),
-            content: data.summary.trim() || " ", // Ensure content is never null
+            content: data.summary.trim() || " ",
             menu_order: newMenuOrder,
           },
         });
 
         if (!response.success || !isValidTopic(response.data)) {
-          // Handle specific database errors
           if (isDbError(response.data) && response.data.code === "db_insert_error") {
             return {
               success: false,
@@ -321,7 +297,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           return {
             success: false,
             error: {
-              code: CurriculumErrorCode.CREATION_FAILED,
+              code: CurriculumErrorCode.SERVER_ERROR,
               message: response.message || __("Failed to create topic", "tutorpress"),
               context: { action: "create_topic" },
             },
@@ -332,7 +308,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       } catch (error: unknown) {
         console.error("Error creating topic:", error);
 
-        // Handle known error types
         if (error && typeof error === "object" && "code" in error && "message" in error) {
           return {
             success: false,
@@ -344,11 +319,10 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           };
         }
 
-        // Default error for unknown types
         return {
           success: false,
           error: {
-            code: CurriculumErrorCode.CREATION_FAILED,
+            code: CurriculumErrorCode.SERVER_ERROR,
             message: error instanceof Error ? error.message : __("Failed to create topic", "tutorpress"),
             context: { action: "create_topic" },
           },
@@ -366,14 +340,20 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       const result = await createTopic(data);
 
       if (result.success && result.data) {
-        // Ensure we're working with a valid Topic
-        const newTopic: Topic = result.data;
+        const newTopic: Topic = {
+          id: result.data.id,
+          title: result.data.title,
+          content: result.data.content || "",
+          menu_order: result.data.menu_order || 0,
+          contents: result.data.contents || [],
+          isCollapsed: true,
+        };
+
         setTopics((currentTopics) => [...currentTopics, newTopic]);
-        setTopicCreationState({ status: "success", data: newTopic });
-        setIsAddingTopic(false); // Close the form after successful creation
+        setTopicCreationState({ status: "success", data: result.data });
+        setIsAddingTopic(false);
       } else {
         setTopicCreationState({ status: "error", error: result.error! });
-        // Keep form open to allow retry
       }
     },
     [createTopic]
@@ -382,12 +362,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   /** Handle topic form cancel */
   const handleTopicFormCancel = useCallback(() => {
     setTopicCreationState({ status: "idle" });
-    setIsAddingTopic(false); // Close the form when cancelled
+    setIsAddingTopic(false);
   }, []);
-
-  // =============================
-  // Topic Deletion Operations
-  // =============================
 
   /** Handle topic deletion */
   const handleTopicDelete = useCallback(
@@ -407,10 +383,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           };
         }
 
-        // Remove topic from list
         setTopics((currentTopics) => currentTopics.filter((topic) => topic.id !== topicId));
-
-        // Clear snapshot and set success state
         clearSnapshot();
         setDeletionState({ status: "success" });
       } catch (err) {
@@ -435,10 +408,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     [clearSnapshot]
   );
 
-  // =============================
-  // Topic Duplication Operations
-  // =============================
-
   /** Handle topic duplication */
   const handleTopicDuplicate = useCallback(
     async (topicId: number) => {
@@ -454,17 +423,12 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           };
         }
 
-        // Add the duplicated topic to the end of the list
         setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
-
-        // Update state on success
         setDuplicationState({
           status: "success",
           sourceTopicId: topicId,
           duplicatedTopicId: duplicatedTopic.id,
         });
-
-        // Show success notice
         createNotice("success", __("Topic duplicated successfully", "tutorpress"), {
           type: "snackbar",
         });
@@ -483,16 +447,12 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           },
         });
 
-        // Show error notice
         createNotice("error", errorMessage, { type: "snackbar" });
       }
     },
     [courseId, createNotice]
   );
 
-  // =============================
-  // Return Values
-  // =============================
   return {
     // State
     topics,
@@ -504,14 +464,6 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     duplicationState,
     isAddingTopic,
     snapshot,
-
-    // State setters
-    setTopics,
-    setOperationState,
-    setTopicCreationState,
-    setEditState,
-    setReorderState,
-    setIsAddingTopic,
 
     // Topic UI Operations
     handleTopicToggle,
