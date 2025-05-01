@@ -1,4 +1,4 @@
-import { Topic, ContentItem } from "../types/curriculum";
+import { Topic, ContentItem, BaseContentItem } from "../types/curriculum";
 import {
   TutorResponse,
   TopicResponse,
@@ -9,6 +9,7 @@ import {
   TopicContent,
 } from "./types";
 import { apiService } from "./service";
+import { TopicResponse as API_TopicResponse } from "../types/api";
 
 /**
  * Get topics for a course
@@ -29,33 +30,24 @@ export const getTopics = async (courseId: number): Promise<Topic[]> => {
 };
 
 /**
- * Reorder topics in a course
- *
- * @param courseId The ID of the course containing the topics
- * @param topicOrders Array of topic IDs and their new order positions
- * @returns Promise resolving to the updated array of topics
- * @throws Error if the request fails
+ * Reorder topics within a course
  */
-export const reorderTopics = async (
-  courseId: number,
-  topicOrders: Array<{ id: number; order: number }>
-): Promise<TopicData[]> => {
+export const reorderTopics = async (courseId: number, topicIds: number[]): Promise<void> => {
   try {
-    const payload: TopicReorderRequest = {
+    const response = await apiService.post("/topics/reorder", {
       course_id: courseId,
-      topic_orders: topicOrders,
-    };
+      topic_orders: topicIds.map((id, index) => ({
+        id,
+        order: index,
+      })),
+    });
 
-    const response = await apiService.post<TopicData[]>("/topics/reorder", payload);
-
-    // Check if we have data and it's an array
-    if (!Array.isArray(response.data)) {
-      throw new Error("Invalid response data from server");
+    // Only throw if it's not a success message
+    if (response.status_code !== 200 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
     }
-
-    return response.data;
   } catch (error) {
-    // Only treat it as an error if it's not a success message
+    // Only log if it's not a success message
     if (error instanceof Error && !error.message.includes("successfully")) {
       console.error("Error reordering topics:", error);
     }
@@ -75,23 +67,33 @@ const transformTopicContent = (content: TopicContent, topicId: number): ContentI
 });
 
 /**
- * Duplicate a topic in a course
+ * Duplicate a topic
  */
-export const duplicateTopic = async (courseId: number, topicId: number): Promise<Topic> => {
+export const duplicateTopic = async (topicId: number, courseId: number): Promise<Topic> => {
   try {
-    const payload: TopicDuplicateRequest = {
+    const response = await apiService.post<TopicResponse>(`/topics/${topicId}/duplicate`, {
       course_id: courseId,
-    };
+    });
 
-    const response = await apiService.post<TopicResponse>(`/topics/${topicId}/duplicate`, payload);
-
-    if (!response.data || !response.data.id) {
-      throw new Error("Invalid response data from server");
+    // Only throw if it's not a success message
+    if (response.status_code !== 201 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
     }
 
-    return transformTopicResponse(response.data);
+    return {
+      id: response.data.id,
+      title: response.data.title,
+      content: response.data.content || "",
+      menu_order: response.data.menu_order || 0,
+      isCollapsed: false,
+      contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
+        ...item,
+        topic_id: response.data.id,
+        order: 0,
+      })),
+    };
   } catch (error) {
-    // Only treat it as an error if it's not a success message
+    // Only log if it's not a success message
     if (error instanceof Error && !error.message.includes("successfully")) {
       console.error("Error duplicating topic:", error);
     }

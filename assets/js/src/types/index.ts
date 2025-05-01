@@ -1,9 +1,9 @@
 /**
- * Type definitions index
+ * Type definitions
  *
- * Exports all type definitions used in the Course Curriculum metabox implementation.
+ * Contains all type definitions needed for the Course Curriculum metabox implementation.
  */
 
-export * from "./common";
 export * from "./courses";
-export * from "./lessons";
+export * from "./curriculum";
+export * from "./api";

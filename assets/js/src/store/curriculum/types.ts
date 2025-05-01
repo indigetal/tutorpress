@@ -7,6 +7,7 @@ import {
   TopicDeletionState,
   TopicDuplicationState,
   CurriculumError,
+  OperationResult,
 } from "../../types/curriculum";
 
 /**
@@ -20,7 +21,10 @@ export type CurriculumAction =
   | { type: "SET_REORDER_STATE"; payload: ReorderOperationState }
   | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
-  | { type: "SET_IS_ADDING_TOPIC"; payload: boolean };
+  | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
+  | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
+  | { type: "FETCH_TOPICS_SUCCESS"; payload: { topics: Topic[] } }
+  | { type: "FETCH_TOPICS_ERROR"; payload: { error: CurriculumError } };
 
 /**
  * State interface for the curriculum store
@@ -34,6 +38,11 @@ export interface CurriculumState {
   duplicationState: TopicDuplicationState;
   reorderState: ReorderOperationState;
   isAddingTopic: boolean;
+  fetchState: {
+    isLoading: boolean;
+    error: CurriculumError | null;
+    lastFetchedCourseId: number | null;
+  };
 }
 
 /**
@@ -48,6 +57,11 @@ export interface CurriculumSelectors {
   getDeletionState: (state: CurriculumState) => TopicDeletionState;
   getDuplicationState: (state: CurriculumState) => TopicDuplicationState;
   getIsAddingTopic: (state: CurriculumState) => boolean;
+  getFetchState: (state: CurriculumState) => {
+    isLoading: boolean;
+    error: CurriculumError | null;
+    lastFetchedCourseId: number | null;
+  };
 }
 
 /**
@@ -62,17 +76,20 @@ export interface CurriculumActions {
   setDeletionState: (state: TopicDeletionState) => CurriculumAction;
   setDuplicationState: (state: TopicDuplicationState) => CurriculumAction;
   setIsAddingTopic: (isAdding: boolean) => CurriculumAction;
+  fetchTopicsStart: (courseId: number) => CurriculumAction;
+  fetchTopicsSuccess: (topics: Topic[]) => CurriculumAction;
+  fetchTopicsError: (error: CurriculumError) => CurriculumAction;
 }
 
 /**
  * Async action creator types for the curriculum store
  */
 export interface CurriculumAsyncActions {
-  fetchTopics: (courseId: number) => Generator<any, void, any>;
-  createTopic: (courseId: number, data: { title: string; summary: string }) => Generator<any, void, any>;
-  updateTopic: (topicId: number, data: { title: string; summary: string }) => Generator<any, void, any>;
-  deleteTopic: (topicId: number) => Generator<any, void, any>;
-  duplicateTopic: (topicId: number, courseId: number) => Generator<any, void, any>;
+  fetchTopics: (courseId: number) => Promise<OperationResult<Topic[]>>;
+  createTopic: (courseId: number, data: { title: string; summary: string }) => Promise<OperationResult<Topic>>;
+  updateTopic: (topicId: number, data: { title: string; summary: string }) => Promise<OperationResult<Topic>>;
+  deleteTopic: (topicId: number) => Promise<OperationResult<void>>;
+  duplicateTopic: (topicId: number, courseId: number) => Promise<OperationResult<Topic>>;
 }
 
 /**

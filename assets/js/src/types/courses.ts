@@ -4,8 +4,6 @@
  * Contains base types for course functionality.
  */
 
-import type { Topic } from "./curriculum";
-
 /**
  * Base course interface
  */
@@ -20,5 +18,5 @@ export interface BaseCourse {
  * Course with UI-specific properties for the curriculum editor
  */
 export interface Course extends BaseCourse {
-  topics: Topic[];
+  topics: import("./curriculum").Topic[];
 }

@@ -13,7 +13,7 @@ import {
   UpdateTopicOrderRequest,
   UpdateContentOrderRequest,
 } from "../types/api";
-import { Topic } from "../types/courses";
+import { Topic } from "../types/curriculum";
 
 /**
  * Get topics for a course
@@ -32,12 +32,13 @@ export const getTopics = async (courseId: number): Promise<Topic[]> => {
     return response.data.map((topic) => ({
       id: topic.id,
       title: topic.title,
-      course_id: topic.course_id,
-      order: topic.order || 0,
+      content: topic.content || "",
+      menu_order: topic.menu_order || 0,
       isCollapsed: false,
-      contents: topic.content_items.map((item) => ({
+      contents: (topic.content_items || []).map((item) => ({
         ...item,
         topic_id: topic.id,
+        order: 0,
       })),
     }));
   } catch (error) {
@@ -64,12 +65,13 @@ export const createTopic = async (data: TopicRequest): Promise<Topic> => {
     return {
       id: response.data.id,
       title: response.data.title,
-      course_id: response.data.course_id,
-      order: response.data.order || 0,
+      content: response.data.content || "",
+      menu_order: response.data.menu_order || 0,
       isCollapsed: false,
-      contents: response.data.content_items.map((item) => ({
+      contents: (response.data.content_items || []).map((item) => ({
         ...item,
         topic_id: response.data.id,
+        order: 0,
       })),
     };
   } catch (error) {
@@ -96,12 +98,13 @@ export const updateTopic = async (topicId: number, data: Partial<TopicRequest>):
     return {
       id: response.data.id,
       title: response.data.title,
-      course_id: response.data.course_id,
-      order: response.data.order || 0,
+      content: response.data.content || "",
+      menu_order: response.data.menu_order || 0,
       isCollapsed: false,
-      contents: response.data.content_items.map((item) => ({
+      contents: (response.data.content_items || []).map((item) => ({
         ...item,
         topic_id: response.data.id,
+        order: 0,
       })),
     };
   } catch (error) {
