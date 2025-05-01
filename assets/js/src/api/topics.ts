@@ -1,13 +1,5 @@
 import { Topic, ContentItem, BaseContentItem } from "../types/curriculum";
-import {
-  TutorResponse,
-  TopicResponse,
-  TopicData,
-  TopicReorderRequest,
-  TopicDuplicateRequest,
-  transformTopicResponse,
-  TopicContent,
-} from "./types";
+import { TutorResponse, TopicResponse, TopicRequest, transformTopicResponse } from "../types/api";
 import { apiService } from "./service";
 import { TopicResponse as API_TopicResponse } from "../types/api";
 
@@ -56,17 +48,6 @@ export const reorderTopics = async (courseId: number, topicIds: number[]): Promi
 };
 
 /**
- * Transform TopicContent to ContentItem
- */
-const transformTopicContent = (content: TopicContent, topicId: number): ContentItem => ({
-  id: content.id,
-  title: content.title,
-  type: content.type,
-  topic_id: topicId,
-  order: content.menu_order,
-});
-
-/**
  * Duplicate a topic
  */
 export const duplicateTopic = async (topicId: number, courseId: number): Promise<Topic> => {
@@ -96,6 +77,86 @@ export const duplicateTopic = async (topicId: number, courseId: number): Promise
     // Only log if it's not a success message
     if (error instanceof Error && !error.message.includes("successfully")) {
       console.error("Error duplicating topic:", error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Create a new topic
+ */
+export const createTopic = async (data: TopicRequest): Promise<Topic> => {
+  try {
+    const response = await apiService.post<TopicResponse>("/topics", data);
+
+    if (response.status_code !== 201 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
+    }
+
+    return {
+      id: response.data.id,
+      title: response.data.title,
+      content: response.data.content || "",
+      menu_order: response.data.menu_order || 0,
+      isCollapsed: false,
+      contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
+        ...item,
+        topic_id: response.data.id,
+        order: 0,
+      })),
+    };
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes("successfully")) {
+      console.error("Error creating topic:", error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Update an existing topic
+ */
+export const updateTopic = async (topicId: number, data: Partial<TopicRequest>): Promise<Topic> => {
+  try {
+    const response = await apiService.patch<TopicResponse>(`/topics/${topicId}`, data);
+
+    if (response.status_code !== 200 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
+    }
+
+    return {
+      id: response.data.id,
+      title: response.data.title,
+      content: response.data.content || "",
+      menu_order: response.data.menu_order || 0,
+      isCollapsed: false,
+      contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
+        ...item,
+        topic_id: response.data.id,
+        order: 0,
+      })),
+    };
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes("successfully")) {
+      console.error("Error updating topic:", error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Delete a topic
+ */
+export const deleteTopic = async (topicId: number): Promise<void> => {
+  try {
+    const response = await apiService.delete<void>(`/topics/${topicId}`);
+
+    if (response.status_code !== 200 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
+    }
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes("successfully")) {
+      console.error("Error deleting topic:", error);
     }
     throw error;
   }

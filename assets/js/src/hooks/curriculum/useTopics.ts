@@ -414,7 +414,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       setDuplicationState({ status: "duplicating", sourceTopicId: topicId });
 
       try {
-        const duplicatedTopic = await duplicateTopic(courseId, topicId);
+        const duplicatedTopic = await duplicateTopic(topicId, courseId);
 
         if (!duplicatedTopic) {
           throw {

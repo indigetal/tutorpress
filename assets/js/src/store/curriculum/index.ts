@@ -1,4 +1,5 @@
 import { createReduxStore, register } from "@wordpress/data";
+import { controls } from "@wordpress/data-controls";
 import { __ } from "@wordpress/i18n";
 import {
   Topic,
@@ -9,6 +10,9 @@ import {
   CurriculumError,
   CurriculumErrorCode,
 } from "../../types/curriculum";
+import { apiService } from "../../api/service";
+import { getTopics, reorderTopics, duplicateTopic, createTopic, updateTopic, deleteTopic } from "../../api/topics";
+import { TopicRequest } from "../../types/api";
 
 // Define the store's state interface
 interface CurriculumState {
@@ -184,11 +188,214 @@ const reducer = (state = DEFAULT_STATE, action: any) => {
   }
 };
 
+// Async action creators
+const asyncActions = {
+  async fetchTopics(courseId: number) {
+    try {
+      actions.setOperationState({ status: "loading" });
+
+      const response = await getTopics(courseId);
+
+      actions.setTopics(response);
+      actions.setOperationState({
+        status: "success",
+        data: response,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.FETCH_FAILED,
+        message: error instanceof Error ? error.message : "Failed to fetch topics",
+        context: {
+          action: "fetchTopics",
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setOperationState({
+        status: "error",
+        error: curriculumError,
+      });
+      throw curriculumError;
+    }
+  },
+
+  async reorderTopics(courseId: number, topicIds: number[]) {
+    try {
+      actions.setReorderState({ status: "reordering" });
+
+      await reorderTopics(courseId, topicIds);
+
+      // Refresh topics after reordering
+      const updatedTopics = await getTopics(courseId);
+      actions.setTopics(updatedTopics);
+      actions.setReorderState({ status: "success" });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.REORDER_FAILED,
+        message: error instanceof Error ? error.message : "Failed to reorder topics",
+        context: {
+          action: "reorderTopics",
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setReorderState({
+        status: "error",
+        error: curriculumError,
+      });
+      throw curriculumError;
+    }
+  },
+
+  async duplicateTopic(topicId: number, courseId: number) {
+    try {
+      actions.setDuplicationState({
+        status: "duplicating",
+        sourceTopicId: topicId,
+      });
+
+      const newTopic = await duplicateTopic(topicId, courseId);
+
+      // Refresh topics after duplication
+      const updatedTopics = await getTopics(courseId);
+      actions.setTopics(updatedTopics);
+      actions.setDuplicationState({
+        status: "success",
+        sourceTopicId: topicId,
+        duplicatedTopicId: newTopic.id,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.CREATION_FAILED,
+        message: error instanceof Error ? error.message : "Failed to duplicate topic",
+        context: {
+          action: "duplicateTopic",
+          topicId,
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setDuplicationState({
+        status: "error",
+        error: curriculumError,
+        sourceTopicId: topicId,
+      });
+      throw curriculumError;
+    }
+  },
+
+  async createTopic(data: TopicRequest) {
+    try {
+      actions.setTopicCreationState({ status: "creating" });
+
+      const newTopic = await createTopic(data);
+
+      // Refresh topics after creation
+      const updatedTopics = await getTopics(data.course_id);
+      actions.setTopics(updatedTopics);
+      actions.setTopicCreationState({
+        status: "success",
+        data: newTopic,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.CREATION_FAILED,
+        message: error instanceof Error ? error.message : "Failed to create topic",
+        context: {
+          action: "createTopic",
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setTopicCreationState({
+        status: "error",
+        error: curriculumError,
+      });
+      throw curriculumError;
+    }
+  },
+
+  async updateTopic(topicId: number, data: Partial<TopicRequest>) {
+    try {
+      actions.setEditState({
+        isEditing: true,
+        topicId,
+      });
+
+      const updatedTopic = await updateTopic(topicId, data);
+
+      // Refresh topics after update
+      const updatedTopics = await getTopics(data.course_id || 0);
+      actions.setTopics(updatedTopics);
+      actions.setEditState({
+        isEditing: false,
+        topicId: null,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.VALIDATION_ERROR,
+        message: error instanceof Error ? error.message : "Failed to update topic",
+        context: {
+          action: "updateTopic",
+          topicId,
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setEditState({
+        isEditing: false,
+        topicId: null,
+      });
+      throw curriculumError;
+    }
+  },
+
+  async deleteTopic(topicId: number, courseId: number) {
+    try {
+      actions.setDeletionState({
+        status: "deleting",
+        topicId,
+      });
+
+      await deleteTopic(topicId);
+
+      // Refresh topics after deletion
+      const updatedTopics = await getTopics(courseId);
+      actions.setTopics(updatedTopics);
+      actions.setDeletionState({
+        status: "success",
+        topicId,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.SERVER_ERROR,
+        message: error instanceof Error ? error.message : "Failed to delete topic",
+        context: {
+          action: "deleteTopic",
+          topicId,
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      actions.setDeletionState({
+        status: "error",
+        error: curriculumError,
+        topicId,
+      });
+      throw curriculumError;
+    }
+  },
+};
+
 // Create and register the store
 const store = createReduxStore("tutorpress/curriculum", {
   reducer,
-  actions,
+  actions: {
+    ...actions,
+    ...asyncActions,
+  },
   selectors,
+  controls,
 });
 
 register(store);
