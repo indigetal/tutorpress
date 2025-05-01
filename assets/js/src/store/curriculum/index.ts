@@ -9,6 +9,8 @@ import {
   ReorderOperationState,
   CurriculumError,
   CurriculumErrorCode,
+  TopicDeletionState,
+  TopicDuplicationState,
 } from "../../types/curriculum";
 import { apiService } from "../../api/service";
 import { getTopics, reorderTopics, duplicateTopic, createTopic, updateTopic, deleteTopic } from "../../api/topics";
@@ -46,6 +48,32 @@ const DEFAULT_STATE: CurriculumState = {
   duplicationState: { status: "idle" },
   isAddingTopic: false,
 };
+
+// Action types
+type CurriculumAction =
+  | { type: "SET_TOPICS"; topics: Topic[] | ((currentTopics: Topic[]) => Topic[]) }
+  | {
+      type: "SET_OPERATION_STATE";
+      state: TopicOperationState | ((currentState: TopicOperationState) => TopicOperationState);
+    }
+  | { type: "SET_EDIT_STATE"; state: TopicEditState | ((currentState: TopicEditState) => TopicEditState) }
+  | {
+      type: "SET_TOPIC_CREATION_STATE";
+      state: TopicCreationState | ((currentState: TopicCreationState) => TopicCreationState);
+    }
+  | {
+      type: "SET_REORDER_STATE";
+      state: ReorderOperationState | ((currentState: ReorderOperationState) => ReorderOperationState);
+    }
+  | {
+      type: "SET_DELETION_STATE";
+      state: TopicDeletionState | ((currentState: TopicDeletionState) => TopicDeletionState);
+    }
+  | {
+      type: "SET_DUPLICATION_STATE";
+      state: TopicDuplicationState | ((currentState: TopicDuplicationState) => TopicDuplicationState);
+    }
+  | { type: "SET_IS_ADDING_TOPIC"; isAdding: boolean | ((currentState: boolean) => boolean) };
 
 // Action creators
 const actions = {
@@ -141,48 +169,81 @@ const handleStateUpdate = <T>(currentState: T, newState: T | ((state: T) => T)):
 };
 
 // Reducer
-const reducer = (state = DEFAULT_STATE, action: any) => {
+const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumState => {
   switch (action.type) {
-    case "SET_TOPICS":
+    case "SET_TOPICS": {
+      const newTopics = handleStateUpdate(state.topics, action.topics);
       return {
         ...state,
-        topics: handleStateUpdate(state.topics, action.topics),
+        topics: newTopics,
+        // Reset operation state if topics are updated successfully
+        operationState: { status: "idle" },
       };
-    case "SET_OPERATION_STATE":
+    }
+
+    case "SET_OPERATION_STATE": {
+      const newState = handleStateUpdate(state.operationState, action.state);
       return {
         ...state,
-        operationState: handleStateUpdate(state.operationState, action.state),
+        operationState: newState,
       };
-    case "SET_EDIT_STATE":
+    }
+
+    case "SET_EDIT_STATE": {
+      const newState = handleStateUpdate(state.editState, action.state);
       return {
         ...state,
-        editState: handleStateUpdate(state.editState, action.state),
+        editState: newState,
       };
-    case "SET_TOPIC_CREATION_STATE":
+    }
+
+    case "SET_TOPIC_CREATION_STATE": {
+      const newState = handleStateUpdate(state.topicCreationState, action.state);
       return {
         ...state,
-        topicCreationState: handleStateUpdate(state.topicCreationState, action.state),
+        topicCreationState: newState,
+        // Reset adding state if creation is complete
+        isAddingTopic: newState.status === "idle" ? false : state.isAddingTopic,
       };
-    case "SET_REORDER_STATE":
+    }
+
+    case "SET_REORDER_STATE": {
+      const newState = handleStateUpdate(state.reorderState, action.state);
       return {
         ...state,
-        reorderState: handleStateUpdate(state.reorderState, action.state),
+        reorderState: newState,
       };
-    case "SET_DELETION_STATE":
+    }
+
+    case "SET_DELETION_STATE": {
+      const newState = handleStateUpdate(state.deletionState, action.state);
       return {
         ...state,
-        deletionState: handleStateUpdate(state.deletionState, action.state),
+        deletionState: newState,
+        // Remove topic from state if deletion was successful
+        topics:
+          newState.status === "success" && newState.topicId
+            ? state.topics.filter((topic) => topic.id !== newState.topicId)
+            : state.topics,
       };
-    case "SET_DUPLICATION_STATE":
+    }
+
+    case "SET_DUPLICATION_STATE": {
+      const newState = handleStateUpdate(state.duplicationState, action.state);
       return {
         ...state,
-        duplicationState: handleStateUpdate(state.duplicationState, action.state),
+        duplicationState: newState,
       };
-    case "SET_IS_ADDING_TOPIC":
+    }
+
+    case "SET_IS_ADDING_TOPIC": {
+      const newState = handleStateUpdate(state.isAddingTopic, action.isAdding);
       return {
         ...state,
-        isAddingTopic: handleStateUpdate(state.isAddingTopic, action.isAdding),
+        isAddingTopic: newState,
       };
+    }
+
     default:
       return state;
   }
