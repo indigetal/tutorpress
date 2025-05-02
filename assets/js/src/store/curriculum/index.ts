@@ -1,4 +1,4 @@
-import { createReduxStore, register } from "@wordpress/data";
+import { createReduxStore, register, select } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { __ } from "@wordpress/i18n";
 import {
@@ -15,6 +15,7 @@ import {
 import { apiService } from "../../api/service";
 import { getTopics, reorderTopics, duplicateTopic, createTopic, updateTopic, deleteTopic } from "../../api/topics";
 import { TopicRequest } from "../../types/api";
+import apiFetch from "@wordpress/api-fetch";
 
 // Define the store's state interface
 interface CurriculumState {
@@ -52,6 +53,7 @@ const DEFAULT_STATE: CurriculumState = {
 // Action types
 type CurriculumAction =
   | { type: "SET_TOPICS"; topics: Topic[] | ((currentTopics: Topic[]) => Topic[]) }
+  | { type: "FETCH_TOPICS"; courseId: number }
   | {
       type: "SET_OPERATION_STATE";
       state: TopicOperationState | ((currentState: TopicOperationState) => TopicOperationState);
@@ -170,19 +172,27 @@ const handleStateUpdate = <T>(currentState: T, newState: T | ((state: T) => T)):
 
 // Reducer
 const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumState => {
+  console.log("Reducer: Processing action:", action.type);
+
   switch (action.type) {
+    case "FETCH_TOPICS":
+      return {
+        ...state,
+        operationState: { status: "loading" },
+      };
     case "SET_TOPICS": {
       const newTopics = handleStateUpdate(state.topics, action.topics);
+      console.log("Reducer: Setting topics:", newTopics);
       return {
         ...state,
         topics: newTopics,
-        // Reset operation state if topics are updated successfully
-        operationState: { status: "idle" },
+        operationState: state.operationState,
       };
     }
 
     case "SET_OPERATION_STATE": {
       const newState = handleStateUpdate(state.operationState, action.state);
+      console.log("Reducer: Setting operation state:", newState);
       return {
         ...state,
         operationState: newState,
@@ -251,33 +261,11 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
 // Async action creators
 const asyncActions = {
-  async fetchTopics(courseId: number) {
-    try {
-      actions.setOperationState({ status: "loading" });
-
-      const response = await getTopics(courseId);
-
-      actions.setTopics(response);
-      actions.setOperationState({
-        status: "success",
-        data: response,
-      });
-    } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.FETCH_FAILED,
-        message: error instanceof Error ? error.message : "Failed to fetch topics",
-        context: {
-          action: "fetchTopics",
-          details: error instanceof Error ? error.stack : undefined,
-        },
-      };
-
-      actions.setOperationState({
-        status: "error",
-        error: curriculumError,
-      });
-      throw curriculumError;
-    }
+  fetchTopics(courseId: number) {
+    return {
+      type: "FETCH_TOPICS",
+      courseId,
+    };
   },
 
   async reorderTopics(courseId: number, topicIds: number[]) {
@@ -446,7 +434,7 @@ const asyncActions = {
       throw curriculumError;
     }
   },
-};
+} as const;
 
 // Create and register the store
 const store = createReduxStore("tutorpress/curriculum", {
@@ -459,6 +447,31 @@ const store = createReduxStore("tutorpress/curriculum", {
   controls,
 });
 
+// Verify store registration
+const verifyStoreRegistration = () => {
+  try {
+    const registeredStore = select(store);
+    if (!registeredStore) {
+      console.error("Store registration failed!");
+      return false;
+    }
+    console.log("Store successfully registered:", store);
+    return true;
+  } catch (error) {
+    console.error("Error verifying store registration:", error);
+    return false;
+  }
+};
+
+// Register the store
 register(store);
 
+// Verify registration
+if (!verifyStoreRegistration()) {
+  console.error("Failed to register curriculum store!");
+}
+
 export { store as curriculumStore };
+
+// Log the store registration
+console.log("Store registered:", store);

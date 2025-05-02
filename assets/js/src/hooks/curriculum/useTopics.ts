@@ -26,6 +26,7 @@ import apiFetch from "@wordpress/api-fetch";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
+import { useCurriculumError } from "./useCurriculumError";
 
 // Type guard for database error response
 interface DbError {
@@ -110,28 +111,31 @@ export interface UseTopicsReturn {
  * @returns Topic state and operations
  */
 export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
-  // Get all state from store
+  // Get all state in a single useSelect call
   const {
     topics,
     operationState,
-    topicCreationState,
     editState,
+    topicCreationState,
     reorderState,
     deletionState,
     duplicationState,
     isAddingTopic,
   } = useSelect(
-    (select) => ({
-      topics: select(curriculumStore).getTopics(),
-      operationState: select(curriculumStore).getOperationState(),
-      editState: select(curriculumStore).getEditState(),
-      topicCreationState: select(curriculumStore).getTopicCreationState(),
-      reorderState: select(curriculumStore).getReorderState(),
-      deletionState: select(curriculumStore).getDeletionState(),
-      duplicationState: select(curriculumStore).getDuplicationState(),
-      isAddingTopic: select(curriculumStore).getIsAddingTopic(),
-    }),
-    []
+    (select) => {
+      const store = select(curriculumStore);
+      return {
+        topics: store.getTopics(),
+        operationState: store.getOperationState(),
+        editState: store.getEditState(),
+        topicCreationState: store.getTopicCreationState(),
+        reorderState: store.getReorderState(),
+        deletionState: store.getDeletionState(),
+        duplicationState: store.getDuplicationState(),
+        isAddingTopic: store.getIsAddingTopic(),
+      };
+    },
+    [] // Empty dependency array since we're using the store directly
   );
 
   // Get store actions
@@ -144,10 +148,22 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     setDeletionState,
     setDuplicationState,
     setIsAddingTopic,
+    fetchTopics,
   } = useDispatch(curriculumStore);
 
   // WordPress notices
   const { createNotice } = useDispatch(noticesStore);
+
+  // Use the error handling hook
+  const { validateApiResponse, createCurriculumError, handleRetry } = useCurriculumError({
+    reorderState,
+    deletionState,
+    duplicationState,
+    topics,
+    handleReorderTopics: async () => ({ success: true }), // Placeholder
+    handleTopicDelete: async () => {}, // Placeholder
+    handleTopicDuplicate: async () => {}, // Placeholder
+  });
 
   // Use the snapshot hook
   const { snapshot, createSnapshot, restoreFromSnapshot, clearSnapshot } = useSnapshot({
@@ -157,27 +173,54 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
 
   // Fetch topics on mount and when courseId changes
   useEffect(() => {
-    const fetchTopics = async () => {
-      setOperationState({ status: "loading" });
+    const fetchTopicsData = async () => {
       try {
-        const fetchedTopics = await getTopics(courseId);
-        setTopics(fetchedTopics.map((topic) => ({ ...topic, isCollapsed: true })));
-        setOperationState({ status: "success", data: fetchedTopics });
+        const response = await apiFetch({
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+        });
+
+        // Validate and transform the response
+        const topicsWithCollapsed = validateApiResponse(response);
+
+        // Update topics and operation state atomically
+        setTopics(topicsWithCollapsed);
+        setOperationState({
+          status: "success",
+          data: topicsWithCollapsed,
+        });
       } catch (err) {
-        console.error("Error fetching topics:", err);
+        const error = createCurriculumError(err, { action: "fetch_topics" });
+
+        // Show error notice
+        createNotice("error", error.message, {
+          type: "snackbar",
+          isDismissible: true,
+        });
+
+        // Update operation state to error
         setOperationState({
           status: "error",
-          error: {
-            code: CurriculumErrorCode.FETCH_FAILED,
-            message: err instanceof Error ? err.message : __("Failed to load topics", "tutorpress"),
-            context: { action: "fetch_topics" },
-          },
+          error,
         });
       }
     };
 
-    fetchTopics();
-  }, [courseId]);
+    // Only fetch if we're not already loading and we don't have topics
+    if (operationState.status !== "loading" && (!topics || topics.length === 0)) {
+      setOperationState({ status: "loading" });
+      fetchTopicsData();
+    }
+  }, [courseId, topics?.length, operationState.status]);
+
+  // Add a useEffect to track state changes
+  useEffect(() => {
+    console.log("Hook: Topics updated:", topics);
+  }, [topics]);
+
+  // Add a useEffect to track operation state changes
+  useEffect(() => {
+    console.log("Hook: Operation state updated:", operationState);
+  }, [operationState]);
 
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
