@@ -47,7 +47,9 @@ export interface CourseResponse extends Omit<Course, "topics"> {
 export interface TopicRequest {
   title: string;
   course_id: number;
+  content?: string;
   menu_order?: number;
+  summary?: string;
 }
 
 /**

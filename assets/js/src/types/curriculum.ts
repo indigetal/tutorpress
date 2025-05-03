@@ -65,6 +65,7 @@ export interface Topic extends BaseTopic {
   isCollapsed: boolean;
   menu_order: number;
   contents: ContentItem[];
+  summary?: string;
 }
 
 /**

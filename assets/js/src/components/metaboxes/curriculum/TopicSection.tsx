@@ -109,6 +109,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
           initialData={{ title: topic.title, summary: topic.content || "" }}
           onSave={(data) => onEditSave(topic.id, data)}
           onCancel={onEditCancel}
+          isCreating={false}
         />
       ) : !topic.isCollapsed ? (
         <CardBody>

@@ -13,7 +13,14 @@ import {
   TopicDuplicationState,
 } from "../../types/curriculum";
 import { apiService } from "../../api/service";
-import { getTopics, reorderTopics, duplicateTopic, createTopic, updateTopic, deleteTopic } from "../../api/topics";
+import {
+  getTopics,
+  reorderTopics,
+  duplicateTopic,
+  createTopic as apiCreateTopic,
+  updateTopic,
+  deleteTopic,
+} from "../../api/topics";
 import { TopicRequest } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 
@@ -75,7 +82,8 @@ type CurriculumAction =
       type: "SET_DUPLICATION_STATE";
       state: TopicDuplicationState | ((currentState: TopicDuplicationState) => TopicDuplicationState);
     }
-  | { type: "SET_IS_ADDING_TOPIC"; isAdding: boolean | ((currentState: boolean) => boolean) };
+  | { type: "SET_IS_ADDING_TOPIC"; isAdding: boolean | ((currentState: boolean) => boolean) }
+  | { type: "CREATE_TOPIC"; data: TopicRequest };
 
 // Action creators
 const actions = {
@@ -133,6 +141,12 @@ const actions = {
     return {
       type: "SET_IS_ADDING_TOPIC",
       isAdding,
+    };
+  },
+  createTopic(data: TopicRequest) {
+    return {
+      type: "CREATE_TOPIC",
+      data,
     };
   },
 };
@@ -209,11 +223,22 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
     case "SET_TOPIC_CREATION_STATE": {
       const newState = handleStateUpdate(state.topicCreationState, action.state);
+      console.log("Reducer: Setting topic creation state:", newState);
+
+      // If creation was successful, just update the state
+      if (newState.status === "success") {
+        return {
+          ...state,
+          topicCreationState: newState,
+          isAddingTopic: false,
+        };
+      }
+
+      // If there was an error, just update the state
       return {
         ...state,
         topicCreationState: newState,
-        // Reset adding state if creation is complete
-        isAddingTopic: newState.status === "idle" ? false : state.isAddingTopic,
+        isAddingTopic: newState.status === "creating",
       };
     }
 
@@ -259,13 +284,55 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
   }
 };
 
+// Define API response types
+interface TopicsResponse {
+  success: boolean;
+  message?: string;
+  data: Array<{
+    id: number;
+    title: string;
+    content: string;
+    menu_order: number;
+  }>;
+}
+
+interface CreateTopicResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    id: number;
+    title: string;
+    content: string;
+    menu_order: number;
+  };
+}
+
 // Async action creators
 const asyncActions = {
-  fetchTopics(courseId: number) {
-    return {
-      type: "FETCH_TOPICS",
-      courseId,
-    };
+  *fetchTopics(courseId: number): Generator<unknown, void, unknown> {
+    yield actions.setOperationState({ status: "loading" });
+    try {
+      const response = (yield apiFetch({
+        path: `/tutorpress/v1/topics?course_id=${courseId}`,
+      })) as TopicsResponse;
+
+      const topics = response.data.map((topic) => ({
+        ...topic,
+        isCollapsed: false,
+        contents: [],
+      }));
+      yield actions.setTopics(topics);
+      yield actions.setOperationState({ status: "success", data: topics });
+    } catch (error) {
+      yield actions.setOperationState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.SERVER_ERROR,
+          message: error instanceof Error ? error.message : "Failed to fetch topics",
+          context: { action: "fetchTopics" },
+        },
+      });
+    }
   },
 
   async reorderTopics(courseId: number, topicIds: number[]) {
@@ -333,34 +400,70 @@ const asyncActions = {
     }
   },
 
-  async createTopic(data: TopicRequest) {
+  *createTopic(data: TopicRequest): Generator<unknown, Topic, unknown> {
     try {
-      actions.setTopicCreationState({ status: "creating" });
+      // Set creating state
+      yield actions.setTopicCreationState({ status: "creating" });
 
-      const newTopic = await createTopic(data);
+      // Make API call and await the response
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/topics",
+          method: "POST",
+          data: {
+            course_id: data.course_id,
+            title: data.title,
+            content: data.content || " ", // This is the topic summary
+            menu_order: data.menu_order || 0,
+          },
+        },
+      }) as CreateTopicResponse;
 
-      // Refresh topics after creation
-      const updatedTopics = await getTopics(data.course_id);
-      actions.setTopics(updatedTopics);
-      actions.setTopicCreationState({
+      // Validate response
+      if (!response || !response.success || !response.data) {
+        const errorMessage = response?.message || "Failed to create topic";
+        throw new Error(errorMessage);
+      }
+
+      // Create new topic object
+      const newTopic: Topic = {
+        id: response.data.id,
+        title: response.data.title,
+        content: response.data.content || " ", // This is the topic summary
+        menu_order: response.data.menu_order,
+        isCollapsed: false,
+        contents: [],
+      };
+
+      // Update topics list with new topic
+      yield actions.setTopics((currentTopics) => [...currentTopics, newTopic]);
+
+      // Set success state
+      yield actions.setTopicCreationState({
         status: "success",
         data: newTopic,
       });
-    } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.CREATION_FAILED,
-        message: error instanceof Error ? error.message : "Failed to create topic",
-        context: {
-          action: "createTopic",
-          details: error instanceof Error ? error.stack : undefined,
-        },
-      };
 
-      actions.setTopicCreationState({
+      // Reset isAddingTopic
+      yield actions.setIsAddingTopic(false);
+
+      return newTopic;
+    } catch (error) {
+      // Set error state with detailed error information
+      yield actions.setTopicCreationState({
         status: "error",
-        error: curriculumError,
+        error: {
+          code: CurriculumErrorCode.CREATION_FAILED,
+          message: error instanceof Error ? error.message : "Failed to create topic",
+          context: {
+            action: "createTopic",
+            details: error instanceof Error ? error.stack : JSON.stringify(error),
+          },
+        },
       });
-      throw curriculumError;
+
+      throw error;
     }
   },
 
@@ -444,13 +547,25 @@ const store = createReduxStore("tutorpress/curriculum", {
     ...asyncActions,
   },
   selectors,
-  controls,
+  controls: {
+    ...controls,
+    *apiFetch(action: {
+      path: string;
+      method?: string;
+      data?: any;
+    }): Generator<{ type: "API_FETCH" } & { path: string; method?: string; data?: any }, any, unknown> {
+      return yield { type: "API_FETCH", ...action };
+    },
+    *select(storeName: string): Generator<{ type: "SELECT"; storeName: string }, any, unknown> {
+      return yield { type: "SELECT", storeName };
+    },
+  },
 });
 
 // Verify store registration
 const verifyStoreRegistration = () => {
   try {
-    const registeredStore = select(store);
+    const registeredStore = select("tutorpress/curriculum");
     if (!registeredStore) {
       console.error("Store registration failed!");
       return false;
