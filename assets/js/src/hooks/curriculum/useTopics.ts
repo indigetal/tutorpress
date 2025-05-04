@@ -239,12 +239,42 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
 
   /** Handle topic edit cancel */
   const handleTopicEditCancel = useCallback(() => {
-    setEditState({ isEditing: false, topicId: null });
-  }, []);
+    // Create snapshot before canceling
+    createSnapshot("edit");
+
+    try {
+      // Reset edit state
+      setEditState({ isEditing: false, topicId: null });
+
+      // Restore from snapshot to ensure clean state
+      restoreFromSnapshot();
+    } catch (error) {
+      console.error("Error canceling topic edit:", error);
+
+      // Show error notice
+      createNotice("error", __("Failed to cancel topic edit", "tutorpress"), {
+        type: "snackbar",
+      });
+    } finally {
+      // Clear snapshot
+      clearSnapshot();
+    }
+  }, [createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]);
 
   /** Handle topic edit save */
   const handleTopicEditSave = useCallback(
     async (topicId: number, data: TopicFormData) => {
+      // Validate input
+      if (!data.title.trim()) {
+        createNotice("error", __("Topic title cannot be empty", "tutorpress"), {
+          type: "snackbar",
+        });
+        return;
+      }
+
+      // Create snapshot before edit
+      createSnapshot("edit");
+
       try {
         // Update topic using store action
         await updateTopic(topicId, {
@@ -253,7 +283,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           course_id: courseId,
         });
 
-        // Update local state
+        // Update local state atomically
         setTopics((currentTopics) =>
           currentTopics.map((topic) => {
             if (topic.id === topicId) {
@@ -277,6 +307,9 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       } catch (error) {
         console.error("Error updating topic:", error);
 
+        // Restore from snapshot on error
+        restoreFromSnapshot();
+
         // Show error notice
         createNotice("error", error instanceof Error ? error.message : __("Failed to update topic", "tutorpress"), {
           type: "snackbar",
@@ -286,9 +319,12 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         setEditState({ isEditing: false, topicId: null });
 
         throw error;
+      } finally {
+        // Clear snapshot
+        clearSnapshot();
       }
     },
-    [courseId, createNotice]
+    [courseId, createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]
   );
 
   /** Handle topic form save */

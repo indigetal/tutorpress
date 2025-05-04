@@ -215,6 +215,26 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
     case "SET_EDIT_STATE": {
       const newState = handleStateUpdate(state.editState, action.state);
+
+      // If we're transitioning out of edit mode, ensure clean state
+      if (state.editState.isEditing && !newState.isEditing) {
+        return {
+          ...state,
+          editState: newState,
+          operationState: { status: "idle" }, // Reset operation state
+        };
+      }
+
+      // If we're transitioning into edit mode, ensure we're in a clean state
+      if (!state.editState.isEditing && newState.isEditing) {
+        return {
+          ...state,
+          editState: newState,
+          operationState: { status: "idle" }, // Reset operation state
+        };
+      }
+
+      // Otherwise, just update the edit state
       return {
         ...state,
         editState: newState,
