@@ -8,25 +8,39 @@
 import { useCallback, useEffect } from "react";
 import {
   Topic,
-  TopicFormData,
+  TopicOperationState,
   TopicEditState,
   TopicCreationState,
-  TopicOperationState,
-  ReorderOperationState,
+  TopicReorderState,
+  TopicDeletionState,
+  TopicDuplicationState,
   CurriculumError,
-  CurriculumErrorCode,
-  OperationResult,
+  TopicOperationResult,
+  TopicActiveOperation,
   isValidTopic,
+  TopicFormData,
+  CurriculumErrorCode,
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
-import { getTopics, duplicateTopic } from "../../api/topics";
+import { getTopics, duplicateTopic, updateTopic, createTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
-import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
 import { useCurriculumError } from "./useCurriculumError";
+import {
+  setTopics,
+  setOperationState,
+  setEditState,
+  setTopicCreationState,
+  setDeletionState,
+  setDuplicationState,
+  setReorderState,
+  setIsAddingTopic,
+  setActiveOperation,
+} from "../../store/curriculum";
+import { store as noticesStore } from "@wordpress/notices";
 
 // Type guard for database error response
 interface DbError {
@@ -45,21 +59,6 @@ const isDbError = (data: unknown): data is DbError => {
   );
 };
 
-// New interface for deletion state
-interface TopicDeletionState {
-  status: "idle" | "deleting" | "error" | "success";
-  error?: CurriculumError;
-  topicId?: number;
-}
-
-// New interface for duplication state
-interface TopicDuplicationState {
-  status: "idle" | "duplicating" | "error" | "success";
-  error?: CurriculumError;
-  sourceTopicId?: number;
-  duplicatedTopicId?: number;
-}
-
 export interface UseTopicsOptions {
   courseId: number;
 }
@@ -70,11 +69,12 @@ export interface UseTopicsReturn {
   operationState: TopicOperationState;
   topicCreationState: TopicCreationState;
   editState: TopicEditState;
-  reorderState: ReorderOperationState;
+  reorderState: TopicReorderState;
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
   isAddingTopic: boolean;
   snapshot: CurriculumSnapshot | null;
+  activeOperation: TopicActiveOperation;
 
   // Topic UI Operations
   handleTopicToggle: (topicId: number) => void;
@@ -111,38 +111,43 @@ export interface UseTopicsReturn {
  * @returns Topic state and operations
  */
 export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
+  const { createNotice } = useDispatch(noticesStore);
   const {
     topics,
     operationState,
+    editState,
     topicCreationState,
-    reorderState,
     deletionState,
     duplicationState,
+    reorderState,
     isAddingTopic,
-    editState,
+    activeOperation,
   } = useSelect(
     (select) => ({
       topics: select(curriculumStore).getTopics(),
       operationState: select(curriculumStore).getOperationState(),
+      editState: select(curriculumStore).getEditState(),
       topicCreationState: select(curriculumStore).getTopicCreationState(),
-      reorderState: select(curriculumStore).getReorderState(),
       deletionState: select(curriculumStore).getDeletionState(),
       duplicationState: select(curriculumStore).getDuplicationState(),
+      reorderState: select(curriculumStore).getReorderState(),
       isAddingTopic: select(curriculumStore).getIsAddingTopic(),
-      editState: select(curriculumStore).getEditState(),
+      activeOperation: select(curriculumStore).getActiveOperation(),
     }),
     []
   );
 
-  const { setTopics, setOperationState, setTopicCreationState, createTopic, updateTopic } =
-    useDispatch(curriculumStore);
-
-  // Get store actions
-  const { setEditState, setReorderState, setDeletionState, setDuplicationState, setIsAddingTopic, fetchTopics } =
-    useDispatch(curriculumStore);
-
-  // WordPress notices
-  const { createNotice } = useDispatch(noticesStore);
+  const {
+    setTopics,
+    setOperationState,
+    setEditState,
+    setTopicCreationState,
+    setDeletionState,
+    setDuplicationState,
+    setReorderState,
+    setIsAddingTopic,
+    setActiveOperation,
+  } = useDispatch(curriculumStore);
 
   // Use the error handling hook
   const { validateApiResponse, createCurriculumError, handleRetry } = useCurriculumError({
@@ -233,9 +238,16 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   }, []);
 
   /** Handle topic edit start */
-  const handleTopicEdit = useCallback((topicId: number) => {
-    setEditState({ isEditing: true, topicId });
-  }, []);
+  const handleTopicEdit = useCallback(
+    (topicId: number) => {
+      if (activeOperation.type !== "none") {
+        createNotice("error", "Another operation is in progress. Please wait.");
+        return;
+      }
+      setEditState({ isEditing: true, topicId });
+    },
+    [activeOperation, createNotice]
+  );
 
   /** Handle topic edit cancel */
   const handleTopicEditCancel = useCallback(() => {
@@ -331,26 +343,48 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   const handleTopicFormSave = async (data: TopicFormData) => {
     try {
       // Create topic using store action
-      await createTopic({
+      const newTopic = await createTopic({
         title: data.title,
         content: data.summary,
         course_id: courseId,
         menu_order: topics.length, // Add to end of list
       });
+
+      // Update local state with new topic
+      setTopics((currentTopics) => [...currentTopics, newTopic]);
+
+      // Reset form state
+      setTopicCreationState({ status: "idle" });
+      setIsAddingTopic(false);
+
+      // Show success notice
+      createNotice("success", __("Topic created successfully", "tutorpress"), {
+        type: "snackbar",
+      });
     } catch (error) {
       // Error is already handled by the store
       console.error("Failed to create topic:", error);
+
+      // Show error notice
+      createNotice("error", __("Failed to create topic", "tutorpress"), {
+        type: "snackbar",
+      });
     }
   };
 
   /** Handle topic form cancel */
   const handleTopicFormCancel = () => {
     setTopicCreationState({ status: "idle" });
+    setIsAddingTopic(false);
   };
 
   /** Handle topic deletion */
   const handleTopicDelete = useCallback(
     async (topicId: number) => {
+      if (activeOperation.type !== "none") {
+        createNotice("error", "Another operation is in progress. Please wait.");
+        return;
+      }
       setDeletionState({ status: "deleting", topicId });
 
       try {
@@ -369,6 +403,10 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         setTopics((currentTopics) => currentTopics.filter((topic) => topic.id !== topicId));
         clearSnapshot();
         setDeletionState({ status: "success" });
+        setActiveOperation({ type: "none" });
+        createNotice("success", __("Topic deleted successfully", "tutorpress"), {
+          type: "snackbar",
+        });
       } catch (err) {
         console.error("Error deleting topic:", err);
 
@@ -386,14 +424,22 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           error,
           topicId,
         });
+        setActiveOperation({ type: "none" });
+        createNotice("error", error instanceof Error ? error.message : __("Failed to delete topic", "tutorpress"), {
+          type: "snackbar",
+        });
       }
     },
-    [clearSnapshot]
+    [clearSnapshot, activeOperation, createNotice]
   );
 
   /** Handle topic duplication */
   const handleTopicDuplicate = useCallback(
     async (topicId: number) => {
+      if (activeOperation.type !== "none") {
+        createNotice("error", "Another operation is in progress. Please wait.");
+        return;
+      }
       setDuplicationState({ status: "duplicating", sourceTopicId: topicId });
 
       try {
@@ -412,6 +458,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           sourceTopicId: topicId,
           duplicatedTopicId: duplicatedTopic.id,
         });
+        setActiveOperation({ type: "none" });
         createNotice("success", __("Topic duplicated successfully", "tutorpress"), {
           type: "snackbar",
         });
@@ -429,11 +476,11 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
             context: { action: "duplicate_topic" },
           },
         });
-
+        setActiveOperation({ type: "none" });
         createNotice("error", errorMessage, { type: "snackbar" });
       }
     },
-    [courseId, createNotice]
+    [courseId, createNotice, activeOperation]
   );
 
   return {
@@ -447,6 +494,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     duplicationState,
     isAddingTopic,
     snapshot: null,
+    activeOperation: activeOperation as TopicActiveOperation,
 
     // Topic UI Operations
     handleTopicToggle,

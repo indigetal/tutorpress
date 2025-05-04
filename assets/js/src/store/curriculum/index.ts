@@ -6,15 +6,17 @@ import {
   TopicOperationState,
   TopicEditState,
   TopicCreationState,
-  ReorderOperationState,
-  CurriculumError,
-  CurriculumErrorCode,
+  TopicReorderState,
   TopicDeletionState,
   TopicDuplicationState,
+  CurriculumError,
+  TopicOperationResult,
+  TopicActiveOperation,
+  CurriculumErrorCode,
 } from "../../types/curriculum";
 import { apiService } from "../../api/service";
 import {
-  getTopics,
+  getTopics as fetchTopics,
   reorderTopics,
   duplicateTopic,
   createTopic as apiCreateTopic,
@@ -30,7 +32,7 @@ interface CurriculumState {
   operationState: TopicOperationState;
   editState: TopicEditState;
   topicCreationState: TopicCreationState;
-  reorderState: ReorderOperationState;
+  reorderState: TopicReorderState;
   deletionState: {
     status: "idle" | "deleting" | "error" | "success";
     error?: CurriculumError;
@@ -43,104 +45,101 @@ interface CurriculumState {
     duplicatedTopicId?: number;
   };
   isAddingTopic: boolean;
+  activeOperation: { type: string; topicId?: number };
+  fetchState: {
+    isLoading: boolean;
+    error: Error | null;
+    lastFetchedCourseId: number | null;
+  };
 }
 
 // Initial state
 const DEFAULT_STATE: CurriculumState = {
   topics: [],
   operationState: { status: "idle" },
-  editState: { isEditing: false, topicId: null },
   topicCreationState: { status: "idle" },
-  reorderState: { status: "idle" },
+  editState: { isEditing: false, topicId: null },
   deletionState: { status: "idle" },
   duplicationState: { status: "idle" },
+  reorderState: { status: "idle" },
   isAddingTopic: false,
+  activeOperation: { type: "none" },
+  fetchState: {
+    isLoading: false,
+    error: null,
+    lastFetchedCourseId: null,
+  },
 };
 
 // Action types
-type CurriculumAction =
-  | { type: "SET_TOPICS"; topics: Topic[] | ((currentTopics: Topic[]) => Topic[]) }
-  | { type: "FETCH_TOPICS"; courseId: number }
-  | {
-      type: "SET_OPERATION_STATE";
-      state: TopicOperationState | ((currentState: TopicOperationState) => TopicOperationState);
-    }
-  | { type: "SET_EDIT_STATE"; state: TopicEditState | ((currentState: TopicEditState) => TopicEditState) }
-  | {
-      type: "SET_TOPIC_CREATION_STATE";
-      state: TopicCreationState | ((currentState: TopicCreationState) => TopicCreationState);
-    }
-  | {
-      type: "SET_REORDER_STATE";
-      state: ReorderOperationState | ((currentState: ReorderOperationState) => ReorderOperationState);
-    }
-  | {
-      type: "SET_DELETION_STATE";
-      state: TopicDeletionState | ((currentState: TopicDeletionState) => TopicDeletionState);
-    }
-  | {
-      type: "SET_DUPLICATION_STATE";
-      state: TopicDuplicationState | ((currentState: TopicDuplicationState) => TopicDuplicationState);
-    }
-  | { type: "SET_IS_ADDING_TOPIC"; isAdding: boolean | ((currentState: boolean) => boolean) }
-  | { type: "CREATE_TOPIC"; data: TopicRequest };
+export type CurriculumAction =
+  | { type: "SET_TOPICS"; payload: Topic[] | ((topics: Topic[]) => Topic[]) }
+  | { type: "SET_OPERATION_STATE"; payload: TopicOperationState }
+  | { type: "SET_EDIT_STATE"; payload: TopicEditState }
+  | { type: "SET_TOPIC_CREATION_STATE"; payload: TopicCreationState }
+  | { type: "SET_REORDER_STATE"; payload: TopicReorderState }
+  | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
+  | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
+  | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
+  | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
+  | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
+  | { type: "FETCH_TOPICS_SUCCESS"; payload: { topics: Topic[] } }
+  | { type: "FETCH_TOPICS_ERROR"; payload: { error: CurriculumError } };
 
 // Action creators
-const actions = {
+export const actions = {
   setTopics(topics: Topic[] | ((currentTopics: Topic[]) => Topic[])) {
     return {
       type: "SET_TOPICS",
-      topics,
+      payload: topics,
     };
   },
-  setOperationState(state: TopicOperationState | ((currentState: TopicOperationState) => TopicOperationState)) {
+  setOperationState(state: TopicOperationState) {
     return {
       type: "SET_OPERATION_STATE",
-      state,
+      payload: state,
     };
   },
-  setEditState(state: TopicEditState | ((currentState: TopicEditState) => TopicEditState)) {
+  setEditState(state: TopicEditState) {
     return {
       type: "SET_EDIT_STATE",
-      state,
+      payload: state,
     };
   },
-  setTopicCreationState(state: TopicCreationState | ((currentState: TopicCreationState) => TopicCreationState)) {
+  setTopicCreationState(state: TopicCreationState) {
     return {
       type: "SET_TOPIC_CREATION_STATE",
-      state,
+      payload: state,
     };
   },
-  setReorderState(state: ReorderOperationState | ((currentState: ReorderOperationState) => ReorderOperationState)) {
+  setReorderState(state: TopicReorderState) {
     return {
       type: "SET_REORDER_STATE",
-      state,
+      payload: state,
     };
   },
-  setDeletionState(
-    state:
-      | CurriculumState["deletionState"]
-      | ((currentState: CurriculumState["deletionState"]) => CurriculumState["deletionState"])
-  ) {
+  setDeletionState(state: TopicDeletionState) {
     return {
       type: "SET_DELETION_STATE",
-      state,
+      payload: state,
     };
   },
-  setDuplicationState(
-    state:
-      | CurriculumState["duplicationState"]
-      | ((currentState: CurriculumState["duplicationState"]) => CurriculumState["duplicationState"])
-  ) {
+  setDuplicationState(state: TopicDuplicationState) {
     return {
       type: "SET_DUPLICATION_STATE",
-      state,
+      payload: state,
     };
   },
-  setIsAddingTopic(isAdding: boolean | ((currentState: boolean) => boolean)) {
+  setIsAddingTopic(isAdding: boolean) {
     return {
       type: "SET_IS_ADDING_TOPIC",
-      isAdding,
+      payload: isAdding,
+    };
+  },
+  setActiveOperation(payload: TopicActiveOperation) {
+    return {
+      type: "SET_ACTIVE_OPERATION",
+      payload,
     };
   },
   createTopic(data: TopicRequest) {
@@ -177,6 +176,12 @@ const selectors = {
   getIsAddingTopic(state: CurriculumState) {
     return state.isAddingTopic;
   },
+  getActiveOperation(state: CurriculumState) {
+    return state.activeOperation;
+  },
+  getFetchState(state: CurriculumState) {
+    return state.fetchState;
+  },
 };
 
 // Helper function to handle state updates
@@ -189,13 +194,13 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
   console.log("Reducer: Processing action:", action.type);
 
   switch (action.type) {
-    case "FETCH_TOPICS":
+    case "FETCH_TOPICS_START":
       return {
         ...state,
         operationState: { status: "loading" },
       };
     case "SET_TOPICS": {
-      const newTopics = handleStateUpdate(state.topics, action.topics);
+      const newTopics = handleStateUpdate(state.topics, action.payload);
       console.log("Reducer: Setting topics:", newTopics);
       return {
         ...state,
@@ -205,7 +210,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     }
 
     case "SET_OPERATION_STATE": {
-      const newState = handleStateUpdate(state.operationState, action.state);
+      const newState = handleStateUpdate(state.operationState, action.payload);
       console.log("Reducer: Setting operation state:", newState);
       return {
         ...state,
@@ -213,28 +218,42 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       };
     }
 
-    case "SET_EDIT_STATE": {
-      const newState = handleStateUpdate(state.editState, action.state);
+    case "SET_ACTIVE_OPERATION": {
+      // If we're setting a new operation while one is active, log a warning
+      if (state.activeOperation.type !== "none" && action.payload.type !== "none") {
+        console.warn(
+          `Attempting to set active operation to ${action.payload.type} while ${state.activeOperation.type} is in progress`
+        );
+        return state;
+      }
 
-      // If we're transitioning out of edit mode, ensure clean state
+      return {
+        ...state,
+        activeOperation: action.payload,
+      };
+    }
+
+    case "SET_EDIT_STATE": {
+      const newState = handleStateUpdate(state.editState, action.payload);
+
+      // If we're transitioning into edit mode, set the active operation
+      if (!state.editState.isEditing && newState.isEditing && newState.topicId) {
+        return {
+          ...state,
+          editState: newState,
+          activeOperation: { type: "edit", topicId: newState.topicId },
+        };
+      }
+
+      // If we're transitioning out of edit mode, clear the active operation
       if (state.editState.isEditing && !newState.isEditing) {
         return {
           ...state,
           editState: newState,
-          operationState: { status: "idle" }, // Reset operation state
+          activeOperation: { type: "none" },
         };
       }
 
-      // If we're transitioning into edit mode, ensure we're in a clean state
-      if (!state.editState.isEditing && newState.isEditing) {
-        return {
-          ...state,
-          editState: newState,
-          operationState: { status: "idle" }, // Reset operation state
-        };
-      }
-
-      // Otherwise, just update the edit state
       return {
         ...state,
         editState: newState,
@@ -242,28 +261,60 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     }
 
     case "SET_TOPIC_CREATION_STATE": {
-      const newState = handleStateUpdate(state.topicCreationState, action.state);
+      const newState = handleStateUpdate(state.topicCreationState, action.payload);
       console.log("Reducer: Setting topic creation state:", newState);
 
-      // If creation was successful, just update the state
-      if (newState.status === "success") {
+      // If we're starting creation, set the active operation
+      if (newState.status === "creating") {
         return {
           ...state,
           topicCreationState: newState,
-          isAddingTopic: false,
+          activeOperation: { type: "create" },
         };
       }
 
-      // If there was an error, just update the state
+      // If we're completing creation, clear the active operation
+      if (
+        state.topicCreationState.status === "creating" &&
+        (newState.status === "success" || newState.status === "error")
+      ) {
+        return {
+          ...state,
+          topicCreationState: newState,
+          activeOperation: { type: "none" },
+        };
+      }
+
       return {
         ...state,
         topicCreationState: newState,
-        isAddingTopic: newState.status === "creating",
       };
     }
 
     case "SET_REORDER_STATE": {
-      const newState = handleStateUpdate(state.reorderState, action.state);
+      const newState = handleStateUpdate(state.reorderState, action.payload);
+
+      // If we're starting a reorder, set the active operation
+      if (newState.status === "reordering") {
+        return {
+          ...state,
+          reorderState: newState,
+          activeOperation: { type: "reorder" },
+        };
+      }
+
+      // If we're completing a reorder, clear the active operation
+      if (
+        state.reorderState.status === "reordering" &&
+        (newState.status === "success" || newState.status === "error")
+      ) {
+        return {
+          ...state,
+          reorderState: newState,
+          activeOperation: { type: "none" },
+        };
+      }
+
       return {
         ...state,
         reorderState: newState,
@@ -271,20 +322,56 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     }
 
     case "SET_DELETION_STATE": {
-      const newState = handleStateUpdate(state.deletionState, action.state);
+      const newState = handleStateUpdate(state.deletionState, action.payload);
+
+      // If we're starting a deletion, set the active operation
+      if (newState.status === "deleting" && newState.topicId) {
+        return {
+          ...state,
+          deletionState: newState,
+          activeOperation: { type: "delete", topicId: newState.topicId },
+        };
+      }
+
+      // If we're completing a deletion, clear the active operation
+      if (state.deletionState.status === "deleting" && (newState.status === "success" || newState.status === "error")) {
+        return {
+          ...state,
+          deletionState: newState,
+          activeOperation: { type: "none" },
+        };
+      }
+
       return {
         ...state,
         deletionState: newState,
-        // Remove topic from state if deletion was successful
-        topics:
-          newState.status === "success" && newState.topicId
-            ? state.topics.filter((topic) => topic.id !== newState.topicId)
-            : state.topics,
       };
     }
 
     case "SET_DUPLICATION_STATE": {
-      const newState = handleStateUpdate(state.duplicationState, action.state);
+      const newState = handleStateUpdate(state.duplicationState, action.payload);
+
+      // If we're starting a duplication, set the active operation
+      if (newState.status === "duplicating" && newState.sourceTopicId) {
+        return {
+          ...state,
+          duplicationState: newState,
+          activeOperation: { type: "duplicate", topicId: newState.sourceTopicId },
+        };
+      }
+
+      // If we're completing a duplication, clear the active operation
+      if (
+        state.duplicationState.status === "duplicating" &&
+        (newState.status === "success" || newState.status === "error")
+      ) {
+        return {
+          ...state,
+          duplicationState: newState,
+          activeOperation: { type: "none" },
+        };
+      }
+
       return {
         ...state,
         duplicationState: newState,
@@ -292,10 +379,29 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     }
 
     case "SET_IS_ADDING_TOPIC": {
-      const newState = handleStateUpdate(state.isAddingTopic, action.isAdding);
+      const newState = handleStateUpdate(state.isAddingTopic, action.payload);
       return {
         ...state,
         isAddingTopic: newState,
+      };
+    }
+
+    case "FETCH_TOPICS_SUCCESS": {
+      const newTopics = handleStateUpdate(state.topics, action.payload.topics);
+      return {
+        ...state,
+        topics: newTopics,
+        operationState: { status: "success", data: newTopics },
+      };
+    }
+
+    case "FETCH_TOPICS_ERROR": {
+      return {
+        ...state,
+        operationState: {
+          status: "error",
+          error: action.payload.error,
+        },
       };
     }
 
@@ -362,7 +468,7 @@ const asyncActions = {
       await reorderTopics(courseId, topicIds);
 
       // Refresh topics after reordering
-      const updatedTopics = await getTopics(courseId);
+      const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setReorderState({ status: "success" });
     } catch (error) {
@@ -393,7 +499,7 @@ const asyncActions = {
       const newTopic = await duplicateTopic(topicId, courseId);
 
       // Refresh topics after duplication
-      const updatedTopics = await getTopics(courseId);
+      const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setDuplicationState({
         status: "success",
@@ -497,7 +603,7 @@ const asyncActions = {
       const updatedTopic = await updateTopic(topicId, data);
 
       // Refresh topics after update
-      const updatedTopics = await getTopics(data.course_id || 0);
+      const updatedTopics = await fetchTopics(data.course_id || 0);
       actions.setTopics(updatedTopics);
       actions.setEditState({
         isEditing: false,
@@ -532,7 +638,7 @@ const asyncActions = {
       await deleteTopic(topicId);
 
       // Refresh topics after deletion
-      const updatedTopics = await getTopics(courseId);
+      const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setDeletionState({
         status: "success",
@@ -560,37 +666,26 @@ const asyncActions = {
 } as const;
 
 // Create and register the store
-const store = createReduxStore("tutorpress/curriculum", {
+const curriculumStore = createReduxStore("tutorpress/curriculum", {
   reducer,
   actions: {
     ...actions,
     ...asyncActions,
   },
   selectors,
-  controls: {
-    ...controls,
-    *apiFetch(action: {
-      path: string;
-      method?: string;
-      data?: any;
-    }): Generator<{ type: "API_FETCH" } & { path: string; method?: string; data?: any }, any, unknown> {
-      return yield { type: "API_FETCH", ...action };
-    },
-    *select(storeName: string): Generator<{ type: "SELECT"; storeName: string }, any, unknown> {
-      return yield { type: "SELECT", storeName };
-    },
-  },
+  controls,
 });
 
-// Verify store registration
+register(curriculumStore);
+
 const verifyStoreRegistration = () => {
   try {
-    const registeredStore = select("tutorpress/curriculum");
-    if (!registeredStore) {
-      console.error("Store registration failed!");
+    const store = select("tutorpress/curriculum");
+    if (!store) {
+      console.error("Store not found:", store);
       return false;
     }
-    console.log("Store successfully registered:", store);
+    console.log("Store successfully registered:", curriculumStore);
     return true;
   } catch (error) {
     console.error("Error verifying store registration:", error);
@@ -598,15 +693,35 @@ const verifyStoreRegistration = () => {
   }
 };
 
-// Register the store
-register(store);
-
 // Verify registration
 if (!verifyStoreRegistration()) {
   console.error("Failed to register curriculum store!");
 }
 
-export { store as curriculumStore };
-
 // Log the store registration
-console.log("Store registered:", store);
+console.log("Store registered:", curriculumStore);
+
+export { curriculumStore };
+export const {
+  setTopics,
+  setOperationState,
+  setEditState,
+  setTopicCreationState,
+  setReorderState,
+  setDeletionState,
+  setDuplicationState,
+  setIsAddingTopic,
+  setActiveOperation,
+} = actions;
+
+export const {
+  getTopics,
+  getOperationState,
+  getEditState,
+  getTopicCreationState,
+  getReorderState,
+  getDeletionState,
+  getDuplicationState,
+  getIsAddingTopic,
+  getActiveOperation,
+} = selectors;

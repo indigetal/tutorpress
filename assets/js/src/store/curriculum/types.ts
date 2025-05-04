@@ -3,11 +3,12 @@ import {
   TopicOperationState,
   TopicEditState,
   TopicCreationState,
-  ReorderOperationState,
+  TopicReorderState,
   TopicDeletionState,
   TopicDuplicationState,
   CurriculumError,
-  OperationResult,
+  TopicOperationResult,
+  TopicActiveOperation,
 } from "../../types/curriculum";
 
 /**
@@ -18,10 +19,11 @@ export type CurriculumAction =
   | { type: "SET_OPERATION_STATE"; payload: TopicOperationState }
   | { type: "SET_EDIT_STATE"; payload: TopicEditState }
   | { type: "SET_TOPIC_CREATION_STATE"; payload: TopicCreationState }
-  | { type: "SET_REORDER_STATE"; payload: ReorderOperationState }
+  | { type: "SET_REORDER_STATE"; payload: TopicReorderState }
   | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
   | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
+  | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
   | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
   | { type: "FETCH_TOPICS_SUCCESS"; payload: { topics: Topic[] } }
   | { type: "FETCH_TOPICS_ERROR"; payload: { error: CurriculumError } };
@@ -36,7 +38,7 @@ export interface CurriculumState {
   editState: TopicEditState;
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
-  reorderState: ReorderOperationState;
+  reorderState: TopicReorderState;
   isAddingTopic: boolean;
   fetchState: {
     isLoading: boolean;
@@ -53,7 +55,7 @@ export interface CurriculumSelectors {
   getOperationState: (state: CurriculumState) => TopicOperationState;
   getEditState: (state: CurriculumState) => TopicEditState;
   getTopicCreationState: (state: CurriculumState) => TopicCreationState;
-  getReorderState: (state: CurriculumState) => ReorderOperationState;
+  getReorderState: (state: CurriculumState) => TopicReorderState;
   getDeletionState: (state: CurriculumState) => TopicDeletionState;
   getDuplicationState: (state: CurriculumState) => TopicDuplicationState;
   getIsAddingTopic: (state: CurriculumState) => boolean;
@@ -72,10 +74,11 @@ export interface CurriculumActions {
   setOperationState: (state: TopicOperationState) => CurriculumAction;
   setEditState: (state: TopicEditState) => CurriculumAction;
   setTopicCreationState: (state: TopicCreationState) => CurriculumAction;
-  setReorderState: (state: ReorderOperationState) => CurriculumAction;
+  setReorderState: (state: TopicReorderState) => CurriculumAction;
   setDeletionState: (state: TopicDeletionState) => CurriculumAction;
   setDuplicationState: (state: TopicDuplicationState) => CurriculumAction;
   setIsAddingTopic: (isAdding: boolean) => CurriculumAction;
+  setActiveOperation: (operation: TopicActiveOperation) => CurriculumAction;
   fetchTopicsStart: (courseId: number) => CurriculumAction;
   fetchTopicsSuccess: (topics: Topic[]) => CurriculumAction;
   fetchTopicsError: (error: CurriculumError) => CurriculumAction;
@@ -85,11 +88,11 @@ export interface CurriculumActions {
  * Async action creator types for the curriculum store
  */
 export interface CurriculumAsyncActions {
-  fetchTopics: (courseId: number) => Promise<OperationResult<Topic[]>>;
-  createTopic: (courseId: number, data: { title: string; summary: string }) => Promise<OperationResult<Topic>>;
-  updateTopic: (topicId: number, data: { title: string; summary: string }) => Promise<OperationResult<Topic>>;
-  deleteTopic: (topicId: number) => Promise<OperationResult<void>>;
-  duplicateTopic: (topicId: number, courseId: number) => Promise<OperationResult<Topic>>;
+  fetchTopics: (courseId: number) => Promise<TopicOperationResult<Topic[]>>;
+  createTopic: (courseId: number, data: { title: string; summary: string }) => Promise<TopicOperationResult<Topic>>;
+  updateTopic: (topicId: number, data: { title: string; summary: string }) => Promise<TopicOperationResult<Topic>>;
+  deleteTopic: (topicId: number) => Promise<TopicOperationResult<void>>;
+  duplicateTopic: (topicId: number, courseId: number) => Promise<TopicOperationResult<Topic>>;
 }
 
 /**

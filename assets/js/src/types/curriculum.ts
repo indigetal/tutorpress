@@ -174,7 +174,7 @@ export type TopicOperationState =
 /**
  * Reorder operation state with structured error
  */
-export type ReorderOperationState =
+export type TopicReorderState =
   | { status: "idle" }
   | { status: "reordering" }
   | { status: "success" }
@@ -192,7 +192,7 @@ export interface CurriculumSnapshot {
 /**
  * Operation result type
  */
-export type OperationResult<T> = {
+export type TopicOperationResult<T> = {
   success: boolean;
   data?: T;
   error?: CurriculumError;
@@ -224,4 +224,29 @@ export interface TopicDuplicationState {
   error?: CurriculumError;
   sourceTopicId?: number;
   duplicatedTopicId?: number;
+}
+
+export type TopicActiveOperation =
+  | { type: "none" }
+  | { type: "edit"; topicId: number }
+  | { type: "delete"; topicId: number }
+  | { type: "duplicate"; topicId: number }
+  | { type: "reorder" }
+  | { type: "create" };
+
+export interface CurriculumState {
+  topics: Topic[];
+  operationState: TopicOperationState;
+  topicCreationState: TopicCreationState;
+  editState: TopicEditState;
+  deletionState: TopicDeletionState;
+  duplicationState: TopicDuplicationState;
+  reorderState: TopicReorderState;
+  isAddingTopic: boolean;
+  activeOperation: TopicActiveOperation;
+  fetchState: {
+    isLoading: boolean;
+    error: CurriculumError | null;
+    lastFetchedCourseId: number | null;
+  };
 }
