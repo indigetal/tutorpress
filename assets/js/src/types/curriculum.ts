@@ -121,6 +121,11 @@ export const enum CurriculumErrorCode {
   NETWORK_ERROR = "network_error",
   CREATION_FAILED = "creation_failed",
   VALIDATION_ERROR = "validation_error",
+  OPERATION_IN_PROGRESS = "operation_in_progress",
+  EDIT_FAILED = "edit_failed",
+  DELETE_FAILED = "delete_failed",
+  DUPLICATE_FAILED = "duplicate_failed",
+  CREATE_FAILED = "create_failed",
 }
 
 /**
@@ -133,6 +138,11 @@ export interface CurriculumError {
     action?: string;
     topicId?: number;
     details?: string;
+    operationType?: TopicActiveOperation["type"];
+    operationData?: {
+      sourceTopicId?: number;
+      targetTopicId?: number;
+    };
   };
 }
 
@@ -250,3 +260,24 @@ export interface CurriculumState {
     lastFetchedCourseId: number | null;
   };
 }
+
+/**
+ * Helper function to create operation-specific errors
+ */
+export const createOperationError = (
+  code: CurriculumErrorCode,
+  message: string,
+  operation: TopicActiveOperation,
+  context?: Omit<CurriculumError["context"], "operationType" | "operationData">
+): CurriculumError => {
+  return {
+    code,
+    message,
+    context: {
+      ...context,
+      operationType: operation.type,
+      operationData:
+        operation.type !== "none" && "topicId" in operation ? { sourceTopicId: operation.topicId } : undefined,
+    },
+  };
+};

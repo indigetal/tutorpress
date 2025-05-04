@@ -20,6 +20,7 @@ import {
   isValidTopic,
   TopicFormData,
   CurriculumErrorCode,
+  createOperationError,
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
@@ -347,7 +348,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         title: data.title,
         content: data.summary,
         course_id: courseId,
-        menu_order: topics.length, // Add to end of list
+        // menu_order will be calculated by the backend
       });
 
       // Update local state with new topic
@@ -434,54 +435,67 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   );
 
   /** Handle topic duplication */
-  const handleTopicDuplicate = useCallback(
-    async (topicId: number) => {
+  const handleTopicDuplicate = async (topicId: number) => {
+    try {
+      // Check if another operation is in progress
       if (activeOperation.type !== "none") {
         createNotice("error", "Another operation is in progress. Please wait.");
         return;
       }
-      setDuplicationState({ status: "duplicating", sourceTopicId: topicId });
 
-      try {
-        const duplicatedTopic = await duplicateTopic(topicId, courseId);
+      // Set duplication state and active operation
+      setDuplicationState({
+        status: "duplicating",
+        sourceTopicId: topicId,
+      });
 
-        if (!duplicatedTopic) {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: __("Failed to duplicate topic", "tutorpress"),
-          };
-        }
+      const duplicateOperation: TopicActiveOperation = { type: "duplicate", topicId };
+      setActiveOperation(duplicateOperation);
 
-        setTopics((prevTopics) => [...prevTopics, { ...duplicatedTopic, isCollapsed: true }]);
-        setDuplicationState({
-          status: "success",
-          sourceTopicId: topicId,
-          duplicatedTopicId: duplicatedTopic.id,
-        });
-        setActiveOperation({ type: "none" });
-        createNotice("success", __("Topic duplicated successfully", "tutorpress"), {
-          type: "snackbar",
-        });
-      } catch (error) {
-        console.error("Error duplicating topic:", error);
+      // Attempt to duplicate the topic
+      const duplicatedTopic = await duplicateTopic(topicId, courseId);
 
-        const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic", "tutorpress");
+      // Update state with the new topic
+      setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
+      setDuplicationState({
+        status: "success",
+        sourceTopicId: topicId,
+        duplicatedTopicId: duplicatedTopic.id,
+      });
 
-        setDuplicationState({
-          status: "error",
-          sourceTopicId: topicId,
-          error: {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: errorMessage,
-            context: { action: "duplicate_topic" },
-          },
-        });
-        setActiveOperation({ type: "none" });
-        createNotice("error", errorMessage, { type: "snackbar" });
-      }
-    },
-    [courseId, createNotice, activeOperation]
-  );
+      // Reset active operation
+      setActiveOperation({ type: "none" });
+
+      // Show success notice
+      createNotice("success", __("Topic duplicated successfully.", "tutorpress"), {
+        type: "snackbar",
+      });
+    } catch (error) {
+      // Handle error
+      const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic.", "tutorpress");
+      setDuplicationState({
+        status: "error",
+        error: createOperationError(
+          CurriculumErrorCode.DUPLICATE_FAILED,
+          errorMessage,
+          { type: "duplicate", topicId },
+          {
+            action: "duplicateTopic",
+            topicId,
+          }
+        ),
+        sourceTopicId: topicId,
+      });
+
+      // Reset active operation
+      setActiveOperation({ type: "none" });
+
+      // Show error notice
+      createNotice("error", errorMessage, {
+        type: "snackbar",
+      });
+    }
+  };
 
   return {
     // State

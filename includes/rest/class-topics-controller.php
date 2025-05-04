@@ -317,6 +317,8 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
      */
     public function create_item($request) {
         try {
+            global $wpdb;
+
             // Check Tutor LMS availability
             $tutor_check = $this->ensure_tutor_lms();
             if (is_wp_error($tutor_check)) {
@@ -331,6 +333,12 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 return $validation_result;
             }
 
+            // Get the highest menu_order for the course
+            $max_order = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(menu_order) FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'topics'",
+                $course_id
+            ));
+
             // Create topic
             $topic_data = [
                 'post_type'    => 'topics',
@@ -338,7 +346,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 'post_content' => $request->get_param('content', ''),
                 'post_status'  => 'publish',
                 'post_parent'  => $course_id,
-                'menu_order'   => $request->get_param('menu_order', 0),
+                'menu_order'   => (int) $max_order + 1,
             ];
 
             $topic_id = wp_insert_post($topic_data, true);
