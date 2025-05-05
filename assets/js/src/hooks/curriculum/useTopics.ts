@@ -167,6 +167,33 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     setTopics,
   });
 
+  // Helper for operation success cleanup
+  const handleOperationSuccess = useCallback(() => {
+    clearSnapshot();
+    setActiveOperation({ type: "none" });
+  }, [clearSnapshot, setActiveOperation]);
+
+  // Helper for operation error cleanup
+  const handleOperationError = useCallback(
+    (error: Error) => {
+      if (snapshot) {
+        restoreFromSnapshot();
+      }
+      clearSnapshot();
+      setActiveOperation({ type: "none" });
+      return error;
+    },
+    [snapshot, restoreFromSnapshot, clearSnapshot, setActiveOperation]
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearSnapshot();
+      setActiveOperation({ type: "none" });
+    };
+  }, [clearSnapshot, setActiveOperation]);
+
   // Fetch topics on mount and when courseId changes
   useEffect(() => {
     const fetchTopicsData = async () => {
@@ -343,6 +370,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   /** Handle topic form save */
   const handleTopicFormSave = async (data: TopicFormData) => {
     try {
+      createSnapshot("edit");
+
       // Create topic using store action
       const newTopic = await createTopic({
         title: data.title,
@@ -358,15 +387,14 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       setTopicCreationState({ status: "idle" });
       setIsAddingTopic(false);
 
-      // Show success notice
+      // Cleanup and show success notice
+      handleOperationSuccess();
       createNotice("success", __("Topic created successfully", "tutorpress"), {
         type: "snackbar",
       });
     } catch (error) {
-      // Error is already handled by the store
-      console.error("Failed to create topic:", error);
-
-      // Show error notice
+      // Handle error and cleanup
+      handleOperationError(error as Error);
       createNotice("error", __("Failed to create topic", "tutorpress"), {
         type: "snackbar",
       });
@@ -389,6 +417,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       setDeletionState({ status: "deleting", topicId });
 
       try {
+        createSnapshot("delete");
+
         const response = await apiFetch<{ success: boolean; message?: string }>({
           path: `/tutorpress/v1/topics/${topicId}`,
           method: "DELETE",
@@ -402,9 +432,10 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         }
 
         setTopics((currentTopics) => currentTopics.filter((topic) => topic.id !== topicId));
-        clearSnapshot();
         setDeletionState({ status: "success" });
-        setActiveOperation({ type: "none" });
+
+        // Cleanup and show success notice
+        handleOperationSuccess();
         createNotice("success", __("Topic deleted successfully", "tutorpress"), {
           type: "snackbar",
         });
@@ -425,13 +456,15 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
           error,
           topicId,
         });
-        setActiveOperation({ type: "none" });
-        createNotice("error", error instanceof Error ? error.message : __("Failed to delete topic", "tutorpress"), {
+
+        // Handle error and cleanup
+        handleOperationError(new Error(error.message));
+        createNotice("error", error.message, {
           type: "snackbar",
         });
       }
     },
-    [clearSnapshot, activeOperation, createNotice]
+    [activeOperation, createNotice, handleOperationSuccess, handleOperationError, createSnapshot]
   );
 
   /** Handle topic duplication */
@@ -452,6 +485,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       const duplicateOperation: TopicActiveOperation = { type: "duplicate", topicId };
       setActiveOperation(duplicateOperation);
 
+      createSnapshot("duplicate");
+
       // Attempt to duplicate the topic
       const duplicatedTopic = await duplicateTopic(topicId, courseId);
 
@@ -463,10 +498,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         duplicatedTopicId: duplicatedTopic.id,
       });
 
-      // Reset active operation
-      setActiveOperation({ type: "none" });
-
-      // Show success notice
+      // Cleanup and show success notice
+      handleOperationSuccess();
       createNotice("success", __("Topic duplicated successfully.", "tutorpress"), {
         type: "snackbar",
       });
@@ -487,10 +520,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         sourceTopicId: topicId,
       });
 
-      // Reset active operation
-      setActiveOperation({ type: "none" });
-
-      // Show error notice
+      // Handle error and cleanup
+      handleOperationError(error instanceof Error ? error : new Error(errorMessage));
       createNotice("error", errorMessage, {
         type: "snackbar",
       });
