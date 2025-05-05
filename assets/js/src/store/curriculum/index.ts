@@ -182,6 +182,22 @@ const selectors = {
   getFetchState(state: CurriculumState) {
     return state.fetchState;
   },
+  getTopicById(state: CurriculumState, topicId: number) {
+    return state.topics.find((topic) => topic.id === topicId);
+  },
+  getActiveTopic(state: CurriculumState) {
+    const { activeOperation } = state;
+    if (activeOperation.type === "none" || !activeOperation.topicId) {
+      return null;
+    }
+    return state.topics.find((topic) => topic.id === activeOperation.topicId);
+  },
+  getTopicsCount(state: CurriculumState) {
+    return state.topics.length;
+  },
+  getTopicsWithContent(state: CurriculumState) {
+    return state.topics.filter((topic) => topic.content && topic.content.trim() !== "");
+  },
 };
 
 // Helper function to handle state updates
@@ -191,7 +207,9 @@ const handleStateUpdate = <T>(currentState: T, newState: T | ((state: T) => T)):
 
 // Reducer
 const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumState => {
-  console.log("Reducer: Processing action:", action.type);
+  if (process.env.NODE_ENV === "development") {
+    console.log("Reducer: Processing action:", action.type);
+  }
 
   switch (action.type) {
     case "FETCH_TOPICS_START":
@@ -201,7 +219,9 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       };
     case "SET_TOPICS": {
       const newTopics = handleStateUpdate(state.topics, action.payload);
-      console.log("Reducer: Setting topics:", newTopics);
+      if (process.env.NODE_ENV === "development") {
+        console.log("Reducer: Setting topics:", newTopics);
+      }
       return {
         ...state,
         topics: newTopics,
@@ -211,7 +231,9 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
     case "SET_OPERATION_STATE": {
       const newState = handleStateUpdate(state.operationState, action.payload);
-      console.log("Reducer: Setting operation state:", newState);
+      if (process.env.NODE_ENV === "development") {
+        console.log("Reducer: Setting operation state:", newState);
+      }
       return {
         ...state,
         operationState: newState,
@@ -219,11 +241,12 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     }
 
     case "SET_ACTIVE_OPERATION": {
-      // If we're setting a new operation while one is active, log a warning
       if (state.activeOperation.type !== "none" && action.payload.type !== "none") {
-        console.warn(
-          `Attempting to set active operation to ${action.payload.type} while ${state.activeOperation.type} is in progress`
-        );
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `Attempting to set active operation to ${action.payload.type} while ${state.activeOperation.type} is in progress`
+          );
+        }
         return state;
       }
 
@@ -236,7 +259,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     case "SET_EDIT_STATE": {
       const newState = handleStateUpdate(state.editState, action.payload);
 
-      // If we're transitioning into edit mode, set the active operation
       if (!state.editState.isEditing && newState.isEditing && newState.topicId) {
         return {
           ...state,
@@ -245,7 +267,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         };
       }
 
-      // If we're transitioning out of edit mode, clear the active operation
       if (state.editState.isEditing && !newState.isEditing) {
         return {
           ...state,
@@ -262,9 +283,10 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
     case "SET_TOPIC_CREATION_STATE": {
       const newState = handleStateUpdate(state.topicCreationState, action.payload);
-      console.log("Reducer: Setting topic creation state:", newState);
+      if (process.env.NODE_ENV === "development") {
+        console.log("Reducer: Setting topic creation state:", newState);
+      }
 
-      // If we're starting creation, set the active operation
       if (newState.status === "creating") {
         return {
           ...state,
@@ -273,7 +295,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         };
       }
 
-      // If we're completing creation, clear the active operation
       if (
         state.topicCreationState.status === "creating" &&
         (newState.status === "success" || newState.status === "error")
@@ -294,7 +315,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     case "SET_REORDER_STATE": {
       const newState = handleStateUpdate(state.reorderState, action.payload);
 
-      // If we're starting a reorder, set the active operation
       if (newState.status === "reordering") {
         return {
           ...state,
@@ -303,7 +323,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         };
       }
 
-      // If we're completing a reorder, clear the active operation
       if (
         state.reorderState.status === "reordering" &&
         (newState.status === "success" || newState.status === "error")
@@ -324,7 +343,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     case "SET_DELETION_STATE": {
       const newState = handleStateUpdate(state.deletionState, action.payload);
 
-      // If we're starting a deletion, set the active operation
       if (newState.status === "deleting" && newState.topicId) {
         return {
           ...state,
@@ -333,7 +351,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         };
       }
 
-      // If we're completing a deletion, clear the active operation
       if (state.deletionState.status === "deleting" && (newState.status === "success" || newState.status === "error")) {
         return {
           ...state,
@@ -351,7 +368,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
     case "SET_DUPLICATION_STATE": {
       const newState = handleStateUpdate(state.duplicationState, action.payload);
 
-      // If we're starting a duplication, set the active operation
       if (newState.status === "duplicating" && newState.sourceTopicId) {
         return {
           ...state,
@@ -360,7 +376,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         };
       }
 
-      // If we're completing a duplication, clear the active operation
       if (
         state.duplicationState.status === "duplicating" &&
         (newState.status === "success" || newState.status === "error")
@@ -467,7 +482,6 @@ const asyncActions = {
 
       await reorderTopics(courseId, topicIds);
 
-      // Refresh topics after reordering
       const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setReorderState({ status: "success" });
@@ -498,7 +512,6 @@ const asyncActions = {
 
       const newTopic = await duplicateTopic(topicId, courseId);
 
-      // Refresh topics after duplication
       const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setDuplicationState({
@@ -528,10 +541,8 @@ const asyncActions = {
 
   *createTopic(data: TopicRequest): Generator<unknown, Topic, unknown> {
     try {
-      // Set creating state
       yield actions.setTopicCreationState({ status: "creating" });
 
-      // Make API call and await the response
       const response = (yield {
         type: "API_FETCH",
         request: {
@@ -540,43 +551,37 @@ const asyncActions = {
           data: {
             course_id: data.course_id,
             title: data.title,
-            content: data.content || " ", // This is the topic summary
+            content: data.content || " ",
             menu_order: data.menu_order || 0,
           },
         },
       }) as CreateTopicResponse;
 
-      // Validate response
       if (!response || !response.success || !response.data) {
         const errorMessage = response?.message || "Failed to create topic";
         throw new Error(errorMessage);
       }
 
-      // Create new topic object
       const newTopic: Topic = {
         id: response.data.id,
         title: response.data.title,
-        content: response.data.content || " ", // This is the topic summary
+        content: response.data.content || " ",
         menu_order: response.data.menu_order,
         isCollapsed: false,
         contents: [],
       };
 
-      // Update topics list with new topic
       yield actions.setTopics((currentTopics) => [...currentTopics, newTopic]);
 
-      // Set success state
       yield actions.setTopicCreationState({
         status: "success",
         data: newTopic,
       });
 
-      // Reset isAddingTopic
       yield actions.setIsAddingTopic(false);
 
       return newTopic;
     } catch (error) {
-      // Set error state with detailed error information
       yield actions.setTopicCreationState({
         status: "error",
         error: {
@@ -602,7 +607,6 @@ const asyncActions = {
 
       const updatedTopic = await updateTopic(topicId, data);
 
-      // Refresh topics after update
       const updatedTopics = await fetchTopics(data.course_id || 0);
       actions.setTopics(updatedTopics);
       actions.setEditState({
@@ -637,7 +641,6 @@ const asyncActions = {
 
       await deleteTopic(topicId);
 
-      // Refresh topics after deletion
       const updatedTopics = await fetchTopics(courseId);
       actions.setTopics(updatedTopics);
       actions.setDeletionState({
