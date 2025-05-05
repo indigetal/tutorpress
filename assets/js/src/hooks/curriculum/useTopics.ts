@@ -42,6 +42,7 @@ import {
   setActiveOperation,
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
+import { useStatePersistence } from "./useStatePersistence";
 
 // Type guard for database error response
 interface DbError {
@@ -166,6 +167,9 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     topics,
     setTopics,
   });
+
+  // Use state persistence
+  useStatePersistence(courseId, topics, setTopics);
 
   // Helper for operation success cleanup
   const handleOperationSuccess = useCallback(() => {
