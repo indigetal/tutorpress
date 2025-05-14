@@ -232,8 +232,11 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       }
     };
 
-    // Only fetch if we're not already loading and we don't have topics
-    if (operationState.status !== "loading" && (!topics || topics.length === 0)) {
+    // Only fetch if:
+    // 1. We have a valid course ID (not 0 or null)
+    // 2. We're not already loading
+    // 3. We don't have topics yet
+    if (courseId && courseId > 0 && operationState.status !== "loading" && (!topics || topics.length === 0)) {
       setOperationState({ status: "loading" });
       fetchTopicsData();
     }

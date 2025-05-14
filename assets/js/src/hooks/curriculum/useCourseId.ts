@@ -1,8 +1,21 @@
+import { useEffect } from "react";
+import { useSelect, useDispatch } from "@wordpress/data";
+import { curriculumStore } from "../../store/curriculum";
+
+interface ParentInfoResponse {
+  success: boolean;
+  message: string;
+  data: {
+    course_id: number;
+    topic_id: number;
+  };
+}
+
 /**
  * Hook to get the course ID in both course editor and lesson editor contexts
  * @returns The course ID from either the URL query parameter (course editor) or the parent topic's parent (lesson editor)
  */
-export function useCourseId(): number {
+export function useCourseId(): number | null {
   // Get the context from the localized script data
   const isLesson = (window as any).tutorPressCurriculum?.isLesson;
 
@@ -15,6 +28,27 @@ export function useCourseId(): number {
   }
 
   // If we're in the lesson editor, we need to get the course ID from the parent topic's parent
-  // This will be implemented in the next phase
-  return 0;
+  const { courseId, operationState } = useSelect(
+    (select) => ({
+      courseId: select(curriculumStore).getCourseId(),
+      operationState: select(curriculumStore).getOperationState(),
+    }),
+    []
+  );
+  const { fetchCourseId } = useDispatch(curriculumStore);
+
+  useEffect(() => {
+    if (!isLesson || !postId) {
+      return;
+    }
+
+    fetchCourseId(postId);
+  }, [isLesson, postId, fetchCourseId]);
+
+  // Return null while loading or if no course ID is available
+  if (operationState.status === "loading" || !courseId) {
+    return null;
+  }
+
+  return courseId;
 }

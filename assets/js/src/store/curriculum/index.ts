@@ -51,6 +51,7 @@ interface CurriculumState {
     error: Error | null;
     lastFetchedCourseId: number | null;
   };
+  courseId: number | null;
 }
 
 // Initial state
@@ -69,6 +70,7 @@ const DEFAULT_STATE: CurriculumState = {
     error: null,
     lastFetchedCourseId: null,
   },
+  courseId: null,
 };
 
 // Action types
@@ -84,7 +86,11 @@ export type CurriculumAction =
   | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
   | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
   | { type: "FETCH_TOPICS_SUCCESS"; payload: { topics: Topic[] } }
-  | { type: "FETCH_TOPICS_ERROR"; payload: { error: CurriculumError } };
+  | { type: "FETCH_TOPICS_ERROR"; payload: { error: CurriculumError } }
+  | { type: "SET_COURSE_ID"; payload: number | null }
+  | { type: "FETCH_COURSE_ID_START"; payload: { lessonId: number } }
+  | { type: "FETCH_COURSE_ID_SUCCESS"; payload: { courseId: number } }
+  | { type: "FETCH_COURSE_ID_ERROR"; payload: { error: CurriculumError } };
 
 // Action creators
 export const actions = {
@@ -148,6 +154,44 @@ export const actions = {
       data,
     };
   },
+  setCourseId(courseId: number | null) {
+    return {
+      type: "SET_COURSE_ID",
+      payload: courseId,
+    };
+  },
+  fetchCourseId(lessonId: number) {
+    return async ({ dispatch }: { dispatch: (action: CurriculumAction) => void }) => {
+      dispatch({ type: "FETCH_COURSE_ID_START", payload: { lessonId } });
+      try {
+        const response = await apiFetch<ParentInfoResponse>({
+          path: `/tutorpress/v1/lessons/${lessonId}/parent-info`,
+          method: "GET",
+        });
+
+        if (!response.success || !response.data?.course_id) {
+          throw new Error(response.message || __("Failed to get course ID", "tutorpress"));
+        }
+
+        dispatch({ type: "FETCH_COURSE_ID_SUCCESS", payload: { courseId: response.data.course_id } });
+      } catch (error) {
+        console.error("Error fetching course ID:", error);
+        dispatch({
+          type: "FETCH_COURSE_ID_ERROR",
+          payload: {
+            error: {
+              code: CurriculumErrorCode.FETCH_FAILED,
+              message: error instanceof Error ? error.message : __("Failed to fetch course ID", "tutorpress"),
+              context: {
+                action: "fetchCourseId",
+                details: `Failed to fetch course ID for lesson ${lessonId}`,
+              },
+            },
+          },
+        });
+      }
+    };
+  },
 };
 
 // Selectors
@@ -197,6 +241,9 @@ const selectors = {
   },
   getTopicsWithContent(state: CurriculumState) {
     return state.topics.filter((topic) => topic.content && topic.content.trim() !== "");
+  },
+  getCourseId(state: CurriculumState) {
+    return state.courseId;
   },
 };
 
@@ -420,6 +467,27 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       };
     }
 
+    case "SET_COURSE_ID":
+      return {
+        ...state,
+        courseId: action.payload,
+      };
+    case "FETCH_COURSE_ID_START":
+      return {
+        ...state,
+        operationState: { status: "loading" },
+      };
+    case "FETCH_COURSE_ID_SUCCESS":
+      return {
+        ...state,
+        courseId: action.payload.courseId,
+        operationState: { status: "idle" },
+      };
+    case "FETCH_COURSE_ID_ERROR":
+      return {
+        ...state,
+        operationState: { status: "error", error: action.payload.error },
+      };
     default:
       return state;
   }
@@ -445,6 +513,15 @@ interface CreateTopicResponse {
     title: string;
     content: string;
     menu_order: number;
+  };
+}
+
+interface ParentInfoResponse {
+  success: boolean;
+  message: string;
+  data: {
+    course_id: number;
+    topic_id: number;
   };
 }
 
