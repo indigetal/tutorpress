@@ -184,7 +184,7 @@ export type TopicOperationState =
 /**
  * Reorder operation state with structured error
  */
-export type TopicReorderState =
+export type ReorderOperationState =
   | { status: "idle" }
   | { status: "reordering" }
   | { status: "success" }
@@ -202,7 +202,7 @@ export interface CurriculumSnapshot {
 /**
  * Operation result type
  */
-export type TopicOperationResult<T> = {
+export type OperationResult<T> = {
   success: boolean;
   data?: T;
   error?: CurriculumError;
@@ -251,7 +251,7 @@ export interface CurriculumState {
   editState: TopicEditState;
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
-  reorderState: TopicReorderState;
+  reorderState: ReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: TopicActiveOperation;
   fetchState: {
