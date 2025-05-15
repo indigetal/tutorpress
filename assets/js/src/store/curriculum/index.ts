@@ -6,14 +6,15 @@ import {
   TopicOperationState,
   TopicEditState,
   TopicCreationState,
-  TopicReorderState,
+  ReorderOperationState,
   TopicDeletionState,
   TopicDuplicationState,
   CurriculumError,
-  TopicOperationResult,
+  OperationResult,
   TopicActiveOperation,
   CurriculumErrorCode,
 } from "../../types/curriculum";
+import type { Lesson } from "../../types/lessons";
 import { apiService } from "../../api/service";
 import {
   getTopics as fetchTopics,
@@ -23,6 +24,11 @@ import {
   updateTopic,
   deleteTopic,
 } from "../../api/topics";
+import {
+  createLesson as apiCreateLesson,
+  updateLesson as apiUpdateLesson,
+  deleteLesson as apiDeleteLesson,
+} from "../../api/lessons";
 import { TopicRequest } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 
@@ -32,7 +38,7 @@ interface CurriculumState {
   operationState: TopicOperationState;
   editState: TopicEditState;
   topicCreationState: TopicCreationState;
-  reorderState: TopicReorderState;
+  reorderState: ReorderOperationState;
   deletionState: {
     status: "idle" | "deleting" | "error" | "success";
     error?: CurriculumError;
@@ -43,6 +49,11 @@ interface CurriculumState {
     error?: CurriculumError;
     sourceTopicId?: number;
     duplicatedTopicId?: number;
+  };
+  lessonState: {
+    status: "idle" | "loading" | "error" | "success";
+    error?: CurriculumError;
+    activeLessonId?: number;
   };
   isAddingTopic: boolean;
   activeOperation: { type: string; topicId?: number };
@@ -63,6 +74,7 @@ const DEFAULT_STATE: CurriculumState = {
   deletionState: { status: "idle" },
   duplicationState: { status: "idle" },
   reorderState: { status: "idle" },
+  lessonState: { status: "idle" },
   isAddingTopic: false,
   activeOperation: { type: "none" },
   fetchState: {
@@ -79,7 +91,7 @@ export type CurriculumAction =
   | { type: "SET_OPERATION_STATE"; payload: TopicOperationState }
   | { type: "SET_EDIT_STATE"; payload: TopicEditState }
   | { type: "SET_TOPIC_CREATION_STATE"; payload: TopicCreationState }
-  | { type: "SET_REORDER_STATE"; payload: TopicReorderState }
+  | { type: "SET_REORDER_STATE"; payload: ReorderOperationState }
   | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
   | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
@@ -90,7 +102,23 @@ export type CurriculumAction =
   | { type: "SET_COURSE_ID"; payload: number | null }
   | { type: "FETCH_COURSE_ID_START"; payload: { lessonId: number } }
   | { type: "FETCH_COURSE_ID_SUCCESS"; payload: { courseId: number } }
-  | { type: "FETCH_COURSE_ID_ERROR"; payload: { error: CurriculumError } };
+  | { type: "FETCH_COURSE_ID_ERROR"; payload: { error: CurriculumError } }
+  | { type: "CREATE_LESSON_START"; payload: { topicId: number } }
+  | { type: "CREATE_LESSON_SUCCESS"; payload: { lesson: Lesson } }
+  | { type: "CREATE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "UPDATE_LESSON_START"; payload: { lessonId: number } }
+  | { type: "UPDATE_LESSON_SUCCESS"; payload: { lesson: Lesson } }
+  | { type: "UPDATE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_LESSON_START"; payload: { lessonId: number } }
+  | { type: "DELETE_LESSON_SUCCESS"; payload: { lessonId: number } }
+  | { type: "DELETE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "CREATE_LESSON"; payload: { title: string; content: string; topic_id: number } }
+  | {
+      type: "UPDATE_LESSON";
+      payload: { lessonId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
+    }
+  | { type: "DELETE_LESSON"; payload: { lessonId: number } }
+  | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] };
 
 // Action creators
 export const actions = {
@@ -118,7 +146,7 @@ export const actions = {
       payload: state,
     };
   },
-  setReorderState(state: TopicReorderState) {
+  setReorderState(state: ReorderOperationState) {
     return {
       type: "SET_REORDER_STATE",
       payload: state,
@@ -202,6 +230,31 @@ export const actions = {
       }
     };
   },
+  createLesson(data: { title: string; content: string; topic_id: number }) {
+    return {
+      type: "CREATE_LESSON",
+      data,
+    };
+  },
+  updateLesson(lessonId: number, data: Partial<{ title: string; content: string; topic_id: number }>) {
+    return {
+      type: "UPDATE_LESSON",
+      lessonId,
+      data,
+    };
+  },
+  deleteLesson(lessonId: number) {
+    return {
+      type: "DELETE_LESSON",
+      lessonId,
+    };
+  },
+  setLessonState(state: CurriculumState["lessonState"]) {
+    return {
+      type: "SET_LESSON_STATE",
+      payload: state,
+    };
+  },
 };
 
 // Selectors
@@ -254,6 +307,21 @@ const selectors = {
   },
   getCourseId(state: CurriculumState) {
     return state.courseId;
+  },
+  getLessonState(state: CurriculumState) {
+    return state.lessonState;
+  },
+  getActiveLessonId(state: CurriculumState) {
+    return state.lessonState.activeLessonId;
+  },
+  isLessonLoading(state: CurriculumState) {
+    return state.lessonState.status === "loading";
+  },
+  hasLessonError(state: CurriculumState) {
+    return state.lessonState.status === "error";
+  },
+  getLessonError(state: CurriculumState) {
+    return state.lessonState.error;
   },
 };
 
@@ -498,6 +566,77 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         ...state,
         operationState: { status: "error", error: action.payload.error },
       };
+    case "CREATE_LESSON_START":
+      return {
+        ...state,
+        lessonState: { status: "loading" },
+      };
+    case "CREATE_LESSON_SUCCESS":
+      return {
+        ...state,
+        lessonState: {
+          status: "success",
+          activeLessonId: action.payload.lesson.id,
+        },
+      };
+    case "CREATE_LESSON_ERROR":
+      return {
+        ...state,
+        lessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "UPDATE_LESSON_START":
+      return {
+        ...state,
+        lessonState: {
+          status: "loading",
+          activeLessonId: action.payload.lessonId,
+        },
+      };
+    case "UPDATE_LESSON_SUCCESS":
+      return {
+        ...state,
+        lessonState: {
+          status: "success",
+          activeLessonId: action.payload.lesson.id,
+        },
+      };
+    case "UPDATE_LESSON_ERROR":
+      return {
+        ...state,
+        lessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "DELETE_LESSON_START":
+      return {
+        ...state,
+        lessonState: {
+          status: "loading",
+          activeLessonId: action.payload.lessonId,
+        },
+      };
+    case "DELETE_LESSON_SUCCESS":
+      return {
+        ...state,
+        lessonState: { status: "success" },
+      };
+    case "DELETE_LESSON_ERROR":
+      return {
+        ...state,
+        lessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "SET_LESSON_STATE":
+      return {
+        ...state,
+        lessonState: action.payload,
+      };
     default:
       return state;
   }
@@ -535,8 +674,8 @@ interface ParentInfoResponse {
   };
 }
 
-// Async action creators
-const asyncActions = {
+// Generator functions
+const resolvers = {
   *fetchTopics(courseId: number): Generator<unknown, void, unknown> {
     yield actions.setOperationState({ status: "loading" });
     try {
@@ -753,14 +892,100 @@ const asyncActions = {
       throw curriculumError;
     }
   },
-} as const;
+
+  *createLesson(data: { title: string; content: string; topic_id: number }): Generator<unknown, void, unknown> {
+    yield actions.setLessonState({ status: "loading" });
+    try {
+      const lesson = (yield apiCreateLesson(data)) as Lesson;
+      yield actions.setLessonState({
+        status: "success",
+        activeLessonId: lesson.id,
+      });
+      // Refresh topics to get updated content
+      yield* resolvers.fetchTopics(data.topic_id);
+    } catch (error) {
+      yield actions.setLessonState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.CREATION_FAILED,
+          message: error instanceof Error ? error.message : __("Failed to create lesson", "tutorpress"),
+          context: {
+            action: "createLesson",
+            details: `Failed to create lesson for topic ${data.topic_id}`,
+          },
+        },
+      });
+    }
+  },
+
+  *updateLesson(
+    lessonId: number,
+    data: Partial<{ title: string; content: string; topic_id: number }>
+  ): Generator<unknown, void, unknown> {
+    yield actions.setLessonState({
+      status: "loading",
+      activeLessonId: lessonId,
+    });
+    try {
+      const lesson = (yield apiUpdateLesson(lessonId, data)) as Lesson;
+      yield actions.setLessonState({
+        status: "success",
+        activeLessonId: lesson.id,
+      });
+      // Refresh topics if topic_id changed
+      if (data.topic_id) {
+        yield* resolvers.fetchTopics(data.topic_id);
+      }
+    } catch (error) {
+      yield actions.setLessonState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.EDIT_FAILED,
+          message: error instanceof Error ? error.message : __("Failed to update lesson", "tutorpress"),
+          context: {
+            action: "updateLesson",
+            details: `Failed to update lesson ${lessonId}`,
+          },
+        },
+      });
+    }
+  },
+
+  *deleteLesson(lessonId: number): Generator<unknown, void, unknown> {
+    yield actions.setLessonState({
+      status: "loading",
+      activeLessonId: lessonId,
+    });
+    try {
+      yield apiDeleteLesson(lessonId);
+      yield actions.setLessonState({ status: "success" });
+      // Refresh topics to get updated content
+      const state = (yield select("tutorpress/curriculum")) as CurriculumState;
+      if (state.courseId) {
+        yield* resolvers.fetchTopics(state.courseId);
+      }
+    } catch (error) {
+      yield actions.setLessonState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.DELETE_FAILED,
+          message: error instanceof Error ? error.message : __("Failed to delete lesson", "tutorpress"),
+          context: {
+            action: "deleteLesson",
+            details: `Failed to delete lesson ${lessonId}`,
+          },
+        },
+      });
+    }
+  },
+};
 
 // Create and register the store
 const curriculumStore = createReduxStore("tutorpress/curriculum", {
   reducer,
   actions: {
     ...actions,
-    ...asyncActions,
+    ...resolvers,
   },
   selectors,
   controls,
@@ -814,4 +1039,9 @@ export const {
   getDuplicationState,
   getIsAddingTopic,
   getActiveOperation,
+  getLessonState,
+  getActiveLessonId,
+  isLessonLoading,
+  hasLessonError,
+  getLessonError,
 } = selectors;
