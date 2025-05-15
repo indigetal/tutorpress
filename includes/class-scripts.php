@@ -147,6 +147,7 @@ class TutorPress_Scripts {
             'restUrl' => rest_url(),
             'restNonce' => wp_create_nonce('wp_rest'),
             'isLesson' => 'lesson' === $screen->post_type,
+            'adminUrl' => admin_url(),
         ]);
     }
 

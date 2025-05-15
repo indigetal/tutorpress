@@ -6,6 +6,14 @@ import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../t
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 
+declare global {
+  interface Window {
+    tutorPressCurriculum?: {
+      adminUrl: string;
+    };
+  }
+}
+
 /**
  * Props for content item row
  */
@@ -135,7 +143,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
           </div>
           <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
             <Flex gap={2} style={{ width: "auto" }}>
-              <Button variant="secondary" isSmall icon={plus}>
+              <Button
+                variant="secondary"
+                isSmall
+                icon={plus}
+                onClick={() => {
+                  // Redirect to new lesson page with topic_id
+                  const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
+                  const url = new URL("post-new.php", adminUrl);
+                  url.searchParams.append("post_type", "lesson");
+                  url.searchParams.append("topic_id", topic.id.toString());
+                  window.location.href = url.toString();
+                }}
+              >
                 {__("Lesson", "tutorpress")}
               </Button>
               <Button variant="secondary" isSmall icon={plus}>
