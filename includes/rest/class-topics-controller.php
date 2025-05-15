@@ -174,6 +174,30 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 ],
             ]
         );
+
+        // Get parent info (course) for a topic
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/(?P<id>[\d]+)/parent-info',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_parent_info'],
+                    'permission_callback' => function($request) {
+                        $topic_id = (int) $request->get_param('id');
+                        return current_user_can('edit_post', $topic_id);
+                    },
+                    'args'               => [
+                        'id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the topic to get parent info for.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
@@ -778,6 +802,73 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             return new WP_Error(
                 'topic_duplication_error',
                 $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Get parent info (course) for a topic.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     * 
+     * @throws WP_Error {
+     *     @type string $code    Error code.
+     *     @type string $message Error message.
+     *     @type int    $status  HTTP status code.
+     * }
+     * 
+     * Error codes:
+     * - 'invalid_topic': The topic ID is invalid or the topic doesn't exist
+     * - 'invalid_course': The topic's parent course is invalid or doesn't exist
+     * - 'parent_info_fetch_error': An unexpected error occurred while fetching parent info
+     */
+    public function get_parent_info($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $topic_id = (int) $request->get_param('id');
+
+            // Validate topic
+            $topic = get_post($topic_id);
+            if (!$topic || $topic->post_type !== 'topics') {
+                return new WP_Error(
+                    'invalid_topic',
+                    __('The topic could not be found. Please check the topic ID and try again.', 'tutorpress'),
+                    ['status' => 404]
+                );
+            }
+
+            // Get parent course
+            $course = get_post($topic->post_parent);
+            if (!$course || $course->post_type !== 'courses') {
+                return new WP_Error(
+                    'invalid_course',
+                    __('The topic is not associated with a valid course. Please check the topic\'s parent course.', 'tutorpress'),
+                    ['status' => 404]
+                );
+            }
+
+            return rest_ensure_response(
+                $this->format_response(
+                    [
+                        'course_id' => $course->ID,
+                        'topic_id'  => $topic->ID,
+                    ],
+                    __('Parent info retrieved successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'parent_info_fetch_error',
+                __('An unexpected error occurred while retrieving the topic\'s parent information. Please try again.', 'tutorpress'),
                 ['status' => 500]
             );
         }

@@ -160,12 +160,22 @@ export const actions = {
       payload: courseId,
     };
   },
-  fetchCourseId(lessonId: number) {
+  fetchCourseId(id: number) {
     return async ({ dispatch }: { dispatch: (action: CurriculumAction) => void }) => {
-      dispatch({ type: "FETCH_COURSE_ID_START", payload: { lessonId } });
+      dispatch({ type: "FETCH_COURSE_ID_START", payload: { lessonId: id } });
       try {
+        // Get the URL parameters to check if this is a new lesson with topic_id
+        const urlParams = new URLSearchParams(window.location.search);
+        const isNewLesson = urlParams.has("topic_id");
+
+        // If this is a new lesson, use the topic_id directly to get the course ID
+        // Otherwise, use the lesson ID to get the parent info
+        const path = isNewLesson
+          ? `/tutorpress/v1/topics/${id}/parent-info`
+          : `/tutorpress/v1/lessons/${id}/parent-info`;
+
         const response = await apiFetch<ParentInfoResponse>({
-          path: `/tutorpress/v1/lessons/${lessonId}/parent-info`,
+          path,
           method: "GET",
         });
 
@@ -184,7 +194,7 @@ export const actions = {
               message: error instanceof Error ? error.message : __("Failed to fetch course ID", "tutorpress"),
               context: {
                 action: "fetchCourseId",
-                details: `Failed to fetch course ID for lesson ${lessonId}`,
+                details: `Failed to fetch course ID for ID ${id}`,
               },
             },
           },
