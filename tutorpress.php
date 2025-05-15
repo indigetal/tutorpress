@@ -29,6 +29,13 @@ require_once TUTORPRESS_PATH . 'includes/class-rest.php';
 
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
 
+// Load REST controllers early
+require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
+
+// Initialize lesson handling
+TutorPress_REST_Lessons_Controller::init();
+
 // Initialize REST API early
 add_action('init', function() {
     new TutorPress_REST();

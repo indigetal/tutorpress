@@ -13,6 +13,17 @@ defined('ABSPATH') || exit;
 class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
 
     /**
+     * Initialize the controller.
+     *
+     * @since 0.1.0
+     * @return void
+     */
+    public static function init() {
+        // Hook into post save, but after autosave processing
+        add_action('save_post_lesson', [__CLASS__, 'handle_lesson_save'], 999, 3);
+    }
+
+    /**
      * Constructor.
      *
      * @since 0.1.0
@@ -854,5 +865,61 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
                 ['status' => 500]
             );
         }
+    }
+
+    /**
+     * Handle lesson save to set the post_parent if topic_id is present.
+     * This runs after autosave processing to avoid premature parent setting.
+     *
+     * @since 0.1.0
+     * @param int     $post_id Post ID.
+     * @param WP_Post $post    Post object.
+     * @param bool    $update  Whether this is an existing post being updated.
+     * @return void
+     */
+    public static function handle_lesson_save($post_id, $post, $update) {
+        // Skip autosaves
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        // Skip revisions
+        if (wp_is_post_revision($post_id)) {
+            return;
+        }
+
+        // Only proceed if this is a new lesson (not an update)
+        if ($update) {
+            return;
+        }
+
+        // Check if we have a topic_id in the URL
+        if (!isset($_GET['topic_id'])) {
+            return;
+        }
+
+        $topic_id = absint($_GET['topic_id']);
+        if (!$topic_id) {
+            return;
+        }
+
+        // Verify the topic exists and is the correct post type
+        $topic = get_post($topic_id);
+        if (!$topic || $topic->post_type !== 'topics') {
+            return;
+        }
+
+        // Set the post_parent directly in the database to avoid infinite loops
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->posts,
+            ['post_parent' => $topic_id],
+            ['ID' => $post_id],
+            ['%d'],
+            ['%d']
+        );
+
+        // Clear the post cache
+        clean_post_cache($post_id);
     }
 } 
