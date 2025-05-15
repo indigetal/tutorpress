@@ -546,7 +546,7 @@ const asyncActions = {
 
       const topics = response.data.map((topic) => ({
         ...topic,
-        isCollapsed: false,
+        isCollapsed: true,
         contents: [],
       }));
       yield actions.setTopics(topics);

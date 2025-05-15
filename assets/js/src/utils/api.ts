@@ -34,7 +34,7 @@ export const getTopics = async (courseId: number): Promise<Topic[]> => {
       title: topic.title,
       content: topic.content || "",
       menu_order: topic.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (topic.content_items || []).map((item) => ({
         ...item,
         topic_id: topic.id,
@@ -67,7 +67,7 @@ export const createTopic = async (data: TopicRequest): Promise<Topic> => {
       title: response.data.title,
       content: response.data.content || "",
       menu_order: response.data.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (response.data.content_items || []).map((item) => ({
         ...item,
         topic_id: response.data.id,
@@ -100,7 +100,7 @@ export const updateTopic = async (topicId: number, data: Partial<TopicRequest>):
       title: response.data.title,
       content: response.data.content || "",
       menu_order: response.data.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (response.data.content_items || []).map((item) => ({
         ...item,
         topic_id: response.data.id,

@@ -66,7 +66,7 @@ export const duplicateTopic = async (topicId: number, courseId: number): Promise
       title: response.data.title,
       content: response.data.content || "",
       menu_order: response.data.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
         ...item,
         topic_id: response.data.id,
@@ -98,7 +98,7 @@ export const createTopic = async (data: TopicRequest): Promise<Topic> => {
       title: response.data.title,
       content: response.data.content || "",
       menu_order: response.data.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
         ...item,
         topic_id: response.data.id,
@@ -129,7 +129,7 @@ export const updateTopic = async (topicId: number, data: Partial<TopicRequest>):
       title: response.data.title,
       content: response.data.content || "",
       menu_order: response.data.menu_order || 0,
-      isCollapsed: false,
+      isCollapsed: true,
       contents: (response.data.content_items || []).map((item: BaseContentItem) => ({
         ...item,
         topic_id: response.data.id,
