@@ -21,7 +21,7 @@ export interface UseDragDropOptions {
   topics: Topic[];
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   setEditState: (state: { isEditing: boolean; topicId: null }) => void;
-  setReorderState: React.Dispatch<React.SetStateAction<ReorderOperationState>>;
+  setReorderState: (state: ReorderOperationState) => void;
 }
 
 export interface UseDragDropReturn {

@@ -11,11 +11,11 @@ import {
   TopicOperationState,
   TopicEditState,
   TopicCreationState,
-  TopicReorderState,
+  ReorderOperationState,
   TopicDeletionState,
   TopicDuplicationState,
   CurriculumError,
-  TopicOperationResult,
+  OperationResult,
   TopicActiveOperation,
   isValidTopic,
   TopicFormData,
@@ -71,7 +71,7 @@ export interface UseTopicsReturn {
   operationState: TopicOperationState;
   topicCreationState: TopicCreationState;
   editState: TopicEditState;
-  reorderState: TopicReorderState;
+  reorderState: ReorderOperationState;
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
   isAddingTopic: boolean;
