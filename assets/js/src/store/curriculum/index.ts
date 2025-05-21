@@ -894,27 +894,84 @@ const resolvers = {
   },
 
   *createLesson(data: { title: string; content: string; topic_id: number }): Generator<unknown, void, unknown> {
-    yield actions.setLessonState({ status: "loading" });
     try {
-      const lesson = (yield apiCreateLesson(data)) as Lesson;
-      yield actions.setLessonState({
-        status: "success",
-        activeLessonId: lesson.id,
-      });
-      // Refresh topics to get updated content
-      yield* resolvers.fetchTopics(data.topic_id);
+      // Start lesson creation
+      yield {
+        type: "CREATE_LESSON_START",
+        payload: { topicId: data.topic_id },
+      };
+
+      // Create the lesson
+      const lessonResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/lessons",
+          method: "POST",
+          data,
+        },
+      };
+
+      if (!lessonResponse || typeof lessonResponse !== "object") {
+        throw new Error("Invalid lesson response");
+      }
+
+      const lesson = lessonResponse as Lesson;
+
+      // Get parent info
+      const parentInfoResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lesson.id}/parent-info`,
+          method: "GET",
+        },
+      };
+
+      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+        throw new Error("Invalid parent info response");
+      }
+
+      const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+      // Update store with new lesson
+      yield {
+        type: "CREATE_LESSON_SUCCESS",
+        payload: { lesson },
+      };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Update topics in store
+      yield {
+        type: "SET_TOPICS",
+        payload: topics.data,
+      };
     } catch (error) {
-      yield actions.setLessonState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.CREATION_FAILED,
-          message: error instanceof Error ? error.message : __("Failed to create lesson", "tutorpress"),
-          context: {
-            action: "createLesson",
-            details: `Failed to create lesson for topic ${data.topic_id}`,
+      yield {
+        type: "CREATE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.CREATION_FAILED,
+            message: error instanceof Error ? error.message : "Failed to create lesson",
+            context: {
+              action: "createLesson",
+              topicId: data.topic_id,
+            },
           },
         },
-      });
+      };
     }
   },
 
@@ -922,60 +979,156 @@ const resolvers = {
     lessonId: number,
     data: Partial<{ title: string; content: string; topic_id: number }>
   ): Generator<unknown, void, unknown> {
-    yield actions.setLessonState({
-      status: "loading",
-      activeLessonId: lessonId,
-    });
     try {
-      const lesson = (yield apiUpdateLesson(lessonId, data)) as Lesson;
-      yield actions.setLessonState({
-        status: "success",
-        activeLessonId: lesson.id,
-      });
-      // Refresh topics if topic_id changed
+      yield {
+        type: "UPDATE_LESSON_START",
+        payload: { lessonId },
+      };
+
+      // Update the lesson
+      const lessonResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lessonId}`,
+          method: "PATCH",
+          data,
+        },
+      };
+
+      if (!lessonResponse || typeof lessonResponse !== "object") {
+        throw new Error("Invalid lesson response");
+      }
+
+      const lesson = lessonResponse as Lesson;
+
+      yield {
+        type: "UPDATE_LESSON_SUCCESS",
+        payload: { lesson },
+      };
+
+      // If topic_id changed, we need to refresh topics
       if (data.topic_id) {
-        yield* resolvers.fetchTopics(data.topic_id);
+        // Get parent info to get the course ID
+        const parentInfoResponse = yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/lessons/${lesson.id}/parent-info`,
+            method: "GET",
+          },
+        };
+
+        if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+          throw new Error("Invalid parent info response");
+        }
+
+        const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+        // Fetch updated topics
+        const topicsResponse = yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+            method: "GET",
+          },
+        };
+
+        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+          throw new Error("Invalid topics response");
+        }
+
+        const topics = topicsResponse as { data: Topic[] };
+
+        yield {
+          type: "SET_TOPICS",
+          payload: topics.data,
+        };
       }
     } catch (error) {
-      yield actions.setLessonState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.EDIT_FAILED,
-          message: error instanceof Error ? error.message : __("Failed to update lesson", "tutorpress"),
-          context: {
-            action: "updateLesson",
-            details: `Failed to update lesson ${lessonId}`,
+      yield {
+        type: "UPDATE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.EDIT_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to update lesson", "tutorpress"),
+            context: {
+              action: "updateLesson",
+              details: `Failed to update lesson ${lessonId}`,
+            },
           },
         },
-      });
+      };
     }
   },
 
   *deleteLesson(lessonId: number): Generator<unknown, void, unknown> {
-    yield actions.setLessonState({
-      status: "loading",
-      activeLessonId: lessonId,
-    });
     try {
-      yield apiDeleteLesson(lessonId);
-      yield actions.setLessonState({ status: "success" });
-      // Refresh topics to get updated content
-      const state = (yield select("tutorpress/curriculum")) as CurriculumState;
-      if (state.courseId) {
-        yield* resolvers.fetchTopics(state.courseId);
+      yield {
+        type: "DELETE_LESSON_START",
+        payload: { lessonId },
+      };
+
+      // Get parent info before deleting to ensure we can refresh topics after
+      const parentInfoResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lessonId}/parent-info`,
+          method: "GET",
+        },
+      };
+
+      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+        throw new Error("Invalid parent info response");
       }
+
+      const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+      // Delete the lesson
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lessonId}`,
+          method: "DELETE",
+        },
+      };
+
+      yield {
+        type: "DELETE_LESSON_SUCCESS",
+        payload: { lessonId },
+      };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      yield {
+        type: "SET_TOPICS",
+        payload: topics.data,
+      };
     } catch (error) {
-      yield actions.setLessonState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.DELETE_FAILED,
-          message: error instanceof Error ? error.message : __("Failed to delete lesson", "tutorpress"),
-          context: {
-            action: "deleteLesson",
-            details: `Failed to delete lesson ${lessonId}`,
+      yield {
+        type: "DELETE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete lesson", "tutorpress"),
+            context: {
+              action: "deleteLesson",
+              details: `Failed to delete lesson ${lessonId}`,
+            },
           },
         },
-      });
+      };
     }
   },
 };
