@@ -118,7 +118,8 @@ export type CurriculumAction =
       payload: { lessonId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
     }
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
-  | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] };
+  | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
+  | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } };
 
 // Action creators
 export const actions = {
@@ -253,6 +254,12 @@ export const actions = {
     return {
       type: "SET_LESSON_STATE",
       payload: state,
+    };
+  },
+  refreshTopicsAfterLessonSave(courseId: number) {
+    return {
+      type: "REFRESH_TOPICS_AFTER_LESSON_SAVE",
+      payload: { courseId },
     };
   },
 };
@@ -636,6 +643,11 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       return {
         ...state,
         lessonState: action.payload,
+      };
+    case "REFRESH_TOPICS_AFTER_LESSON_SAVE":
+      return {
+        ...state,
+        operationState: { status: "loading" },
       };
     default:
       return state;
@@ -1131,6 +1143,50 @@ const resolvers = {
       };
     }
   },
+
+  *refreshTopicsAfterLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
+    if (process.env.NODE_ENV === "development") {
+      console.log("Resolver: Refreshing topics after lesson save for course:", courseId);
+    }
+
+    try {
+      yield actions.setOperationState({ status: "loading" });
+
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      }) as { data: Topic[] };
+
+      if (!response || !response.data) {
+        throw new Error("Invalid response format");
+      }
+
+      const topics = response.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }));
+
+      yield actions.setTopics(topics);
+      yield actions.setOperationState({ status: "success", data: topics });
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("Resolver: Successfully refreshed topics after lesson save");
+      }
+    } catch (error) {
+      console.error("Error refreshing topics after lesson save:", error);
+      yield actions.setOperationState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.FETCH_FAILED,
+          message: error instanceof Error ? error.message : "Failed to refresh topics after lesson save",
+          context: { action: "refreshTopicsAfterLessonSave" },
+        },
+      });
+    }
+  },
 };
 
 // Create and register the store
@@ -1180,6 +1236,7 @@ export const {
   setDuplicationState,
   setIsAddingTopic,
   setActiveOperation,
+  refreshTopicsAfterLessonSave,
 } = actions;
 
 export const {

@@ -5,7 +5,7 @@
  * The store handles all state management, while this hook provides the
  * operations interface for components.
  */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Topic,
   TopicOperationState,
@@ -29,6 +29,7 @@ import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
+import { store as editorStore } from "@wordpress/editor";
 import { useCurriculumError } from "./useCurriculumError";
 import {
   setTopics,
@@ -40,6 +41,7 @@ import {
   setReorderState,
   setIsAddingTopic,
   setActiveOperation,
+  refreshTopicsAfterLessonSave,
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
@@ -61,8 +63,34 @@ const isDbError = (data: unknown): data is DbError => {
   );
 };
 
+// Editor store types
+interface EditorSelectors {
+  isAutosavingPost: () => boolean;
+  isPublishingPost: () => boolean;
+  isSavingPost: () => boolean;
+  getCurrentPostId: () => number;
+  getCurrentPost: () => { status: string } | null;
+  getEditedPostAttribute: (attr: string) => any;
+}
+
+// Type guard for editor store
+const isEditorStore = (editor: unknown): editor is EditorSelectors => {
+  if (!editor || typeof editor !== "object") return false;
+
+  const e = editor as Record<string, unknown>;
+  return (
+    typeof e.isAutosavingPost === "function" &&
+    typeof e.isPublishingPost === "function" &&
+    typeof e.isSavingPost === "function" &&
+    typeof e.getCurrentPostId === "function" &&
+    typeof e.getCurrentPost === "function" &&
+    typeof e.getEditedPostAttribute === "function"
+  );
+};
+
 export interface UseTopicsOptions {
-  courseId: number;
+  courseId: number | null; // Allow null for lesson editor context
+  isLesson?: boolean; // Add flag to indicate lesson editor context
 }
 
 export interface UseTopicsReturn {
@@ -112,8 +140,14 @@ export interface UseTopicsReturn {
  * @param options Configuration options for the hook
  * @returns Topic state and operations
  */
-export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
+export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): UseTopicsReturn {
   const { createNotice } = useDispatch(noticesStore);
+
+  // Add debug logging for initialization
+  if (process.env.NODE_ENV === "development") {
+    console.log("useTopics hook executed with:", { courseId, isLesson });
+  }
+
   const {
     topics,
     operationState,
@@ -139,6 +173,67 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     []
   );
 
+  // Add editor store selectors
+  const { currentPostStatus, currentPostId } = useSelect(
+    (select) => {
+      if (!isLesson) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("useSelect (editor store): Not in lesson context.");
+        }
+        return {
+          currentPostStatus: null,
+          currentPostId: 0,
+        };
+      }
+
+      try {
+        // Explicitly type the editor store selection
+        const editor = select(editorStore) as unknown;
+        if (process.env.NODE_ENV === "development") {
+          console.log("useSelect (editor store): Attempting to select editor store.", editor);
+        }
+
+        if (isEditorStore(editor)) {
+          const post = editor.getCurrentPost();
+          const postId = editor.getCurrentPostId();
+          if (process.env.NODE_ENV === "development") {
+            console.log("useSelect (editor store): Got editor state.", { postId, postStatus: post?.status });
+          }
+          return {
+            currentPostStatus: post?.status || null,
+            currentPostId: postId || 0,
+          };
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("useSelect (editor store): Editor store not in expected state.");
+          }
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("useSelect (editor store): Error accessing editor store:", e);
+        }
+      }
+
+      // Fallback to URL params if editor store not available
+      const urlParams = new URLSearchParams(window.location.search);
+      const postIdFromUrl = parseInt(urlParams.get("post") || "0", 10);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("useSelect (editor store): Falling back to URL post ID:", postIdFromUrl);
+      }
+
+      return {
+        currentPostStatus: null,
+        currentPostId: postIdFromUrl,
+      };
+    },
+    [isLesson]
+  );
+
+  // Add refs for tracking previous state
+  const prevPostId = useRef(currentPostId);
+  const prevPostStatus = useRef(currentPostStatus);
+
   const {
     setTopics,
     setOperationState,
@@ -149,6 +244,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     setReorderState,
     setIsAddingTopic,
     setActiveOperation,
+    refreshTopicsAfterLessonSave,
   } = useDispatch(curriculumStore);
 
   // Use the error handling hook
@@ -157,7 +253,18 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     deletionState,
     duplicationState,
     topics,
-    handleReorderTopics: async () => ({ success: true }), // Placeholder
+    handleReorderTopics: async (orderedTopics: Topic[]): Promise<OperationResult<void>> => {
+      if (!courseId) {
+        const error = createOperationError(
+          CurriculumErrorCode.VALIDATION_ERROR,
+          __("Course ID not available for reordering.", "tutorpress"),
+          { type: "reorder" }
+        );
+        throw error;
+      }
+      // Return the expected OperationResult<void> type
+      return { success: true, data: undefined };
+    },
     handleTopicDelete: async () => {}, // Placeholder
     handleTopicDuplicate: async () => {}, // Placeholder
   });
@@ -168,8 +275,8 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
     setTopics,
   });
 
-  // Use state persistence
-  useStatePersistence(courseId, topics, setTopics);
+  // Use state persistence hook at the top level
+  useStatePersistence(courseId ?? 0, topics, setTopics);
 
   // Helper for operation success cleanup
   const handleOperationSuccess = useCallback(() => {
@@ -202,6 +309,15 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   useEffect(() => {
     const fetchTopicsData = async () => {
       try {
+        if (!courseId) {
+          const error = createOperationError(
+            CurriculumErrorCode.VALIDATION_ERROR,
+            __("Course ID not available to fetch topics.", "tutorpress"),
+            { type: "none" }
+          );
+          throw error;
+        }
+
         const response = await apiFetch({
           path: `/tutorpress/v1/topics?course_id=${courseId}`,
         });
@@ -240,7 +356,7 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
       setOperationState({ status: "loading" });
       fetchTopicsData();
     }
-  }, [courseId, topics?.length, operationState.status]);
+  }, [courseId, operationState.status]);
 
   // Add a useEffect to track state changes
   useEffect(() => {
@@ -251,6 +367,106 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   useEffect(() => {
     console.log("Hook: Operation state updated:", operationState);
   }, [operationState]);
+
+  // Add refreshTopics function
+  const refreshTopics = useCallback(async () => {
+    if (!courseId) {
+      console.warn("Cannot refresh topics: courseId is not available");
+      return;
+    }
+
+    try {
+      setOperationState({ status: "loading" });
+      const response = await apiFetch({
+        path: `/tutorpress/v1/topics?course_id=${courseId}`,
+      });
+
+      // Validate and transform the response
+      const topicsWithCollapsed = validateApiResponse(response);
+
+      // Update topics and operation state atomically
+      setTopics(topicsWithCollapsed);
+      setOperationState({
+        status: "success",
+        data: topicsWithCollapsed,
+      });
+    } catch (err) {
+      const error = createCurriculumError(err, { action: "refresh_topics" });
+      console.error("Error refreshing topics:", error);
+
+      // Show error notice
+      createNotice("error", error.message, {
+        type: "snackbar",
+        isDismissible: true,
+      });
+
+      // Update operation state to error
+      setOperationState({
+        status: "error",
+        error,
+      });
+    }
+  }, [courseId, setTopics, setOperationState, createNotice, validateApiResponse, createCurriculumError]);
+
+  // Add effect for monitoring post status changes
+  useEffect(() => {
+    if (!isLesson || !currentPostId) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("Post status monitoring: Not in lesson context or no post ID");
+      }
+      return;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("Post status monitoring: Current state", {
+        currentPostId,
+        currentPostStatus,
+        prevPostId: prevPostId.current,
+        prevPostStatus: prevPostStatus.current,
+      });
+    }
+
+    // Check if this is a new publish (status change to 'publish')
+    if (
+      currentPostStatus === "publish" &&
+      prevPostStatus.current !== "publish" &&
+      currentPostId > 0 &&
+      (!prevPostId.current || prevPostId.current === currentPostId)
+    ) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("Post status monitoring: Detected initial publish", {
+          postId: currentPostId,
+          prevStatus: prevPostStatus.current,
+          currentStatus: currentPostStatus,
+        });
+      }
+
+      // Trigger curriculum refresh using store action
+      if (courseId) {
+        refreshTopicsAfterLessonSave({ courseId });
+      } else {
+        console.warn("Cannot refresh topics: courseId is not available");
+      }
+    }
+
+    // Update refs for next check
+    prevPostId.current = currentPostId;
+    prevPostStatus.current = currentPostStatus;
+  }, [isLesson, currentPostId, currentPostStatus, courseId, refreshTopicsAfterLessonSave]);
+
+  // Add effect for debug logging state changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("useTopics state update:", {
+        isLesson,
+        currentPostId,
+        currentPostStatus,
+        prevPostId: prevPostId.current,
+        prevPostStatus: prevPostStatus.current,
+        courseId,
+      });
+    }
+  }, [isLesson, currentPostId, currentPostStatus, courseId]);
 
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
@@ -319,6 +535,15 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
         return;
       }
 
+      if (!courseId) {
+        const error = createOperationError(
+          CurriculumErrorCode.VALIDATION_ERROR,
+          __("Course ID not available to update topic.", "tutorpress"),
+          { type: "edit", topicId }
+        );
+        throw error;
+      }
+
       // Create snapshot before edit
       createSnapshot("edit");
 
@@ -375,38 +600,50 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   );
 
   /** Handle topic form save */
-  const handleTopicFormSave = async (data: TopicFormData) => {
-    try {
-      createSnapshot("edit");
+  const handleTopicFormSave = useCallback(
+    async (data: TopicFormData) => {
+      if (!courseId) {
+        const error = createOperationError(
+          CurriculumErrorCode.VALIDATION_ERROR,
+          __("Course ID not available to create topic.", "tutorpress"),
+          { type: "create" }
+        );
+        throw error;
+      }
 
-      // Create topic using store action
-      const newTopic = await createTopic({
-        title: data.title,
-        content: data.summary,
-        course_id: courseId,
-        // menu_order will be calculated by the backend
-      });
+      try {
+        createSnapshot("edit");
 
-      // Update local state with new topic
-      setTopics((currentTopics) => [...currentTopics, newTopic]);
+        // Create topic using store action
+        const newTopic = await createTopic({
+          title: data.title,
+          content: data.summary,
+          course_id: courseId,
+          // menu_order will be calculated by the backend
+        });
 
-      // Reset form state
-      setTopicCreationState({ status: "idle" });
-      setIsAddingTopic(false);
+        // Update local state with new topic
+        setTopics((currentTopics) => [...currentTopics, newTopic]);
 
-      // Cleanup and show success notice
-      handleOperationSuccess();
-      createNotice("success", __("Topic created successfully", "tutorpress"), {
-        type: "snackbar",
-      });
-    } catch (error) {
-      // Handle error and cleanup
-      handleOperationError(error as Error);
-      createNotice("error", __("Failed to create topic", "tutorpress"), {
-        type: "snackbar",
-      });
-    }
-  };
+        // Reset form state
+        setTopicCreationState({ status: "idle" });
+        setIsAddingTopic(false);
+
+        // Cleanup and show success notice
+        handleOperationSuccess();
+        createNotice("success", __("Topic created successfully", "tutorpress"), {
+          type: "snackbar",
+        });
+      } catch (error) {
+        // Handle error and cleanup
+        handleOperationError(error as Error);
+        createNotice("error", __("Failed to create topic", "tutorpress"), {
+          type: "snackbar",
+        });
+      }
+    },
+    [courseId, createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]
+  );
 
   /** Handle topic form cancel */
   const handleTopicFormCancel = () => {
@@ -475,65 +712,69 @@ export function useTopics({ courseId }: UseTopicsOptions): UseTopicsReturn {
   );
 
   /** Handle topic duplication */
-  const handleTopicDuplicate = async (topicId: number) => {
-    try {
-      // Check if another operation is in progress
-      if (activeOperation.type !== "none") {
-        createNotice("error", "Another operation is in progress. Please wait.");
-        return;
+  const handleTopicDuplicate = useCallback(
+    async (topicId: number) => {
+      if (!courseId) {
+        const error = createOperationError(
+          CurriculumErrorCode.VALIDATION_ERROR,
+          __("Course ID not available to duplicate topic.", "tutorpress"),
+          { type: "duplicate", topicId }
+        );
+        throw error;
       }
 
-      // Set duplication state and active operation
-      setDuplicationState({
-        status: "duplicating",
-        sourceTopicId: topicId,
-      });
+      try {
+        // Create snapshot before duplication
+        createSnapshot("duplicate");
 
-      const duplicateOperation: TopicActiveOperation = { type: "duplicate", topicId };
-      setActiveOperation(duplicateOperation);
+        // Set duplication state to loading
+        setDuplicationState({
+          status: "duplicating",
+          sourceTopicId: topicId,
+        });
 
-      createSnapshot("duplicate");
+        // Duplicate topic
+        const duplicatedTopic = await duplicateTopic(topicId, courseId);
 
-      // Attempt to duplicate the topic
-      const duplicatedTopic = await duplicateTopic(topicId, courseId);
+        // Update state with the new topic
+        setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
+        setDuplicationState({
+          status: "success",
+          sourceTopicId: topicId,
+          duplicatedTopicId: duplicatedTopic.id,
+        });
 
-      // Update state with the new topic
-      setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
-      setDuplicationState({
-        status: "success",
-        sourceTopicId: topicId,
-        duplicatedTopicId: duplicatedTopic.id,
-      });
+        // Cleanup and show success notice
+        handleOperationSuccess();
+        createNotice("success", __("Topic duplicated successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
+      } catch (error) {
+        // Handle error
+        const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic.", "tutorpress");
+        setDuplicationState({
+          status: "error",
+          error: createOperationError(
+            CurriculumErrorCode.DUPLICATE_FAILED,
+            errorMessage,
+            { type: "duplicate", topicId },
+            {
+              action: "duplicateTopic",
+              topicId,
+            }
+          ),
+          sourceTopicId: topicId,
+        });
 
-      // Cleanup and show success notice
-      handleOperationSuccess();
-      createNotice("success", __("Topic duplicated successfully.", "tutorpress"), {
-        type: "snackbar",
-      });
-    } catch (error) {
-      // Handle error
-      const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic.", "tutorpress");
-      setDuplicationState({
-        status: "error",
-        error: createOperationError(
-          CurriculumErrorCode.DUPLICATE_FAILED,
-          errorMessage,
-          { type: "duplicate", topicId },
-          {
-            action: "duplicateTopic",
-            topicId,
-          }
-        ),
-        sourceTopicId: topicId,
-      });
-
-      // Handle error and cleanup
-      handleOperationError(error instanceof Error ? error : new Error(errorMessage));
-      createNotice("error", errorMessage, {
-        type: "snackbar",
-      });
-    }
-  };
+        // Handle error and cleanup
+        handleOperationError(error instanceof Error ? error : new Error(errorMessage));
+        createNotice("error", errorMessage, {
+          type: "snackbar",
+        });
+      }
+    },
+    [courseId, createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]
+  );
 
   return {
     // State
