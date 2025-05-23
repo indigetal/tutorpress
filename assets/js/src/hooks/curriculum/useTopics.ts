@@ -142,6 +142,7 @@ export interface UseTopicsReturn {
  */
 export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): UseTopicsReturn {
   const { createNotice } = useDispatch(noticesStore);
+  const { dispatch } = useDispatch("tutorpress/curriculum");
 
   // Add debug logging for initialization
   if (process.env.NODE_ENV === "development") {
@@ -307,56 +308,15 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
 
   // Fetch topics on mount and when courseId changes
   useEffect(() => {
-    const fetchTopicsData = async () => {
-      try {
-        if (!courseId) {
-          const error = createOperationError(
-            CurriculumErrorCode.VALIDATION_ERROR,
-            __("Course ID not available to fetch topics.", "tutorpress"),
-            { type: "none" }
-          );
-          throw error;
-        }
-
-        const response = await apiFetch({
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-        });
-
-        // Validate and transform the response
-        const topicsWithCollapsed = validateApiResponse(response);
-
-        // Update topics and operation state atomically
-        setTopics(topicsWithCollapsed);
-        setOperationState({
-          status: "success",
-          data: topicsWithCollapsed,
-        });
-      } catch (err) {
-        const error = createCurriculumError(err, { action: "fetch_topics" });
-
-        // Show error notice
-        createNotice("error", error.message, {
-          type: "snackbar",
-          isDismissible: true,
-        });
-
-        // Update operation state to error
-        setOperationState({
-          status: "error",
-          error,
-        });
-      }
-    };
-
-    // Only fetch if:
-    // 1. We have a valid course ID (not 0 or null)
-    // 2. We're not already loading
-    // 3. We don't have topics yet
     if (courseId && courseId > 0 && operationState.status !== "loading" && (!topics || topics.length === 0)) {
-      setOperationState({ status: "loading" });
-      fetchTopicsData();
+      if (process.env.NODE_ENV === "development") {
+        console.log("Initial fetch: Using store's refreshTopicsAfterLessonSave for courseId:", courseId);
+      }
+
+      // Use the store's refreshTopicsAfterLessonSave action
+      refreshTopicsAfterLessonSave({ courseId });
     }
-  }, [courseId, operationState.status]);
+  }, [courseId, operationState.status, topics, refreshTopicsAfterLessonSave]);
 
   // Add a useEffect to track state changes
   useEffect(() => {
