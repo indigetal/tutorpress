@@ -41,6 +41,7 @@ import {
   setReorderState,
   setIsAddingTopic,
   setActiveOperation,
+  deleteTopic,
   refreshTopicsAfterLessonSave,
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
@@ -246,6 +247,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
     setReorderState,
     setIsAddingTopic,
     setActiveOperation,
+    deleteTopic,
     refreshTopicsAfterLessonSave,
   } = useDispatch(curriculumStore);
 
@@ -680,29 +682,24 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
   /** Handle topic deletion */
   const handleTopicDelete = useCallback(
     async (topicId: number) => {
+      if (!courseId) {
+        const errorMessage = __("Course ID not available to delete topic.", "tutorpress");
+        createNotice("error", errorMessage, {
+          type: "snackbar",
+        });
+        return;
+      }
+
       if (activeOperation.type !== "none") {
         createNotice("error", "Another operation is in progress. Please wait.");
         return;
       }
-      setDeletionState({ status: "deleting", topicId });
 
       try {
         createSnapshot("delete");
 
-        const response = await apiFetch<{ success: boolean; message?: string }>({
-          path: `/tutorpress/v1/topics/${topicId}`,
-          method: "DELETE",
-        });
-
-        if (!response.success) {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: response.message || __("Failed to delete topic", "tutorpress"),
-          };
-        }
-
-        setTopics((currentTopics) => currentTopics.filter((topic) => topic.id !== topicId));
-        setDeletionState({ status: "success" });
+        // Use the store resolver for topic deletion (uses API_FETCH control type)
+        await deleteTopic(topicId, courseId);
 
         // Cleanup and show success notice
         handleOperationSuccess();
@@ -734,7 +731,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
         });
       }
     },
-    [activeOperation, createNotice, handleOperationSuccess, handleOperationError, createSnapshot]
+    [courseId, activeOperation, createNotice, handleOperationSuccess, handleOperationError, createSnapshot, deleteTopic]
   );
 
   /** Handle topic duplication */

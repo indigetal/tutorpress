@@ -23,7 +23,7 @@ import {
   duplicateTopic,
   createTopic as apiCreateTopic,
   updateTopic,
-  deleteTopic,
+  deleteTopic as apiDeleteTopic,
 } from "../../api/topics";
 import {
   createLesson as apiCreateLesson,
@@ -117,6 +117,9 @@ export type CurriculumAction =
   | { type: "DELETE_LESSON_START"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_SUCCESS"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
+  | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
+  | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
   | { type: "DUPLICATE_LESSON_START"; payload: { lessonId: number } }
   | { type: "DUPLICATE_LESSON_SUCCESS"; payload: { lesson: Lesson; sourceLessonId: number } }
   | { type: "DUPLICATE_LESSON_ERROR"; payload: { error: CurriculumError; lessonId: number } }
@@ -126,6 +129,7 @@ export type CurriculumAction =
       payload: { lessonId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
     }
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
+  | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
   | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } };
@@ -262,7 +266,13 @@ export const actions = {
   deleteLesson(lessonId: number) {
     return {
       type: "DELETE_LESSON",
-      lessonId,
+      payload: { lessonId },
+    };
+  },
+  deleteTopic(topicId: number, courseId: number) {
+    return {
+      type: "DELETE_TOPIC",
+      payload: { topicId, courseId },
     };
   },
   duplicateLesson(lessonId: number, topicId: number) {
@@ -282,6 +292,68 @@ export const actions = {
       type: "REFRESH_TOPICS_AFTER_LESSON_SAVE",
       payload: { courseId },
     };
+  },
+  *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
+    try {
+      yield actions.setEditState({
+        isEditing: true,
+        topicId,
+      });
+
+      // Update the topic
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "PATCH",
+          data,
+        },
+      };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${data.course_id || 0}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      yield actions.setTopics(transformedTopics);
+      yield actions.setEditState({
+        isEditing: false,
+        topicId: null,
+      });
+    } catch (error) {
+      const curriculumError: CurriculumError = {
+        code: CurriculumErrorCode.VALIDATION_ERROR,
+        message: error instanceof Error ? error.message : "Failed to update topic",
+        context: {
+          action: "updateTopic",
+          topicId,
+          details: error instanceof Error ? error.stack : undefined,
+        },
+      };
+
+      yield actions.setEditState({
+        isEditing: false,
+        topicId: null,
+      });
+      throw curriculumError;
+    }
   },
 };
 
@@ -663,6 +735,30 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           error: action.payload.error,
         },
       };
+    case "DELETE_TOPIC_START":
+      return {
+        ...state,
+        deletionState: {
+          status: "deleting",
+          topicId: action.payload.topicId,
+        },
+      };
+    case "DELETE_TOPIC_SUCCESS":
+      return {
+        ...state,
+        deletionState: {
+          status: "success",
+          topicId: action.payload.topicId,
+        },
+      };
+    case "DELETE_TOPIC_ERROR":
+      return {
+        ...state,
+        deletionState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
     case "SET_LESSON_DUPLICATION_STATE": {
       const newState = handleStateUpdate(state.lessonDuplicationState, action.payload);
       return {
@@ -893,18 +989,47 @@ const resolvers = {
     }
   },
 
-  async updateTopic(topicId: number, data: Partial<TopicRequest>) {
+  *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
     try {
-      actions.setEditState({
+      yield actions.setEditState({
         isEditing: true,
         topicId,
       });
 
-      const updatedTopic = await updateTopic(topicId, data);
+      // Update the topic
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "PATCH",
+          data,
+        },
+      };
 
-      const updatedTopics = await fetchTopics(data.course_id || 0);
-      actions.setTopics(updatedTopics);
-      actions.setEditState({
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${data.course_id || 0}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      yield actions.setTopics(transformedTopics);
+      yield actions.setEditState({
         isEditing: false,
         topicId: null,
       });
@@ -919,7 +1044,7 @@ const resolvers = {
         },
       };
 
-      actions.setEditState({
+      yield actions.setEditState({
         isEditing: false,
         topicId: null,
       });
@@ -927,38 +1052,67 @@ const resolvers = {
     }
   },
 
-  async deleteTopic(topicId: number, courseId: number) {
+  *deleteTopic(topicId: number, courseId: number): Generator<unknown, void, unknown> {
     try {
-      actions.setDeletionState({
-        status: "deleting",
-        topicId,
-      });
+      yield {
+        type: "DELETE_TOPIC_START",
+        payload: { topicId },
+      };
 
-      await deleteTopic(topicId);
-
-      const updatedTopics = await fetchTopics(courseId);
-      actions.setTopics(updatedTopics);
-      actions.setDeletionState({
-        status: "success",
-        topicId,
-      });
-    } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.SERVER_ERROR,
-        message: error instanceof Error ? error.message : "Failed to delete topic",
-        context: {
-          action: "deleteTopic",
-          topicId,
-          details: error instanceof Error ? error.stack : undefined,
+      // Delete the topic
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "DELETE",
         },
       };
 
-      actions.setDeletionState({
-        status: "error",
-        error: curriculumError,
-        topicId,
-      });
-      throw curriculumError;
+      yield {
+        type: "DELETE_TOPIC_SUCCESS",
+        payload: { topicId },
+      };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to set all to collapsed after deletion (user preference)
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      yield {
+        type: "SET_TOPICS",
+        payload: transformedTopics,
+      };
+    } catch (error) {
+      yield {
+        type: "DELETE_TOPIC_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete topic", "tutorpress"),
+            context: {
+              action: "deleteTopic",
+              details: `Failed to delete topic ${topicId}`,
+            },
+          },
+        },
+      };
     }
   },
 
@@ -1022,10 +1176,17 @@ const resolvers = {
 
       const topics = topicsResponse as { data: Topic[] };
 
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
       // Update topics in store
       yield {
         type: "SET_TOPICS",
-        payload: topics.data,
+        payload: transformedTopics,
       };
     } catch (error) {
       yield {
@@ -1107,9 +1268,16 @@ const resolvers = {
 
         const topics = topicsResponse as { data: Topic[] };
 
+        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+        const transformedTopics = topics.data.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+          contents: topic.contents || [],
+        }));
+
         yield {
           type: "SET_TOPICS",
-          payload: topics.data,
+          payload: transformedTopics,
         };
       }
     } catch (error) {
@@ -1180,9 +1348,16 @@ const resolvers = {
 
       const topics = topicsResponse as { data: Topic[] };
 
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
       yield {
         type: "SET_TOPICS",
-        payload: topics.data,
+        payload: transformedTopics,
       };
     } catch (error) {
       yield {
@@ -1259,9 +1434,17 @@ const resolvers = {
 
       const topics = topicsResponse as { data: Topic[] };
 
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      // Update topics in store
       yield {
         type: "SET_TOPICS",
-        payload: topics.data,
+        payload: transformedTopics,
       };
     } catch (error) {
       yield {
@@ -1374,6 +1557,7 @@ export const {
   setLessonDuplicationState,
   setIsAddingTopic,
   setActiveOperation,
+  deleteTopic,
   refreshTopicsAfterLessonSave,
 } = actions;
 
