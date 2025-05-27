@@ -14,14 +14,6 @@ import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 
-declare global {
-  interface Window {
-    tutorPressCurriculum?: {
-      adminUrl: string;
-    };
-  }
-}
-
 export interface UseLessonsOptions {
   courseId?: number;
   topicId?: number;
@@ -48,10 +40,12 @@ export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessons
   const { setLessonDuplicationState, deleteLesson } = useDispatch("tutorpress/curriculum");
 
   // Get lesson duplication state from store
-  const lessonDuplicationState = useSelect(
-    (select) => (select("tutorpress/curriculum") as any).getLessonDuplicationState(),
-    []
-  );
+  const lessonDuplicationState = useSelect((select) => {
+    const curriculumSelectors = select("tutorpress/curriculum") as {
+      getLessonDuplicationState: () => LessonDuplicationState;
+    };
+    return curriculumSelectors.getLessonDuplicationState();
+  }, []);
 
   /** Handle lesson duplication with redirect to editor */
   const handleLessonDuplicate = useCallback(
@@ -161,6 +155,6 @@ export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessons
 
     // Computed
     isLessonDuplicating: lessonDuplicationState.status === "duplicating",
-    lessonDuplicationError: lessonDuplicationState.status === "error" ? lessonDuplicationState.error : null,
+    lessonDuplicationError: lessonDuplicationState.status === "error" ? lessonDuplicationState.error || null : null,
   };
 }

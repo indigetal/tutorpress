@@ -47,22 +47,25 @@ import {
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
 import { addFilter, removeFilter } from "@wordpress/hooks";
+import { CoreEditorSelectors, isCoreEditorSelectors } from "../../types/wordpress";
 
-// Type guard for database error response
+// ============================================================================
+// Error Handling Types
+// ============================================================================
+
+/**
+ * Database error interface
+ */
 interface DbError {
   code: string;
   message: string;
 }
 
+/**
+ * Type guard for database errors
+ */
 const isDbError = (data: unknown): data is DbError => {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    "code" in data &&
-    typeof data.code === "string" &&
-    "message" in data &&
-    typeof data.message === "string"
-  );
+  return typeof data === "object" && data !== null && "code" in data && "message" in data;
 };
 
 // Editor store types
@@ -196,7 +199,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
           console.log("useSelect (editor store): Attempting to select editor store.", editor);
         }
 
-        if (isEditorStore(editor)) {
+        if (isCoreEditorSelectors(editor)) {
           const post = editor.getCurrentPost();
           const postId = editor.getCurrentPostId();
           if (process.env.NODE_ENV === "development") {

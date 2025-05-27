@@ -45,7 +45,7 @@ class ApiService {
   /**
    * Make a POST request
    */
-  async post<T>(path: string, data: any): Promise<TutorResponse<T>> {
+  async post<T>(path: string, data: Record<string, unknown>): Promise<TutorResponse<T>> {
     try {
       const response = await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,
@@ -62,7 +62,7 @@ class ApiService {
   /**
    * Make a PATCH request
    */
-  async patch<T>(path: string, data: any): Promise<TutorResponse<T>> {
+  async patch<T>(path: string, data: Record<string, unknown>): Promise<TutorResponse<T>> {
     try {
       const response = await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,

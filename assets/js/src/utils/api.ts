@@ -1,11 +1,3 @@
-declare global {
-  interface Window {
-    wp: {
-      apiFetch: (options: { path: string; method: string; data?: any }) => Promise<any>;
-    };
-  }
-}
-
 import {
   TutorResponse,
   TopicResponse,

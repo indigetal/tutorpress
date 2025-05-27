@@ -7,14 +7,6 @@ import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
 
-declare global {
-  interface Window {
-    tutorPressCurriculum?: {
-      adminUrl: string;
-    };
-  }
-}
-
 /**
  * Props for content item row
  */
