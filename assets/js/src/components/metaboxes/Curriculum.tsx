@@ -32,10 +32,10 @@ import { useCurriculumError } from "../../hooks/curriculum/useCurriculumError";
 
 /**
  * Wraps a TopicSection component with drag-and-drop functionality.
- * Uses @dnd-kit/sortable for handling drag operations and CSS transforms.
  */
 const SortableTopic: React.FC<SortableTopicProps> = ({
   topic,
+  courseId,
   onEdit,
   onEditCancel,
   onEditSave,
@@ -63,6 +63,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
     <div ref={setNodeRef} className={classNames} style={style}>
       <TopicSection
         topic={topic}
+        courseId={courseId}
         dragHandleProps={{ ...attributes, ...listeners, ref: setActivatorNodeRef }}
         onEdit={onEdit}
         onEditCancel={onEditCancel}
@@ -224,6 +225,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                     >
                       <SortableTopic
                         topic={topic}
+                        courseId={courseId}
                         onEdit={() => handleTopicEdit(topic.id)}
                         onEditCancel={handleTopicEditCancel}
                         onEditSave={handleTopicEditSave}

@@ -9,6 +9,7 @@ import {
   ReorderOperationState,
   TopicDeletionState,
   TopicDuplicationState,
+  LessonDuplicationState,
   CurriculumError,
   OperationResult,
   TopicActiveOperation,
@@ -28,6 +29,7 @@ import {
   createLesson as apiCreateLesson,
   updateLesson as apiUpdateLesson,
   deleteLesson as apiDeleteLesson,
+  duplicateLesson,
 } from "../../api/lessons";
 import { TopicRequest } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
@@ -50,6 +52,7 @@ interface CurriculumState {
     sourceTopicId?: number;
     duplicatedTopicId?: number;
   };
+  lessonDuplicationState: LessonDuplicationState;
   lessonState: {
     status: "idle" | "loading" | "error" | "success";
     error?: CurriculumError;
@@ -73,6 +76,7 @@ const DEFAULT_STATE: CurriculumState = {
   editState: { isEditing: false, topicId: null },
   deletionState: { status: "idle" },
   duplicationState: { status: "idle" },
+  lessonDuplicationState: { status: "idle" },
   reorderState: { status: "idle" },
   lessonState: { status: "idle" },
   isAddingTopic: false,
@@ -94,6 +98,7 @@ export type CurriculumAction =
   | { type: "SET_REORDER_STATE"; payload: ReorderOperationState }
   | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
+  | { type: "SET_LESSON_DUPLICATION_STATE"; payload: LessonDuplicationState }
   | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
   | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
   | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
@@ -112,12 +117,16 @@ export type CurriculumAction =
   | { type: "DELETE_LESSON_START"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_SUCCESS"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DUPLICATE_LESSON_START"; payload: { lessonId: number } }
+  | { type: "DUPLICATE_LESSON_SUCCESS"; payload: { lesson: Lesson; sourceLessonId: number } }
+  | { type: "DUPLICATE_LESSON_ERROR"; payload: { error: CurriculumError; lessonId: number } }
   | { type: "CREATE_LESSON"; payload: { title: string; content: string; topic_id: number } }
   | {
       type: "UPDATE_LESSON";
       payload: { lessonId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
     }
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
+  | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
   | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } };
 
@@ -162,6 +171,12 @@ export const actions = {
   setDuplicationState(state: TopicDuplicationState) {
     return {
       type: "SET_DUPLICATION_STATE",
+      payload: state,
+    };
+  },
+  setLessonDuplicationState(state: LessonDuplicationState) {
+    return {
+      type: "SET_LESSON_DUPLICATION_STATE",
       payload: state,
     };
   },
@@ -250,6 +265,12 @@ export const actions = {
       lessonId,
     };
   },
+  duplicateLesson(lessonId: number, topicId: number) {
+    return {
+      type: "DUPLICATE_LESSON",
+      payload: { lessonId, topicId },
+    };
+  },
   setLessonState(state: CurriculumState["lessonState"]) {
     return {
       type: "SET_LESSON_STATE",
@@ -286,6 +307,9 @@ const selectors = {
   },
   getDuplicationState(state: CurriculumState) {
     return state.duplicationState;
+  },
+  getLessonDuplicationState(state: CurriculumState) {
+    return state.lessonDuplicationState;
   },
   getIsAddingTopic(state: CurriculumState) {
     return state.isAddingTopic;
@@ -637,6 +661,39 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         lessonState: {
           status: "error",
           error: action.payload.error,
+        },
+      };
+    case "SET_LESSON_DUPLICATION_STATE": {
+      const newState = handleStateUpdate(state.lessonDuplicationState, action.payload);
+      return {
+        ...state,
+        lessonDuplicationState: newState,
+      };
+    }
+    case "DUPLICATE_LESSON_START":
+      return {
+        ...state,
+        lessonDuplicationState: {
+          status: "duplicating",
+          sourceLessonId: action.payload.lessonId,
+        },
+      };
+    case "DUPLICATE_LESSON_SUCCESS":
+      return {
+        ...state,
+        lessonDuplicationState: {
+          status: "success",
+          sourceLessonId: action.payload.sourceLessonId,
+          duplicatedLessonId: action.payload.lesson.id,
+        },
+      };
+    case "DUPLICATE_LESSON_ERROR":
+      return {
+        ...state,
+        lessonDuplicationState: {
+          status: "error",
+          error: action.payload.error,
+          sourceLessonId: action.payload.lessonId,
         },
       };
     case "SET_LESSON_STATE":
@@ -1144,6 +1201,86 @@ const resolvers = {
     }
   },
 
+  *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DUPLICATE_LESSON_START",
+        payload: { lessonId },
+      };
+
+      // Duplicate the lesson
+      const lessonResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lessonId}/duplicate`,
+          method: "POST",
+          data: { topic_id: topicId },
+        },
+      };
+
+      if (!lessonResponse || typeof lessonResponse !== "object" || !("data" in lessonResponse)) {
+        throw new Error("Invalid lesson response");
+      }
+
+      const lesson = (lessonResponse as { data: Lesson }).data;
+
+      yield {
+        type: "DUPLICATE_LESSON_SUCCESS",
+        payload: { lesson, sourceLessonId: lessonId },
+      };
+
+      // Get parent info to refresh topics
+      const parentInfoResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/lessons/${lesson.id}/parent-info`,
+          method: "GET",
+        },
+      };
+
+      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+        throw new Error("Invalid parent info response");
+      }
+
+      const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      yield {
+        type: "SET_TOPICS",
+        payload: topics.data,
+      };
+    } catch (error) {
+      yield {
+        type: "DUPLICATE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DUPLICATE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to duplicate lesson", "tutorpress"),
+            context: {
+              action: "duplicateLesson",
+              details: `Failed to duplicate lesson ${lessonId}`,
+            },
+          },
+          lessonId,
+        },
+      };
+    }
+  },
+
   *refreshTopicsAfterLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
     if (process.env.NODE_ENV === "development") {
       console.log("Resolver: Refreshing topics after lesson save for course:", courseId);
@@ -1234,6 +1371,7 @@ export const {
   setReorderState,
   setDeletionState,
   setDuplicationState,
+  setLessonDuplicationState,
   setIsAddingTopic,
   setActiveOperation,
   refreshTopicsAfterLessonSave,
@@ -1247,6 +1385,7 @@ export const {
   getReorderState,
   getDeletionState,
   getDuplicationState,
+  getLessonDuplicationState,
   getIsAddingTopic,
   getActiveOperation,
   getLessonState,

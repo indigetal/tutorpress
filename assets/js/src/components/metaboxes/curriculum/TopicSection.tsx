@@ -5,6 +5,7 @@ import { __ } from "@wordpress/i18n";
 import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../types/curriculum";
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
+import { useLessons } from "../../../hooks/curriculum/useLessons";
 
 declare global {
   interface Window {
@@ -59,6 +60,7 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplica
  */
 export const TopicSection: React.FC<TopicSectionProps> = ({
   topic,
+  courseId,
   dragHandleProps,
   onEdit,
   onEditCancel,
@@ -68,6 +70,12 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   onToggle,
   isEditing,
 }): JSX.Element => {
+  // Initialize lesson operations hook
+  const { handleLessonDuplicate, isLessonDuplicating } = useLessons({
+    courseId,
+    topicId: topic.id,
+  });
+
   // Handle double-click on title or summary
   const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -136,7 +144,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                 key={item.id}
                 item={item}
                 onEdit={() => console.log("Edit content:", item.id)}
-                onDuplicate={() => console.log("Duplicate content:", item.id)}
+                onDuplicate={
+                  item.type === "lesson"
+                    ? () => handleLessonDuplicate(item.id, topic.id)
+                    : () => console.log("Duplicate content:", item.id)
+                }
                 onDelete={() => console.log("Delete content:", item.id)}
               />
             ))}

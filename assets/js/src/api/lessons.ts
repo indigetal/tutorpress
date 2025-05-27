@@ -41,6 +41,31 @@ export const deleteLesson = async (lessonId: number): Promise<void> => {
 };
 
 /**
+ * Duplicate a lesson
+ */
+export const duplicateLesson = async (lessonId: number, topicId: number): Promise<Lesson> => {
+  try {
+    const response = await apiService.post<Lesson>(`/lessons/${lessonId}/duplicate`, {
+      topic_id: topicId,
+    });
+
+    // Only throw if it's not a success message
+    if (response.status_code !== 201 && !response.message.includes("successfully")) {
+      throw new Error(response.message);
+    }
+
+    // Return the lesson data from the response
+    return response.data;
+  } catch (error) {
+    // Only log if it's not a success message
+    if (error instanceof Error && !error.message.includes("successfully")) {
+      console.error("Error duplicating lesson:", error);
+    }
+    throw error;
+  }
+};
+
+/**
  * Get parent info for a lesson
  */
 export const getParentInfo = async (lessonId: number): Promise<{ course_id: number; topic_id: number }> => {

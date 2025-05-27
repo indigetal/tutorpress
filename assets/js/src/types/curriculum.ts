@@ -82,6 +82,7 @@ export interface DragHandleProps {
  */
 export interface SortableTopicProps {
   topic: Topic;
+  courseId?: number;
   onEdit: () => void;
   onEditCancel: () => void;
   onEditSave: (topicId: number, data: TopicFormData) => void;
@@ -96,6 +97,7 @@ export interface SortableTopicProps {
  */
 export interface TopicSectionProps {
   topic: Topic;
+  courseId?: number;
   dragHandleProps: DragHandleProps;
   onEdit: () => void;
   onEditCancel: () => void;
@@ -236,12 +238,26 @@ export interface TopicDuplicationState {
   duplicatedTopicId?: number;
 }
 
+export interface LessonDuplicationState {
+  status: "idle" | "duplicating" | "error" | "success";
+  error?: CurriculumError;
+  sourceLessonId?: number;
+  duplicatedLessonId?: number;
+}
+
 export type TopicActiveOperation =
   | { type: "none" }
   | { type: "edit"; topicId: number }
   | { type: "delete"; topicId: number }
   | { type: "duplicate"; topicId: number }
   | { type: "reorder" }
+  | { type: "create" };
+
+export type LessonActiveOperation =
+  | { type: "none" }
+  | { type: "edit"; lessonId: number }
+  | { type: "delete"; lessonId: number }
+  | { type: "duplicate"; lessonId: number }
   | { type: "create" };
 
 export interface CurriculumState {
@@ -251,6 +267,7 @@ export interface CurriculumState {
   editState: TopicEditState;
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
+  lessonDuplicationState: LessonDuplicationState;
   reorderState: ReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: TopicActiveOperation;
