@@ -68,6 +68,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     topicId: topic.id,
   });
 
+  // Handle lesson edit - redirect to lesson editor
+  const handleLessonEdit = (lessonId: number) => {
+    const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
+    const url = new URL("post.php", adminUrl);
+    url.searchParams.append("post", lessonId.toString());
+    url.searchParams.append("action", "edit");
+    window.location.href = url.toString();
+  };
+
   // Handle double-click on title or summary
   const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -135,7 +144,12 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               <ContentItemRow
                 key={item.id}
                 item={item}
-                onEdit={() => console.log("Edit content:", item.id)}
+                onEdit={
+                  item.type === "lesson"
+                    ? () => handleLessonEdit(item.id)
+                    : () =>
+                        console.log("Edit content:", item.id, "- Edit functionality not yet implemented for", item.type)
+                }
                 onDuplicate={
                   item.type === "lesson"
                     ? () => handleLessonDuplicate(item.id, topic.id)
