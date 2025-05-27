@@ -45,6 +45,7 @@ import {
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
+import { addFilter, removeFilter } from "@wordpress/hooks";
 
 // Type guard for database error response
 interface DbError {
@@ -427,6 +428,71 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
       });
     }
   }, [isLesson, currentPostId, currentPostStatus, courseId]);
+
+  // Add editor.didPostSaving filter for existing lesson updates
+  useEffect(() => {
+    if (!isLesson || !courseId) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("editor.didPostSaving filter: Not setting up - not in lesson context or no courseId");
+      }
+      return;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("editor.didPostSaving filter: Setting up filter for lesson context", { courseId });
+    }
+
+    const handlePostSaving = (isComplete: boolean, options: { isAutosave?: boolean } = {}) => {
+      if (process.env.NODE_ENV === "development") {
+        console.log("editor.didPostSaving filter: Filter triggered", {
+          isComplete,
+          isAutosave: options.isAutosave,
+          courseId,
+        });
+      }
+
+      // Only proceed if save is complete and not an autosave
+      if (!isComplete || options.isAutosave) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("editor.didPostSaving filter: Skipping - not complete or is autosave");
+        }
+        return;
+      }
+
+      // Get current courseId from store state
+      const currentCourseId = courseId;
+      if (!currentCourseId) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("editor.didPostSaving filter: No courseId available for refresh");
+        }
+        return;
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("editor.didPostSaving filter: Dispatching refreshTopicsAfterLessonSave", {
+          courseId: currentCourseId,
+        });
+      }
+
+      // Dispatch the existing refreshTopicsAfterLessonSave action
+      refreshTopicsAfterLessonSave({ courseId: currentCourseId });
+    };
+
+    // Add the filter
+    addFilter("editor.didPostSaving", "tutorpress/curriculum-refresh", handlePostSaving);
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("editor.didPostSaving filter: Filter registered successfully");
+    }
+
+    // Cleanup function to remove the filter
+    return () => {
+      if (process.env.NODE_ENV === "development") {
+        console.log("editor.didPostSaving filter: Removing filter");
+      }
+      removeFilter("editor.didPostSaving", "tutorpress/curriculum-refresh");
+    };
+  }, [isLesson, courseId, refreshTopicsAfterLessonSave]);
 
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
