@@ -33,6 +33,7 @@ export interface UseLessonsReturn {
 
   // Lesson Operations
   handleLessonDuplicate: (lessonId: number, topicId: number) => Promise<void>;
+  handleLessonDelete: (lessonId: number) => Promise<void>;
 
   // Computed
   isLessonDuplicating: boolean;
@@ -44,7 +45,7 @@ export interface UseLessonsReturn {
  */
 export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessonsReturn {
   const { createNotice } = useDispatch(noticesStore);
-  const { setLessonDuplicationState } = useDispatch("tutorpress/curriculum");
+  const { setLessonDuplicationState, deleteLesson } = useDispatch("tutorpress/curriculum");
 
   // Get lesson duplication state from store
   const lessonDuplicationState = useSelect(
@@ -120,12 +121,43 @@ export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessons
     [courseId, createNotice, setLessonDuplicationState]
   );
 
+  /** Handle lesson deletion */
+  const handleLessonDelete = useCallback(
+    async (lessonId: number) => {
+      if (!courseId) {
+        const errorMessage = __("Course ID not available to delete lesson.", "tutorpress");
+        createNotice("error", errorMessage, {
+          type: "snackbar",
+        });
+        return;
+      }
+
+      try {
+        // Use the store resolver for lesson deletion (uses API_FETCH control type)
+        await deleteLesson(lessonId);
+
+        // Show success notice
+        createNotice("success", __("Lesson deleted successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
+      } catch (error) {
+        // Handle error
+        const errorMessage = error instanceof Error ? error.message : __("Failed to delete lesson.", "tutorpress");
+        createNotice("error", errorMessage, {
+          type: "snackbar",
+        });
+      }
+    },
+    [courseId, createNotice, deleteLesson]
+  );
+
   return {
     // State
     lessonDuplicationState,
 
     // Lesson Operations
     handleLessonDuplicate,
+    handleLessonDelete,
 
     // Computed
     isLessonDuplicating: lessonDuplicationState.status === "duplicating",

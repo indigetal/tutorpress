@@ -71,7 +71,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   isEditing,
 }): JSX.Element => {
   // Initialize lesson operations hook
-  const { handleLessonDuplicate, isLessonDuplicating } = useLessons({
+  const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
     courseId,
     topicId: topic.id,
   });
@@ -149,7 +149,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleLessonDuplicate(item.id, topic.id)
                     : () => console.log("Duplicate content:", item.id)
                 }
-                onDelete={() => console.log("Delete content:", item.id)}
+                onDelete={
+                  item.type === "lesson"
+                    ? () => handleLessonDelete(item.id)
+                    : () => console.log("Delete content:", item.id)
+                }
               />
             ))}
           </div>
