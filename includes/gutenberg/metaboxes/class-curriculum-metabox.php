@@ -42,7 +42,7 @@ class Curriculum_Metabox {
     }
 
     /**
-     * Register the Curriculum Metabox for Courses and Lessons.
+     * Register the Curriculum Metabox for Courses, Lessons, and Assignments.
      *
      * @since 0.1.0
      * @return void
@@ -52,14 +52,14 @@ class Curriculum_Metabox {
             'tutorpress_curriculum_metabox',  // Unique ID
             __( 'Course Curriculum', 'tutorpress' ),  // Title
             array( __CLASS__, 'display_metabox' ),    // Callback
-            array( 'courses', 'lesson' ),     // Post types (matching Tutor LMS post types)
+            array( 'courses', 'lesson', 'tutor_assignments' ),     // Post types (matching Tutor LMS post types)
             'normal',                        // Context
             'high'                           // Priority
         );
     }
 
     /**
-     * Conditionally enqueue editor assets when on course or lesson edit screen.
+     * Conditionally enqueue editor assets when on course, lesson, or assignment edit screen.
      *
      * @since 0.1.0
      * @param string $hook_suffix The current admin page.
@@ -71,7 +71,7 @@ class Curriculum_Metabox {
         }
 
         $screen = get_current_screen();
-        if ( ! $screen || ! in_array( $screen->post_type, array( 'courses', 'lesson' ), true ) ) {
+        if ( ! $screen || ! in_array( $screen->post_type, array( 'courses', 'lesson', 'tutor_assignments' ), true ) ) {
             return;
         }
 

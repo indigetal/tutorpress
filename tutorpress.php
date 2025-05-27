@@ -33,9 +33,13 @@ require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-me
 require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
 require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
 require_once TUTORPRESS_PATH . 'includes/rest/class-topics-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
 
 // Initialize lesson handling
 TutorPress_REST_Lessons_Controller::init();
+
+// Initialize assignment handling
+TutorPress_REST_Assignments_Controller::init();
 
 // Initialize REST API early
 add_action('init', function() {
@@ -46,6 +50,33 @@ add_action('init', function() {
 add_action('tutor_loaded', function () {
     Tutor_LMS_Metadata_Handler::init(); // Metadata handler
 });
+
+// Modify assignment post type to enable WordPress admin UI
+add_action('init', function() {
+    // Check if Tutor LMS has registered the assignment post type
+    if (post_type_exists('tutor_assignments')) {
+        // Get the current post type object
+        $assignment_post_type = get_post_type_object('tutor_assignments');
+        
+        if ($assignment_post_type) {
+            // Enable admin UI for assignments
+            $assignment_post_type->show_ui = true;
+            $assignment_post_type->show_in_menu = false; // Keep it out of the main menu
+            $assignment_post_type->public = true;
+            $assignment_post_type->publicly_queryable = true;
+            
+            // Enable Gutenberg editor support (same as lessons)
+            $enable_gutenberg = (bool) tutor_utils()->get_option('enable_gutenberg_course_edit');
+            if ($enable_gutenberg) {
+                $assignment_post_type->show_in_rest = true;
+            }
+            
+            // Log the modification for debugging
+            $gutenberg_status = $enable_gutenberg ? 'enabled' : 'disabled';
+            error_log("TutorPress: Modified assignment post type to enable admin UI (Gutenberg: {$gutenberg_status})");
+        }
+    }
+}, 20); // Priority 20 to run after Tutor LMS registration
 
 /* Freemius Integration Start */
 if ( ! function_exists( 'tutorpress_fs' ) ) {

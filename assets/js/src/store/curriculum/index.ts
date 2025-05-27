@@ -10,6 +10,7 @@ import {
   TopicDeletionState,
   TopicDuplicationState,
   LessonDuplicationState,
+  AssignmentDuplicationState,
   CurriculumError,
   OperationResult,
   TopicActiveOperation,
@@ -31,6 +32,7 @@ import {
   deleteLesson as apiDeleteLesson,
   duplicateLesson,
 } from "../../api/lessons";
+import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
 import { TopicRequest } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 
@@ -53,6 +55,7 @@ interface CurriculumState {
     duplicatedTopicId?: number;
   };
   lessonDuplicationState: LessonDuplicationState;
+  assignmentDuplicationState: AssignmentDuplicationState;
   lessonState: {
     status: "idle" | "loading" | "error" | "success";
     error?: CurriculumError;
@@ -77,6 +80,7 @@ const DEFAULT_STATE: CurriculumState = {
   deletionState: { status: "idle" },
   duplicationState: { status: "idle" },
   lessonDuplicationState: { status: "idle" },
+  assignmentDuplicationState: { status: "idle" },
   reorderState: { status: "idle" },
   lessonState: { status: "idle" },
   isAddingTopic: false,
@@ -99,6 +103,7 @@ export type CurriculumAction =
   | { type: "SET_DELETION_STATE"; payload: TopicDeletionState }
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
   | { type: "SET_LESSON_DUPLICATION_STATE"; payload: LessonDuplicationState }
+  | { type: "SET_ASSIGNMENT_DUPLICATION_STATE"; payload: AssignmentDuplicationState }
   | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
   | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
   | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
@@ -117,6 +122,9 @@ export type CurriculumAction =
   | { type: "DELETE_LESSON_START"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_SUCCESS"; payload: { lessonId: number } }
   | { type: "DELETE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_ASSIGNMENT_START"; payload: { assignmentId: number } }
+  | { type: "DELETE_ASSIGNMENT_SUCCESS"; payload: { assignmentId: number } }
+  | { type: "DELETE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
   | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
@@ -129,10 +137,12 @@ export type CurriculumAction =
       payload: { lessonId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
     }
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
+  | { type: "DELETE_ASSIGNMENT"; payload: { assignmentId: number } }
   | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
-  | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } };
+  | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } }
+  | { type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE"; payload: { courseId: number } };
 
 // Action creators
 export const actions = {
@@ -184,6 +194,12 @@ export const actions = {
       payload: state,
     };
   },
+  setAssignmentDuplicationState(state: AssignmentDuplicationState) {
+    return {
+      type: "SET_ASSIGNMENT_DUPLICATION_STATE",
+      payload: state,
+    };
+  },
   setIsAddingTopic(isAdding: boolean) {
     return {
       type: "SET_IS_ADDING_TOPIC",
@@ -212,15 +228,30 @@ export const actions = {
     return async ({ dispatch }: { dispatch: (action: CurriculumAction) => void }) => {
       dispatch({ type: "FETCH_COURSE_ID_START", payload: { lessonId: id } });
       try {
-        // Get the URL parameters to check if this is a new lesson with topic_id
+        // Get the URL parameters to check if this is a new lesson/assignment with topic_id
         const urlParams = new URLSearchParams(window.location.search);
-        const isNewLesson = urlParams.has("topic_id");
+        const isNewContent = urlParams.has("topic_id");
 
-        // If this is a new lesson, use the topic_id directly to get the course ID
-        // Otherwise, use the lesson ID to get the parent info
-        const path = isNewLesson
-          ? `/tutorpress/v1/topics/${id}/parent-info`
-          : `/tutorpress/v1/lessons/${id}/parent-info`;
+        // Get the context from the localized script data
+        const isAssignment = (window as any).tutorPressCurriculum?.isAssignment;
+
+        // Determine the correct API endpoint based on context
+        let path: string;
+        if (isNewContent) {
+          // For new content (lesson or assignment), use the topic endpoint
+          path = `/tutorpress/v1/topics/${id}/parent-info`;
+        } else {
+          // For existing content, use the appropriate endpoint based on type
+          if (isAssignment) {
+            path = `/tutorpress/v1/assignments/${id}/parent-info`;
+          } else {
+            path = `/tutorpress/v1/lessons/${id}/parent-info`;
+          }
+        }
+
+        if (process.env.NODE_ENV === "development") {
+          console.log("fetchCourseId: Using endpoint", { path, isAssignment, isNewContent, id });
+        }
 
         const response = await apiFetch<ParentInfoResponse>({
           path,
@@ -293,6 +324,12 @@ export const actions = {
       payload: { courseId },
     };
   },
+  refreshTopicsAfterAssignmentSave(courseId: number) {
+    return {
+      type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE",
+      payload: { courseId },
+    };
+  },
   *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
     try {
       yield actions.setEditState({
@@ -355,6 +392,12 @@ export const actions = {
       throw curriculumError;
     }
   },
+  deleteAssignment(assignmentId: number) {
+    return {
+      type: "DELETE_ASSIGNMENT",
+      payload: { assignmentId },
+    };
+  },
 };
 
 // Selectors
@@ -382,6 +425,9 @@ const selectors = {
   },
   getLessonDuplicationState(state: CurriculumState) {
     return state.lessonDuplicationState;
+  },
+  getAssignmentDuplicationState(state: CurriculumState) {
+    return state.assignmentDuplicationState;
   },
   getIsAddingTopic(state: CurriculumState) {
     return state.isAddingTopic;
@@ -621,6 +667,22 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       };
     }
 
+    case "SET_LESSON_DUPLICATION_STATE": {
+      const newState = handleStateUpdate(state.lessonDuplicationState, action.payload);
+      return {
+        ...state,
+        lessonDuplicationState: newState,
+      };
+    }
+
+    case "SET_ASSIGNMENT_DUPLICATION_STATE": {
+      const newState = handleStateUpdate(state.assignmentDuplicationState, action.payload);
+      return {
+        ...state,
+        assignmentDuplicationState: newState,
+      };
+    }
+
     case "SET_IS_ADDING_TOPIC": {
       const newState = handleStateUpdate(state.isAddingTopic, action.payload);
       return {
@@ -735,6 +797,30 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           error: action.payload.error,
         },
       };
+    case "DELETE_ASSIGNMENT_START":
+      return {
+        ...state,
+        lessonState: {
+          status: "loading",
+          activeLessonId: action.payload.assignmentId,
+        },
+      };
+    case "DELETE_ASSIGNMENT_SUCCESS":
+      return {
+        ...state,
+        lessonState: {
+          status: "success",
+          activeLessonId: action.payload.assignmentId,
+        },
+      };
+    case "DELETE_ASSIGNMENT_ERROR":
+      return {
+        ...state,
+        lessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
     case "DELETE_TOPIC_START":
       return {
         ...state,
@@ -759,13 +845,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           error: action.payload.error,
         },
       };
-    case "SET_LESSON_DUPLICATION_STATE": {
-      const newState = handleStateUpdate(state.lessonDuplicationState, action.payload);
-      return {
-        ...state,
-        lessonDuplicationState: newState,
-      };
-    }
     case "DUPLICATE_LESSON_START":
       return {
         ...state,
@@ -798,6 +877,11 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         lessonState: action.payload,
       };
     case "REFRESH_TOPICS_AFTER_LESSON_SAVE":
+      return {
+        ...state,
+        operationState: { status: "loading" },
+      };
+    case "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE":
       return {
         ...state,
         operationState: { status: "loading" },
@@ -1376,6 +1460,85 @@ const resolvers = {
     }
   },
 
+  *deleteAssignment(assignmentId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DELETE_ASSIGNMENT_START",
+        payload: { assignmentId },
+      };
+
+      // Get parent info before deleting to ensure we can refresh topics after
+      const parentInfoResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/assignments/${assignmentId}/parent-info`,
+          method: "GET",
+        },
+      };
+
+      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+        throw new Error("Invalid parent info response");
+      }
+
+      const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+      // Delete the assignment
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/assignments/${assignmentId}`,
+          method: "DELETE",
+        },
+      };
+
+      yield {
+        type: "DELETE_ASSIGNMENT_SUCCESS",
+        payload: { assignmentId },
+      };
+
+      // Fetch updated topics
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      yield {
+        type: "SET_TOPICS",
+        payload: transformedTopics,
+      };
+    } catch (error) {
+      yield {
+        type: "DELETE_ASSIGNMENT_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete assignment", "tutorpress"),
+            context: {
+              action: "deleteAssignment",
+              details: `Failed to delete assignment ${assignmentId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
   *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, void, unknown> {
     try {
       yield {
@@ -1507,6 +1670,50 @@ const resolvers = {
       });
     }
   },
+
+  *refreshTopicsAfterAssignmentSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
+    if (process.env.NODE_ENV === "development") {
+      console.log("Resolver: Refreshing topics after assignment save for course:", courseId);
+    }
+
+    try {
+      yield actions.setOperationState({ status: "loading" });
+
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      }) as { data: Topic[] };
+
+      if (!response || !response.data) {
+        throw new Error("Invalid response format");
+      }
+
+      const topics = response.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }));
+
+      yield actions.setTopics(topics);
+      yield actions.setOperationState({ status: "success", data: topics });
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("Resolver: Successfully refreshed topics after assignment save");
+      }
+    } catch (error) {
+      console.error("Error refreshing topics after assignment save:", error);
+      yield actions.setOperationState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.FETCH_FAILED,
+          message: error instanceof Error ? error.message : "Failed to refresh topics after assignment save",
+          context: { action: "refreshTopicsAfterAssignmentSave" },
+        },
+      });
+    }
+  },
 };
 
 // Create and register the store
@@ -1555,10 +1762,12 @@ export const {
   setDeletionState,
   setDuplicationState,
   setLessonDuplicationState,
+  setAssignmentDuplicationState,
   setIsAddingTopic,
   setActiveOperation,
   deleteTopic,
   refreshTopicsAfterLessonSave,
+  refreshTopicsAfterAssignmentSave,
 } = actions;
 
 export const {
@@ -1570,6 +1779,7 @@ export const {
   getDeletionState,
   getDuplicationState,
   getLessonDuplicationState,
+  getAssignmentDuplicationState,
   getIsAddingTopic,
   getActiveOperation,
   getLessonState,

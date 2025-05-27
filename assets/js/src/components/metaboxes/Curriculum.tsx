@@ -98,6 +98,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
 const Curriculum: React.FC = (): JSX.Element => {
   const courseId = useCourseId();
   const isLesson = (window as any).tutorPressCurriculum?.isLesson;
+  const isAssignment = (window as any).tutorPressCurriculum?.isAssignment;
 
   const {
     topics,
@@ -119,7 +120,7 @@ const Curriculum: React.FC = (): JSX.Element => {
     handleTopicDuplicate,
     isLoading,
     error,
-  } = useTopics({ courseId: courseId ?? 0, isLesson });
+  } = useTopics({ courseId: courseId ?? 0, isLesson, isAssignment });
 
   // Get store actions
   const { setTopics, setEditState, setReorderState } = useDispatch(curriculumStore);

@@ -35,11 +35,13 @@ class TutorPress_REST {
             // Load and initialize specific controllers
             require_once TUTORPRESS_PATH . 'includes/rest/class-topics-controller.php';
             require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
+            require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
 
             // Initialize controllers
             $controllers = [
-                'topics'  => new TutorPress_REST_Topics_Controller(),
-                'lessons' => new TutorPress_REST_Lessons_Controller(),
+                'topics'      => new TutorPress_REST_Topics_Controller(),
+                'lessons'     => new TutorPress_REST_Lessons_Controller(),
+                'assignments' => new TutorPress_REST_Assignments_Controller(),
             ];
 
             // Register routes for each controller

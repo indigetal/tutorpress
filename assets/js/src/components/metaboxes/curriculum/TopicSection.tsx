@@ -6,6 +6,7 @@ import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../t
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
+import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 
 /**
  * Props for content item row
@@ -25,6 +26,7 @@ const contentTypeIcons = {
   quiz: "star-filled",
   interactive_quiz: "chart-bar",
   assignment: "clipboard",
+  tutor_assignments: "clipboard",
   meet_lesson: "video-alt2",
   zoom_lesson: "video-alt3",
 } as const;
@@ -64,6 +66,12 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 }): JSX.Element => {
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
+    courseId,
+    topicId: topic.id,
+  });
+
+  // Initialize assignment operations hook
+  const { handleAssignmentEdit, handleAssignmentDuplicate, handleAssignmentDelete } = useAssignments({
     courseId,
     topicId: topic.id,
   });
@@ -147,17 +155,23 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                 onEdit={
                   item.type === "lesson"
                     ? () => handleLessonEdit(item.id)
+                    : item.type === "tutor_assignments"
+                    ? () => handleAssignmentEdit(item.id)
                     : () =>
                         console.log("Edit content:", item.id, "- Edit functionality not yet implemented for", item.type)
                 }
                 onDuplicate={
                   item.type === "lesson"
                     ? () => handleLessonDuplicate(item.id, topic.id)
+                    : item.type === "tutor_assignments"
+                    ? () => handleAssignmentDuplicate(item.id, topic.id)
                     : () => console.log("Duplicate content:", item.id)
                 }
                 onDelete={
                   item.type === "lesson"
                     ? () => handleLessonDelete(item.id)
+                    : item.type === "tutor_assignments"
+                    ? () => handleAssignmentDelete(item.id)
                     : () => console.log("Delete content:", item.id)
                 }
               />
@@ -186,7 +200,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               <Button variant="secondary" isSmall icon={plus}>
                 {__("Interactive Quiz", "tutorpress")}
               </Button>
-              <Button variant="secondary" isSmall icon={plus}>
+              <Button
+                variant="secondary"
+                isSmall
+                icon={plus}
+                onClick={() => {
+                  // Redirect to new assignment page with topic_id
+                  const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
+                  const url = new URL("post-new.php", adminUrl);
+                  url.searchParams.append("post_type", "tutor_assignments");
+                  url.searchParams.append("topic_id", topic.id.toString());
+                  window.location.href = url.toString();
+                }}
+              >
                 {__("Assignment", "tutorpress")}
               </Button>
             </Flex>

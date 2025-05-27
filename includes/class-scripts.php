@@ -117,7 +117,7 @@ class TutorPress_Scripts {
         }
 
         $screen = get_current_screen();
-        if (!$screen || !in_array($screen->post_type, ['courses', 'lesson'], true)) {
+        if (!$screen || !in_array($screen->post_type, ['courses', 'lesson', 'tutor_assignments'], true)) {
             return;
         }
 
@@ -147,6 +147,7 @@ class TutorPress_Scripts {
             'restUrl' => rest_url(),
             'restNonce' => wp_create_nonce('wp_rest'),
             'isLesson' => 'lesson' === $screen->post_type,
+            'isAssignment' => 'tutor_assignments' === $screen->post_type,
             'adminUrl' => admin_url(),
         ]);
     }

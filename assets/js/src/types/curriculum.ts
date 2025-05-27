@@ -15,7 +15,7 @@ import type { CSSProperties } from "react";
 export interface BaseContentItem {
   id: number;
   title: string;
-  type: "lesson" | "quiz" | "interactive_quiz" | "assignment" | "meet_lesson" | "zoom_lesson";
+  type: "lesson" | "quiz" | "interactive_quiz" | "assignment" | "tutor_assignments" | "meet_lesson" | "zoom_lesson";
 }
 
 /**
@@ -245,6 +245,13 @@ export interface LessonDuplicationState {
   duplicatedLessonId?: number;
 }
 
+export interface AssignmentDuplicationState {
+  status: "idle" | "duplicating" | "error" | "success";
+  error?: CurriculumError;
+  sourceAssignmentId?: number;
+  duplicatedAssignmentId?: number;
+}
+
 export type TopicActiveOperation =
   | { type: "none" }
   | { type: "edit"; topicId: number }
@@ -260,6 +267,13 @@ export type LessonActiveOperation =
   | { type: "duplicate"; lessonId: number }
   | { type: "create" };
 
+export type AssignmentActiveOperation =
+  | { type: "none" }
+  | { type: "edit"; assignmentId: number }
+  | { type: "delete"; assignmentId: number }
+  | { type: "duplicate"; assignmentId: number }
+  | { type: "create" };
+
 export interface CurriculumState {
   topics: Topic[];
   operationState: TopicOperationState;
@@ -268,6 +282,7 @@ export interface CurriculumState {
   deletionState: TopicDeletionState;
   duplicationState: TopicDuplicationState;
   lessonDuplicationState: LessonDuplicationState;
+  assignmentDuplicationState: AssignmentDuplicationState;
   reorderState: ReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: TopicActiveOperation;

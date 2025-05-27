@@ -43,6 +43,7 @@ import {
   setActiveOperation,
   deleteTopic,
   refreshTopicsAfterLessonSave,
+  refreshTopicsAfterAssignmentSave,
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
@@ -94,8 +95,9 @@ const isEditorStore = (editor: unknown): editor is EditorSelectors => {
 };
 
 export interface UseTopicsOptions {
-  courseId: number | null; // Allow null for lesson editor context
-  isLesson?: boolean; // Add flag to indicate lesson editor context
+  courseId?: number;
+  isLesson?: boolean;
+  isAssignment?: boolean;
 }
 
 export interface UseTopicsReturn {
@@ -145,13 +147,13 @@ export interface UseTopicsReturn {
  * @param options Configuration options for the hook
  * @returns Topic state and operations
  */
-export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): UseTopicsReturn {
+export function useTopics({ courseId, isLesson = false, isAssignment = false }: UseTopicsOptions): UseTopicsReturn {
   const { createNotice } = useDispatch(noticesStore);
   const { dispatch } = useDispatch("tutorpress/curriculum");
 
   // Add debug logging for initialization
   if (process.env.NODE_ENV === "development") {
-    console.log("useTopics hook executed with:", { courseId, isLesson });
+    console.log("useTopics hook executed with:", { courseId, isLesson, isAssignment });
   }
 
   const {
@@ -182,9 +184,9 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
   // Add editor store selectors
   const { currentPostStatus, currentPostId } = useSelect(
     (select) => {
-      if (!isLesson) {
+      if (!isLesson && !isAssignment) {
         if (process.env.NODE_ENV === "development") {
-          console.log("useSelect (editor store): Not in lesson context.");
+          console.log("useSelect (editor store): Not in lesson/assignment context.");
         }
         return {
           currentPostStatus: null,
@@ -203,7 +205,12 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
           const post = editor.getCurrentPost();
           const postId = editor.getCurrentPostId();
           if (process.env.NODE_ENV === "development") {
-            console.log("useSelect (editor store): Got editor state.", { postId, postStatus: post?.status });
+            console.log("useSelect (editor store): Got editor state.", {
+              postId,
+              postStatus: post?.status,
+              isLesson,
+              isAssignment,
+            });
           }
           return {
             currentPostStatus: post?.status || null,
@@ -233,7 +240,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
         currentPostId: postIdFromUrl,
       };
     },
-    [isLesson]
+    [isLesson, isAssignment]
   );
 
   // Add refs for tracking previous state
@@ -252,6 +259,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
     setActiveOperation,
     deleteTopic,
     refreshTopicsAfterLessonSave,
+    refreshTopicsAfterAssignmentSave,
   } = useDispatch(curriculumStore);
 
   // Use the error handling hook
@@ -376,9 +384,9 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
 
   // Add effect for monitoring post status changes
   useEffect(() => {
-    if (!isLesson || !currentPostId) {
+    if ((!isLesson && !isAssignment) || !currentPostId) {
       if (process.env.NODE_ENV === "development") {
-        console.log("Post status monitoring: Not in lesson context or no post ID");
+        console.log("Post status monitoring: Not in lesson/assignment context or no post ID");
       }
       return;
     }
@@ -389,6 +397,8 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
         currentPostStatus,
         prevPostId: prevPostId.current,
         prevPostStatus: prevPostStatus.current,
+        isLesson,
+        isAssignment,
       });
     }
 
@@ -404,12 +414,18 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
           postId: currentPostId,
           prevStatus: prevPostStatus.current,
           currentStatus: currentPostStatus,
+          isLesson,
+          isAssignment,
         });
       }
 
       // Trigger curriculum refresh using store action
       if (courseId) {
-        refreshTopicsAfterLessonSave({ courseId });
+        if (isLesson) {
+          refreshTopicsAfterLessonSave({ courseId });
+        } else if (isAssignment) {
+          refreshTopicsAfterAssignmentSave({ courseId });
+        }
       } else {
         console.warn("Cannot refresh topics: courseId is not available");
       }
@@ -418,13 +434,22 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
     // Update refs for next check
     prevPostId.current = currentPostId;
     prevPostStatus.current = currentPostStatus;
-  }, [isLesson, currentPostId, currentPostStatus, courseId, refreshTopicsAfterLessonSave]);
+  }, [
+    isLesson,
+    isAssignment,
+    currentPostId,
+    currentPostStatus,
+    courseId,
+    refreshTopicsAfterLessonSave,
+    refreshTopicsAfterAssignmentSave,
+  ]);
 
   // Add effect for debug logging state changes
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       console.log("useTopics state update:", {
         isLesson,
+        isAssignment,
         currentPostId,
         currentPostStatus,
         prevPostId: prevPostId.current,
@@ -432,19 +457,23 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
         courseId,
       });
     }
-  }, [isLesson, currentPostId, currentPostStatus, courseId]);
+  }, [isLesson, isAssignment, currentPostId, currentPostStatus, courseId]);
 
-  // Add editor.didPostSaving filter for existing lesson updates
+  // Add editor.didPostSaving filter for existing lesson and assignment updates
   useEffect(() => {
-    if (!isLesson || !courseId) {
+    if ((!isLesson && !isAssignment) || !courseId) {
       if (process.env.NODE_ENV === "development") {
-        console.log("editor.didPostSaving filter: Not setting up - not in lesson context or no courseId");
+        console.log("editor.didPostSaving filter: Not setting up - not in lesson/assignment context or no courseId");
       }
       return;
     }
 
     if (process.env.NODE_ENV === "development") {
-      console.log("editor.didPostSaving filter: Setting up filter for lesson context", { courseId });
+      console.log("editor.didPostSaving filter: Setting up filter for lesson/assignment context", {
+        courseId,
+        isLesson,
+        isAssignment,
+      });
     }
 
     const handlePostSaving = (isComplete: boolean, options: { isAutosave?: boolean } = {}) => {
@@ -453,6 +482,8 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
           isComplete,
           isAutosave: options.isAutosave,
           courseId,
+          isLesson,
+          isAssignment,
         });
       }
 
@@ -474,13 +505,19 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
       }
 
       if (process.env.NODE_ENV === "development") {
-        console.log("editor.didPostSaving filter: Dispatching refreshTopicsAfterLessonSave", {
+        console.log("editor.didPostSaving filter: Dispatching refresh action", {
           courseId: currentCourseId,
+          isLesson,
+          isAssignment,
         });
       }
 
-      // Dispatch the existing refreshTopicsAfterLessonSave action
-      refreshTopicsAfterLessonSave({ courseId: currentCourseId });
+      // Dispatch the appropriate refresh action
+      if (isLesson) {
+        refreshTopicsAfterLessonSave({ courseId: currentCourseId });
+      } else if (isAssignment) {
+        refreshTopicsAfterAssignmentSave({ courseId: currentCourseId });
+      }
     };
 
     // Add the filter
@@ -497,7 +534,7 @@ export function useTopics({ courseId, isLesson = false }: UseTopicsOptions): Use
       }
       removeFilter("editor.didPostSaving", "tutorpress/curriculum-refresh");
     };
-  }, [isLesson, courseId, refreshTopicsAfterLessonSave]);
+  }, [isLesson, isAssignment, courseId, refreshTopicsAfterLessonSave, refreshTopicsAfterAssignmentSave]);
 
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
