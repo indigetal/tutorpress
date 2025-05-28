@@ -28,6 +28,8 @@ require_once TUTORPRESS_PATH . 'includes/class-scripts.php';
 require_once TUTORPRESS_PATH . 'includes/class-rest.php';
 
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-assignment-settings.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-content-drip-helpers.php';
 
 // Load REST controllers early
 require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
@@ -40,6 +42,12 @@ TutorPress_REST_Lessons_Controller::init();
 
 // Initialize assignment handling
 TutorPress_REST_Assignments_Controller::init();
+
+// Initialize assignment settings
+TutorPress_Assignment_Settings::init();
+
+// Initialize Content Drip helpers
+TutorPress_Content_Drip_Helpers::init();
 
 // Initialize REST API early
 add_action('init', function() {

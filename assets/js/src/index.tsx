@@ -1,12 +1,19 @@
 /**
- * Course Curriculum Metabox Entry Point
+ * TutorPress Entry Point
  */
 import { render } from "@wordpress/element";
+import { registerPlugin } from "@wordpress/plugins";
 import React from "react";
 import Curriculum from "./components/metaboxes/Curriculum";
+import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
 import "./api"; // Import API module to expose it to window
 
-// Wait for DOM to be ready
+// Register the assignment settings plugin for Gutenberg sidebar
+registerPlugin("tutorpress-assignment-settings", {
+  render: AssignmentSettingsPanel,
+});
+
+// Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("tutorpress-curriculum-root");
   if (root) {

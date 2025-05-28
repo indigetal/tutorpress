@@ -27,7 +27,9 @@
     "@types/react-dom": "^18.2.0",
     "@types/wordpress__components": "^23.0.1",
     "@types/wordpress__data": "^6.0.1",
+    "@types/wordpress__edit-post": "^8.4.2",
     "@types/wordpress__editor": "^14.3.1",
+    "@types/wordpress__plugins": "^3.0.3",
     "@wordpress/scripts": "^26.0.0",
     "ts-loader": "^9.0.0",
     "typescript": "^5.8.0"
@@ -40,11 +42,13 @@
     "@wordpress/components": "^29.5.0",
     "@wordpress/data": "^9.24.0",
     "@wordpress/data-controls": "^4.22.0",
+    "@wordpress/edit-post": "^8.24.0",
     "@wordpress/editor": "^13.24.0",
     "@wordpress/element": "^5.24.0",
     "@wordpress/hooks": "^3.47.0",
     "@wordpress/i18n": "^4.47.0",
     "@wordpress/notices": "^5.22.0",
+    "@wordpress/plugins": "^7.24.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

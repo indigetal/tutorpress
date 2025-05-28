@@ -137,7 +137,7 @@ class TutorPress_Scripts {
         wp_enqueue_script(
             'tutorpress-curriculum-metabox',
             TUTORPRESS_URL . 'assets/js/build/index.js',
-            array_merge(['wp-element', 'wp-components', 'wp-data', 'wp-api-fetch'], $asset_file['dependencies']),
+            array_merge(['wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-plugins', 'wp-edit-post', 'wp-i18n'], $asset_file['dependencies']),
             $asset_file['version'],
             true
         );
