@@ -6,11 +6,17 @@ import { registerPlugin } from "@wordpress/plugins";
 import React from "react";
 import Curriculum from "./components/metaboxes/Curriculum";
 import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
+import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import "./api"; // Import API module to expose it to window
 
 // Register the assignment settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-assignment-settings", {
   render: AssignmentSettingsPanel,
+});
+
+// Register the lesson settings plugin for Gutenberg sidebar
+registerPlugin("tutorpress-lesson-settings", {
+  render: LessonSettingsPanel,
 });
 
 // Wait for DOM to be ready for curriculum metabox

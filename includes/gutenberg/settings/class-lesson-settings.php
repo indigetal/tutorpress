@@ -24,10 +24,40 @@ class TutorPress_Lesson_Settings {
         add_action('init', [__CLASS__, 'register_meta_fields']);
         add_action('rest_api_init', [__CLASS__, 'register_rest_fields']);
         
+        // Ensure featured image support for lessons
+        add_action('init', [__CLASS__, 'ensure_lesson_featured_image_support'], 20);
+        
         // Bidirectional sync hooks for Tutor LMS compatibility
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_video_meta_update'], 10, 4);
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_attachments_meta_update'], 10, 4);
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_preview_meta_update'], 10, 4);
+        
+        // Sync our fields to Tutor LMS when updated
+        add_action('updated_post_meta', [__CLASS__, 'handle_lesson_settings_update'], 10, 4);
+        
+        // Sync on lesson save
+        add_action('save_post_lesson', [__CLASS__, 'sync_on_lesson_save'], 999, 3);
+    }
+
+    /**
+     * Ensure featured image support for lessons.
+     *
+     * @since 1.4.0
+     * @return void
+     */
+    public static function ensure_lesson_featured_image_support() {
+        // Add featured image support to lessons if not already present
+        if (post_type_exists('lesson')) {
+            add_post_type_support('lesson', 'thumbnail');
+            
+            // Also ensure theme supports post thumbnails
+            if (!current_theme_supports('post-thumbnails')) {
+                add_theme_support('post-thumbnails', array('lesson'));
+            } else {
+                // Add lesson to existing thumbnail support
+                add_theme_support('post-thumbnails');
+            }
+        }
     }
 
     /**
@@ -38,7 +68,7 @@ class TutorPress_Lesson_Settings {
      */
     public static function register_meta_fields() {
         // Video source type
-        register_post_meta('tutor_lessons', '_lesson_video_source', [
+        register_post_meta('lesson', '_lesson_video_source', [
             'type'              => 'string',
             'description'       => __('Video source type', 'tutorpress'),
             'single'            => true,
@@ -48,7 +78,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video source ID (for uploaded videos)
-        register_post_meta('tutor_lessons', '_lesson_video_source_id', [
+        register_post_meta('lesson', '_lesson_video_source_id', [
             'type'              => 'integer',
             'description'       => __('Video attachment ID for uploaded videos', 'tutorpress'),
             'single'            => true,
@@ -58,7 +88,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // External video URL
-        register_post_meta('tutor_lessons', '_lesson_video_external_url', [
+        register_post_meta('lesson', '_lesson_video_external_url', [
             'type'              => 'string',
             'description'       => __('External video URL', 'tutorpress'),
             'single'            => true,
@@ -68,7 +98,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // YouTube video URL/ID
-        register_post_meta('tutor_lessons', '_lesson_video_youtube', [
+        register_post_meta('lesson', '_lesson_video_youtube', [
             'type'              => 'string',
             'description'       => __('YouTube video URL or ID', 'tutorpress'),
             'single'            => true,
@@ -78,7 +108,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Vimeo video URL/ID
-        register_post_meta('tutor_lessons', '_lesson_video_vimeo', [
+        register_post_meta('lesson', '_lesson_video_vimeo', [
             'type'              => 'string',
             'description'       => __('Vimeo video URL or ID', 'tutorpress'),
             'single'            => true,
@@ -88,7 +118,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Embedded video code
-        register_post_meta('tutor_lessons', '_lesson_video_embedded', [
+        register_post_meta('lesson', '_lesson_video_embedded', [
             'type'              => 'string',
             'description'       => __('Embedded video code', 'tutorpress'),
             'single'            => true,
@@ -98,7 +128,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video shortcode
-        register_post_meta('tutor_lessons', '_lesson_video_shortcode', [
+        register_post_meta('lesson', '_lesson_video_shortcode', [
             'type'              => 'string',
             'description'       => __('Video shortcode', 'tutorpress'),
             'single'            => true,
@@ -108,7 +138,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video poster/thumbnail URL
-        register_post_meta('tutor_lessons', '_lesson_video_poster', [
+        register_post_meta('lesson', '_lesson_video_poster', [
             'type'              => 'string',
             'description'       => __('Video poster/thumbnail URL', 'tutorpress'),
             'single'            => true,
@@ -118,7 +148,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video duration - hours
-        register_post_meta('tutor_lessons', '_lesson_video_duration_hours', [
+        register_post_meta('lesson', '_lesson_video_duration_hours', [
             'type'              => 'integer',
             'description'       => __('Video duration in hours', 'tutorpress'),
             'single'            => true,
@@ -128,7 +158,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video duration - minutes
-        register_post_meta('tutor_lessons', '_lesson_video_duration_minutes', [
+        register_post_meta('lesson', '_lesson_video_duration_minutes', [
             'type'              => 'integer',
             'description'       => __('Video duration in minutes', 'tutorpress'),
             'single'            => true,
@@ -138,7 +168,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Video duration - seconds
-        register_post_meta('tutor_lessons', '_lesson_video_duration_seconds', [
+        register_post_meta('lesson', '_lesson_video_duration_seconds', [
             'type'              => 'integer',
             'description'       => __('Video duration in seconds', 'tutorpress'),
             'single'            => true,
@@ -148,7 +178,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Exercise files (attachment IDs)
-        register_post_meta('tutor_lessons', '_lesson_exercise_files', [
+        register_post_meta('lesson', '_lesson_exercise_files', [
             'type'              => 'array',
             'description'       => __('Exercise file attachment IDs', 'tutorpress'),
             'single'            => true,
@@ -165,7 +195,7 @@ class TutorPress_Lesson_Settings {
         ]);
 
         // Lesson preview toggle (requires Tutor Course Preview addon)
-        register_post_meta('tutor_lessons', '_lesson_is_preview', [
+        register_post_meta('lesson', '_lesson_is_preview', [
             'type'              => 'boolean',
             'description'       => __('Whether lesson is available as preview', 'tutorpress'),
             'single'            => true,
@@ -187,7 +217,7 @@ class TutorPress_Lesson_Settings {
      */
     public static function handle_tutor_video_meta_update($meta_id, $post_id, $meta_key, $meta_value) {
         // Only handle _video updates for lessons
-        if ($meta_key !== '_video' || get_post_type($post_id) !== 'tutor_lessons') {
+        if ($meta_key !== '_video' || get_post_type($post_id) !== 'lesson') {
             return;
         }
 
@@ -213,7 +243,7 @@ class TutorPress_Lesson_Settings {
      */
     public static function handle_tutor_attachments_meta_update($meta_id, $post_id, $meta_key, $meta_value) {
         // Only handle tutor_attachments updates for lessons
-        if ($meta_key !== 'tutor_attachments' || get_post_type($post_id) !== 'tutor_lessons') {
+        if ($meta_key !== 'tutor_attachments' || get_post_type($post_id) !== 'lesson') {
             return;
         }
 
@@ -241,7 +271,7 @@ class TutorPress_Lesson_Settings {
      */
     public static function handle_tutor_preview_meta_update($meta_id, $post_id, $meta_key, $meta_value) {
         // Only handle _is_preview updates for lessons
-        if ($meta_key !== '_is_preview' || get_post_type($post_id) !== 'tutor_lessons') {
+        if ($meta_key !== '_is_preview' || get_post_type($post_id) !== 'lesson') {
             return;
         }
 
@@ -287,6 +317,19 @@ class TutorPress_Lesson_Settings {
 
         if (isset($video_data['source_external_url'])) {
             update_post_meta($post_id, '_lesson_video_external_url', esc_url_raw($video_data['source_external_url']));
+        }
+
+        // Handle source_html5 field that contains the video URL for uploaded videos
+        if (isset($video_data['source_html5'])) {
+            update_post_meta($post_id, '_lesson_video_external_url', esc_url_raw($video_data['source_html5']));
+        } else {
+            // If no source_html5 but we have an ID, try to get URL from attachment
+            if (isset($video_data['source_video_id']) && $video_data['source_video_id']) {
+                $attachment_url = wp_get_attachment_url($video_data['source_video_id']);
+                if ($attachment_url) {
+                    update_post_meta($post_id, '_lesson_video_external_url', $attachment_url);
+                }
+            }
         }
 
         if (isset($video_data['source_youtube'])) {
@@ -351,14 +394,25 @@ class TutorPress_Lesson_Settings {
         $minutes = (int) get_post_meta($post_id, '_lesson_video_duration_minutes', true);
         $seconds = (int) get_post_meta($post_id, '_lesson_video_duration_seconds', true);
 
+        // If no source is set, store -1 as Tutor LMS expects
+        if (empty($source)) {
+            update_post_meta($post_id, '_video', array('source' => '-1'));
+            return;
+        }
+
         // Build Tutor LMS compatible video array
         $video_data = array(
-            'source' => $source ?: '-1', // Tutor LMS uses '-1' for no source
+            'source' => $source,
         );
 
         // Add source-specific fields
-        if ($source === 'upload' && $source_video_id) {
+        if ($source === 'html5' && $source_video_id) {
             $video_data['source_video_id'] = $source_video_id;
+            // For HTML5 videos, also include the URL from the attachment
+            $attachment_url = wp_get_attachment_url($source_video_id);
+            if ($attachment_url) {
+                $video_data['source_html5'] = $attachment_url;
+            }
         }
         
         if ($source === 'external_url' && $external_url) {
@@ -566,7 +620,7 @@ class TutorPress_Lesson_Settings {
      * @return void
      */
     public static function register_rest_fields() {
-        register_rest_field('tutor_lessons', 'lesson_settings', [
+        register_rest_field('lesson', 'lesson_settings', [
             'get_callback'    => [__CLASS__, 'get_lesson_settings'],
             'update_callback' => [__CLASS__, 'update_lesson_settings'],
             'schema'          => [
@@ -579,7 +633,7 @@ class TutorPress_Lesson_Settings {
                         'properties'  => [
                             'source' => [
                                 'type' => 'string',
-                                'enum' => ['', 'upload', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode'],
+                                'enum' => ['', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode'],
                             ],
                             'source_video_id' => [
                                 'type' => 'integer',
@@ -650,22 +704,6 @@ class TutorPress_Lesson_Settings {
                 ],
             ],
         ]);
-
-        // Register REST endpoint for attachment metadata
-        register_rest_route('tutorpress/v1', '/attachments/(?P<id>\d+)', [
-            'methods' => 'GET',
-            'callback' => [__CLASS__, 'get_attachment_metadata'],
-            'permission_callback' => function() {
-                return current_user_can('edit_posts');
-            },
-            'args' => [
-                'id' => [
-                    'validate_callback' => function($param) {
-                        return is_numeric($param);
-                    }
-                ],
-            ],
-        ]);
     }
 
     /**
@@ -675,8 +713,38 @@ class TutorPress_Lesson_Settings {
      * @return bool True if addon is available.
      */
     private static function is_course_preview_addon_available() {
-        // Check if the constant or class exists that indicates the addon is active
-        return defined('TUTOR_COURSE_PREVIEW_VERSION') || class_exists('TUTOR_COURSE_PREVIEW\CoursePreview');
+        // Primary check: Look for the specific addon file
+        $addon_file = WP_PLUGIN_DIR . '/tutor-pro/addons/tutor-course-preview/tutor-course-preview.php';
+        if (!file_exists($addon_file)) {
+            return false;
+        }
+        
+        // Check if Tutor Pro is active and addon is enabled using proper Tutor method
+        if (function_exists('tutor_utils')) {
+            $utils = tutor_utils();
+            
+            // Use the correct basename - it should be the full path from plugin directory
+            $addon_basename = 'tutor-pro/addons/tutor-course-preview/tutor-course-preview.php';
+            
+            // Check if the addon is enabled in Tutor's addon system
+            if (method_exists($utils, 'is_addon_enabled')) {
+                $is_enabled = $utils->is_addon_enabled($addon_basename);
+                return $is_enabled;
+            }
+            
+            // Fallback: Check tutor options for addon status
+            $tutor_options = get_option('tutor_option', array());
+            if (isset($tutor_options['tutor_pro_addons'])) {
+                $addons = $tutor_options['tutor_pro_addons'];
+                if (isset($addons[$addon_basename])) {
+                    $is_enabled = !empty($addons[$addon_basename]);
+                    return $is_enabled;
+                }
+            }
+        }
+        
+        // Final fallback: Check for constant or class (but only if file exists)
+        return defined('TUTOR_CP_VERSION') || class_exists('TUTOR_CP\CoursePreview');
     }
 
     /**
@@ -687,7 +755,8 @@ class TutorPress_Lesson_Settings {
      * @return string Sanitized video source.
      */
     public static function sanitize_video_source($source) {
-        $allowed_sources = ['', 'upload', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode'];
+        // Updated to match Tutor LMS's actual video source types
+        $allowed_sources = ['', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode'];
         return in_array($source, $allowed_sources, true) ? $source : '';
     }
 
@@ -741,98 +810,65 @@ class TutorPress_Lesson_Settings {
     }
 
     /**
-     * Get attachment metadata including video duration.
+     * Sync our fields to Tutor LMS when updated
      *
      * @since 1.4.0
-     * @param WP_REST_Request $request Request object.
-     * @return WP_REST_Response|WP_Error Response object or error.
+     * @param int $meta_id Meta ID.
+     * @param int $post_id Post ID.
+     * @param string $meta_key Meta key.
+     * @param mixed $meta_value Meta value.
+     * @return void
      */
-    public static function get_attachment_metadata($request) {
-        $attachment_id = (int) $request['id'];
+    public static function handle_lesson_settings_update($meta_id, $post_id, $meta_key, $meta_value) {
+        // TEMPORARY: Disable sync for testing - user hasn't seen any issues without it
+        return;
         
-        if (!wp_attachment_is_image($attachment_id) && !self::is_video_attachment($attachment_id)) {
-            return new WP_Error('invalid_attachment', __('Attachment must be an image or video', 'tutorpress'), ['status' => 400]);
-        }
-
-        $metadata = wp_get_attachment_metadata($attachment_id);
-        $attachment = get_post($attachment_id);
-        
-        if (!$attachment) {
-            return new WP_Error('attachment_not_found', __('Attachment not found', 'tutorpress'), ['status' => 404]);
-        }
-
-        $response_data = [
-            'id' => $attachment_id,
-            'title' => $attachment->post_title,
-            'filename' => basename(get_attached_file($attachment_id)),
-            'url' => wp_get_attachment_url($attachment_id),
-            'mime_type' => $attachment->post_mime_type,
+        // Only handle our lesson settings meta keys
+        $lesson_meta_keys = [
+            '_lesson_video_source',
+            '_lesson_video_source_id',
+            '_lesson_video_external_url',
+            '_lesson_video_youtube',
+            '_lesson_video_vimeo',
+            '_lesson_video_embedded',
+            '_lesson_video_shortcode',
+            '_lesson_video_poster',
+            '_lesson_video_duration_hours',
+            '_lesson_video_duration_minutes',
+            '_lesson_video_duration_seconds',
+            '_lesson_exercise_files',
+            '_lesson_is_preview'
         ];
-
-        // Add video-specific metadata
-        if (self::is_video_attachment($attachment_id)) {
-            $duration = self::extract_video_duration($metadata);
-            $response_data['duration'] = $duration;
-            
-            // Add video dimensions if available
-            if (isset($metadata['width']) && isset($metadata['height'])) {
-                $response_data['width'] = $metadata['width'];
-                $response_data['height'] = $metadata['height'];
-            }
+        
+        if (!in_array($meta_key, $lesson_meta_keys) || get_post_type($post_id) !== 'lesson') {
+            return;
         }
-
-        return rest_ensure_response($response_data);
+        
+        // Avoid infinite loops
+        $our_last_update = get_post_meta($post_id, '_tutorpress_sync_last_update', true);
+        if ($our_last_update && (time() - $our_last_update) < 5) {
+            return;
+        }
+        
+        update_post_meta($post_id, '_tutorpress_sync_last_update', time());
+        
+        // Sync to Tutor LMS native formats for compatibility
+        self::sync_to_tutor_video_format($post_id);
+        self::sync_exercise_files($post_id);
+        self::sync_lesson_preview($post_id);
     }
 
     /**
-     * Check if attachment is a video file.
+     * Sync on lesson save
      *
      * @since 1.4.0
-     * @param int $attachment_id Attachment ID.
-     * @return bool True if video attachment.
+     * @param int $post_id Post ID.
+     * @param WP_Post $post Post object.
+     * @param bool $update Whether this is an existing post being updated or not.
+     * @return void
      */
-    private static function is_video_attachment($attachment_id) {
-        $mime_type = get_post_mime_type($attachment_id);
-        return strpos($mime_type, 'video/') === 0;
-    }
-
-    /**
-     * Extract video duration from metadata.
-     *
-     * @since 1.4.0
-     * @param array $metadata Attachment metadata.
-     * @return array Duration in hours, minutes, seconds.
-     */
-    private static function extract_video_duration($metadata) {
-        $duration = [
-            'hours' => 0,
-            'minutes' => 0,
-            'seconds' => 0,
-        ];
-
-        // Check for duration in metadata (WordPress 5.6+)
-        if (isset($metadata['length_formatted'])) {
-            // Parse formatted duration like "1:23:45" or "23:45"
-            $parts = explode(':', $metadata['length_formatted']);
-            $parts = array_reverse($parts); // Start from seconds
-            
-            if (isset($parts[0])) {
-                $duration['seconds'] = (int) $parts[0];
-            }
-            if (isset($parts[1])) {
-                $duration['minutes'] = (int) $parts[1];
-            }
-            if (isset($parts[2])) {
-                $duration['hours'] = (int) $parts[2];
-            }
-        } elseif (isset($metadata['length'])) {
-            // Duration in seconds
-            $total_seconds = (int) $metadata['length'];
-            $duration['hours'] = floor($total_seconds / 3600);
-            $duration['minutes'] = floor(($total_seconds % 3600) / 60);
-            $duration['seconds'] = $total_seconds % 60;
-        }
-
-        return $duration;
+    public static function sync_on_lesson_save($post_id, $post, $update) {
+        // Sync to Tutor LMS native formats for compatibility
+        self::sync_to_tutor_video_format($post_id);
     }
 } 

@@ -1,0 +1,678 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
+import { __ } from "@wordpress/i18n";
+import { useSelect, useDispatch } from "@wordpress/data";
+import {
+  PanelRow,
+  TextControl,
+  SelectControl,
+  Button,
+  Notice,
+  ToggleControl,
+  Spinner,
+  TextareaControl,
+} from "@wordpress/components";
+
+// Import shared video detection utilities
+import { useVideoDetection } from "../../hooks/useVideoDetection";
+import type { VideoSource } from "../../utils/videoDetection";
+import { apiService } from "../../api/service";
+
+interface VideoSettings {
+  source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode";
+  source_video_id: number;
+  source_external_url: string;
+  source_youtube: string;
+  source_vimeo: string;
+  source_embedded: string;
+  source_shortcode: string;
+  poster: string;
+}
+
+interface DurationSettings {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+interface LessonPreviewSettings {
+  enabled: boolean;
+  addon_available: boolean;
+}
+
+interface LessonSettings {
+  video: VideoSettings;
+  duration: DurationSettings;
+  exercise_files: number[];
+  lesson_preview: LessonPreviewSettings;
+}
+
+interface AttachmentDuration {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+interface AttachmentMetadata {
+  duration: AttachmentDuration;
+}
+
+const LessonSettingsPanel: React.FC = () => {
+  const [isLoadingVideoMeta, setIsLoadingVideoMeta] = useState(false);
+  const [videoMetaError, setVideoMetaError] = useState<string>("");
+
+  // Use shared video detection hook
+  const { isDetecting, detectDuration, error, isSourceSupported } = useVideoDetection();
+
+  const { postType, lessonSettings, isSaving } = useSelect((select: any) => {
+    const { getCurrentPostType } = select("core/editor");
+    const { getEditedPostAttribute } = select("core/editor");
+    const { isSavingPost } = select("core/editor");
+
+    return {
+      postType: getCurrentPostType(),
+      lessonSettings: getEditedPostAttribute("lesson_settings") || {
+        video: {
+          source: "",
+          source_video_id: 0,
+          source_external_url: "",
+          source_youtube: "",
+          source_vimeo: "",
+          source_embedded: "",
+          source_shortcode: "",
+          poster: "",
+        },
+        duration: {
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+        },
+        exercise_files: [],
+        lesson_preview: {
+          enabled: false,
+          addon_available: false,
+        },
+      },
+      isSaving: isSavingPost(),
+    };
+  }, []);
+
+  const { editPost } = useDispatch("core/editor");
+
+  // Debug logging for lesson settings changes
+  useEffect(() => {
+    // Component received lesson settings - removed debug logging
+  }, [lessonSettings]);
+
+  // Only show for lesson post type
+  if (postType !== "lesson") {
+    return null;
+  }
+
+  const updateSetting = (key: string, value: any) => {
+    const newSettings = { ...lessonSettings };
+
+    if (key.includes(".")) {
+      const keys = key.split(".");
+      let current = newSettings;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        current[keys[i]] = { ...current[keys[i]] };
+        current = current[keys[i]];
+      }
+
+      current[keys[keys.length - 1]] = value;
+    } else {
+      newSettings[key] = value;
+    }
+
+    editPost({ lesson_settings: newSettings });
+  };
+
+  // Auto-detect video duration using shared utilities
+  const autoDetectVideoDuration = useCallback(
+    async (source: VideoSource, url: string) => {
+      if (!url.trim()) return;
+
+      setVideoMetaError("");
+
+      try {
+        const detectedDuration = await detectDuration(source, url);
+
+        if (detectedDuration) {
+          // Get the CURRENT editor state instead of component state to avoid stale data
+          const currentSettings =
+            (window as any).wp.data.select("core/editor").getEditedPostAttribute("lesson_settings") || {};
+          const newSettings = {
+            ...currentSettings,
+            duration: {
+              hours: detectedDuration.hours,
+              minutes: detectedDuration.minutes,
+              seconds: detectedDuration.seconds,
+            },
+          };
+
+          editPost({ lesson_settings: newSettings });
+        }
+      } catch (err) {
+        setVideoMetaError(error || __("Could not auto-detect video duration", "tutorpress"));
+      }
+    },
+    [detectDuration, error]
+  );
+
+  // Handle uploaded video duration detection
+  const detectUploadedVideoDuration = useCallback(async (attachmentId: number) => {
+    setIsLoadingVideoMeta(true);
+    setVideoMetaError("");
+
+    try {
+      const result = await apiService.get<AttachmentMetadata>(`/attachments/${attachmentId}`);
+
+      if (result.data?.duration) {
+        const duration = result.data.duration;
+
+        // Get the CURRENT editor state instead of component state to avoid stale data
+        const currentSettings =
+          (window as any).wp.data.select("core/editor").getEditedPostAttribute("lesson_settings") || {};
+        const newSettings = {
+          ...currentSettings,
+          duration: {
+            hours: duration.hours || 0,
+            minutes: duration.minutes || 0,
+            seconds: duration.seconds || 0,
+          },
+        };
+
+        editPost({ lesson_settings: newSettings });
+      } else {
+        setVideoMetaError(__("Could not extract video duration", "tutorpress"));
+      }
+    } catch (error) {
+      console.error("TutorPress Debug: Error fetching attachment metadata:", error);
+      setVideoMetaError(__("Could not extract video duration", "tutorpress"));
+    } finally {
+      setIsLoadingVideoMeta(false);
+    }
+  }, []);
+
+  const openVideoMediaLibrary = () => {
+    const mediaFrame = (window as any).wp.media({
+      title: __("Select Video", "tutorpress"),
+      button: {
+        text: __("Use This Video", "tutorpress"),
+      },
+      multiple: false,
+      library: {
+        type: ["video"],
+      },
+    });
+
+    mediaFrame.on("select", async () => {
+      const attachment = mediaFrame.state().get("selection").first().toJSON();
+
+      // Set video source to upload and store attachment ID
+      updateSetting("video.source", "html5");
+      updateSetting("video.source_video_id", attachment.id);
+
+      // Try to auto-detect video duration for uploaded videos
+      await detectUploadedVideoDuration(attachment.id);
+    });
+
+    mediaFrame.open();
+  };
+
+  const openExerciseFilesLibrary = () => {
+    const mediaFrame = (window as any).wp.media({
+      title: __("Select Exercise Files", "tutorpress"),
+      button: {
+        text: __("Add Files", "tutorpress"),
+      },
+      multiple: true,
+    });
+
+    mediaFrame.on("select", () => {
+      const attachments = mediaFrame.state().get("selection").toJSON();
+      const attachmentIds = attachments.map((attachment: any) => attachment.id);
+      updateSetting("exercise_files", attachmentIds);
+    });
+
+    mediaFrame.open();
+  };
+
+  const removeExerciseFile = (attachmentId: number) => {
+    const currentFiles = lessonSettings.exercise_files || [];
+    const updatedFiles = currentFiles.filter((id: number) => id !== attachmentId);
+    updateSetting("exercise_files", updatedFiles);
+  };
+
+  const clearVideo = () => {
+    // Create a completely new settings object to force re-render
+    const newSettings = {
+      ...lessonSettings,
+      video: {
+        source: "",
+        source_video_id: 0,
+        source_external_url: "",
+        source_youtube: "",
+        source_vimeo: "",
+        source_embedded: "",
+        source_shortcode: "",
+        poster: "",
+      },
+      duration: {
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+      },
+    };
+
+    setVideoMetaError("");
+    editPost({ lesson_settings: newSettings });
+  };
+
+  const videoSourceOptions = [
+    { label: __("No Video", "tutorpress"), value: "" },
+    { label: __("Upload Video", "tutorpress"), value: "html5" },
+    {
+      label: __("YouTube", "tutorpress"),
+      value: "youtube",
+    },
+    { label: __("Vimeo", "tutorpress"), value: "vimeo" },
+    { label: __("External URL", "tutorpress"), value: "external_url" },
+    { label: __("Embedded Code", "tutorpress"), value: "embedded" },
+    { label: __("Shortcode", "tutorpress"), value: "shortcode" },
+  ];
+
+  const exerciseFileCount = lessonSettings.exercise_files?.length || 0;
+  const hasVideo =
+    lessonSettings.video.source !== "" &&
+    (lessonSettings.video.source_video_id > 0 ||
+      lessonSettings.video.source_external_url ||
+      lessonSettings.video.source_youtube ||
+      lessonSettings.video.source_vimeo ||
+      lessonSettings.video.source_embedded ||
+      lessonSettings.video.source_shortcode);
+  const hasDuration =
+    lessonSettings.duration.hours > 0 || lessonSettings.duration.minutes > 0 || lessonSettings.duration.seconds > 0;
+
+  // Show video detection loading state
+  const showVideoDetectionLoading = isDetecting || isLoadingVideoMeta;
+
+  return (
+    <PluginDocumentSettingPanel
+      name="lesson-settings"
+      title={__("Lesson Settings", "tutorpress")}
+      className="lesson-settings-panel"
+    >
+      {/* Video Section */}
+      <PanelRow>
+        <div style={{ width: "100%" }}>
+          <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Video", "tutorpress")}</div>
+
+          <SelectControl
+            value={lessonSettings.video.source}
+            options={videoSourceOptions}
+            onChange={(value) => {
+              if (value === "") {
+                // Clear video completely
+                clearVideo();
+              } else {
+                // Clear other video source fields when changing source type
+                const newSettings = {
+                  ...lessonSettings,
+                  video: {
+                    source: value as VideoSettings["source"],
+                    source_video_id: 0,
+                    source_external_url: "",
+                    source_youtube: "",
+                    source_vimeo: "",
+                    source_embedded: "",
+                    source_shortcode: "",
+                    poster: "",
+                  },
+                };
+                editPost({ lesson_settings: newSettings });
+              }
+            }}
+            disabled={isSaving}
+            style={{ marginBottom: "8px" }}
+          />
+
+          {/* Upload Video */}
+          {lessonSettings.video.source === "html5" && (
+            <div style={{ marginTop: "8px" }}>
+              <Button
+                variant="secondary"
+                onClick={openVideoMediaLibrary}
+                disabled={isSaving}
+                style={{
+                  width: "100%",
+                  marginBottom: "8px",
+                }}
+              >
+                {lessonSettings.video.source_video_id > 0
+                  ? __("Change Video (ID: ", "tutorpress") + lessonSettings.video.source_video_id + ")"
+                  : __("Select Video", "tutorpress")}
+              </Button>
+              {showVideoDetectionLoading && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "8px",
+                  }}
+                >
+                  <Spinner />
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      margin: "4px 0 0 0",
+                    }}
+                  >
+                    {__("Extracting video duration…", "tutorpress")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* YouTube */}
+          {lessonSettings.video.source === "youtube" && (
+            <div>
+              <TextControl
+                label={__("YouTube URL or Video ID", "tutorpress")}
+                placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                value={lessonSettings.video.source_youtube}
+                onChange={(value) => {
+                  updateSetting("video.source_youtube", value);
+                  if (value && isSourceSupported("youtube")) {
+                    autoDetectVideoDuration("youtube", value);
+                  }
+                }}
+                disabled={isSaving}
+                help={
+                  isSourceSupported("youtube")
+                    ? __("Enter the full YouTube URL or just the video ID", "tutorpress")
+                    : __("YouTube API key not configured - duration auto-detection disabled", "tutorpress")
+                }
+              />
+              {showVideoDetectionLoading && (
+                <div style={{ textAlign: "center", padding: "8px" }}>
+                  <Spinner />
+                  <p style={{ fontSize: "12px", margin: "4px 0 0 0" }}>
+                    {__("Detecting video duration…", "tutorpress")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vimeo */}
+          {lessonSettings.video.source === "vimeo" && (
+            <div>
+              <TextControl
+                label={__("Vimeo URL or Video ID", "tutorpress")}
+                placeholder="https://vimeo.com/123456789"
+                value={lessonSettings.video.source_vimeo}
+                onChange={(value) => {
+                  updateSetting("video.source_vimeo", value);
+                  if (value) {
+                    // Debounce auto-detection to avoid interfering with typing
+                    setTimeout(() => {
+                      autoDetectVideoDuration("vimeo", value);
+                    }, 1000);
+                  }
+                }}
+                disabled={isSaving}
+                help={__("Enter the full Vimeo URL or just the video ID", "tutorpress")}
+              />
+              {showVideoDetectionLoading && (
+                <div style={{ textAlign: "center", padding: "8px" }}>
+                  <Spinner />
+                  <p style={{ fontSize: "12px", margin: "4px 0 0 0" }}>
+                    {__("Detecting video duration…", "tutorpress")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* External URL */}
+          {lessonSettings.video.source === "external_url" && (
+            <div>
+              <TextControl
+                label={__("External Video URL", "tutorpress")}
+                placeholder="https://example.com/video.mp4"
+                value={lessonSettings.video.source_external_url}
+                onChange={(value) => {
+                  updateSetting("video.source_external_url", value);
+                  if (value) {
+                    autoDetectVideoDuration("external_url", value);
+                  }
+                }}
+                disabled={isSaving}
+                help={__("Enter a direct link to the video file (MP4, WebM, etc.)", "tutorpress")}
+              />
+              {showVideoDetectionLoading && (
+                <div style={{ textAlign: "center", padding: "8px" }}>
+                  <Spinner />
+                  <p style={{ fontSize: "12px", margin: "4px 0 0 0" }}>
+                    {__("Detecting video duration…", "tutorpress")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Embedded Code */}
+          {lessonSettings.video.source === "embedded" && (
+            <TextareaControl
+              label={__("Embedded Video Code", "tutorpress")}
+              placeholder="<iframe src=...></iframe>"
+              value={lessonSettings.video.source_embedded}
+              onChange={(value) => updateSetting("video.source_embedded", value)}
+              disabled={isSaving}
+              help={__("Paste the embed code (iframe, video tag, etc.)", "tutorpress")}
+              rows={4}
+            />
+          )}
+
+          {/* Shortcode */}
+          {lessonSettings.video.source === "shortcode" && (
+            <TextControl
+              label={__("Video Shortcode", "tutorpress")}
+              placeholder="[video src='...']"
+              value={lessonSettings.video.source_shortcode}
+              onChange={(value) => updateSetting("video.source_shortcode", value)}
+              disabled={isSaving}
+              help={__("Enter a WordPress video shortcode", "tutorpress")}
+            />
+          )}
+
+          {/* Video Meta Error */}
+          {(videoMetaError || error) && (
+            <Notice status="warning" isDismissible={false}>
+              {videoMetaError || error}
+            </Notice>
+          )}
+
+          {hasVideo && (
+            <Button
+              variant="link"
+              onClick={clearVideo}
+              disabled={isSaving}
+              style={{
+                color: "#d63638",
+                fontSize: "12px",
+                marginTop: "8px",
+              }}
+            >
+              {__("Remove Video", "tutorpress")}
+            </Button>
+          )}
+        </div>
+      </PanelRow>
+
+      {/* Video Duration Section - Only show when video source is selected */}
+      {lessonSettings.video.source !== "" && (
+        <PanelRow>
+          <div style={{ width: "100%" }}>
+            <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Video Duration", "tutorpress")}</div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: "flex-end",
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "12px", fontWeight: 500 }}>{__("Hours", "tutorpress")}</div>
+                <TextControl
+                  type="number"
+                  min="0"
+                  value={lessonSettings.duration.hours.toString()}
+                  onChange={(value) => updateSetting("duration.hours", parseInt(value) || 0)}
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "12px", fontWeight: 500 }}>{__("Minutes", "tutorpress")}</div>
+                <TextControl
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={lessonSettings.duration.minutes.toString()}
+                  onChange={(value) => updateSetting("duration.minutes", Math.min(59, parseInt(value) || 0))}
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "12px", fontWeight: 500 }}>{__("Seconds", "tutorpress")}</div>
+                <TextControl
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={lessonSettings.duration.seconds.toString()}
+                  onChange={(value) => updateSetting("duration.seconds", Math.min(59, parseInt(value) || 0))}
+                  disabled={isSaving}
+                />
+              </div>
+            </div>
+
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#757575",
+                margin: "4px 0 0 0",
+              }}
+            >
+              {hasDuration
+                ? __("Video duration is set and will be tracked for student progress", "tutorpress")
+                : __("Duration will be auto-detected for supported video sources", "tutorpress")}
+            </p>
+          </div>
+        </PanelRow>
+      )}
+
+      {/* Exercise Files Section */}
+      <PanelRow>
+        <div style={{ width: "100%" }}>
+          <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Exercise Files", "tutorpress")}</div>
+
+          <Button
+            variant="secondary"
+            onClick={openExerciseFilesLibrary}
+            disabled={isSaving}
+            style={{ width: "100%", marginBottom: "8px" }}
+          >
+            {exerciseFileCount > 0
+              ? __("Exercise Files", "tutorpress") + " (" + exerciseFileCount + " " + __("selected", "tutorpress") + ")"
+              : __("Add Exercise Files", "tutorpress")}
+          </Button>
+
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#757575",
+              margin: "0 0 8px 0",
+            }}
+          >
+            {__(
+              "Add files that students can download to complete exercises or assignments related to this lesson.",
+              "tutorpress"
+            )}
+          </p>
+
+          {/* Display selected files */}
+          {exerciseFileCount > 0 && (
+            <div style={{ marginTop: "8px" }}>
+              {lessonSettings.exercise_files?.map((attachmentId: number) => (
+                <div
+                  key={attachmentId}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "4px 8px",
+                    backgroundColor: "#f0f0f0",
+                    borderRadius: "4px",
+                    marginBottom: "4px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <span>{__("File ID:", "tutorpress") + " " + attachmentId}</span>
+                  <Button
+                    variant="link"
+                    onClick={() => removeExerciseFile(attachmentId)}
+                    style={{
+                      color: "#d63638",
+                      fontSize: "12px",
+                      padding: "0",
+                    }}
+                    disabled={isSaving}
+                  >
+                    {__("Remove", "tutorpress")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </PanelRow>
+
+      {/* Lesson Preview Section - Only show if addon is available */}
+      {lessonSettings.lesson_preview.addon_available && (
+        <PanelRow>
+          <div style={{ width: "100%" }}>
+            <ToggleControl
+              label={__("Lesson Preview", "tutorpress")}
+              help={
+                lessonSettings.lesson_preview.enabled
+                  ? __("This lesson can be viewed by guests without enrolling in the course", "tutorpress")
+                  : __("This lesson requires course enrollment to view", "tutorpress")
+              }
+              checked={lessonSettings.lesson_preview.enabled}
+              onChange={(enabled) => updateSetting("lesson_preview.enabled", enabled)}
+              disabled={isSaving}
+            />
+
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#757575",
+                margin: "4px 0 0 0",
+              }}
+            >
+              {__("If checked, any user/guest can view this lesson without enrolling in the course", "tutorpress")}
+            </p>
+          </div>
+        </PanelRow>
+      )}
+    </PluginDocumentSettingPanel>
+  );
+};
+
+export default LessonSettingsPanel;

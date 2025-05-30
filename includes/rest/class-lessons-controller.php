@@ -39,170 +39,211 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
      * @return void
      */
     public function register_routes() {
-        // Get lessons for a topic
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base,
-            [
+        try {
+            // Get lessons for a topic
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base,
                 [
-                    'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [$this, 'get_items'],
-                    'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'topic_id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the topic to get lessons for.', 'tutorpress'),
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_items'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'topic_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the topic to get lessons for.', 'tutorpress'),
+                            ],
                         ],
                     ],
-                ],
-                [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [$this, 'create_item'],
-                    'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'topic_id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the topic to create the lesson in.', 'tutorpress'),
-                        ],
-                        'title' => [
-                            'required'          => true,
-                            'type'             => 'string',
-                            'sanitize_callback' => 'sanitize_text_field',
-                            'description'       => __('The title of the lesson.', 'tutorpress'),
-                        ],
-                        'content' => [
-                            'type'              => 'string',
-                            'sanitize_callback' => 'wp_kses_post',
-                            'description'       => __('The content of the lesson.', 'tutorpress'),
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'create_item'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'topic_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the topic to create the lesson in.', 'tutorpress'),
+                            ],
+                            'title' => [
+                                'required'          => true,
+                                'type'             => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('The title of the lesson.', 'tutorpress'),
+                            ],
+                            'content' => [
+                                'type'              => 'string',
+                                'sanitize_callback' => 'wp_kses_post',
+                                'description'       => __('The content of the lesson.', 'tutorpress'),
+                            ],
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
 
-        // Single lesson operations
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base . '/(?P<id>[\d]+)',
-            [
+            // Single lesson operations
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<id>[\d]+)',
                 [
-                    'methods'             => 'PATCH',
-                    'callback'            => [$this, 'update_item'],
-                    'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'title' => [
-                            'type'              => 'string',
-                            'sanitize_callback' => 'sanitize_text_field',
-                            'description'       => __('The title of the lesson.', 'tutorpress'),
-                        ],
-                        'content' => [
-                            'type'              => 'string',
-                            'sanitize_callback' => 'wp_kses_post',
-                            'description'       => __('The content of the lesson.', 'tutorpress'),
-                        ],
-                        'menu_order' => [
-                            'type'              => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('Order of the lesson in the topic.', 'tutorpress'),
+                    [
+                        'methods'             => 'PATCH',
+                        'callback'            => [$this, 'update_item'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'title' => [
+                                'type'              => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('The title of the lesson.', 'tutorpress'),
+                            ],
+                            'content' => [
+                                'type'              => 'string',
+                                'sanitize_callback' => 'wp_kses_post',
+                                'description'       => __('The content of the lesson.', 'tutorpress'),
+                            ],
+                            'menu_order' => [
+                                'type'              => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('Order of the lesson in the topic.', 'tutorpress'),
+                            ],
                         ],
                     ],
-                ],
-                [
-                    'methods'             => WP_REST_Server::DELETABLE,
-                    'callback'            => [$this, 'delete_item'],
-                    'permission_callback' => [$this, 'check_permission'],
-                ],
-            ]
-        );
+                    [
+                        'methods'             => WP_REST_Server::DELETABLE,
+                        'callback'            => [$this, 'delete_item'],
+                        'permission_callback' => [$this, 'check_permission'],
+                    ],
+                ]
+            );
 
-        // Reorder lessons
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base . '/reorder',
-            [
+            // Reorder lessons
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/reorder',
                 [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [$this, 'reorder_items'],
-                    'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'topic_id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the topic to reorder lessons in.', 'tutorpress'),
-                        ],
-                        'lesson_orders' => [
-                            'required'          => true,
-                            'type'             => 'array',
-                            'items'            => [
-                                'type'       => 'object',
-                                'required'   => ['id', 'order'],
-                                'properties' => [
-                                    'id'    => [
-                                        'type'    => 'integer',
-                                        'minimum' => 1,
-                                    ],
-                                    'order' => [
-                                        'type'    => 'integer',
-                                        'minimum' => 0,
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'reorder_items'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'topic_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the topic to reorder lessons in.', 'tutorpress'),
+                            ],
+                            'lesson_orders' => [
+                                'required'          => true,
+                                'type'             => 'array',
+                                'items'            => [
+                                    'type'       => 'object',
+                                    'required'   => ['id', 'order'],
+                                    'properties' => [
+                                        'id'    => [
+                                            'type'    => 'integer',
+                                            'minimum' => 1,
+                                        ],
+                                        'order' => [
+                                            'type'    => 'integer',
+                                            'minimum' => 0,
+                                        ],
                                     ],
                                 ],
+                                'description'       => __('Array of lesson IDs and their new order positions.', 'tutorpress'),
                             ],
-                            'description'       => __('Array of lesson IDs and their new order positions.', 'tutorpress'),
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
 
-        // Duplicate lesson
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base . '/(?P<id>[\d]+)/duplicate',
-            [
+            // Duplicate lesson
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<id>[\d]+)/duplicate',
                 [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [$this, 'duplicate_item'],
-                    'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'topic_id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the topic to duplicate the lesson to.', 'tutorpress'),
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'duplicate_item'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'topic_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the topic to duplicate the lesson to.', 'tutorpress'),
+                            ],
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
 
-        // Get course ID for a lesson
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base . '/(?P<id>[\d]+)/parent-info',
-            [
+            // Get course ID for a lesson
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<id>[\d]+)/parent-info',
                 [
-                    'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [$this, 'get_parent_info'],
-                    'permission_callback' => function($request) {
-                        $lesson_id = (int) $request->get_param('id');
-                        return current_user_can('edit_post', $lesson_id);
-                    },
-                    'args'               => [
-                        'id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the lesson to get parent info for.', 'tutorpress'),
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_parent_info'],
+                        'permission_callback' => function($request) {
+                            $lesson_id = (int) $request->get_param('id');
+                            return current_user_can('edit_post', $lesson_id);
+                        },
+                        'args'               => [
+                            'id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the lesson to get parent info for.', 'tutorpress'),
+                            ],
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
+
+            // Get attachment metadata for video duration extraction
+            register_rest_route(
+                $this->namespace,
+                '/attachments/(?P<id>\d+)',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_attachment_metadata'],
+                        'permission_callback' => function() {
+                            return current_user_can('edit_posts');
+                        },
+                        'args'                => [
+                            'id' => [
+                                'validate_callback' => function($param, $request, $key) {
+                                    return is_numeric($param);
+                                },
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
+            // Test endpoint to verify controller registration
+            register_rest_route(
+                $this->namespace,
+                '/test',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => function() {
+                            return rest_ensure_response(['message' => 'Lessons controller is working']);
+                        },
+                        'permission_callback' => '__return_true',
+                    ],
+                ]
+            );
+        } catch (Exception $e) {
+            error_log('TutorPress Debug: Lessons controller register_routes() error - ' . $e->getMessage());
+        }
     }
 
     /**
@@ -921,5 +962,102 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
 
         // Clear the post cache
         clean_post_cache($post_id);
+    }
+
+    /**
+     * Get attachment metadata for video duration extraction
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function get_attachment_metadata($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $attachment_id = $request->get_param('id');
+
+            // Validate attachment
+            $attachment = get_post($attachment_id);
+            if (!$attachment || $attachment->post_type !== 'attachment') {
+                return new WP_Error(
+                    'invalid_attachment',
+                    __('Invalid attachment ID.', 'tutorpress'),
+                    ['status' => 404]
+                );
+            }
+
+            // Check if it's a video file
+            $mime_type = get_post_mime_type($attachment_id);
+            if (!str_starts_with($mime_type, 'video/')) {
+                return new WP_Error(
+                    'not_video',
+                    __('Attachment is not a video file.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+
+            // Get WordPress attachment metadata
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            
+            $response_data = [
+                'id' => $attachment_id,
+                'url' => wp_get_attachment_url($attachment_id),
+                'mime_type' => $mime_type,
+                'duration' => null,
+            ];
+            
+            // Extract video duration if available
+            if ($metadata) {
+                $duration = [
+                    'hours' => 0,
+                    'minutes' => 0,
+                    'seconds' => 0,
+                ];
+
+                // Check for duration in metadata (WordPress 5.6+)
+                if (isset($metadata['length_formatted'])) {
+                    // Parse formatted duration like "1:23:45" or "23:45"
+                    $parts = explode(':', $metadata['length_formatted']);
+                    $parts = array_reverse($parts); // Start from seconds
+                    
+                    if (isset($parts[0])) {
+                        $duration['seconds'] = (int) $parts[0];
+                    }
+                    if (isset($parts[1])) {
+                        $duration['minutes'] = (int) $parts[1];
+                    }
+                    if (isset($parts[2])) {
+                        $duration['hours'] = (int) $parts[2];
+                    }
+                } elseif (isset($metadata['length'])) {
+                    // Duration in seconds
+                    $total_seconds = (int) $metadata['length'];
+                    $duration['hours'] = floor($total_seconds / 3600);
+                    $duration['minutes'] = floor(($total_seconds % 3600) / 60);
+                    $duration['seconds'] = $total_seconds % 60;
+                }
+
+                $response_data['duration'] = $duration;
+            }
+
+            return rest_ensure_response(
+                $this->format_response(
+                    $response_data,
+                    __('Attachment metadata retrieved successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'attachment_metadata_fetch_error',
+                __('An unexpected error occurred while retrieving the attachment metadata. Please try again.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
     }
 } 
