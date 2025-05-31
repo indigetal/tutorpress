@@ -7,6 +7,7 @@ import React from "react";
 import Curriculum from "./components/metaboxes/Curriculum";
 import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
 import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
+import { QuizModal } from "./components/modals/QuizModal";
 import "./api"; // Import API module to expose it to window
 
 // Register the assignment settings plugin for Gutenberg sidebar
@@ -26,3 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     render(<Curriculum />, root);
   }
 });
+
+// Expose QuizModal to global scope for testing
+(window as any).tutorpress = (window as any).tutorpress || {};
+(window as any).tutorpress.QuizModal = QuizModal;

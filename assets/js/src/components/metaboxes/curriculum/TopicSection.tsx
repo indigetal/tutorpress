@@ -1,4 +1,4 @@
-import React, { type MouseEvent } from "react";
+import React, { type MouseEvent, useState } from "react";
 import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock } from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
@@ -7,6 +7,7 @@ import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
+import { QuizModal } from "../../modals/QuizModal";
 
 /**
  * Props for content item row
@@ -64,6 +65,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   onToggle,
   isEditing,
 }): JSX.Element => {
+  // Quiz modal state
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
     courseId,
@@ -83,6 +87,17 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     url.searchParams.append("post", lessonId.toString());
     url.searchParams.append("action", "edit");
     window.location.href = url.toString();
+  };
+
+  // Handle quiz modal open
+  const handleQuizModalOpen = () => {
+    setIsQuizModalOpen(true);
+  };
+
+  // Handle quiz modal close
+  const handleQuizModalClose = () => {
+    setIsQuizModalOpen(false);
+    // TODO: Refresh curriculum if quiz was created/updated
   };
 
   // Handle double-click on title or summary
@@ -193,7 +208,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               >
                 {__("Lesson", "tutorpress")}
               </Button>
-              <Button variant="secondary" isSmall icon={plus}>
+              <Button variant="secondary" isSmall icon={plus} onClick={handleQuizModalOpen}>
                 {__("Quiz", "tutorpress")}
               </Button>
               <Button variant="secondary" isSmall icon={plus}>
@@ -219,6 +234,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
           </Flex>
         </CardBody>
       ) : null}
+
+      {/* Quiz Modal */}
+      <QuizModal isOpen={isQuizModalOpen} onClose={handleQuizModalClose} topicId={topic.id} courseId={courseId} />
     </Card>
   );
 };
