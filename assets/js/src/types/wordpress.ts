@@ -167,6 +167,17 @@ export interface TutorPressApi {
   duplicateTopic: (topicId: number, courseId: number) => Promise<any>;
 }
 
+/**
+ * TutorPress Quiz utilities interface for window.tutorpress.quiz
+ */
+export interface TutorPressQuizUtils {
+  getDefaultQuizSettings: () => any;
+  getDefaultQuestionSettings: (questionType: string) => any;
+  isValidQuizQuestion: (question: unknown) => boolean;
+  isValidQuizDetails: (quiz: unknown) => boolean;
+  createQuizError: (code: string, message: string, operation: any, context?: any) => any;
+}
+
 // ============================================================================
 // Global Window Interface Augmentations
 // ============================================================================
@@ -213,6 +224,7 @@ declare global {
      */
     tutorpress: {
       api: TutorPressApi;
+      quiz: TutorPressQuizUtils;
     };
   }
 }
