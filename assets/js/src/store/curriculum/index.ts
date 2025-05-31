@@ -11,6 +11,7 @@ import {
   TopicDuplicationState,
   LessonDuplicationState,
   AssignmentDuplicationState,
+  QuizDuplicationState,
   CurriculumError,
   OperationResult,
   TopicActiveOperation,
@@ -56,6 +57,7 @@ interface CurriculumState {
   };
   lessonDuplicationState: LessonDuplicationState;
   assignmentDuplicationState: AssignmentDuplicationState;
+  quizDuplicationState: QuizDuplicationState;
   lessonState: {
     status: "idle" | "loading" | "error" | "success";
     error?: CurriculumError;
@@ -81,6 +83,7 @@ const DEFAULT_STATE: CurriculumState = {
   duplicationState: { status: "idle" },
   lessonDuplicationState: { status: "idle" },
   assignmentDuplicationState: { status: "idle" },
+  quizDuplicationState: { status: "idle" },
   reorderState: { status: "idle" },
   lessonState: { status: "idle" },
   isAddingTopic: false,
@@ -104,6 +107,7 @@ export type CurriculumAction =
   | { type: "SET_DUPLICATION_STATE"; payload: TopicDuplicationState }
   | { type: "SET_LESSON_DUPLICATION_STATE"; payload: LessonDuplicationState }
   | { type: "SET_ASSIGNMENT_DUPLICATION_STATE"; payload: AssignmentDuplicationState }
+  | { type: "SET_QUIZ_DUPLICATION_STATE"; payload: QuizDuplicationState }
   | { type: "SET_IS_ADDING_TOPIC"; payload: boolean }
   | { type: "SET_ACTIVE_OPERATION"; payload: TopicActiveOperation }
   | { type: "FETCH_TOPICS_START"; payload: { courseId: number } }
@@ -197,6 +201,12 @@ export const actions = {
   setAssignmentDuplicationState(state: AssignmentDuplicationState) {
     return {
       type: "SET_ASSIGNMENT_DUPLICATION_STATE",
+      payload: state,
+    };
+  },
+  setQuizDuplicationState(state: QuizDuplicationState) {
+    return {
+      type: "SET_QUIZ_DUPLICATION_STATE",
       payload: state,
     };
   },
@@ -424,6 +434,9 @@ const selectors = {
   getAssignmentDuplicationState(state: CurriculumState) {
     return state.assignmentDuplicationState;
   },
+  getQuizDuplicationState(state: CurriculumState) {
+    return state.quizDuplicationState;
+  },
   getIsAddingTopic(state: CurriculumState) {
     return state.isAddingTopic;
   },
@@ -640,6 +653,14 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       return {
         ...state,
         assignmentDuplicationState: newState,
+      };
+    }
+
+    case "SET_QUIZ_DUPLICATION_STATE": {
+      const newState = handleStateUpdate(state.quizDuplicationState, action.payload);
+      return {
+        ...state,
+        quizDuplicationState: newState,
       };
     }
 
@@ -1702,6 +1723,7 @@ export const {
   getDuplicationState,
   getLessonDuplicationState,
   getAssignmentDuplicationState,
+  getQuizDuplicationState,
   getIsAddingTopic,
   getActiveOperation,
   getLessonState,

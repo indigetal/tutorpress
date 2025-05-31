@@ -252,6 +252,13 @@ export interface AssignmentDuplicationState {
   duplicatedAssignmentId?: number;
 }
 
+export interface QuizDuplicationState {
+  status: "idle" | "duplicating" | "error" | "success";
+  error?: CurriculumError;
+  sourceQuizId?: number;
+  duplicatedQuizId?: number;
+}
+
 export type TopicActiveOperation =
   | { type: "none" }
   | { type: "edit"; topicId: number }
@@ -274,6 +281,13 @@ export type AssignmentActiveOperation =
   | { type: "duplicate"; assignmentId: number }
   | { type: "create" };
 
+export type QuizActiveOperation =
+  | { type: "none" }
+  | { type: "edit"; quizId: number }
+  | { type: "delete"; quizId: number }
+  | { type: "duplicate"; quizId: number }
+  | { type: "create" };
+
 export interface CurriculumState {
   topics: Topic[];
   operationState: TopicOperationState;
@@ -283,6 +297,7 @@ export interface CurriculumState {
   duplicationState: TopicDuplicationState;
   lessonDuplicationState: LessonDuplicationState;
   assignmentDuplicationState: AssignmentDuplicationState;
+  quizDuplicationState: QuizDuplicationState;
   reorderState: ReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: TopicActiveOperation;
