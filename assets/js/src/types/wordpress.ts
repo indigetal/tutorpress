@@ -176,6 +176,13 @@ export interface TutorPressQuizUtils {
   isValidQuizQuestion: (question: unknown) => boolean;
   isValidQuizDetails: (quiz: unknown) => boolean;
   createQuizError: (code: string, message: string, operation: any, context?: any) => any;
+  // Quiz service methods
+  saveQuiz: (quizData: any, courseId: number, topicId: number) => Promise<any>;
+  getQuizDetails: (quizId: number) => Promise<any>;
+  deleteQuiz: (quizId: number) => Promise<any>;
+  duplicateQuiz: (sourceQuizId: number, topicId: number, courseId: number) => Promise<any>;
+  // Service instance
+  service: any;
 }
 
 // ============================================================================

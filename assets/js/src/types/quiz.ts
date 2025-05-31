@@ -146,7 +146,7 @@ export interface QuizQuestion {
 // ============================================================================
 
 /**
- * Quiz form data structure for API submission
+ * Quiz form data structure for saving
  */
 export interface QuizForm {
   ID?: number;
@@ -154,8 +154,8 @@ export interface QuizForm {
   post_content: string;
   quiz_option: QuizSettings;
   questions: QuizQuestion[];
-  deleted_question_ids: number[];
-  deleted_answer_ids: number[];
+  deleted_question_ids?: number[];
+  deleted_answer_ids?: number[];
   menu_order?: number;
 }
 
