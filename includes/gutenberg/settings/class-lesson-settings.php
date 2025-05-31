@@ -232,7 +232,7 @@ class TutorPress_Lesson_Settings {
     }
 
     /**
-     * Handle Tutor LMS tutor_attachments meta updates.
+     * Handle Tutor LMS _tutor_attachments meta updates.
      *
      * @since 1.4.0
      * @param int $meta_id Meta ID.
@@ -242,8 +242,8 @@ class TutorPress_Lesson_Settings {
      * @return void
      */
     public static function handle_tutor_attachments_meta_update($meta_id, $post_id, $meta_key, $meta_value) {
-        // Only handle tutor_attachments updates for lessons
-        if ($meta_key !== 'tutor_attachments' || get_post_type($post_id) !== 'lesson') {
+        // Only handle _tutor_attachments updates for lessons (with underscore)
+        if ($meta_key !== '_tutor_attachments' || get_post_type($post_id) !== 'lesson') {
             return;
         }
 
@@ -468,7 +468,12 @@ class TutorPress_Lesson_Settings {
             $exercise_files = [];
         }
 
-        update_post_meta($post_id, 'tutor_attachments', $exercise_files);
+        // Sync to the correct Tutor LMS meta key (with underscore)
+        if (!empty($exercise_files)) {
+            update_post_meta($post_id, '_tutor_attachments', $exercise_files);
+        } else {
+            delete_post_meta($post_id, '_tutor_attachments');
+        }
     }
 
     /**
@@ -820,27 +825,13 @@ class TutorPress_Lesson_Settings {
      * @return void
      */
     public static function handle_lesson_settings_update($meta_id, $post_id, $meta_key, $meta_value) {
-        // TEMPORARY: Disable sync for testing - user hasn't seen any issues without it
-        return;
-        
-        // Only handle our lesson settings meta keys
-        $lesson_meta_keys = [
-            '_lesson_video_source',
-            '_lesson_video_source_id',
-            '_lesson_video_external_url',
-            '_lesson_video_youtube',
-            '_lesson_video_vimeo',
-            '_lesson_video_embedded',
-            '_lesson_video_shortcode',
-            '_lesson_video_poster',
-            '_lesson_video_duration_hours',
-            '_lesson_video_duration_minutes',
-            '_lesson_video_duration_seconds',
+        // Only handle our lesson settings meta keys (excluding video fields to avoid conflicts)
+        $non_video_meta_keys = [
             '_lesson_exercise_files',
             '_lesson_is_preview'
         ];
         
-        if (!in_array($meta_key, $lesson_meta_keys) || get_post_type($post_id) !== 'lesson') {
+        if (!in_array($meta_key, $non_video_meta_keys) || get_post_type($post_id) !== 'lesson') {
             return;
         }
         
@@ -852,10 +843,14 @@ class TutorPress_Lesson_Settings {
         
         update_post_meta($post_id, '_tutorpress_sync_last_update', time());
         
-        // Sync to Tutor LMS native formats for compatibility
-        self::sync_to_tutor_video_format($post_id);
-        self::sync_exercise_files($post_id);
-        self::sync_lesson_preview($post_id);
+        // Only sync non-video fields to avoid conflicts
+        if ($meta_key === '_lesson_exercise_files') {
+            self::sync_exercise_files($post_id);
+        }
+        
+        if ($meta_key === '_lesson_is_preview') {
+            self::sync_lesson_preview($post_id);
+        }
     }
 
     /**
@@ -870,5 +865,7 @@ class TutorPress_Lesson_Settings {
     public static function sync_on_lesson_save($post_id, $post, $update) {
         // Sync to Tutor LMS native formats for compatibility
         self::sync_to_tutor_video_format($post_id);
+        self::sync_exercise_files($post_id);
+        self::sync_lesson_preview($post_id);
     }
 } 
