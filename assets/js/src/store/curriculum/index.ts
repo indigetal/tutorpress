@@ -249,10 +249,6 @@ export const actions = {
           }
         }
 
-        if (process.env.NODE_ENV === "development") {
-          console.log("fetchCourseId: Using endpoint", { path, isAssignment, isNewContent, id });
-        }
-
         const response = await apiFetch<ParentInfoResponse>({
           path,
           method: "GET",
@@ -264,7 +260,6 @@ export const actions = {
 
         dispatch({ type: "FETCH_COURSE_ID_SUCCESS", payload: { courseId: response.data.course_id } });
       } catch (error) {
-        console.error("Error fetching course ID:", error);
         dispatch({
           type: "FETCH_COURSE_ID_ERROR",
           payload: {
@@ -481,52 +476,20 @@ const handleStateUpdate = <T>(currentState: T, newState: T | ((state: T) => T)):
 
 // Reducer
 const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumState => {
-  if (process.env.NODE_ENV === "development") {
-    console.log("Reducer: Processing action:", action.type);
-  }
-
   switch (action.type) {
-    case "FETCH_TOPICS_START":
-      return {
-        ...state,
-        operationState: { status: "loading" },
-      };
     case "SET_TOPICS": {
       const newTopics = handleStateUpdate(state.topics, action.payload);
-      if (process.env.NODE_ENV === "development") {
-        console.log("Reducer: Setting topics:", newTopics);
-      }
       return {
         ...state,
         topics: newTopics,
-        operationState: state.operationState,
       };
     }
 
     case "SET_OPERATION_STATE": {
       const newState = handleStateUpdate(state.operationState, action.payload);
-      if (process.env.NODE_ENV === "development") {
-        console.log("Reducer: Setting operation state:", newState);
-      }
       return {
         ...state,
         operationState: newState,
-      };
-    }
-
-    case "SET_ACTIVE_OPERATION": {
-      if (state.activeOperation.type !== "none" && action.payload.type !== "none") {
-        if (process.env.NODE_ENV === "development") {
-          console.warn(
-            `Attempting to set active operation to ${action.payload.type} while ${state.activeOperation.type} is in progress`
-          );
-        }
-        return state;
-      }
-
-      return {
-        ...state,
-        activeOperation: action.payload,
       };
     }
 
@@ -557,9 +520,6 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
 
     case "SET_TOPIC_CREATION_STATE": {
       const newState = handleStateUpdate(state.topicCreationState, action.payload);
-      if (process.env.NODE_ENV === "development") {
-        console.log("Reducer: Setting topic creation state:", newState);
-      }
 
       if (newState.status === "creating") {
         return {
@@ -1628,10 +1588,6 @@ const resolvers = {
   },
 
   *refreshTopicsAfterLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Resolver: Refreshing topics after lesson save for course:", courseId);
-    }
-
     try {
       yield actions.setOperationState({ status: "loading" });
 
@@ -1654,12 +1610,7 @@ const resolvers = {
 
       yield actions.setTopics(topics);
       yield actions.setOperationState({ status: "success", data: topics });
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("Resolver: Successfully refreshed topics after lesson save");
-      }
     } catch (error) {
-      console.error("Error refreshing topics after lesson save:", error);
       yield actions.setOperationState({
         status: "error",
         error: {
@@ -1672,10 +1623,6 @@ const resolvers = {
   },
 
   *refreshTopicsAfterAssignmentSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Resolver: Refreshing topics after assignment save for course:", courseId);
-    }
-
     try {
       yield actions.setOperationState({ status: "loading" });
 
@@ -1698,12 +1645,7 @@ const resolvers = {
 
       yield actions.setTopics(topics);
       yield actions.setOperationState({ status: "success", data: topics });
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("Resolver: Successfully refreshed topics after assignment save");
-      }
     } catch (error) {
-      console.error("Error refreshing topics after assignment save:", error);
       yield actions.setOperationState({
         status: "error",
         error: {
@@ -1729,30 +1671,9 @@ const curriculumStore = createReduxStore("tutorpress/curriculum", {
 
 register(curriculumStore);
 
-const verifyStoreRegistration = () => {
-  try {
-    const store = select("tutorpress/curriculum");
-    if (!store) {
-      console.error("Store not found:", store);
-      return false;
-    }
-    console.log("Store successfully registered:", curriculumStore);
-    return true;
-  } catch (error) {
-    console.error("Error verifying store registration:", error);
-    return false;
-  }
-};
-
-// Verify registration
-if (!verifyStoreRegistration()) {
-  console.error("Failed to register curriculum store!");
-}
-
-// Log the store registration
-console.log("Store registered:", curriculumStore);
-
 export { curriculumStore };
+
+// Export actions
 export const {
   setTopics,
   setOperationState,
@@ -1770,6 +1691,7 @@ export const {
   refreshTopicsAfterAssignmentSave,
 } = actions;
 
+// Export selectors
 export const {
   getTopics,
   getOperationState,

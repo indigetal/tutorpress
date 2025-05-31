@@ -157,22 +157,21 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleLessonEdit(item.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentEdit(item.id)
-                    : () =>
-                        console.log("Edit content:", item.id, "- Edit functionality not yet implemented for", item.type)
+                    : undefined
                 }
                 onDuplicate={
                   item.type === "lesson"
                     ? () => handleLessonDuplicate(item.id, topic.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentDuplicate(item.id, topic.id)
-                    : () => console.log("Duplicate content:", item.id)
+                    : undefined
                 }
                 onDelete={
                   item.type === "lesson"
                     ? () => handleLessonDelete(item.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentDelete(item.id)
-                    : () => console.log("Delete content:", item.id)
+                    : undefined
                 }
               />
             ))}

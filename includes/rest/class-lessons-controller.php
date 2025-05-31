@@ -242,7 +242,8 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
                 ]
             );
         } catch (Exception $e) {
-            error_log('TutorPress Debug: Lessons controller register_routes() error - ' . $e->getMessage());
+            // Silently handle any registration errors
+            return;
         }
     }
 

@@ -83,9 +83,10 @@ add_action('init', function() {
                 $assignment_post_type->show_in_rest = true;
             }
             
-            // Log the modification for debugging
-            $gutenberg_status = $enable_gutenberg ? 'enabled' : 'disabled';
-            error_log("TutorPress: Modified assignment post type to enable admin UI (Gutenberg: {$gutenberg_status})");
+            // Enable Gutenberg for assignments if not already enabled
+            if (!post_type_supports('tutor_assignments', 'editor')) {
+                add_post_type_support('tutor_assignments', 'editor');
+            }
         }
     }
 }, 20); // Priority 20 to run after Tutor LMS registration

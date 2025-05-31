@@ -489,7 +489,9 @@ class TutorPress_Lesson_Settings {
 
         // Get lesson preview setting and sync to Tutor LMS format
         $is_preview = get_post_meta($post_id, '_lesson_is_preview', true);
-        update_post_meta($post_id, '_is_preview', $is_preview ? 1 : 0);
+        $tutor_value = $is_preview ? 1 : 0;
+        
+        update_post_meta($post_id, '_is_preview', $tutor_value);
     }
 
     /**
@@ -504,6 +506,27 @@ class TutorPress_Lesson_Settings {
 
         // Check if Tutor Course Preview addon is available
         $course_preview_available = self::is_course_preview_addon_available();
+
+        // Debug: Check current meta values
+        $gutenberg_preview = get_post_meta($post_id, '_lesson_is_preview', true);
+        $tutor_preview = get_post_meta($post_id, '_is_preview', true);
+
+        // Sync from Tutor LMS to Gutenberg if there's a mismatch
+        // This ensures that changes made in Tutor LMS frontend are reflected in Gutenberg
+        if ($course_preview_available) {
+            // Convert values to booleans for comparison
+            $tutor_preview_bool = !empty($tutor_preview);
+            $gutenberg_preview_bool = !empty($gutenberg_preview);
+            
+            if ($tutor_preview_bool !== $gutenberg_preview_bool) {
+                // Set flag to prevent sync loop
+                update_post_meta($post_id, '_tutorpress_syncing_from_tutor', time());
+                update_post_meta($post_id, '_lesson_is_preview', $tutor_preview_bool);
+                delete_post_meta($post_id, '_tutorpress_syncing_from_tutor');
+                
+                $gutenberg_preview = $tutor_preview_bool;
+            }
+        }
 
         return [
             'video' => [
@@ -523,7 +546,7 @@ class TutorPress_Lesson_Settings {
             ],
             'exercise_files' => array_map('intval', get_post_meta($post_id, '_lesson_exercise_files', true) ?: []),
             'lesson_preview' => [
-                'enabled' => (bool) get_post_meta($post_id, '_lesson_is_preview', true),
+                'enabled' => (bool) $gutenberg_preview,
                 'addon_available' => $course_preview_available,
             ],
         ];
@@ -720,6 +743,7 @@ class TutorPress_Lesson_Settings {
     private static function is_course_preview_addon_available() {
         // Primary check: Look for the specific addon file
         $addon_file = WP_PLUGIN_DIR . '/tutor-pro/addons/tutor-course-preview/tutor-course-preview.php';
+        
         if (!file_exists($addon_file)) {
             return false;
         }
@@ -741,6 +765,7 @@ class TutorPress_Lesson_Settings {
             $tutor_options = get_option('tutor_option', array());
             if (isset($tutor_options['tutor_pro_addons'])) {
                 $addons = $tutor_options['tutor_pro_addons'];
+                
                 if (isset($addons[$addon_basename])) {
                     $is_enabled = !empty($addons[$addon_basename]);
                     return $is_enabled;
@@ -749,7 +774,10 @@ class TutorPress_Lesson_Settings {
         }
         
         // Final fallback: Check for constant or class (but only if file exists)
-        return defined('TUTOR_CP_VERSION') || class_exists('TUTOR_CP\CoursePreview');
+        $constant_check = defined('TUTOR_CP_VERSION');
+        $class_check = class_exists('TUTOR_CP\CoursePreview');
+        
+        return $constant_check || $class_check;
     }
 
     /**
@@ -835,6 +863,11 @@ class TutorPress_Lesson_Settings {
             return;
         }
         
+        // Skip if we're currently syncing from Tutor LMS to prevent loops
+        if (get_post_meta($post_id, '_tutorpress_syncing_from_tutor', true)) {
+            return;
+        }
+        
         // Avoid infinite loops
         $our_last_update = get_post_meta($post_id, '_tutorpress_sync_last_update', true);
         if ($our_last_update && (time() - $our_last_update) < 5) {
@@ -863,6 +896,17 @@ class TutorPress_Lesson_Settings {
      * @return void
      */
     public static function sync_on_lesson_save($post_id, $post, $update) {
+        // Don't sync if this save was initiated by Tutor LMS AJAX
+        // This prevents us from overwriting changes made in Tutor LMS frontend
+        if (wp_doing_ajax() && isset($_POST['action']) && $_POST['action'] === 'tutor_save_lesson') {
+            return;
+        }
+        
+        // Don't sync if this is an autosave or revision
+        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
+            return;
+        }
+        
         // Sync to Tutor LMS native formats for compatibility
         self::sync_to_tutor_video_format($post_id);
         self::sync_exercise_files($post_id);

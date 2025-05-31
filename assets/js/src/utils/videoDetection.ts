@@ -40,38 +40,30 @@ export async function getVimeoVideoDuration(videoUrl: string): Promise<number | 
   const videoId = match ? match[5] : null;
 
   if (!videoId) {
-    console.error("TutorPress Debug: Could not extract Vimeo video ID from:", videoUrl);
     return null;
   }
 
   const jsonUrl = `https://vimeo.com/api/v2/video/${videoId}.xml`;
-  console.log("TutorPress Debug: Fetching Vimeo data from:", jsonUrl);
 
   try {
     const response = await fetch(jsonUrl);
-    if (!response.ok) {
-      throw new Error(__("Failed to fetch the video data", "tutorpress"));
-    }
-
     const textData = await response.text();
-    console.log("TutorPress Debug: Vimeo XML response:", textData.substring(0, 500) + "...");
 
+    // Parse XML manually since we're dealing with XML response
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(textData, "application/xml");
-    const durationElement = xmlDoc.getElementsByTagName("duration")[0];
+    const xmlDoc = parser.parseFromString(textData, "text/xml");
 
-    if (!durationElement || !durationElement.textContent) {
-      console.error("TutorPress Debug: No duration element found in Vimeo response");
-      return null;
+    // Extract duration from XML
+    const durationElement = xmlDoc.querySelector("duration");
+    if (durationElement) {
+      const duration = parseInt(durationElement.textContent || "0", 10);
+      return duration; // in seconds
     }
-
-    const duration = Number.parseInt(durationElement.textContent, 10);
-    console.log("TutorPress Debug: Vimeo duration in seconds:", duration);
-    return duration; // in seconds
   } catch (error) {
-    console.error("Error fetching Vimeo video duration:", error);
-    return null;
+    // Silently handle errors
   }
+
+  return null;
 }
 
 /**
@@ -91,7 +83,6 @@ export async function getExternalVideoDuration(videoUrl: string): Promise<number
     };
 
     video.onerror = () => {
-      console.error("Error loading video metadata for:", videoUrl);
       resolve(null);
       video.remove();
     };
@@ -131,7 +122,6 @@ export async function getYouTubeVideoDuration(videoId: string): Promise<string |
 
     return null;
   } catch (error) {
-    console.error("Error fetching YouTube video duration:", error);
     return null;
   }
 }
@@ -162,8 +152,6 @@ export function convertSecondsToHMS(seconds: number): VideoDuration {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const sec = seconds % 60;
-
-  console.log(`TutorPress Debug: Converting ${seconds} seconds to ${hours}h ${minutes}m ${sec}s`);
 
   return { hours, minutes, seconds: sec };
 }
@@ -216,7 +204,6 @@ export function validateVideoSource(source: VideoSource, url: string): boolean {
  */
 export async function detectVideoDuration(source: VideoSource, url: string): Promise<VideoDuration | null> {
   if (!validateVideoSource(source, url)) {
-    console.error("Invalid video source or URL:", source, url);
     return null;
   }
 
@@ -251,7 +238,6 @@ export async function detectVideoDuration(source: VideoSource, url: string): Pro
 
     return null;
   } catch (error) {
-    console.error(`Error detecting ${source} video duration:`, error);
     return null;
   }
 }
