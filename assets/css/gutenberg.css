@@ -336,17 +336,19 @@
 }
 
 .quiz-modal-content {
-  min-height: 600px;
+  min-height: 500px; /* Reduced from 600px to make footer visible */
+  max-height: 70vh; /* Add max height to prevent excessive scrolling */
+  overflow-y: auto; /* Allow scrolling within content area if needed */
 }
 
 /* Tab Panel Styles */
 .quiz-modal-tabs .components-tab-panel__tabs {
   border-bottom: 1px solid #ddd;
-  margin-bottom: 20px;
+  margin-bottom: 16px; /* Reduced from 20px */
 }
 
 .quiz-modal-tabs .components-tab-panel__tabs-item {
-  padding: 12px 20px;
+  padding: 10px 16px; /* Reduced padding */
   border: none;
   background: none;
   cursor: pointer;
@@ -362,22 +364,22 @@
 .quiz-modal-three-column-layout {
   display: grid;
   grid-template-columns: 300px 1fr 280px;
-  gap: 20px;
-  min-height: 500px;
+  gap: 16px; /* Reduced from 20px */
+  min-height: 400px; /* Reduced from 500px */
 }
 
 .quiz-modal-left-column {
   border-right: 1px solid #ddd;
-  padding-right: 20px;
+  padding-right: 16px; /* Reduced from 20px */
 }
 
 .quiz-modal-center-column {
-  padding: 0 20px;
+  padding: 0 16px; /* Reduced from 20px */
   border-right: 1px solid #ddd;
 }
 
 .quiz-modal-right-column {
-  padding-left: 20px;
+  padding-left: 16px; /* Reduced from 20px */
 }
 
 /* Left Column Styles */
@@ -391,14 +393,14 @@
 .quiz-modal-topic-context {
   color: #666;
   font-size: 12px;
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0; /* Reduced from 20px */
 }
 
 .quiz-modal-questions-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 12px; /* Reduced from 15px */
 }
 
 .quiz-modal-questions-header h4 {
@@ -429,7 +431,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  height: 150px; /* Reduced from 200px */
   background: #f9f9f9;
   border: 2px dashed #ddd;
   border-radius: 4px;
@@ -448,7 +450,7 @@
 }
 
 .quiz-modal-settings-content h3 {
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0; /* Reduced from 20px */
   font-size: 18px;
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -456,8 +458,8 @@
 
 .quiz-modal-basic-settings,
 .quiz-modal-advanced-settings {
-  margin-bottom: 30px;
-  padding: 20px;
+  margin-bottom: 20px; /* Reduced from 30px */
+  padding: 16px; /* Reduced from 20px */
   background: #f9f9f9;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
@@ -465,7 +467,7 @@
 
 .quiz-modal-basic-settings h4,
 .quiz-modal-advanced-settings h4 {
-  margin: 0 0 15px 0;
+  margin: 0 0 12px 0; /* Reduced from 15px */
   font-size: 14px;
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -476,16 +478,144 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 20px;
+  padding-top: 16px; /* Reduced from 20px */
   border-top: 1px solid #ddd;
-  margin-top: 20px;
+  margin-top: 16px; /* Reduced from 20px */
+  position: sticky; /* Make footer sticky */
+  bottom: 0;
+  background: white;
+  z-index: 10;
 }
 
-/* Responsive Design */
+/* Quiz Modal Form Styles */
+.quiz-modal-quiz-info {
+  margin-bottom: 16px; /* Reduced from 20px */
+}
+
+.quiz-modal-quiz-info .components-base-control {
+  margin-bottom: 12px; /* Reduced from 16px */
+}
+
+.quiz-modal-quiz-info .components-text-control__input.has-error,
+.quiz-modal-quiz-info .components-textarea-control__input.has-error {
+  border-color: #d63638;
+}
+
+/* Quiz Settings Form Styles */
+.quiz-modal-setting-group {
+  margin-bottom: 16px; /* Reduced from 24px */
+  padding-bottom: 12px; /* Reduced from 16px */
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.quiz-modal-setting-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.quiz-modal-setting-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px; /* Reduced from 8px */
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+}
+
+.quiz-modal-setting-help {
+  margin: 6px 0 0 0; /* Reduced from 8px */
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Form Control Spacing */
+.quiz-modal-settings .components-base-control {
+  margin-bottom: 0;
+}
+
+.quiz-modal-settings .components-base-control__label {
+  font-weight: 600;
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+}
+
+/* Number Control and Select Control Styling */
+.quiz-modal-settings .components-number-control__input,
+.quiz-modal-settings .components-select-control__input {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.quiz-modal-settings .components-number-control__input:focus,
+.quiz-modal-settings .components-select-control__input:focus {
+  border-color: var(--wp-admin-theme-color, #0073aa);
+  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
+}
+
+/* Toggle Control Styling */
+.quiz-modal-settings .components-toggle-control {
+  margin-bottom: 6px; /* Reduced from 8px */
+}
+
+.quiz-modal-settings .components-toggle-control .components-toggle-control__label {
+  font-weight: 600;
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+}
+
+/* Notice Styling in Modal */
+.quiz-modal-setting-group .components-notice {
+  margin: 6px 0 0 0; /* Reduced from 8px */
+  padding: 6px 10px; /* Reduced padding */
+}
+
+.quiz-modal-setting-group .components-notice.is-error {
+  background-color: #fcf0f1;
+  border-left: 4px solid #d63638;
+}
+
+/* HStack Alignment - Fix Time Limit dropdown positioning */
+.quiz-modal-settings .components-h-stack {
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px !important;
+  flex-wrap: nowrap;
+}
+
+.quiz-modal-settings .components-h-stack > * {
+  flex-shrink: 0;
+}
+
+/* Disabled State for Add Question Button */
+.quiz-modal-add-question-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Form Validation Error States */
+.quiz-modal .has-error .components-text-control__input,
+.quiz-modal .has-error .components-textarea-control__input {
+  border-color: #d63638 !important;
+}
+
+.quiz-modal .components-base-control__help {
+  color: #d63638;
+  font-weight: 500;
+}
+
+/* Modal Footer Button States */
+.quiz-modal-footer .components-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-footer .components-button.is-busy {
+  position: relative;
+}
+
+/* Responsive Form Layout */
 @media (max-width: 1024px) {
   .quiz-modal-three-column-layout {
     grid-template-columns: 250px 1fr 250px;
-    gap: 15px;
+    gap: 12px; /* Reduced gap */
   }
 }
 
@@ -496,7 +626,7 @@
 
   .quiz-modal-three-column-layout {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px; /* Reduced gap */
   }
 
   .quiz-modal-left-column,
@@ -504,10 +634,21 @@
     border-right: none;
     padding-right: 0;
     border-bottom: 1px solid #ddd;
-    padding-bottom: 20px;
+    padding-bottom: 16px; /* Reduced padding */
   }
 
   .quiz-modal-right-column {
     padding-left: 0;
+  }
+
+  .quiz-modal-setting-group .components-h-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px; /* Reduced gap */
+  }
+
+  .quiz-modal-settings .components-number-control,
+  .quiz-modal-settings .components-select-control {
+    width: 100% !important;
   }
 }

@@ -1,0 +1,288 @@
+import { useState, useCallback } from "react";
+import { __ } from "@wordpress/i18n";
+import type { QuizSettings, QuizForm, QuizError, QuizErrorCode } from "../types/quiz";
+import { getDefaultQuizSettings } from "../types/quiz";
+
+/**
+ * Quiz form validation errors
+ */
+export interface QuizFormErrors {
+  title?: string;
+  description?: string;
+  timeLimit?: string;
+  passingGrade?: string;
+  maxQuestions?: string;
+  availableAfterDays?: string;
+}
+
+/**
+ * Quiz form state
+ */
+export interface QuizFormState {
+  title: string;
+  description: string;
+  settings: QuizSettings;
+  errors: QuizFormErrors;
+  isValid: boolean;
+  isDirty: boolean;
+}
+
+/**
+ * Course Preview addon availability
+ */
+export interface CoursePreviewAddon {
+  available: boolean;
+  checked: boolean;
+}
+
+/**
+ * Custom hook for managing quiz form state
+ */
+export const useQuizForm = (initialData?: Partial<QuizForm>) => {
+  // Initialize form state
+  const [formState, setFormState] = useState<QuizFormState>(() => ({
+    title: initialData?.post_title || "",
+    description: initialData?.post_content || "",
+    settings: initialData?.quiz_option || getDefaultQuizSettings(),
+    errors: {},
+    isValid: true,
+    isDirty: false,
+  }));
+
+  // Course Preview addon state
+  const [coursePreviewAddon, setCoursePreviewAddon] = useState<CoursePreviewAddon>({
+    available: false,
+    checked: false,
+  });
+
+  /**
+   * Check if Course Preview addon is available
+   */
+  const checkCoursePreviewAddon = useCallback(async () => {
+    if (coursePreviewAddon.checked) {
+      return coursePreviewAddon.available;
+    }
+
+    try {
+      // Check via REST API or global variable
+      const tutorObject = (window as any).tutorObject || (window as any)._tutorobject;
+      const isAvailable = tutorObject?.coursePreviewAddon || false;
+
+      setCoursePreviewAddon({
+        available: isAvailable,
+        checked: true,
+      });
+
+      return isAvailable;
+    } catch (error) {
+      setCoursePreviewAddon({
+        available: false,
+        checked: true,
+      });
+      return false;
+    }
+  }, [coursePreviewAddon]);
+
+  /**
+   * Validate form fields
+   */
+  const validateForm = useCallback(
+    (state: QuizFormState): QuizFormErrors => {
+      const errors: QuizFormErrors = {};
+
+      // Title validation
+      if (!state.title.trim()) {
+        errors.title = __("Quiz title is required", "tutorpress");
+      } else if (state.title.trim().length < 3) {
+        errors.title = __("Quiz title must be at least 3 characters", "tutorpress");
+      }
+
+      // Time limit validation
+      if (state.settings.time_limit.time_value < 0) {
+        errors.timeLimit = __("Time limit cannot be negative", "tutorpress");
+      }
+
+      // Passing grade validation
+      if (state.settings.passing_grade < 0 || state.settings.passing_grade > 100) {
+        errors.passingGrade = __("Passing grade must be between 0 and 100", "tutorpress");
+      }
+
+      // Max questions validation
+      if (state.settings.max_questions_for_answer < 0) {
+        errors.maxQuestions = __("Max questions cannot be negative", "tutorpress");
+      }
+
+      // Available after days validation (if Course Preview addon is available)
+      if (coursePreviewAddon.available && state.settings.content_drip_settings.after_xdays_of_enroll < 0) {
+        errors.availableAfterDays = __("Available after days cannot be negative", "tutorpress");
+      }
+
+      return errors;
+    },
+    [coursePreviewAddon.available]
+  );
+
+  /**
+   * Update form field
+   */
+  const updateField = useCallback(
+    (field: keyof QuizFormState, value: any) => {
+      setFormState((prevState) => {
+        const newState = {
+          ...prevState,
+          [field]: value,
+          isDirty: true,
+        };
+
+        // Validate and update errors
+        const errors = validateForm(newState);
+        newState.errors = errors;
+        newState.isValid = Object.keys(errors).length === 0;
+
+        return newState;
+      });
+    },
+    [validateForm]
+  );
+
+  /**
+   * Update quiz title
+   */
+  const updateTitle = useCallback(
+    (title: string) => {
+      updateField("title", title);
+    },
+    [updateField]
+  );
+
+  /**
+   * Update quiz description
+   */
+  const updateDescription = useCallback(
+    (description: string) => {
+      updateField("description", description);
+    },
+    [updateField]
+  );
+
+  /**
+   * Update quiz settings
+   */
+  const updateSettings = useCallback(
+    (settings: Partial<QuizSettings>) => {
+      setFormState((prevState) => {
+        const newState = {
+          ...prevState,
+          settings: {
+            ...prevState.settings,
+            ...settings,
+          },
+          isDirty: true,
+        };
+
+        // Validate and update errors
+        const errors = validateForm(newState);
+        newState.errors = errors;
+        newState.isValid = Object.keys(errors).length === 0;
+
+        return newState;
+      });
+    },
+    [validateForm]
+  );
+
+  /**
+   * Update time limit
+   */
+  const updateTimeLimit = useCallback(
+    (timeValue: number, timeType: string) => {
+      updateSettings({
+        time_limit: {
+          time_value: timeValue,
+          time_type: timeType as any,
+        },
+      });
+    },
+    [updateSettings]
+  );
+
+  /**
+   * Update content drip settings
+   */
+  const updateContentDrip = useCallback(
+    (afterDays: number) => {
+      updateSettings({
+        content_drip_settings: {
+          ...formState.settings.content_drip_settings,
+          after_xdays_of_enroll: afterDays,
+        },
+      });
+    },
+    [updateSettings, formState.settings.content_drip_settings]
+  );
+
+  /**
+   * Reset form to initial state
+   */
+  const resetForm = useCallback(() => {
+    setFormState({
+      title: initialData?.post_title || "",
+      description: initialData?.post_content || "",
+      settings: initialData?.quiz_option || getDefaultQuizSettings(),
+      errors: {},
+      isValid: true,
+      isDirty: false,
+    });
+  }, [initialData]);
+
+  /**
+   * Get form data for saving
+   */
+  const getFormData = useCallback((): QuizForm => {
+    return {
+      ID: initialData?.ID,
+      post_title: formState.title.trim(),
+      post_content: formState.description.trim(),
+      quiz_option: formState.settings,
+      questions: initialData?.questions || [],
+      deleted_question_ids: initialData?.deleted_question_ids || [],
+      deleted_answer_ids: initialData?.deleted_answer_ids || [],
+      menu_order: initialData?.menu_order || 0,
+    };
+  }, [formState, initialData]);
+
+  /**
+   * Validate entire form
+   */
+  const validateEntireForm = useCallback((): boolean => {
+    const errors = validateForm(formState);
+    setFormState((prevState) => ({
+      ...prevState,
+      errors,
+      isValid: Object.keys(errors).length === 0,
+    }));
+    return Object.keys(errors).length === 0;
+  }, [formState, validateForm]);
+
+  return {
+    // State
+    formState,
+    coursePreviewAddon,
+
+    // Actions
+    updateTitle,
+    updateDescription,
+    updateSettings,
+    updateTimeLimit,
+    updateContentDrip,
+    resetForm,
+    validateEntireForm,
+    checkCoursePreviewAddon,
+    getFormData,
+
+    // Computed
+    isValid: formState.isValid,
+    isDirty: formState.isDirty,
+    errors: formState.errors,
+  };
+};
