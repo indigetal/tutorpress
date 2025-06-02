@@ -37,12 +37,16 @@ require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
 require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
 require_once TUTORPRESS_PATH . 'includes/rest/class-topics-controller.php';
 require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-quizzes-controller.php';
 
 // Initialize lesson handling
 TutorPress_REST_Lessons_Controller::init();
 
 // Initialize assignment handling
 TutorPress_REST_Assignments_Controller::init();
+
+// Initialize quiz handling
+TutorPress_REST_Quizzes_Controller::init();
 
 // Initialize assignment settings
 TutorPress_Assignment_Settings::init();

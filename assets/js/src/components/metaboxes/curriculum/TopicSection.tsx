@@ -7,6 +7,7 @@ import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
+import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
 
 /**
@@ -24,7 +25,7 @@ interface ContentItemRowProps {
  */
 const contentTypeIcons = {
   lesson: "text-page",
-  quiz: "star-filled",
+  tutor_quiz: "star-filled",
   interactive_quiz: "chart-bar",
   assignment: "clipboard",
   tutor_assignments: "clipboard",
@@ -67,6 +68,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 }): JSX.Element => {
   // Quiz modal state
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [editingQuizId, setEditingQuizId] = useState<number | undefined>(undefined);
 
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
@@ -80,6 +82,12 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     topicId: topic.id,
   });
 
+  // Initialize quiz operations hook
+  const { handleQuizEdit, handleQuizDuplicate, handleQuizDelete, isQuizDuplicating } = useQuizzes({
+    courseId,
+    topicId: topic.id,
+  });
+
   // Handle lesson edit - redirect to lesson editor
   const handleLessonEdit = (lessonId: number) => {
     const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
@@ -89,14 +97,22 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     window.location.href = url.toString();
   };
 
-  // Handle quiz modal open
+  // Handle quiz edit - open quiz modal
+  const handleQuizEditModal = (quizId: number) => {
+    setEditingQuizId(quizId);
+    setIsQuizModalOpen(true);
+  };
+
+  // Handle quiz modal open for new quiz
   const handleQuizModalOpen = () => {
+    setEditingQuizId(undefined);
     setIsQuizModalOpen(true);
   };
 
   // Handle quiz modal close
   const handleQuizModalClose = () => {
     setIsQuizModalOpen(false);
+    setEditingQuizId(undefined);
     // TODO: Refresh curriculum if quiz was created/updated
   };
 
@@ -172,6 +188,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleLessonEdit(item.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentEdit(item.id)
+                    : item.type === "tutor_quiz"
+                    ? () => handleQuizEditModal(item.id)
                     : undefined
                 }
                 onDuplicate={
@@ -179,6 +197,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleLessonDuplicate(item.id, topic.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentDuplicate(item.id, topic.id)
+                    : item.type === "tutor_quiz"
+                    ? () => handleQuizDuplicate(item.id, topic.id)
                     : undefined
                 }
                 onDelete={
@@ -186,6 +206,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleLessonDelete(item.id)
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentDelete(item.id)
+                    : item.type === "tutor_quiz"
+                    ? () => handleQuizDelete(item.id, topic.id)
                     : undefined
                 }
               />
@@ -236,7 +258,13 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       ) : null}
 
       {/* Quiz Modal */}
-      <QuizModal isOpen={isQuizModalOpen} onClose={handleQuizModalClose} topicId={topic.id} courseId={courseId} />
+      <QuizModal
+        isOpen={isQuizModalOpen}
+        onClose={handleQuizModalClose}
+        topicId={topic.id}
+        courseId={courseId}
+        quizId={editingQuizId}
+      />
     </Card>
   );
 };

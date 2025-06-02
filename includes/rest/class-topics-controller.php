@@ -270,7 +270,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
      */
     private function get_topic_contents($topic_id) {
         $content_items = get_posts([
-            'post_type'      => ['lesson', 'quiz', 'tutor_assignments'],
+            'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments'],
             'post_parent'    => $topic_id,
             'posts_per_page' => -1,
             'orderby'        => 'menu_order',
@@ -738,7 +738,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             // Get content items
             $content_items = get_posts([
                 'post_parent'    => $topic_id,
-                'post_type'      => ['lesson', 'quiz', 'tutor_assignments'],
+                'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments'],
                 'posts_per_page' => -1,
                 'orderby'        => 'menu_order',
                 'order'          => 'ASC',

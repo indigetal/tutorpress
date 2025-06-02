@@ -15,7 +15,14 @@ import type { CSSProperties } from "react";
 export interface BaseContentItem {
   id: number;
   title: string;
-  type: "lesson" | "quiz" | "interactive_quiz" | "assignment" | "tutor_assignments" | "meet_lesson" | "zoom_lesson";
+  type:
+    | "lesson"
+    | "tutor_quiz"
+    | "interactive_quiz"
+    | "assignment"
+    | "tutor_assignments"
+    | "meet_lesson"
+    | "zoom_lesson";
 }
 
 /**

@@ -105,12 +105,11 @@ class QuizService {
           (tutorResponse.message && tutorResponse.message.includes("successfully"));
 
         if (isSuccess && tutorResponse.data) {
+          let quizDetails: QuizDetails | null = null;
+
           // Validate the quiz details response
           if (isValidQuizDetails(tutorResponse.data)) {
-            return {
-              success: true,
-              data: tutorResponse.data as QuizDetails,
-            };
+            quizDetails = tutorResponse.data as QuizDetails;
           } else {
             // If data exists but isn't valid, try to construct a valid response
             const quizId = tutorResponse.data.ID || tutorResponse.data;
@@ -118,12 +117,41 @@ class QuizService {
               // Fetch the complete quiz details
               const detailsResult = await this.getQuizDetails(quizId);
               if (detailsResult.success && detailsResult.data) {
-                return {
-                  success: true,
-                  data: detailsResult.data,
-                };
+                quizDetails = detailsResult.data;
               }
             }
+          }
+
+          // If we have quiz details, ensure the parent is set correctly
+          if (quizDetails) {
+            // Check if the quiz parent is set to the topic (it should be)
+            if (quizDetails.post_parent !== topicId) {
+              console.log(`Quiz parent mismatch. Expected: ${topicId}, Got: ${quizDetails.post_parent}. Fixing...`);
+
+              try {
+                // Update the quiz parent to be the topic
+                const updateResponse = await apiFetch({
+                  path: `/wp/v2/tutor_quiz/${quizDetails.ID}`,
+                  method: "POST",
+                  data: {
+                    parent: topicId,
+                  },
+                });
+
+                console.log("Quiz parent updated successfully:", updateResponse);
+
+                // Update our local quiz details
+                quizDetails.post_parent = topicId;
+              } catch (updateError) {
+                console.warn("Failed to update quiz parent, but quiz was created:", updateError);
+                // Don't fail the entire operation for this
+              }
+            }
+
+            return {
+              success: true,
+              data: quizDetails,
+            };
           }
         }
 
@@ -168,44 +196,64 @@ class QuizService {
 
   /**
    * Get quiz details by quiz ID
-   * Since there's no dedicated AJAX endpoint, we'll use a REST API approach
+   * Uses TutorPress REST API endpoint
    */
   async getQuizDetails(quizId: number): Promise<QuizOperationResult<QuizDetails>> {
     try {
-      // Try to get quiz details via WordPress REST API first
+      // Use @wordpress/api-fetch to call our TutorPress REST API endpoint
       const response = await apiFetch({
-        path: `/wp/v2/tutor_quiz/${quizId}?_embed=true`,
+        path: `/tutorpress/v1/quizzes/${quizId}`,
         method: "GET",
       });
 
       if (response && typeof response === "object") {
-        const post = response as any;
+        const apiResponse = response as any;
 
-        // Get quiz meta data
-        const quizOption = post.meta?.tutor_quiz_option || {};
+        if (apiResponse.success && apiResponse.data) {
+          // Validate the quiz details response
+          if (isValidQuizDetails(apiResponse.data)) {
+            return {
+              success: true,
+              data: apiResponse.data as QuizDetails,
+            };
+          } else {
+            // Try to construct a valid response from the data
+            const quizData = apiResponse.data;
+            const quizDetails: QuizDetails = {
+              ID: quizData.ID || quizData.id || 0,
+              post_title: quizData.post_title || quizData.title || "",
+              post_content: quizData.post_content || quizData.content || "",
+              post_status: quizData.post_status || "publish",
+              post_author: quizData.post_author?.toString() || "0",
+              post_parent: quizData.post_parent || 0,
+              menu_order: quizData.menu_order || 0,
+              quiz_option: quizData.quiz_option || quizData.quiz_settings || {},
+              questions: quizData.questions || quizData.quiz_questions || [],
+            };
 
-        // Construct quiz details object
-        const quizDetails: QuizDetails = {
-          ID: post.id,
-          post_title: post.title?.rendered || post.title || "",
-          post_content: post.content?.rendered || post.content || "",
-          post_status: post.status || "publish",
-          post_author: post.author?.toString() || "0",
-          post_parent: post.parent || 0,
-          menu_order: post.menu_order || 0,
-          quiz_option: quizOption,
-          questions: [], // Questions would need to be fetched separately
-        };
+            return {
+              success: true,
+              data: quizDetails,
+            };
+          }
+        }
+
+        // Handle error response
+        const errorMessage = apiResponse.message || __("Quiz not found", "tutorpress");
 
         return {
-          success: true,
-          data: quizDetails,
+          success: false,
+          error: createQuizError(QuizErrorCode.FETCH_FAILED, errorMessage, {
+            type: "edit",
+            quizId,
+            topicId: 0,
+          }),
         };
       }
 
       return {
         success: false,
-        error: createQuizError(QuizErrorCode.FETCH_FAILED, __("Quiz not found", "tutorpress"), {
+        error: createQuizError(QuizErrorCode.FETCH_FAILED, __("Invalid response from server", "tutorpress"), {
           type: "edit",
           quizId,
           topicId: 0,
@@ -228,30 +276,50 @@ class QuizService {
 
   /**
    * Delete a quiz
-   * Uses WordPress REST API to delete the quiz post
+   * Uses TutorPress REST API endpoint
    */
   async deleteQuiz(quizId: number): Promise<QuizOperationResult<void>> {
     try {
+      // Use @wordpress/api-fetch to call our TutorPress REST API endpoint
       const response = await apiFetch({
-        path: `/wp/v2/tutor_quiz/${quizId}?force=true`,
+        path: `/tutorpress/v1/quizzes/${quizId}`,
         method: "DELETE",
       });
 
-      if (response && (response as any).deleted === true) {
+      if (response && typeof response === "object") {
+        const apiResponse = response as any;
+
+        if (apiResponse.success) {
+          return {
+            success: true,
+          };
+        }
+
+        // Handle error response
+        const errorMessage = apiResponse.message || __("Failed to delete quiz", "tutorpress");
+
+        return {
+          success: false,
+          error: createQuizError(QuizErrorCode.DELETE_FAILED, errorMessage, {
+            type: "delete",
+            quizId,
+          }),
+        };
+      }
+
+      // For successful deletion, the response might be empty (204 status)
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("Quiz delete error:", error);
+
+      // Check if this is a 204 No Content response (successful deletion)
+      if (error instanceof Error && error.message.includes("204")) {
         return {
           success: true,
         };
       }
-
-      return {
-        success: false,
-        error: createQuizError(QuizErrorCode.DELETE_FAILED, __("Failed to delete quiz", "tutorpress"), {
-          type: "delete",
-          quizId,
-        }),
-      };
-    } catch (error) {
-      console.error("Quiz delete error:", error);
 
       return {
         success: false,

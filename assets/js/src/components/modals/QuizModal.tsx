@@ -14,6 +14,8 @@ import {
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { useQuizForm } from "../../hooks/useQuizForm";
+import { curriculumStore } from "../../store/curriculum";
+import { store as noticesStore } from "@wordpress/notices";
 import type { TimeUnit, FeedbackMode } from "../../types/quiz";
 
 interface QuizModalProps {
@@ -27,6 +29,8 @@ interface QuizModalProps {
 export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, courseId, quizId }) => {
   const [activeTab, setActiveTab] = useState("question-details");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Initialize quiz form hook
   const {
@@ -48,44 +52,124 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   // Get quiz duplication state from curriculum store
   const quizDuplicationState = useSelect((select) => {
-    return (select("tutorpress/curriculum") as any).getQuizDuplicationState();
+    return (select(curriculumStore) as any).getQuizDuplicationState();
   }, []);
 
-  const { setQuizDuplicationState } = useDispatch("tutorpress/curriculum") as any;
+  const { setQuizDuplicationState, setTopics } = useDispatch(curriculumStore) as any;
+  const { createNotice } = useDispatch(noticesStore);
 
   // Check Course Preview addon availability on mount
   useEffect(() => {
     if (isOpen) {
       checkCoursePreviewAddon();
+      setSaveError(null);
+      setSaveSuccess(false);
     }
   }, [isOpen, checkCoursePreviewAddon]);
+
+  /**
+   * Update local topics state after quiz creation (following topics pattern)
+   */
+  const updateTopicsAfterQuizCreation = (newQuiz: any, targetTopicId: number) => {
+    setTopics((currentTopics: any[]) =>
+      currentTopics.map((topic) => {
+        if (topic.id === targetTopicId) {
+          return {
+            ...topic,
+            contents: [
+              ...(topic.contents || []),
+              {
+                id: newQuiz.id || newQuiz.ID,
+                title: newQuiz.title || newQuiz.post_title,
+                type: "tutor_quiz",
+                menu_order: newQuiz.menu_order || 0,
+                status: newQuiz.status || "draft",
+              },
+            ],
+          };
+        }
+        return topic;
+      })
+    );
+  };
 
   const handleClose = () => {
     // Reset any quiz state if needed
     setQuizDuplicationState({ status: "idle" });
     resetForm();
+    setSaveError(null);
+    setSaveSuccess(false);
     onClose();
   };
 
   const handleSave = async () => {
     if (!validateEntireForm()) {
+      setSaveError(__("Please fix the form errors before saving.", "tutorpress"));
+      return;
+    }
+
+    if (!courseId || !topicId) {
+      setSaveError(__("Course ID and Topic ID are required to save the quiz.", "tutorpress"));
       return;
     }
 
     setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
     try {
       const formData = getFormData();
 
-      // TODO: Implement actual save using QuizService
-      console.log("Saving quiz:", formData);
+      // Get QuizService from global window object
+      const quizService = (window as any).tutorpress?.quiz?.service;
+      if (!quizService) {
+        throw new Error(__("Quiz service not available. Please refresh the page and try again.", "tutorpress"));
+      }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Saving quiz with data:", formData);
+      console.log("Course ID:", courseId, "Topic ID:", topicId);
 
-      // Close modal on success
-      handleClose();
+      // Save the quiz using QuizService
+      const result = await quizService.saveQuiz(formData, courseId, topicId);
+
+      console.log("Quiz save result:", result);
+
+      if (result.success && result.data) {
+        // Show success message briefly
+        setSaveSuccess(true);
+
+        // Update local state immediately (following topics pattern)
+        updateTopicsAfterQuizCreation(result.data, topicId);
+
+        // Show success notice (following topics pattern)
+        createNotice("success", __("Quiz saved successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
+
+        // Close modal after successful save (following topics pattern)
+        setTimeout(() => {
+          handleClose();
+        }, 1000);
+      } else {
+        throw new Error(result.error?.message || __("Failed to save quiz", "tutorpress"));
+      }
     } catch (error) {
       console.error("Error saving quiz:", error);
+
+      let errorMessage = __("Failed to save quiz. Please try again.", "tutorpress");
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+
+      setSaveError(errorMessage);
+
+      // Show error notice (following topics pattern)
+      createNotice("error", errorMessage, {
+        type: "snackbar",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -133,6 +217,19 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const renderQuestionDetailsTab = () => {
     return (
       <div className="quiz-modal-question-details">
+        {/* Success/Error Messages */}
+        {saveSuccess && (
+          <Notice status="success" isDismissible={false}>
+            {__("Quiz saved successfully! Updating curriculum...", "tutorpress")}
+          </Notice>
+        )}
+
+        {saveError && (
+          <Notice status="error" isDismissible={true} onRemove={() => setSaveError(null)}>
+            {saveError}
+          </Notice>
+        )}
+
         <div className="quiz-modal-three-column-layout">
           {/* Left Column: Quiz name, Question dropdown, Questions list */}
           <div className="quiz-modal-left-column">
@@ -144,6 +241,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                 placeholder={__("Enter quiz title...", "tutorpress")}
                 help={errors.title}
                 className={errors.title ? "has-error" : ""}
+                disabled={isSaving}
               />
 
               <TextareaControl
@@ -152,6 +250,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                 onChange={updateDescription}
                 placeholder={__("Enter quiz description...", "tutorpress")}
                 rows={3}
+                disabled={isSaving}
               />
 
               {topicId && <p className="quiz-modal-topic-context">{__("Topic ID: ", "tutorpress") + topicId}</p>}
@@ -166,7 +265,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   onClick={() => {
                     console.log("Add question clicked");
                   }}
-                  disabled={!formState.title.trim()}
+                  disabled={!formState.title.trim() || isSaving}
                 >
                   +
                 </Button>
@@ -212,6 +311,19 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     return (
       <div className="quiz-modal-settings">
+        {/* Success/Error Messages */}
+        {saveSuccess && (
+          <Notice status="success" isDismissible={false}>
+            {__("Quiz saved successfully! Updating curriculum...", "tutorpress")}
+          </Notice>
+        )}
+
+        {saveError && (
+          <Notice status="error" isDismissible={true} onRemove={() => setSaveError(null)}>
+            {saveError}
+          </Notice>
+        )}
+
         <div className="quiz-modal-single-column-layout">
           <div className="quiz-modal-settings-content">
             <h3>{__("Quiz Settings", "tutorpress")}</h3>
@@ -231,6 +343,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     min={0}
                     step={1}
                     style={{ width: "100px", flexShrink: 0 }}
+                    disabled={isSaving}
                   />
                   <SelectControl
                     value={formState.settings.time_limit.time_type}
@@ -238,6 +351,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     onChange={(value) => updateTimeLimit(formState.settings.time_limit.time_value, value as TimeUnit)}
                     style={{ width: "100px", flexShrink: 0 }}
                     __nextHasNoMarginBottom
+                    disabled={isSaving}
                   />
                 </HStack>
                 <p className="quiz-modal-setting-help">
@@ -256,6 +370,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   label={__("Hide Quiz Time", "tutorpress")}
                   checked={formState.settings.hide_quiz_time_display}
                   onChange={(checked) => updateSettings({ hide_quiz_time_display: checked })}
+                  disabled={isSaving}
                 />
               </div>
 
@@ -269,6 +384,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     value: option.value,
                   }))}
                   onChange={(value) => updateSettings({ feedback_mode: value as FeedbackMode })}
+                  disabled={isSaving}
                 />
                 {selectedFeedbackMode && <p className="quiz-modal-setting-help">{selectedFeedbackMode.help}</p>}
               </div>
@@ -288,6 +404,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     max={100}
                     step={1}
                     style={{ width: "120px" }}
+                    disabled={isSaving}
                   />
                   <span style={{ fontSize: "16px", fontWeight: "bold" }}>%</span>
                 </div>
@@ -314,6 +431,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   min={0}
                   step={1}
                   style={{ width: "120px" }}
+                  disabled={isSaving}
                 />
                 <p className="quiz-modal-setting-help">
                   {__(
@@ -338,6 +456,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     min={0}
                     step={1}
                     style={{ width: "120px" }}
+                    disabled={isSaving}
                   />
                   <p className="quiz-modal-setting-help">
                     {__("This quiz will be available after the given number of days.", "tutorpress")}
@@ -396,8 +515,17 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
             {__("Cancel", "tutorpress")}
           </Button>
-          <Button variant="primary" onClick={handleSave} disabled={!isValid || isSaving} isBusy={isSaving}>
-            {isSaving ? __("Saving...", "tutorpress") : __("Save Quiz", "tutorpress")}
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={!isValid || isSaving || saveSuccess}
+            isBusy={isSaving}
+          >
+            {isSaving
+              ? __("Saving...", "tutorpress")
+              : saveSuccess
+              ? __("Saved!", "tutorpress")
+              : __("Save Quiz", "tutorpress")}
           </Button>
         </div>
       </div>
