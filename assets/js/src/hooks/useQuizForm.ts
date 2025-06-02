@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
-import type { QuizSettings, QuizForm, QuizError, QuizErrorCode } from "../types/quiz";
+import type { QuizSettings, QuizForm, QuizError, QuizErrorCode, QuizQuestion } from "../types/quiz";
 import { getDefaultQuizSettings } from "../types/quiz";
 
 /**
@@ -238,18 +238,21 @@ export const useQuizForm = (initialData?: Partial<QuizForm>) => {
   /**
    * Get form data for saving
    */
-  const getFormData = useCallback((): QuizForm => {
-    return {
-      ID: initialData?.ID,
-      post_title: formState.title.trim(),
-      post_content: formState.description.trim(),
-      quiz_option: formState.settings,
-      questions: initialData?.questions || [],
-      deleted_question_ids: initialData?.deleted_question_ids || [],
-      deleted_answer_ids: initialData?.deleted_answer_ids || [],
-      menu_order: initialData?.menu_order || 0,
-    };
-  }, [formState, initialData]);
+  const getFormData = useCallback(
+    (currentQuestions?: QuizQuestion[]): QuizForm => {
+      return {
+        ID: initialData?.ID,
+        post_title: formState.title.trim(),
+        post_content: formState.description.trim(),
+        quiz_option: formState.settings,
+        questions: currentQuestions || initialData?.questions || [],
+        deleted_question_ids: initialData?.deleted_question_ids || [],
+        deleted_answer_ids: initialData?.deleted_answer_ids || [],
+        menu_order: initialData?.menu_order || 0,
+      };
+    },
+    [formState, initialData]
+  );
 
   /**
    * Validate entire form
