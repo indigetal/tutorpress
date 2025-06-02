@@ -414,9 +414,13 @@
   min-width: 32px !important;
   height: 32px !important;
   padding: 0 !important;
-  border-radius: 50% !important;
-  font-size: 18px !important;
+  border-radius: 4px !important; /* Square like Tutor LMS */
+  font-size: 16px !important;
   font-weight: bold !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
 }
 
 .quiz-modal-no-questions {
@@ -588,6 +592,166 @@
 .quiz-modal-add-question-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Question Type Section - Clean Tutor LMS Style */
+.quiz-modal-question-type-section {
+  margin: 16px 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.quiz-modal-question-type-section .components-base-control {
+  margin-bottom: 8px;
+}
+
+.quiz-modal-question-type-section .components-base-control__label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+  margin-bottom: 6px;
+}
+
+.quiz-modal-question-type-select .components-select-control__input {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  min-height: 40px;
+}
+
+.quiz-modal-question-type-select .components-select-control__input:focus {
+  border-color: var(--wp-admin-theme-color, #0073aa);
+  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
+  outline: none;
+}
+
+.quiz-modal-loading-question-types {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* Questions List - Tutor LMS Style */
+.quiz-modal-questions-list {
+  margin-top: 16px;
+}
+
+.quiz-modal-no-questions {
+  background: transparent;
+  border: none;
+  padding: 20px;
+  text-align: center;
+}
+
+.quiz-modal-no-questions p {
+  color: #666;
+  font-style: italic;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Question Items - Future implementation for numbered questions */
+.quiz-modal-question-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.quiz-modal-question-item:hover {
+  border-color: #ccc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-modal-question-number {
+  width: 24px;
+  height: 24px;
+  background: #f0f0f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-right: 12px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.quiz-modal-question-item:hover .quiz-modal-question-number {
+  background: var(--wp-admin-theme-color, #0073aa);
+  color: white;
+}
+
+.quiz-modal-question-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.quiz-modal-question-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: #1e1e1e;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quiz-modal-question-type-badge {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.quiz-modal-question-actions {
+  opacity: 0;
+  margin-left: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.quiz-modal-question-item:hover .quiz-modal-question-actions {
+  opacity: 1;
+}
+
+.quiz-modal-question-menu-btn {
+  padding: 4px !important;
+  min-width: auto !important;
+  height: auto !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #666 !important;
+}
+
+.quiz-modal-question-menu-btn:hover {
+  background: #f0f0f0 !important;
+  border-color: #ddd !important;
+}
+
+/* Remove old dropdown styles */
+.quiz-modal-question-type-dropdown {
+  display: none;
+}
+
+.quiz-modal-question-type-selected {
+  display: none;
 }
 
 /* Form Validation Error States */

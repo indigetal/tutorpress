@@ -17,7 +17,7 @@ import { useSelect, useDispatch } from "@wordpress/data";
 import { useQuizForm } from "../../hooks/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
-import type { TimeUnit, FeedbackMode } from "../../types/quiz";
+import type { TimeUnit, FeedbackMode, QuizQuestionType } from "../../types/quiz";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -25,6 +25,12 @@ interface QuizModalProps {
   topicId?: number;
   courseId?: number;
   quizId?: number; // For editing existing quiz
+}
+
+interface QuestionTypeOption {
+  label: string;
+  value: QuizQuestionType;
+  is_pro: boolean;
 }
 
 export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, courseId, quizId }) => {
@@ -35,6 +41,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+
+  // Question management state
+  const [isAddingQuestion, setIsAddingQuestion] = useState(false);
+  const [selectedQuestionType, setSelectedQuestionType] = useState<QuizQuestionType | null>(null);
+  const [questionTypes, setQuestionTypes] = useState<QuestionTypeOption[]>([]);
+  const [loadingQuestionTypes, setLoadingQuestionTypes] = useState(false);
 
   // Initialize quiz form hook with loaded data
   const {
@@ -61,6 +73,104 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   const { setQuizDuplicationState, setTopics } = useDispatch(curriculumStore) as any;
   const { createNotice } = useDispatch(noticesStore);
+
+  /**
+   * Load question types from Tutor LMS
+   */
+  const loadQuestionTypes = async () => {
+    setLoadingQuestionTypes(true);
+    try {
+      // Check for Tutor LMS question types in multiple ways
+      let questionTypesData = null;
+
+      // Method 1: Try window.tutor_utils (if exposed globally)
+      if ((window as any).tutor_utils && typeof (window as any).tutor_utils.get_question_types === "function") {
+        questionTypesData = (window as any).tutor_utils.get_question_types();
+        console.log("Loaded question types from window.tutor_utils:", questionTypesData);
+      }
+      // Method 2: Try window._tutorobject (common Tutor LMS global)
+      else if ((window as any)._tutorobject && (window as any)._tutorobject.question_types) {
+        questionTypesData = (window as any)._tutorobject.question_types;
+        console.log("Loaded question types from _tutorobject:", questionTypesData);
+      }
+      // Method 3: Try REST API endpoint for question types
+      else {
+        try {
+          const response = await window.wp.apiFetch({
+            path: "/tutor/v1/question-types",
+            method: "GET",
+          });
+          if (response && response.data) {
+            questionTypesData = response.data;
+            console.log("Loaded question types from REST API:", questionTypesData);
+          }
+        } catch (apiError) {
+          console.log("REST API for question types not available:", apiError);
+        }
+      }
+
+      if (questionTypesData && typeof questionTypesData === "object") {
+        // Convert to our option format
+        const options: QuestionTypeOption[] = Object.entries(questionTypesData).map(
+          ([value, config]: [string, any]) => ({
+            label: config.name || value.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+            value: value as QuizQuestionType,
+            is_pro: config.is_pro || false,
+          })
+        );
+
+        setQuestionTypes(options);
+        console.log("Successfully loaded question types:", options);
+      } else {
+        // Fallback to static question types based on Tutor LMS core
+        console.warn("Using fallback question types - Tutor LMS question types not available");
+        const fallbackTypes: QuestionTypeOption[] = [
+          { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
+          { label: __("Single Choice", "tutorpress"), value: "single_choice", is_pro: false },
+          { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
+          { label: __("Open Ended", "tutorpress"), value: "open_ended", is_pro: false },
+          { label: __("Fill In The Blanks", "tutorpress"), value: "fill_in_the_blank", is_pro: false },
+          { label: __("Short Answer", "tutorpress"), value: "short_answer", is_pro: true },
+          { label: __("Matching", "tutorpress"), value: "matching", is_pro: true },
+          { label: __("Image Matching", "tutorpress"), value: "image_matching", is_pro: true },
+          { label: __("Image Answering", "tutorpress"), value: "image_answering", is_pro: true },
+          { label: __("Ordering", "tutorpress"), value: "ordering", is_pro: true },
+        ];
+        setQuestionTypes(fallbackTypes);
+      }
+    } catch (error) {
+      console.error("Error loading question types:", error);
+      // Set empty array on error, but provide basic fallback
+      const basicTypes: QuestionTypeOption[] = [
+        { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
+        { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
+      ];
+      setQuestionTypes(basicTypes);
+    } finally {
+      setLoadingQuestionTypes(false);
+    }
+  };
+
+  /**
+   * Handle adding a new question
+   */
+  const handleAddQuestion = () => {
+    if (!formState.title.trim()) {
+      return; // Should be disabled by UI
+    }
+
+    setIsAddingQuestion(true);
+    setSelectedQuestionType(null);
+    console.log("Starting to add new question");
+  };
+
+  /**
+   * Handle question type selection
+   */
+  const handleQuestionTypeSelect = (questionType: QuizQuestionType) => {
+    setSelectedQuestionType(questionType);
+    console.log("Selected question type:", questionType);
+  };
 
   /**
    * Load existing quiz data when editing
@@ -116,12 +226,22 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
   }, [isOpen, quizId]);
 
+  // Load question types when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadQuestionTypes();
+    }
+  }, [isOpen]);
+
   // Check Course Preview addon availability on mount
   useEffect(() => {
     if (isOpen) {
       checkCoursePreviewAddon();
       setSaveError(null);
       setSaveSuccess(false);
+      // Reset question state
+      setIsAddingQuestion(false);
+      setSelectedQuestionType(null);
     }
   }, [isOpen, checkCoursePreviewAddon]);
 
@@ -365,20 +485,60 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                 <Button
                   variant="primary"
                   className="quiz-modal-add-question-btn"
-                  onClick={() => {
-                    console.log("Add question clicked");
-                  }}
+                  onClick={handleAddQuestion}
                   disabled={!formState.title.trim() || isSaving}
                 >
                   +
                 </Button>
               </div>
 
+              {/* Question Type Dropdown - Show when adding question - Tutor LMS Style */}
+              {isAddingQuestion && (
+                <div className="quiz-modal-question-type-section">
+                  <SelectControl
+                    label={__("Question Type", "tutorpress")}
+                    value={selectedQuestionType || ""}
+                    options={[
+                      { label: __("Select Question Type", "tutorpress"), value: "" },
+                      ...questionTypes.map((type) => ({
+                        label: type.is_pro ? `${type.label} ${__("(Pro)", "tutorpress")}` : type.label,
+                        value: type.value,
+                      })),
+                    ]}
+                    onChange={(value) => {
+                      if (value) {
+                        handleQuestionTypeSelect(value as QuizQuestionType);
+                      } else {
+                        setSelectedQuestionType(null);
+                      }
+                    }}
+                    disabled={loadingQuestionTypes || isSaving}
+                    className="quiz-modal-question-type-select"
+                  />
+
+                  {loadingQuestionTypes && (
+                    <div className="quiz-modal-loading-question-types">
+                      <Spinner style={{ margin: "0 8px 0 0" }} />
+                      <span>{__("Loading question types...", "tutorpress")}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Questions List - Tutor LMS Style with numbered items */}
               <div className="quiz-modal-questions-list">
                 {!formState.title.trim() ? (
-                  <p className="quiz-modal-no-questions">{__("Enter a quiz title to add questions.", "tutorpress")}</p>
+                  <div className="quiz-modal-no-questions">
+                    <p>{__("Enter a quiz title to add questions.", "tutorpress")}</p>
+                  </div>
+                ) : isAddingQuestion && !selectedQuestionType ? (
+                  <div className="quiz-modal-no-questions">
+                    <p>{__("Select a question type to continue.", "tutorpress")}</p>
+                  </div>
                 ) : (
-                  <p className="quiz-modal-no-questions">{__("No questions added yet.", "tutorpress")}</p>
+                  <div className="quiz-modal-no-questions">
+                    <p>{__("No questions added yet.", "tutorpress")}</p>
+                  </div>
                 )}
               </div>
             </div>
