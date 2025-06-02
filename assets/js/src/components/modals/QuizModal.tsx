@@ -10,6 +10,7 @@ import {
   __experimentalNumberControl as NumberControl,
   __experimentalHStack as HStack,
   Notice,
+  Spinner,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -29,10 +30,13 @@ interface QuizModalProps {
 export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, courseId, quizId }) => {
   const [activeTab, setActiveTab] = useState("question-details");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [quizData, setQuizData] = useState<any>(null);
 
-  // Initialize quiz form hook
+  // Initialize quiz form hook with loaded data
   const {
     formState,
     coursePreviewAddon,
@@ -48,7 +52,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     isValid,
     isDirty,
     errors,
-  } = useQuizForm();
+  } = useQuizForm(quizData);
 
   // Get quiz duplication state from curriculum store
   const quizDuplicationState = useSelect((select) => {
@@ -57,6 +61,60 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   const { setQuizDuplicationState, setTopics } = useDispatch(curriculumStore) as any;
   const { createNotice } = useDispatch(noticesStore);
+
+  /**
+   * Load existing quiz data when editing
+   */
+  const loadExistingQuizData = async (id: number) => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      console.log("Loading quiz data for ID:", id);
+
+      // Use our REST API to get quiz details
+      const response = (await window.wp.apiFetch({
+        path: `/tutorpress/v1/quizzes/${id}`,
+        method: "GET",
+      })) as any;
+
+      console.log("Loaded quiz data:", response);
+
+      if (response.success && response.data) {
+        const quizData = response.data;
+        setQuizData(quizData);
+
+        // Manually update form fields with loaded data
+        updateTitle(quizData.post_title || "");
+        updateDescription(quizData.post_content || "");
+        if (quizData.quiz_option) {
+          updateSettings(quizData.quiz_option);
+        }
+
+        return quizData;
+      } else {
+        throw new Error(response.message || __("Failed to load quiz data", "tutorpress"));
+      }
+    } catch (error) {
+      console.error("Error loading quiz data:", error);
+      const errorMessage = error instanceof Error ? error.message : __("Failed to load quiz data", "tutorpress");
+      setLoadError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load quiz data when modal opens with quizId
+  useEffect(() => {
+    if (isOpen && quizId) {
+      loadExistingQuizData(quizId);
+    } else if (isOpen && !quizId) {
+      // Reset for new quiz
+      setQuizData(null);
+      setLoadError(null);
+    }
+  }, [isOpen, quizId]);
 
   // Check Course Preview addon availability on mount
   useEffect(() => {
@@ -93,10 +151,33 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     );
   };
 
+  /**
+   * Update local topics state after quiz update (following topics pattern)
+   */
+  const updateTopicsAfterQuizUpdate = (updatedQuiz: any) => {
+    setTopics((currentTopics: any[]) =>
+      currentTopics.map((topic) => ({
+        ...topic,
+        contents: (topic.contents || []).map((item: any) => {
+          if (item.type === "tutor_quiz" && item.id === (updatedQuiz.id || updatedQuiz.ID)) {
+            return {
+              ...item,
+              title: updatedQuiz.title || updatedQuiz.post_title,
+              status: updatedQuiz.status || item.status,
+            };
+          }
+          return item;
+        }),
+      }))
+    );
+  };
+
   const handleClose = () => {
     // Reset any quiz state if needed
     setQuizDuplicationState({ status: "idle" });
     resetForm();
+    setQuizData(null);
+    setLoadError(null);
     setSaveError(null);
     setSaveSuccess(false);
     onClose();
@@ -127,10 +208,22 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       }
 
       console.log("Saving quiz with data:", formData);
-      console.log("Course ID:", courseId, "Topic ID:", topicId);
+      console.log("Course ID:", courseId, "Topic ID:", topicId, "Quiz ID:", quizId);
 
-      // Save the quiz using QuizService
-      const result = await quizService.saveQuiz(formData, courseId, topicId);
+      let result;
+      if (quizId) {
+        // Update existing quiz - use the same saveQuiz method but include quiz ID
+        console.log("Updating existing quiz:", quizId);
+        const formDataWithId = {
+          ...formData,
+          ID: quizId, // Add the quiz ID to make it an update operation
+        };
+        result = await quizService.saveQuiz(formDataWithId, courseId, topicId);
+      } else {
+        // Create new quiz
+        console.log("Creating new quiz");
+        result = await quizService.saveQuiz(formData, courseId, topicId);
+      }
 
       console.log("Quiz save result:", result);
 
@@ -138,13 +231,23 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         // Show success message briefly
         setSaveSuccess(true);
 
-        // Update local state immediately (following topics pattern)
-        updateTopicsAfterQuizCreation(result.data, topicId);
+        if (quizId) {
+          // Update existing quiz in local state
+          updateTopicsAfterQuizUpdate(result.data);
 
-        // Show success notice (following topics pattern)
-        createNotice("success", __("Quiz saved successfully.", "tutorpress"), {
-          type: "snackbar",
-        });
+          // Show success notice
+          createNotice("success", __("Quiz updated successfully.", "tutorpress"), {
+            type: "snackbar",
+          });
+        } else {
+          // Add new quiz to local state
+          updateTopicsAfterQuizCreation(result.data, topicId);
+
+          // Show success notice
+          createNotice("success", __("Quiz created successfully.", "tutorpress"), {
+            type: "snackbar",
+          });
+        }
 
         // Close modal after successful save (following topics pattern)
         setTimeout(() => {
@@ -492,42 +595,76 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       size="large"
     >
       <div className="quiz-modal-content">
-        <TabPanel
-          className="quiz-modal-tabs"
-          activeClass="is-active"
-          tabs={tabs}
-          onSelect={(tabName) => setActiveTab(tabName)}
-        >
-          {(tab) => {
-            switch (tab.name) {
-              case "question-details":
-                return renderQuestionDetailsTab();
-              case "settings":
-                return renderSettingsTab();
-              default:
-                return null;
-            }
-          }}
-        </TabPanel>
+        {/* Loading state when editing quiz */}
+        {isLoading && (
+          <div className="quiz-modal-loading" style={{ padding: "40px", textAlign: "center" }}>
+            <Spinner style={{ margin: "0 auto 16px" }} />
+            <p>{__("Loading quiz data...", "tutorpress")}</p>
+          </div>
+        )}
 
-        {/* Modal Footer */}
-        <div className="quiz-modal-footer">
-          <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
-            {__("Cancel", "tutorpress")}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={!isValid || isSaving || saveSuccess}
-            isBusy={isSaving}
-          >
-            {isSaving
-              ? __("Saving...", "tutorpress")
-              : saveSuccess
-              ? __("Saved!", "tutorpress")
-              : __("Save Quiz", "tutorpress")}
-          </Button>
-        </div>
+        {/* Error state when loading quiz fails */}
+        {loadError && (
+          <div className="quiz-modal-error" style={{ padding: "20px" }}>
+            <Notice status="error" isDismissible={false}>
+              <strong>{__("Error loading quiz:", "tutorpress")}</strong> {loadError}
+            </Notice>
+            <div style={{ marginTop: "16px", textAlign: "center" }}>
+              <Button variant="primary" onClick={() => quizId && loadExistingQuizData(quizId)}>
+                {__("Try Again", "tutorpress")}
+              </Button>
+              <Button variant="secondary" onClick={handleClose} style={{ marginLeft: "8px" }}>
+                {__("Cancel", "tutorpress")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Main content - only show when not loading and no error */}
+        {!isLoading && !loadError && (
+          <>
+            <TabPanel
+              className="quiz-modal-tabs"
+              activeClass="is-active"
+              tabs={tabs}
+              onSelect={(tabName) => setActiveTab(tabName)}
+            >
+              {(tab) => {
+                switch (tab.name) {
+                  case "question-details":
+                    return renderQuestionDetailsTab();
+                  case "settings":
+                    return renderSettingsTab();
+                  default:
+                    return null;
+                }
+              }}
+            </TabPanel>
+
+            {/* Modal Footer */}
+            <div className="quiz-modal-footer">
+              <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
+                {__("Cancel", "tutorpress")}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                disabled={!isValid || isSaving || saveSuccess}
+                isBusy={isSaving}
+              >
+                {isSaving
+                  ? quizId
+                    ? __("Updating...", "tutorpress")
+                    : __("Saving...", "tutorpress")
+                  : saveSuccess
+                  ? __("Saved!", "tutorpress")
+                  : quizId
+                  ? __("Update Quiz", "tutorpress")
+                  : __("Save Quiz", "tutorpress")}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );
