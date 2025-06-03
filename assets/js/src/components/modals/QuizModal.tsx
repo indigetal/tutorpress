@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   TabPanel,
@@ -27,7 +27,28 @@ import type {
   QuizForm,
   QuizQuestionSettings,
   getDefaultQuestionSettings,
+  QuizQuestionOption,
+  DataStatus,
 } from "../../types/quiz";
+
+// TypeScript declarations for WordPress and TinyMCE globals
+declare global {
+  interface Window {
+    wp: {
+      editor: {
+        initialize: (id: string, settings: any) => void;
+        remove: (id: string) => void;
+      };
+      apiFetch: (options: any) => Promise<any>;
+      data: any;
+      element: any;
+      hooks: any;
+    };
+    tinymce: {
+      get: (id: string) => any;
+    };
+  }
+}
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -42,6 +63,229 @@ interface QuestionTypeOption {
   value: QuizQuestionType;
   is_pro: boolean;
 }
+
+// Add TinyMCE Editor Component
+interface TinyMCEEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  editorId: string;
+  onCancel: () => void;
+  onOk: () => void;
+}
+
+const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placeholder, editorId, onCancel, onOk }) => {
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!editorRef.current || isInitialized) return;
+
+    // Initialize TinyMCE editor using WordPress wp.editor
+    const wpEditor = (window as any).wp?.editor;
+    if (wpEditor) {
+      // Force removal of any existing editor first
+      try {
+        wpEditor.remove(editorId);
+      } catch (e) {
+        // Ignore if editor doesn't exist
+      }
+
+      wpEditor.initialize(editorId, {
+        tinymce: {
+          wpautop: true,
+          plugins:
+            "charmap colorpicker hr lists paste tabfocus textcolor fullscreen wordpress wpautoresize wpeditimage wpemoji wpgallery wplink wptextpattern",
+          toolbar1:
+            "formatselect,bold,italic,underline,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,unlink,wp_more,spellchecker,fullscreen,wp_adv",
+          toolbar2: "strikethrough,hr,forecolor,pastetext,removeformat,charmap,outdent,indent,undo,redo,wp_help",
+          // Critical WordPress editor settings
+          wp_skip_init: false,
+          add_unload_trigger: false,
+          browser_spellcheck: true,
+          keep_styles: false,
+          end_container_on_empty_block: true,
+          wpeditimage_disable_captions: false,
+          wpeditimage_html5_captions: true,
+          theme: "modern",
+          skin: "lightgray",
+          // Force height and visual appearance
+          height: 200,
+          resize: false,
+          menubar: false,
+          statusbar: false,
+          // Content settings
+          forced_root_block: "p",
+          force_br_newlines: false,
+          force_p_newlines: false,
+          remove_trailing_brs: true,
+          formats: {
+            alignleft: [
+              { selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: { textAlign: "left" } },
+              { selector: "img,table,dl.wp-caption", classes: "alignleft" },
+            ],
+            aligncenter: [
+              { selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: { textAlign: "center" } },
+              { selector: "img,table,dl.wp-caption", classes: "aligncenter" },
+            ],
+            alignright: [
+              { selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: { textAlign: "right" } },
+              { selector: "img,table,dl.wp-caption", classes: "alignright" },
+            ],
+            strikethrough: { inline: "del" },
+          },
+          setup: (editor: any) => {
+            // Set initial content when editor is ready
+            editor.on("init", () => {
+              editor.setContent(value || "");
+
+              // Force Visual mode after initialization with a longer delay
+              setTimeout(() => {
+                forceVisualMode(editorId);
+              }, 200);
+            });
+
+            // Handle content changes
+            editor.on("change keyup paste input SetContent", () => {
+              const content = editor.getContent();
+              onChange(content);
+            });
+
+            // Handle undo/redo events
+            editor.on("Undo Redo", () => {
+              const content = editor.getContent();
+              onChange(content);
+            });
+
+            // Handle editor focus to ensure Visual mode
+            editor.on("focus", () => {
+              setTimeout(() => {
+                forceVisualMode(editorId);
+              }, 50);
+            });
+          },
+        },
+        quicktags: {
+          buttons: "strong,em,link,block,del,ins,img,ul,ol,li,code,more,close",
+        },
+        mediaButtons: true,
+      });
+
+      // Set up tab click handlers after initialization
+      setTimeout(() => {
+        setupTabHandlers(editorId);
+      }, 300);
+
+      setIsInitialized(true);
+    }
+
+    return () => {
+      // Cleanup editor on unmount
+      const wpEditor = (window as any).wp?.editor;
+      if (wpEditor && isInitialized) {
+        try {
+          wpEditor.remove(editorId);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [editorId, isInitialized]);
+
+  // Function to force Visual mode
+  const forceVisualMode = (editorId: string) => {
+    const editorWrap = document.querySelector(`#wp-${editorId}-wrap`);
+    const textTab = document.querySelector(`#${editorId}-html`);
+    const visualTab = document.querySelector(`#${editorId}-tmce`);
+    const textarea = document.querySelector(`#${editorId}`) as HTMLTextAreaElement;
+
+    if (editorWrap && textTab && visualTab) {
+      // Force Visual tab to be active
+      textTab.classList.remove("active");
+      visualTab.classList.add("active");
+
+      // Force container to show Visual mode
+      editorWrap.classList.remove("html-active");
+      editorWrap.classList.add("tmce-active");
+
+      // Hide textarea, show TinyMCE
+      if (textarea) {
+        textarea.style.display = "none";
+      }
+
+      const mceContainer = editorWrap.querySelector(".mce-tinymce");
+      if (mceContainer) {
+        (mceContainer as HTMLElement).style.display = "block";
+      }
+    }
+  };
+
+  // Function to set up tab click handlers
+  const setupTabHandlers = (editorId: string) => {
+    const textTab = document.querySelector(`#${editorId}-html`) as HTMLElement;
+    const visualTab = document.querySelector(`#${editorId}-tmce`) as HTMLElement;
+
+    if (textTab && visualTab) {
+      // Allow Visual tab to be clicked but ensure it stays in Visual mode
+      visualTab.onclick = (e) => {
+        // Don't prevent default - allow normal tab switching behavior
+        setTimeout(() => {
+          forceVisualMode(editorId);
+        }, 10);
+      };
+
+      // Prevent Text/Code tab from working - redirect to Visual mode
+      textTab.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setTimeout(() => {
+          forceVisualMode(editorId);
+        }, 10);
+        return false;
+      };
+    }
+  };
+
+  // Update content when value prop changes externally
+  useEffect(() => {
+    if (isInitialized) {
+      const tinymce = (window as any).tinymce;
+      if (tinymce) {
+        const editor = tinymce.get(editorId);
+        if (editor && editor.getContent() !== value) {
+          editor.setContent(value || "");
+          // Force Visual mode after content update
+          setTimeout(() => {
+            forceVisualMode(editorId);
+          }, 50);
+        }
+      }
+    }
+  }, [value, editorId, isInitialized]);
+
+  return (
+    <div className="quiz-modal-wp-editor">
+      <div className="quiz-modal-tinymce-editor">
+        <textarea
+          ref={editorRef}
+          id={editorId}
+          name={editorId}
+          defaultValue={value}
+          placeholder={placeholder}
+          style={{ width: "100%", height: "200px" }}
+        />
+      </div>
+      <div className="quiz-modal-editor-actions">
+        <Button variant="secondary" isSmall onClick={onCancel}>
+          {__("Cancel", "tutorpress")}
+        </Button>
+        <Button variant="primary" isSmall onClick={onOk}>
+          {__("OK", "tutorpress")}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, courseId, quizId }) => {
   const [activeTab, setActiveTab] = useState("question-details");
@@ -62,6 +306,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number | null>(null);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+  const [deletedQuestionIds, setDeletedQuestionIds] = useState<number[]>([]);
+  const [deletedAnswerIds, setDeletedAnswerIds] = useState<number[]>([]);
+
+  // Editor visibility state
+  const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
+  const [showExplanationEditor, setShowExplanationEditor] = useState(false);
 
   // Initialize quiz form hook with loaded data
   const {
@@ -197,6 +447,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setSelectedQuestionIndex(questionIndex);
     setEditingQuestionId(questions[questionIndex]?.question_id || null);
     setIsAddingQuestion(false); // Exit add mode when selecting existing question
+    // Reset editor visibility when selecting a new question
+    setShowDescriptionEditor(false);
+    setShowExplanationEditor(false);
     console.log("Selected question:", questions[questionIndex]);
   };
 
@@ -209,9 +462,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       return;
     }
 
+    // Generate unique temporary ID (negative numbers to distinguish from real IDs)
+    const tempQuestionId = -(Date.now() + Math.floor(Math.random() * 1000));
+
     // Create a new question object
     const newQuestion: QuizQuestion = {
-      question_id: Date.now(), // Temporary ID for new questions
+      question_id: tempQuestionId,
       question_title: "",
       question_description: "",
       question_mark: 1,
@@ -243,6 +499,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setIsAddingQuestion(false);
     setSelectedQuestionType(null);
 
+    // Reset editor visibility for new question
+    setShowDescriptionEditor(false);
+    setShowExplanationEditor(false);
+
     console.log("Created new question:", newQuestion);
   };
 
@@ -255,12 +515,28 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     const questionToDelete = questions[questionIndex];
+
+    // Track deleted IDs for existing questions (those with real database IDs)
+    if (questionToDelete.question_id > 0) {
+      setDeletedQuestionIds((prev) => [...prev, questionToDelete.question_id]);
+
+      // Track deleted answer IDs
+      const answerIdsToDelete = questionToDelete.question_answers
+        .filter((answer) => answer.answer_id > 0)
+        .map((answer) => answer.answer_id);
+
+      if (answerIdsToDelete.length > 0) {
+        setDeletedAnswerIds((prev) => [...prev, ...answerIdsToDelete]);
+      }
+    }
+
     const updatedQuestions = questions.filter((_, index) => index !== questionIndex);
 
     // Update question orders
     const reorderedQuestions = updatedQuestions.map((question, index) => ({
       ...question,
       question_order: index + 1,
+      _data_status: question._data_status === "new" ? ("new" as DataStatus) : ("update" as DataStatus),
     }));
 
     setQuestions(reorderedQuestions);
@@ -312,10 +588,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
     updatedQuestions[questionIndex] = {
-      ...updatedQuestions[questionIndex],
+      ...currentQuestion,
       [field]: value,
-      _data_status: "update", // Mark as updated for Tutor LMS
+      _data_status: preservedStatus,
     };
 
     setQuestions(updatedQuestions);
@@ -329,11 +609,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // This will be expanded in Steps 3.5-3.9 for each question type
     switch (question.question_type) {
       case "true_false":
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("True/False answer options will be implemented in Step 3.5", "tutorpress")}</p>
-          </div>
-        );
+        return renderTrueFalseContent(question);
       case "single_choice":
         return (
           <div className="quiz-modal-question-placeholder">
@@ -374,6 +650,139 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Render True/False question content - Step 3.5
+   */
+  const renderTrueFalseContent = (question: QuizQuestion): JSX.Element => {
+    // Ensure we have True/False answer options
+    const trueFalseAnswers = ensureTrueFalseAnswers(question);
+    const trueAnswer = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "True");
+    const falseAnswer = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
+    const correctAnswerId = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.is_correct === "1")?.answer_id;
+
+    return (
+      <div className="quiz-modal-true-false-content">
+        <div className="quiz-modal-true-false-options">
+          <div
+            className={`quiz-modal-true-false-option ${correctAnswerId === trueAnswer?.answer_id ? "is-correct" : ""}`}
+            onClick={() => handleTrueFalseCorrectAnswer(question, trueAnswer?.answer_id || 0)}
+          >
+            {correctAnswerId === trueAnswer?.answer_id && <span className="quiz-modal-correct-indicator">✓</span>}
+            <span className="quiz-modal-answer-text">{__("True", "tutorpress")}</span>
+          </div>
+
+          <div
+            className={`quiz-modal-true-false-option ${correctAnswerId === falseAnswer?.answer_id ? "is-correct" : ""}`}
+            onClick={() => handleTrueFalseCorrectAnswer(question, falseAnswer?.answer_id || 0)}
+          >
+            {correctAnswerId === falseAnswer?.answer_id && <span className="quiz-modal-correct-indicator">✓</span>}
+            <span className="quiz-modal-answer-text">{__("False", "tutorpress")}</span>
+          </div>
+        </div>
+
+        {!correctAnswerId && (
+          <div className="quiz-modal-validation-error">
+            <p>{__("Please select the correct answer (True or False)", "tutorpress")}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Ensure True/False answers exist for question - Step 3.5
+   */
+  const ensureTrueFalseAnswers = (question: QuizQuestion): QuizQuestionOption[] => {
+    let answers = [...question.question_answers];
+
+    // Check if True answer exists
+    let trueAnswer = answers.find((answer: QuizQuestionOption) => answer.answer_title === "True");
+    if (!trueAnswer) {
+      trueAnswer = {
+        answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 1),
+        belongs_question_id: question.question_id,
+        belongs_question_type: question.question_type,
+        answer_title: "True",
+        is_correct: "0",
+        image_id: 0,
+        image_url: "",
+        answer_two_gap_match: "",
+        answer_view_format: "",
+        answer_order: 1,
+        _data_status: "new",
+      };
+      answers.push(trueAnswer);
+    }
+
+    // Check if False answer exists
+    let falseAnswer = answers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
+    if (!falseAnswer) {
+      falseAnswer = {
+        answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 2),
+        belongs_question_id: question.question_id,
+        belongs_question_type: question.question_type,
+        answer_title: "False",
+        is_correct: "0",
+        image_id: 0,
+        image_url: "",
+        answer_two_gap_match: "",
+        answer_view_format: "",
+        answer_order: 2,
+        _data_status: "new",
+      };
+      answers.push(falseAnswer);
+    }
+
+    // Update question if answers were added
+    if (answers.length !== question.question_answers.length) {
+      const questionIndex = questions.findIndex((q) => q.question_id === question.question_id);
+      if (questionIndex !== -1) {
+        const updatedQuestions = [...questions];
+        const currentQuestion = updatedQuestions[questionIndex];
+
+        const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
+        updatedQuestions[questionIndex] = {
+          ...currentQuestion,
+          question_answers: answers,
+          _data_status: preservedStatus,
+        };
+
+        setQuestions(updatedQuestions);
+      }
+    }
+
+    return answers;
+  };
+
+  /**
+   * Handle True/False correct answer selection - Step 3.5
+   */
+  const handleTrueFalseCorrectAnswer = (question: QuizQuestion, selectedAnswerId: number) => {
+    const questionIndex = questions.findIndex((q) => q.question_id === question.question_id);
+    if (questionIndex === -1) return;
+
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+
+    const updatedAnswers = currentQuestion.question_answers.map((answer: QuizQuestionOption) => ({
+      ...answer,
+      is_correct: (answer.answer_id === selectedAnswerId ? "1" : "0") as "0" | "1",
+      _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
+    }));
+
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
+    updatedQuestions[questionIndex] = {
+      ...currentQuestion,
+      question_answers: updatedAnswers,
+      _data_status: preservedStatus,
+    };
+
+    setQuestions(updatedQuestions);
+    console.log(`Set correct answer for True/False question ${question.question_id}:`, selectedAnswerId);
+  };
+
+  /**
    * Handle question setting updates - Step 3.3
    */
   const handleQuestionSettingUpdate = (questionIndex: number, setting: keyof QuizQuestionSettings, value: any) => {
@@ -382,13 +791,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
     updatedQuestions[questionIndex] = {
-      ...updatedQuestions[questionIndex],
+      ...currentQuestion,
       question_settings: {
-        ...updatedQuestions[questionIndex].question_settings,
+        ...currentQuestion.question_settings,
         [setting]: value,
       },
-      _data_status: "update", // Mark as updated for Tutor LMS
+      _data_status: currentQuestion._data_status === "new" ? "new" : "update",
     };
 
     setQuestions(updatedQuestions);
@@ -403,32 +813,26 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     switch (question.question_type) {
       case "multiple_choice":
         return (
-          <div className="quiz-modal-settings-placeholder">
-            <ToggleControl
-              label={__("Multiple Correct Answers", "tutorpress")}
-              checked={question.question_settings.has_multiple_correct_answer}
-              onChange={(checked) =>
-                handleQuestionSettingUpdate(questions.indexOf(question), "has_multiple_correct_answer", checked)
-              }
-              help={__("Allow students to select multiple correct answers", "tutorpress")}
-              disabled={isSaving}
-            />
-          </div>
+          <ToggleControl
+            label={__("Multiple Correct Answers", "tutorpress")}
+            checked={question.question_settings.has_multiple_correct_answer}
+            onChange={(checked) =>
+              handleQuestionSettingUpdate(questions.indexOf(question), "has_multiple_correct_answer", checked)
+            }
+            disabled={isSaving}
+          />
         );
       case "image_matching":
       case "image_answering":
         return (
-          <div className="quiz-modal-settings-placeholder">
-            <ToggleControl
-              label={__("Image Matching", "tutorpress")}
-              checked={question.question_settings.is_image_matching}
-              onChange={(checked) =>
-                handleQuestionSettingUpdate(questions.indexOf(question), "is_image_matching", checked)
-              }
-              help={__("Enable image-based matching for this question", "tutorpress")}
-              disabled={isSaving}
-            />
-          </div>
+          <ToggleControl
+            label={__("Image Matching", "tutorpress")}
+            checked={question.question_settings.is_image_matching}
+            onChange={(checked) =>
+              handleQuestionSettingUpdate(questions.indexOf(question), "is_image_matching", checked)
+            }
+            disabled={isSaving}
+          />
         );
       case "true_false":
       case "single_choice":
@@ -438,17 +842,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       case "matching":
       case "ordering":
       case "h5p":
-        return (
-          <div className="quiz-modal-settings-placeholder">
-            <p>{__("No additional settings for this question type", "tutorpress")}</p>
-          </div>
-        );
       default:
-        return (
-          <div className="quiz-modal-settings-placeholder">
-            <p>{__("Unknown question type", "tutorpress")}</p>
-          </div>
-        );
+        // Return empty fragment for question types without additional settings
+        return <></>;
     }
   };
 
@@ -486,8 +882,20 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           const sortedQuestions = quizData.questions.sort(
             (a: QuizQuestion, b: QuizQuestion) => a.question_order - b.question_order
           );
-          setQuestions(sortedQuestions);
-          console.log("Loaded questions:", sortedQuestions);
+
+          // Ensure all loaded questions have _data_status set
+          const questionsWithStatus = sortedQuestions.map((question: QuizQuestion) => ({
+            ...question,
+            _data_status: question._data_status || "no_change",
+            question_answers: question.question_answers.map((answer: QuizQuestionOption) => ({
+              ...answer,
+              _data_status: answer._data_status || "no_change",
+            })),
+          }));
+
+          setQuestions(questionsWithStatus);
+          console.log("Loaded", questionsWithStatus.length, "questions for quiz", id);
+          console.log("Loaded questions with _data_status:", questionsWithStatus);
         } else {
           setQuestions([]);
         }
@@ -497,6 +905,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         setEditingQuestionId(null);
         setIsAddingQuestion(false);
         setSelectedQuestionType(null);
+        setDeletedQuestionIds([]);
+        setDeletedAnswerIds([]);
 
         return quizData;
       } else {
@@ -526,6 +936,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       setEditingQuestionId(null);
       setIsAddingQuestion(false);
       setSelectedQuestionType(null);
+      setDeletedQuestionIds([]);
+      setDeletedAnswerIds([]);
     }
   }, [isOpen, quizId]);
 
@@ -548,6 +960,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         setSelectedQuestionType(null);
         setSelectedQuestionIndex(null);
         setEditingQuestionId(null);
+        setDeletedQuestionIds([]);
+        setDeletedAnswerIds([]);
       }
     }
   }, [isOpen, checkCoursePreviewAddon, quizId]);
@@ -613,6 +1027,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setEditingQuestionId(null);
     setIsAddingQuestion(false);
     setSelectedQuestionType(null);
+    setDeletedQuestionIds([]);
+    setDeletedAnswerIds([]);
     onClose();
   };
 
@@ -633,6 +1049,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     try {
       const formData = getFormData(questions);
+
+      // Add deleted IDs to form data
+      formData.deleted_question_ids = deletedQuestionIds;
+      formData.deleted_answer_ids = deletedAnswerIds;
+
+      console.log("Saving quiz with", questions.length, "questions");
 
       // Get QuizService from global window object
       const quizService = (window as any).tutorpress?.quiz?.service;
@@ -917,11 +1339,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
             <div className="quiz-modal-question-form">
               {selectedQuestionIndex !== null && questions[selectedQuestionIndex] ? (
                 <div className="quiz-modal-question-form-content">
-                  <h4>
-                    {__("Question", "tutorpress")} {selectedQuestionIndex + 1}:{" "}
-                    {getQuestionTypeDisplayName(questions[selectedQuestionIndex].question_type)}
-                  </h4>
-
                   {/* Core Question Fields */}
                   <div className="quiz-modal-question-core-fields">
                     <TextControl
@@ -929,59 +1346,80 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                       value={questions[selectedQuestionIndex].question_title}
                       onChange={(value) => handleQuestionFieldUpdate(selectedQuestionIndex, "question_title", value)}
                       placeholder={__("Enter your question...", "tutorpress")}
-                      help={__("The main question text that students will see", "tutorpress")}
                       disabled={isSaving}
                     />
 
-                    <TextareaControl
-                      label={__("Question Description", "tutorpress")}
-                      value={questions[selectedQuestionIndex].question_description}
-                      onChange={(value) =>
-                        handleQuestionFieldUpdate(selectedQuestionIndex, "question_description", value)
-                      }
-                      placeholder={__("Optional additional context or instructions...", "tutorpress")}
-                      help={__("Additional context, instructions, or media for this question", "tutorpress")}
-                      rows={3}
-                      disabled={isSaving}
-                    />
-
-                    <NumberControl
-                      label={__("Question Marks", "tutorpress")}
-                      value={questions[selectedQuestionIndex].question_mark}
-                      onChange={(value) =>
-                        handleQuestionFieldUpdate(
-                          selectedQuestionIndex,
-                          "question_mark",
-                          parseInt(value as string) || 1
-                        )
-                      }
-                      min={1}
-                      max={100}
-                      step={1}
-                      help={__("Points awarded for correct answer", "tutorpress")}
-                      disabled={isSaving}
-                    />
+                    <div className="quiz-modal-description-field">
+                      {!showDescriptionEditor && (
+                        <div
+                          className="quiz-modal-description-label"
+                          onClick={() => setShowDescriptionEditor(!showDescriptionEditor)}
+                        >
+                          {questions[selectedQuestionIndex].question_description.trim() ? (
+                            <div
+                              className="quiz-modal-saved-content"
+                              dangerouslySetInnerHTML={{
+                                __html: questions[selectedQuestionIndex].question_description,
+                              }}
+                            />
+                          ) : (
+                            __("Description (optional)", "tutorpress")
+                          )}
+                        </div>
+                      )}
+                      {showDescriptionEditor && (
+                        <TinyMCEEditor
+                          value={questions[selectedQuestionIndex].question_description}
+                          onChange={(value) =>
+                            handleQuestionFieldUpdate(selectedQuestionIndex, "question_description", value)
+                          }
+                          editorId="question_description"
+                          onCancel={() => setShowDescriptionEditor(false)}
+                          onOk={() => setShowDescriptionEditor(false)}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Question Type-Specific Content Area */}
                   <div className="quiz-modal-question-type-content">
-                    <h5>{__("Answer Options", "tutorpress")}</h5>
                     {renderQuestionTypeContent(questions[selectedQuestionIndex])}
                   </div>
 
                   {/* Answer Explanation */}
                   <div className="quiz-modal-question-explanation">
-                    <TextareaControl
-                      label={__("Answer Explanation", "tutorpress")}
-                      value={questions[selectedQuestionIndex].answer_explanation}
-                      onChange={(value) =>
-                        handleQuestionFieldUpdate(selectedQuestionIndex, "answer_explanation", value)
-                      }
-                      placeholder={__("Explain why this is the correct answer...", "tutorpress")}
-                      help={__("Optional explanation shown to students after they answer", "tutorpress")}
-                      rows={3}
-                      disabled={isSaving}
-                    />
+                    {!showExplanationEditor && (
+                      <div
+                        className="quiz-modal-explanation-label"
+                        onClick={() => setShowExplanationEditor(!showExplanationEditor)}
+                      >
+                        {questions[selectedQuestionIndex].answer_explanation.trim() ? (
+                          <div>
+                            <label>{__("Answer Explanation", "tutorpress")}</label>
+                            <div
+                              className="quiz-modal-saved-content"
+                              dangerouslySetInnerHTML={{ __html: questions[selectedQuestionIndex].answer_explanation }}
+                            />
+                          </div>
+                        ) : (
+                          __("Write answer explanation", "tutorpress")
+                        )}
+                      </div>
+                    )}
+                    {showExplanationEditor && (
+                      <div>
+                        <label>{__("Answer Explanation", "tutorpress")}</label>
+                        <TinyMCEEditor
+                          value={questions[selectedQuestionIndex].answer_explanation}
+                          onChange={(value) =>
+                            handleQuestionFieldUpdate(selectedQuestionIndex, "answer_explanation", value)
+                          }
+                          editorId="answer_explanation"
+                          onCancel={() => setShowExplanationEditor(false)}
+                          onOk={() => setShowExplanationEditor(false)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -998,46 +1436,52 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
               <h4>{__("Question Settings", "tutorpress")}</h4>
               {selectedQuestionIndex !== null && questions[selectedQuestionIndex] ? (
                 <div className="quiz-modal-question-settings-content">
-                  {/* Universal Question Settings */}
-                  <div className="quiz-modal-universal-settings">
-                    <h5>{__("General Settings", "tutorpress")}</h5>
-
-                    <ToggleControl
-                      label={__("Answer Required", "tutorpress")}
-                      checked={questions[selectedQuestionIndex].question_settings.answer_required}
-                      onChange={(checked) =>
-                        handleQuestionSettingUpdate(selectedQuestionIndex, "answer_required", checked)
-                      }
-                      help={__("Students must answer this question to proceed", "tutorpress")}
-                      disabled={isSaving}
-                    />
-
-                    <ToggleControl
-                      label={__("Show Question Mark", "tutorpress")}
-                      checked={questions[selectedQuestionIndex].question_settings.show_question_mark}
-                      onChange={(checked) =>
-                        handleQuestionSettingUpdate(selectedQuestionIndex, "show_question_mark", checked)
-                      }
-                      help={__("Display the point value to students", "tutorpress")}
-                      disabled={isSaving}
-                    />
-
-                    <ToggleControl
-                      label={__("Randomize Question", "tutorpress")}
-                      checked={questions[selectedQuestionIndex].question_settings.randomize_question}
-                      onChange={(checked) =>
-                        handleQuestionSettingUpdate(selectedQuestionIndex, "randomize_question", checked)
-                      }
-                      help={__("Randomize answer options for this question", "tutorpress")}
-                      disabled={isSaving}
-                    />
+                  {/* Question Type Display */}
+                  <div className="quiz-modal-question-type-display">
+                    <label>
+                      {__("Question Type: ", "tutorpress")}
+                      <span className="quiz-modal-question-type-value">
+                        {getQuestionTypeDisplayName(questions[selectedQuestionIndex].question_type)}
+                      </span>
+                    </label>
                   </div>
 
-                  {/* Question Type-Specific Settings */}
-                  <div className="quiz-modal-type-specific-settings">
-                    <h5>{__("Type-Specific Settings", "tutorpress")}</h5>
-                    {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
-                  </div>
+                  {/* Answer Required */}
+                  <ToggleControl
+                    label={__("Answer Required", "tutorpress")}
+                    checked={questions[selectedQuestionIndex].question_settings.answer_required}
+                    onChange={(checked) =>
+                      handleQuestionSettingUpdate(selectedQuestionIndex, "answer_required", checked)
+                    }
+                    disabled={isSaving}
+                  />
+
+                  {/* Points For This Question */}
+                  <NumberControl
+                    label={__("Points For This Question", "tutorpress")}
+                    value={questions[selectedQuestionIndex].question_mark}
+                    onChange={(value) =>
+                      handleQuestionFieldUpdate(selectedQuestionIndex, "question_mark", parseInt(value as string) || 1)
+                    }
+                    min={1}
+                    max={100}
+                    step={1}
+                    type="number"
+                    disabled={isSaving}
+                  />
+
+                  {/* Display Points */}
+                  <ToggleControl
+                    label={__("Display Points", "tutorpress")}
+                    checked={questions[selectedQuestionIndex].question_settings.show_question_mark}
+                    onChange={(checked) =>
+                      handleQuestionSettingUpdate(selectedQuestionIndex, "show_question_mark", checked)
+                    }
+                    disabled={isSaving}
+                  />
+
+                  {/* Type-Specific Settings (only for certain types) */}
+                  {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
                 </div>
               ) : (
                 <div className="quiz-modal-empty-state">

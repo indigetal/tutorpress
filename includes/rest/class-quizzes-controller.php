@@ -524,12 +524,59 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
             return [];
         }
         
-        // Get answers for each question
+        // Get answers for each question and convert data types for React
         foreach ($questions as &$question) {
             $answers = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}tutor_quiz_question_answers WHERE belongs_question_id = %d ORDER BY answer_order ASC",
                 $question->question_id
             ));
+            
+            // Convert question properties to proper types for React
+            $question->question_id = (int) $question->question_id;
+            $question->quiz_id = (int) $question->quiz_id;
+            $question->question_mark = (int) $question->question_mark;
+            $question->question_order = (int) $question->question_order;
+            
+            // Fix multiple escaping issues by unslashing content fields
+            $question->question_description = wp_unslash($question->question_description);
+            $question->answer_explanation = wp_unslash($question->answer_explanation);
+            $question->question_title = wp_unslash($question->question_title);
+            
+            // Parse and convert question_settings from serialized PHP data to structured object
+            $question_settings = [];
+            if (!empty($question->question_settings)) {
+                $parsed_settings = unserialize($question->question_settings);
+                if (is_array($parsed_settings)) {
+                    $question_settings = $parsed_settings;
+                }
+            }
+            
+            // Create properly structured question_settings with boolean conversion
+            $question->question_settings = [
+                'question_type' => $question->question_type,
+                'answer_required' => isset($question_settings['answer_required']) ? (bool) $question_settings['answer_required'] : true,
+                'randomize_question' => isset($question_settings['randomize_question']) ? (bool) $question_settings['randomize_question'] : false,
+                'question_mark' => (int) $question->question_mark,
+                'show_question_mark' => isset($question_settings['show_question_mark']) ? (bool) $question_settings['show_question_mark'] : true,
+                'has_multiple_correct_answer' => isset($question_settings['has_multiple_correct_answer']) ? (bool) $question_settings['has_multiple_correct_answer'] : false,
+                'is_image_matching' => isset($question_settings['is_image_matching']) ? (bool) $question_settings['is_image_matching'] : false,
+            ];
+            
+            // Convert answers to proper types
+            foreach ($answers as &$answer) {
+                $answer->answer_id = (int) $answer->answer_id;
+                $answer->belongs_question_id = (int) $answer->belongs_question_id;
+                $answer->image_id = (int) $answer->image_id;
+                $answer->answer_order = (int) $answer->answer_order;
+                
+                // Fix multiple escaping issues by unslashing answer content
+                $answer->answer_title = wp_unslash($answer->answer_title);
+                
+                // Ensure image_url is set
+                if (empty($answer->image_url)) {
+                    $answer->image_url = '';
+                }
+            }
             
             $question->question_answers = $answers ?: [];
         }

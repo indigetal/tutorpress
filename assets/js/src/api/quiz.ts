@@ -58,27 +58,90 @@ class QuizService {
   }
 
   /**
+   * Sanitize HTML content from TinyMCE editors
+   */
+  private sanitizeQuizData(quizData: QuizForm): any {
+    // Create a deep copy to avoid mutating the original data
+    const sanitized = {
+      ...quizData,
+      questions: quizData.questions.map((question) => {
+        // Flatten question_settings into individual properties as expected by Tutor LMS
+        const { question_settings, ...questionBase } = question;
+
+        // Create the serialized question_settings as Tutor LMS expects
+        const serializedSettings = {
+          question_type: question.question_type,
+          answer_required: question_settings.answer_required ? 1 : 0,
+          randomize_question: question_settings.randomize_question ? 1 : 0,
+          question_mark: question.question_mark,
+          show_question_mark: question_settings.show_question_mark ? 1 : 0,
+        };
+
+        return {
+          ...questionBase,
+          // Sanitize HTML content in question fields
+          question_description: this.sanitizeHtml(question.question_description),
+          answer_explanation: this.sanitizeHtml(question.answer_explanation),
+          // Provide both formats for Tutor LMS compatibility
+          question_settings: serializedSettings, // Keep the nested object for compatibility
+          // Also provide flattened properties (convert booleans to integers)
+          answer_required: question_settings.answer_required ? 1 : 0,
+          randomize_question: question_settings.randomize_question ? 1 : 0,
+          show_question_mark: question_settings.show_question_mark ? 1 : 0,
+          // Note: question_mark and question_type are already at the top level
+          question_answers: question.question_answers.map((answer) => ({
+            ...answer,
+            // Sanitize HTML content in answer fields
+            answer_title: this.sanitizeHtml(answer.answer_title),
+          })),
+        };
+      }),
+    };
+
+    return sanitized;
+  }
+
+  /**
+   * Basic HTML sanitization for Tutor LMS compatibility
+   */
+  private sanitizeHtml(html: string): string {
+    if (!html || typeof html !== "string") {
+      return "";
+    }
+
+    // For now, just return the HTML as-is since Tutor LMS should handle HTML content
+    // If we get specific errors, we can add more sanitization here
+    return html.trim();
+  }
+
+  /**
    * Save a quiz using the Tutor LMS quiz builder AJAX endpoint
    */
   async saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Promise<QuizOperationResult<QuizDetails>> {
     try {
+      // Sanitize HTML content from TinyMCE editors
+      const sanitizedQuizData = this.sanitizeQuizData(quizData);
+
+      console.log("Original quiz data:", quizData);
+      console.log("Sanitized quiz data:", sanitizedQuizData);
+
       // Prepare the form data as Tutor LMS expects it
       const formData = new FormData();
       formData.append("action", "tutor_quiz_builder_save");
       formData.append("_tutor_nonce", this.getTutorNonce());
-      formData.append("payload", JSON.stringify(quizData));
+      formData.append("payload", JSON.stringify(sanitizedQuizData));
       formData.append("course_id", courseId.toString());
       formData.append("topic_id", topicId.toString());
 
       // Add deleted IDs if they exist
-      if (quizData.deleted_question_ids && quizData.deleted_question_ids.length > 0) {
-        quizData.deleted_question_ids.forEach((id, index) => {
+      if (sanitizedQuizData.deleted_question_ids && sanitizedQuizData.deleted_question_ids.length > 0) {
+        sanitizedQuizData.deleted_question_ids.forEach((id: number, index: number) => {
           formData.append(`deleted_question_ids[${index}]`, id.toString());
         });
       }
 
-      if (quizData.deleted_answer_ids && quizData.deleted_answer_ids.length > 0) {
-        quizData.deleted_answer_ids.forEach((id, index) => {
+      if (sanitizedQuizData.deleted_answer_ids && sanitizedQuizData.deleted_answer_ids.length > 0) {
+        sanitizedQuizData.deleted_answer_ids.forEach((id: number, index: number) => {
           formData.append(`deleted_answer_ids[${index}]`, id.toString());
         });
       }
@@ -87,12 +150,23 @@ class QuizService {
       const tutorObject = (window as any)._tutorobject;
       const ajaxUrl = tutorObject?.ajaxurl || "/wp-admin/admin-ajax.php";
 
+      // Log what we're sending to the API
+      console.log("Sending to Tutor LMS API:");
+      console.log("- URL:", ajaxUrl);
+      console.log("- Action:", "tutor_quiz_builder_save");
+      console.log("- Course ID:", courseId);
+      console.log("- Topic ID:", topicId);
+      console.log("- Nonce:", this.getTutorNonce());
+      console.log("- Payload (stringified):", JSON.stringify(sanitizedQuizData));
+
       // Use @wordpress/api-fetch to call the Tutor LMS AJAX endpoint
       const response = await apiFetch({
         url: ajaxUrl,
         method: "POST",
         body: formData,
       });
+
+      console.log("Tutor LMS API response:", response);
 
       // Handle the response based on Tutor LMS patterns
       if (response && typeof response === "object") {
@@ -159,12 +233,19 @@ class QuizService {
         const errorMessage =
           tutorResponse.message || tutorResponse.data?.message || __("Failed to save quiz", "tutorpress");
 
+        console.error("Tutor LMS API error response:", {
+          status_code: tutorResponse.status_code,
+          message: tutorResponse.message,
+          data: tutorResponse.data,
+          full_response: tutorResponse,
+        });
+
         return {
           success: false,
           error: createQuizError(
             QuizErrorCode.SAVE_FAILED,
             errorMessage,
-            { type: "save", topicId, quizId: quizData.ID },
+            { type: "save", topicId, quizId: sanitizedQuizData.ID },
             { details: JSON.stringify(tutorResponse) }
           ),
         };
@@ -176,11 +257,51 @@ class QuizService {
         error: createQuizError(QuizErrorCode.INVALID_RESPONSE, __("Invalid response from server", "tutorpress"), {
           type: "save",
           topicId,
-          quizId: quizData.ID,
+          quizId: sanitizedQuizData.ID,
         }),
       };
     } catch (error) {
       console.error("Quiz save error:", error);
+
+      // Check if this is a 400 error with detailed response data
+      if (error && typeof error === "object" && (error as any).status_code === 400) {
+        const errorResponse = error as any;
+
+        console.error("Detailed 400 error response:", {
+          status_code: errorResponse.status_code,
+          message: errorResponse.message,
+          data: errorResponse.data,
+          full_error: errorResponse,
+        });
+
+        // Log the data object specifically to see its contents
+        if (errorResponse.data) {
+          console.error("Error data details:", errorResponse.data);
+          console.error("Error data type:", typeof errorResponse.data);
+          console.error("Error data keys:", Object.keys(errorResponse.data || {}));
+        }
+
+        // Extract more specific error information if available
+        let detailedMessage = errorResponse.message || "Bad Request";
+        if (errorResponse.data && typeof errorResponse.data === "object") {
+          if (errorResponse.data.message) {
+            detailedMessage = errorResponse.data.message;
+          }
+          if (errorResponse.data.errors) {
+            detailedMessage += ` - ${JSON.stringify(errorResponse.data.errors)}`;
+          }
+        }
+
+        return {
+          success: false,
+          error: createQuizError(
+            QuizErrorCode.SAVE_FAILED,
+            detailedMessage,
+            { type: "save", topicId, quizId: quizData.ID },
+            { details: JSON.stringify(errorResponse) }
+          ),
+        };
+      }
 
       return {
         success: false,
