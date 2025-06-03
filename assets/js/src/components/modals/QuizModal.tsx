@@ -31,25 +31,6 @@ import type {
   DataStatus,
 } from "../../types/quiz";
 
-// TypeScript declarations for WordPress and TinyMCE globals
-declare global {
-  interface Window {
-    wp: {
-      editor: {
-        initialize: (id: string, settings: any) => void;
-        remove: (id: string) => void;
-      };
-      apiFetch: (options: any) => Promise<any>;
-      data: any;
-      element: any;
-      hooks: any;
-    };
-    tinymce: {
-      get: (id: string) => any;
-    };
-  }
-}
-
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -338,6 +319,18 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   const { setQuizDuplicationState, setTopics } = useDispatch(curriculumStore) as any;
   const { createNotice } = useDispatch(noticesStore);
+
+  // Store state and dispatch
+  const { saveQuiz, getQuizDetails, setQuizState } = useDispatch(curriculumStore) as any;
+  const { isQuizSaving, hasQuizError, getQuizError, getLastSavedQuizId } = useSelect(
+    (select) => ({
+      isQuizSaving: select(curriculumStore).isQuizSaving(),
+      hasQuizError: select(curriculumStore).hasQuizError(),
+      getQuizError: select(curriculumStore).getQuizError(),
+      getLastSavedQuizId: select(curriculumStore).getLastSavedQuizId(),
+    }),
+    []
+  );
 
   /**
    * Load question types from Tutor LMS
@@ -858,8 +851,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     try {
       console.log("Loading quiz data for ID:", id);
 
-      // Use our REST API to get quiz details
-      const response = (await window.wp.apiFetch({
+      // Use the curriculum store to get quiz details
+      await getQuizDetails(id);
+
+      // The quiz data will be available through store selectors after successful load
+      // For now, we'll use a direct API call as a fallback until the store selectors are properly integrated
+      const response = (await (window as any).wp.apiFetch({
         path: `/tutorpress/v1/quizzes/${id}`,
         method: "GET",
       })) as any;
@@ -1056,61 +1053,40 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
       console.log("Saving quiz with", questions.length, "questions");
 
-      // Get QuizService from global window object
-      const quizService = (window as any).tutorpress?.quiz?.service;
-      if (!quizService) {
-        throw new Error(__("Quiz service not available. Please refresh the page and try again.", "tutorpress"));
+      // Add quiz ID for updates
+      if (quizId) {
+        console.log("Updating existing quiz:", quizId);
+        formData.ID = quizId; // Add the quiz ID to make it an update operation
+      } else {
+        console.log("Creating new quiz");
       }
 
       console.log("Saving quiz with data:", formData);
       console.log("Course ID:", courseId, "Topic ID:", topicId, "Quiz ID:", quizId);
 
-      let result;
+      // Use the curriculum store instead of direct quiz service
+      await saveQuiz(formData, courseId, topicId);
+
+      // The success/error handling is now done by the store state
+      // Show success message briefly
+      setSaveSuccess(true);
+
       if (quizId) {
-        // Update existing quiz - use the same saveQuiz method but include quiz ID
-        console.log("Updating existing quiz:", quizId);
-        const formDataWithId = {
-          ...formData,
-          ID: quizId, // Add the quiz ID to make it an update operation
-        };
-        result = await quizService.saveQuiz(formDataWithId, courseId, topicId);
+        // Show success notice
+        createNotice("success", __("Quiz updated successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
       } else {
-        // Create new quiz
-        console.log("Creating new quiz");
-        result = await quizService.saveQuiz(formData, courseId, topicId);
+        // Show success notice
+        createNotice("success", __("Quiz created successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
       }
 
-      console.log("Quiz save result:", result);
-
-      if (result.success && result.data) {
-        // Show success message briefly
-        setSaveSuccess(true);
-
-        if (quizId) {
-          // Update existing quiz in local state
-          updateTopicsAfterQuizUpdate(result.data);
-
-          // Show success notice
-          createNotice("success", __("Quiz updated successfully.", "tutorpress"), {
-            type: "snackbar",
-          });
-        } else {
-          // Add new quiz to local state
-          updateTopicsAfterQuizCreation(result.data, topicId);
-
-          // Show success notice
-          createNotice("success", __("Quiz created successfully.", "tutorpress"), {
-            type: "snackbar",
-          });
-        }
-
-        // Close modal after successful save (following topics pattern)
-        setTimeout(() => {
-          handleClose();
-        }, 1000);
-      } else {
-        throw new Error(result.error?.message || __("Failed to save quiz", "tutorpress"));
-      }
+      // Close modal after successful save (following topics pattern)
+      setTimeout(() => {
+        handleClose();
+      }, 1000);
     } catch (error) {
       console.error("Error saving quiz:", error);
 

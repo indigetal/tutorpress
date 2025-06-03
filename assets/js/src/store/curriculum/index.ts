@@ -18,6 +18,7 @@ import {
   CurriculumErrorCode,
 } from "../../types/curriculum";
 import type { Lesson } from "../../types/lessons";
+import { QuizForm } from "../../types/quiz";
 import { apiService } from "../../api/service";
 import {
   getTopics as fetchTopics,
@@ -58,6 +59,12 @@ interface CurriculumState {
   lessonDuplicationState: LessonDuplicationState;
   assignmentDuplicationState: AssignmentDuplicationState;
   quizDuplicationState: QuizDuplicationState;
+  quizState: {
+    status: "idle" | "saving" | "loading" | "deleting" | "duplicating" | "error" | "success";
+    error?: CurriculumError;
+    activeQuizId?: number;
+    lastSavedQuizId?: number;
+  };
   lessonState: {
     status: "idle" | "loading" | "error" | "success";
     error?: CurriculumError;
@@ -94,6 +101,7 @@ const DEFAULT_STATE: CurriculumState = {
     lastFetchedCourseId: null,
   },
   courseId: null,
+  quizState: { status: "idle" },
 };
 
 // Action types
@@ -146,7 +154,21 @@ export type CurriculumAction =
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
   | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } }
-  | { type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE"; payload: { courseId: number } };
+  | { type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE"; payload: { courseId: number } }
+  | { type: "SAVE_QUIZ_START"; payload: { quizData: any; courseId: number; topicId: number } }
+  | { type: "SAVE_QUIZ_SUCCESS"; payload: { quiz: any; courseId: number } }
+  | { type: "SAVE_QUIZ_ERROR"; payload: { error: CurriculumError } }
+  | { type: "GET_QUIZ_START"; payload: { quizId: number } }
+  | { type: "GET_QUIZ_SUCCESS"; payload: { quiz: any } }
+  | { type: "GET_QUIZ_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_QUIZ_START"; payload: { quizId: number } }
+  | { type: "DELETE_QUIZ_SUCCESS"; payload: { quizId: number; courseId: number } }
+  | { type: "DELETE_QUIZ_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DUPLICATE_QUIZ_START"; payload: { quizId: number; topicId: number; courseId: number } }
+  | { type: "DUPLICATE_QUIZ_SUCCESS"; payload: { quiz: any; sourceQuizId: number; courseId: number } }
+  | { type: "DUPLICATE_QUIZ_ERROR"; payload: { error: CurriculumError; quizId: number } }
+  | { type: "SET_QUIZ_STATE"; payload: CurriculumState["quizState"] }
+  | { type: "REFRESH_TOPICS_AFTER_QUIZ_SAVE"; payload: { courseId: number } };
 
 // Action creators
 export const actions = {
@@ -335,6 +357,42 @@ export const actions = {
       payload: { courseId },
     };
   },
+  saveQuiz(quizData: QuizForm, courseId: number, topicId: number) {
+    return {
+      type: "SAVE_QUIZ",
+      payload: { quizData, courseId, topicId },
+    };
+  },
+  getQuizDetails(quizId: number) {
+    return {
+      type: "GET_QUIZ",
+      payload: { quizId },
+    };
+  },
+  deleteQuiz(quizId: number) {
+    return {
+      type: "DELETE_QUIZ",
+      payload: { quizId },
+    };
+  },
+  duplicateQuiz(quizId: number, topicId: number, courseId: number) {
+    return {
+      type: "DUPLICATE_QUIZ",
+      payload: { quizId, topicId, courseId },
+    };
+  },
+  setQuizState(state: CurriculumState["quizState"]) {
+    return {
+      type: "SET_QUIZ_STATE",
+      payload: state,
+    };
+  },
+  refreshTopicsAfterQuizSave(courseId: number) {
+    return {
+      type: "REFRESH_TOPICS_AFTER_QUIZ_SAVE",
+      payload: { courseId },
+    };
+  },
   *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
     try {
       yield actions.setEditState({
@@ -479,6 +537,33 @@ const selectors = {
   },
   getLessonError(state: CurriculumState) {
     return state.lessonState.error;
+  },
+  getQuizState(state: CurriculumState) {
+    return state.quizState;
+  },
+  getActiveQuizId(state: CurriculumState) {
+    return state.quizState.activeQuizId;
+  },
+  getLastSavedQuizId(state: CurriculumState) {
+    return state.quizState.lastSavedQuizId;
+  },
+  isQuizLoading(state: CurriculumState) {
+    return state.quizState.status === "loading";
+  },
+  isQuizSaving(state: CurriculumState) {
+    return state.quizState.status === "saving";
+  },
+  isQuizDeleting(state: CurriculumState) {
+    return state.quizState.status === "deleting";
+  },
+  isQuizDuplicating(state: CurriculumState) {
+    return state.quizState.status === "duplicating";
+  },
+  hasQuizError(state: CurriculumState) {
+    return state.quizState.status === "error";
+  },
+  getQuizError(state: CurriculumState) {
+    return state.quizState.error;
   },
 };
 
@@ -863,6 +948,108 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         operationState: { status: "loading" },
       };
     case "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE":
+      return {
+        ...state,
+        operationState: { status: "loading" },
+      };
+    case "SAVE_QUIZ_START":
+      return {
+        ...state,
+        quizState: { status: "saving" },
+      };
+    case "SAVE_QUIZ_SUCCESS":
+      return {
+        ...state,
+        quizState: {
+          status: "success",
+          lastSavedQuizId: action.payload.quiz.id,
+        },
+      };
+    case "SAVE_QUIZ_ERROR":
+      return {
+        ...state,
+        quizState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "GET_QUIZ_START":
+      return {
+        ...state,
+        quizState: { status: "loading" },
+      };
+    case "GET_QUIZ_SUCCESS":
+      return {
+        ...state,
+        quizState: {
+          status: "success",
+          activeQuizId: action.payload.quiz.id,
+        },
+      };
+    case "GET_QUIZ_ERROR":
+      return {
+        ...state,
+        quizState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "DELETE_QUIZ_START":
+      return {
+        ...state,
+        quizState: {
+          status: "deleting",
+          activeQuizId: action.payload.quizId,
+        },
+      };
+    case "DELETE_QUIZ_SUCCESS":
+      return {
+        ...state,
+        quizState: {
+          status: "success",
+          activeQuizId: undefined,
+        },
+      };
+    case "DELETE_QUIZ_ERROR":
+      return {
+        ...state,
+        quizState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "DUPLICATE_QUIZ_START":
+      return {
+        ...state,
+        quizDuplicationState: {
+          status: "duplicating",
+          sourceQuizId: action.payload.quizId,
+        },
+      };
+    case "DUPLICATE_QUIZ_SUCCESS":
+      return {
+        ...state,
+        quizDuplicationState: {
+          status: "success",
+          sourceQuizId: action.payload.sourceQuizId,
+          duplicatedQuizId: action.payload.quiz.id,
+        },
+      };
+    case "DUPLICATE_QUIZ_ERROR":
+      return {
+        ...state,
+        quizDuplicationState: {
+          status: "error",
+          error: action.payload.error,
+          sourceQuizId: action.payload.quizId,
+        },
+      };
+    case "SET_QUIZ_STATE":
+      return {
+        ...state,
+        quizState: action.payload,
+      };
+    case "REFRESH_TOPICS_AFTER_QUIZ_SAVE":
       return {
         ...state,
         operationState: { status: "loading" },
@@ -1677,6 +1864,367 @@ const resolvers = {
       });
     }
   },
+
+  *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "SAVE_QUIZ_START",
+        payload: { quizData, courseId, topicId },
+      };
+
+      // Sanitize quiz data similar to the original quiz service
+      const sanitizedQuizData = {
+        ...quizData,
+        questions: quizData.questions.map((question) => {
+          const { question_settings, ...questionBase } = question;
+
+          const serializedSettings = {
+            question_type: question.question_type,
+            answer_required: question_settings.answer_required ? 1 : 0,
+            randomize_question: question_settings.randomize_question ? 1 : 0,
+            question_mark: question.question_mark,
+            show_question_mark: question_settings.show_question_mark ? 1 : 0,
+          };
+
+          return {
+            ...questionBase,
+            question_settings: serializedSettings,
+            answer_required: question_settings.answer_required ? 1 : 0,
+            randomize_question: question_settings.randomize_question ? 1 : 0,
+            show_question_mark: question_settings.show_question_mark ? 1 : 0,
+            question_answers: question.question_answers.map((answer) => ({
+              ...answer,
+            })),
+          };
+        }),
+      };
+
+      // Get Tutor LMS nonce
+      const tutorObject = (window as any)._tutorobject;
+      const ajaxUrl = tutorObject?.ajaxurl || "/wp-admin/admin-ajax.php";
+      const nonce = tutorObject?._tutor_nonce || "";
+
+      // Prepare FormData for Tutor LMS AJAX endpoint
+      const formData = new FormData();
+      formData.append("action", "tutor_quiz_builder_save");
+      formData.append("_tutor_nonce", nonce);
+      formData.append("payload", JSON.stringify(sanitizedQuizData));
+      formData.append("course_id", courseId.toString());
+      formData.append("topic_id", topicId.toString());
+
+      // Add deleted IDs if they exist
+      if (sanitizedQuizData.deleted_question_ids && sanitizedQuizData.deleted_question_ids.length > 0) {
+        sanitizedQuizData.deleted_question_ids.forEach((id: number, index: number) => {
+          formData.append(`deleted_question_ids[${index}]`, id.toString());
+        });
+      }
+
+      if (sanitizedQuizData.deleted_answer_ids && sanitizedQuizData.deleted_answer_ids.length > 0) {
+        sanitizedQuizData.deleted_answer_ids.forEach((id: number, index: number) => {
+          formData.append(`deleted_answer_ids[${index}]`, id.toString());
+        });
+      }
+
+      // Use API_FETCH control to call Tutor LMS AJAX endpoint
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          url: ajaxUrl,
+          method: "POST",
+          body: formData,
+        },
+      };
+
+      console.log("Tutor LMS AJAX Response:", response);
+
+      // Parse Tutor LMS AJAX response which is typically a JSON string
+      let parsedResponse;
+      try {
+        if (typeof response === "string") {
+          parsedResponse = JSON.parse(response);
+        } else {
+          parsedResponse = response;
+        }
+      } catch (parseError) {
+        console.error("Failed to parse Tutor LMS response:", response);
+        throw new Error("Invalid response format from Tutor LMS");
+      }
+
+      // Check if the response indicates success
+      if (!parsedResponse || (!parsedResponse.success && !parsedResponse.data)) {
+        throw new Error(parsedResponse?.message || "Failed to save quiz");
+      }
+
+      yield {
+        type: "SAVE_QUIZ_SUCCESS",
+        payload: { quiz: parsedResponse.data || parsedResponse, courseId },
+      };
+
+      // Refresh topics to show the new/updated quiz
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after quiz save:", refreshError);
+        // Don't throw here as the quiz was saved successfully
+      }
+    } catch (error) {
+      console.error("Quiz save error:", error);
+      yield {
+        type: "SAVE_QUIZ_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.CREATE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to save quiz", "tutorpress"),
+            context: {
+              action: "saveQuiz",
+              details: "Failed to save quiz to Tutor LMS",
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *getQuizDetails(quizId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "GET_QUIZ_START",
+        payload: { quizId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/quizzes/${quizId}`,
+          method: "GET",
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid quiz details response");
+      }
+
+      const quiz = (response as { data: any }).data;
+
+      yield {
+        type: "GET_QUIZ_SUCCESS",
+        payload: { quiz },
+      };
+    } catch (error) {
+      yield {
+        type: "GET_QUIZ_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.FETCH_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to get quiz details", "tutorpress"),
+            context: {
+              action: "getQuizDetails",
+              details: `Failed to get quiz ${quizId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *deleteQuiz(quizId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DELETE_QUIZ_START",
+        payload: { quizId },
+      };
+
+      // Get parent info first to refresh topics later
+      const parentInfoResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/quizzes/${quizId}/parent-info`,
+          method: "GET",
+        },
+      };
+
+      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+        throw new Error("Invalid parent info response");
+      }
+
+      const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+      // Delete the quiz
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/quizzes/${quizId}`,
+          method: "DELETE",
+        },
+      };
+
+      yield {
+        type: "DELETE_QUIZ_SUCCESS",
+        payload: { quizId, courseId: parentInfo.data.course_id },
+      };
+
+      // Refresh topics to remove the deleted quiz
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after quiz delete:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "DELETE_QUIZ_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete quiz", "tutorpress"),
+            context: {
+              action: "deleteQuiz",
+              details: `Failed to delete quiz ${quizId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *duplicateQuiz(quizId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DUPLICATE_QUIZ_START",
+        payload: { quizId, topicId, courseId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/quizzes/${quizId}/duplicate`,
+          method: "POST",
+          data: { topic_id: topicId, course_id: courseId },
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid quiz duplication response");
+      }
+
+      const quiz = (response as { data: any }).data;
+
+      yield {
+        type: "DUPLICATE_QUIZ_SUCCESS",
+        payload: { quiz, sourceQuizId: quizId, courseId },
+      };
+
+      // Refresh topics to show the duplicated quiz
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after quiz duplicate:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "DUPLICATE_QUIZ_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DUPLICATE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to duplicate quiz", "tutorpress"),
+            context: {
+              action: "duplicateQuiz",
+              details: `Failed to duplicate quiz ${quizId}`,
+            },
+          },
+          quizId,
+        },
+      };
+    }
+  },
+
+  *refreshTopicsAfterQuizSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
+    try {
+      yield actions.setOperationState({ status: "loading" });
+
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      }) as { data: Topic[] };
+
+      if (!response || !response.data) {
+        throw new Error("Invalid response format");
+      }
+
+      const topics = response.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }));
+
+      yield actions.setTopics(topics);
+      yield actions.setOperationState({ status: "success", data: topics });
+    } catch (error) {
+      yield actions.setOperationState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.FETCH_FAILED,
+          message: error instanceof Error ? error.message : "Failed to refresh topics after quiz save",
+          context: { action: "refreshTopicsAfterQuizSave" },
+        },
+      });
+    }
+  },
 };
 
 // Create and register the store
@@ -1710,6 +2258,12 @@ export const {
   deleteTopic,
   refreshTopicsAfterLessonSave,
   refreshTopicsAfterAssignmentSave,
+  saveQuiz,
+  getQuizDetails,
+  deleteQuiz,
+  duplicateQuiz,
+  setQuizState,
+  refreshTopicsAfterQuizSave,
 } = actions;
 
 // Export selectors
@@ -1731,4 +2285,13 @@ export const {
   isLessonLoading,
   hasLessonError,
   getLessonError,
+  getQuizState,
+  getActiveQuizId,
+  getLastSavedQuizId,
+  isQuizLoading,
+  isQuizSaving,
+  isQuizDeleting,
+  isQuizDuplicating,
+  hasQuizError,
+  getQuizError,
 } = selectors;
