@@ -87,7 +87,24 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => 'PATCH',
                     'callback'            => [$this, 'update_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        $topic_id = (int) $request->get_param('id');
+                        
+                        // Get the topic to find its parent course
+                        $topic = get_post($topic_id);
+                        if (!$topic || $topic->post_type !== 'topics') {
+                            return false;
+                        }
+                        
+                        // Check if user can edit the parent course (not the topic itself)
+                        $course_id = $topic->post_parent;
+                        if ($course_id && current_user_can('edit_post', $course_id)) {
+                            return true;
+                        }
+                        
+                        // Fallback to general permission check
+                        return $this->check_permission($request);
+                    },
                     'args'               => [
                         'title' => [
                             'type'              => 'string',
@@ -109,7 +126,24 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => [$this, 'delete_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        $topic_id = (int) $request->get_param('id');
+                        
+                        // Get the topic to find its parent course
+                        $topic = get_post($topic_id);
+                        if (!$topic || $topic->post_type !== 'topics') {
+                            return false;
+                        }
+                        
+                        // Check if user can edit the parent course (not the topic itself)
+                        $course_id = $topic->post_parent;
+                        if ($course_id && current_user_can('edit_post', $course_id)) {
+                            return true;
+                        }
+                        
+                        // Fallback to general permission check
+                        return $this->check_permission($request);
+                    },
                 ],
             ]
         );
@@ -162,7 +196,24 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'duplicate_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        $topic_id = (int) $request->get_param('id');
+                        $course_id = (int) $request->get_param('course_id');
+                        
+                        // Get the topic to find its parent course
+                        $topic = get_post($topic_id);
+                        if (!$topic || $topic->post_type !== 'topics') {
+                            return false;
+                        }
+                        
+                        // Check if user can edit the parent course (not the topic itself)
+                        if ($course_id && current_user_can('edit_post', $course_id)) {
+                            return true;
+                        }
+                        
+                        // Fallback to general permission check
+                        return $this->check_permission($request);
+                    },
                     'args'               => [
                         'course_id' => [
                             'required'          => true,
@@ -185,7 +236,21 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'callback'            => [$this, 'get_parent_info'],
                     'permission_callback' => function($request) {
                         $topic_id = (int) $request->get_param('id');
-                        return current_user_can('edit_post', $topic_id);
+                        
+                        // Get the topic to find its parent course
+                        $topic = get_post($topic_id);
+                        if (!$topic || $topic->post_type !== 'topics') {
+                            return false;
+                        }
+                        
+                        // Check if user can edit the parent course (not the topic itself)
+                        $course_id = $topic->post_parent;
+                        if ($course_id && current_user_can('edit_post', $course_id)) {
+                            return true;
+                        }
+                        
+                        // Fallback to general permission check
+                        return $this->check_permission($request);
                     },
                     'args'               => [
                         'id' => [
@@ -432,15 +497,6 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 );
             }
 
-            // Check if user can edit this topic
-            if (!current_user_can('edit_post', $topic_id)) {
-                return new WP_Error(
-                    'cannot_edit_topic',
-                    __('You do not have permission to edit this topic.', 'tutorpress'),
-                    ['status' => 403]
-                );
-            }
-
             // Update topic
             $topic_data = [
                 'ID' => $topic_id,
@@ -514,15 +570,6 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'invalid_topic',
                     __('Invalid topic ID.', 'tutorpress'),
                     ['status' => 404]
-                );
-            }
-
-            // Check if user can delete this topic
-            if (!current_user_can('delete_post', $topic_id)) {
-                return new WP_Error(
-                    'cannot_delete_topic',
-                    __('You do not have permission to delete this topic.', 'tutorpress'),
-                    ['status' => 403]
                 );
             }
 
