@@ -1568,11 +1568,45 @@
   gap: 8px;
 }
 
-.quiz-modal-option-card-label {
+.quiz-modal-option-card-icon {
+  position: relative;
+  width: 24px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.quiz-modal-option-card-icon .quiz-modal-option-label,
+.quiz-modal-option-card-icon .quiz-modal-drag-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 0.2s ease;
+}
+
+.quiz-modal-option-card-icon .quiz-modal-drag-icon {
+  opacity: 0;
+}
+
+.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-option-label {
+  opacity: 0;
+}
+
+.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-drag-icon {
+  opacity: 1;
+}
+
+.quiz-modal-option-label {
   font-weight: 600;
   font-size: 14px;
   color: #1e1e1e;
   min-width: 24px;
+}
+
+.quiz-modal-drag-icon {
+  width: 20px;
+  height: 20px;
+  color: #999;
+  cursor: grab;
 }
 
 .quiz-modal-option-card-drag {
@@ -1602,6 +1636,7 @@
   gap: 4px;
   opacity: 0;
   transition: opacity 0.15s ease-in-out;
+  margin-left: auto;
 }
 
 .quiz-modal-option-card:hover .quiz-modal-option-card-actions {
@@ -1631,4 +1666,19 @@
   content: "(Empty option)";
   color: #999;
   font-style: italic;
+}
+
+/* Option Card Editing State - In-place editing */
+.quiz-modal-option-card-editing {
+  border-color: #0073aa;
+  box-shadow: 0 2px 8px rgba(0, 115, 170, 0.2);
+}
+
+.quiz-modal-option-card-editing .quiz-modal-option-editor {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  padding: 16px;
+  box-shadow: none;
+  background: transparent;
 }

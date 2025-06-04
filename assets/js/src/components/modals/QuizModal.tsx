@@ -1044,57 +1044,113 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         {/* Display existing options - Step 3.6.3 */}
         {hasOptions && (
           <div className="quiz-modal-multiple-choice-options">
-            {existingOptions.map((option, index) => (
-              <div key={option.answer_id} className="quiz-modal-option-card">
-                <div className="quiz-modal-option-card-header">
-                  <span className="quiz-modal-option-card-label">{String.fromCharCode(65 + index)}.</span>
-                  <div className="quiz-modal-option-card-drag">
-                    <Icon icon={dragHandle} />
+            {existingOptions.map((option, index) => {
+              // Check if this specific option is being edited
+              const isEditingThisOption =
+                showOptionEditor && editingQuestionIndex === questionIndex && editingOptionIndex === index;
+
+              if (isEditingThisOption) {
+                // Transform this option card into the editor
+                return (
+                  <div key={option.answer_id} className="quiz-modal-option-card quiz-modal-option-card-editing">
+                    <div className="quiz-modal-option-editor">
+                      <div className="quiz-modal-option-editor-header">
+                        <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
+                        <button
+                          type="button"
+                          className="quiz-modal-add-image-btn"
+                          onClick={() => {
+                            console.log("Add Image clicked - media library functionality coming in future step");
+                            // TODO: Future step - Implement media library integration
+                          }}
+                          disabled={isSaving}
+                        >
+                          {__("Add Image", "tutorpress")}
+                        </button>
+                      </div>
+
+                      <textarea
+                        className="quiz-modal-option-textarea"
+                        placeholder={__("Write option...", "tutorpress")}
+                        value={currentOptionText}
+                        onChange={(e) => setCurrentOptionText(e.target.value)}
+                        rows={3}
+                        disabled={isSaving}
+                        autoFocus
+                      />
+
+                      <div className="quiz-modal-option-editor-actions">
+                        <button
+                          type="button"
+                          className="quiz-modal-option-cancel-btn"
+                          onClick={handleCancelOptionEditing}
+                          disabled={isSaving}
+                        >
+                          {__("Cancel", "tutorpress")}
+                        </button>
+                        <button
+                          type="button"
+                          className="quiz-modal-option-ok-btn"
+                          onClick={handleSaveOption}
+                          disabled={isSaving || !currentOptionText.trim()}
+                        >
+                          {__("Ok", "tutorpress")}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="quiz-modal-option-card-actions">
-                    <Button
-                      icon={edit}
-                      label={__("Edit option", "tutorpress")}
-                      isSmall
-                      variant="tertiary"
-                      onClick={() => handleEditOption(questionIndex, index)}
-                      disabled={showOptionEditor || isSaving}
-                    />
-                    <Button
-                      icon={copy}
-                      label={__("Duplicate option", "tutorpress")}
-                      isSmall
-                      variant="tertiary"
-                      onClick={() => handleDuplicateOption(questionIndex, index)}
-                      disabled={showOptionEditor || isSaving}
-                    />
-                    <Button
-                      icon={trash}
-                      label={__("Delete option", "tutorpress")}
-                      isSmall
-                      variant="tertiary"
-                      onClick={() => handleDeleteOption(questionIndex, index)}
-                      disabled={showOptionEditor || isSaving}
-                    />
+                );
+              }
+
+              // Regular option card display
+              return (
+                <div key={option.answer_id} className="quiz-modal-option-card">
+                  <div className="quiz-modal-option-card-header">
+                    <div className="quiz-modal-option-card-icon">
+                      <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
+                      <Icon icon={dragHandle} className="quiz-modal-drag-icon" />
+                    </div>
+                    <div className="quiz-modal-option-card-actions">
+                      <Button
+                        icon={edit}
+                        label={__("Edit option", "tutorpress")}
+                        isSmall
+                        variant="tertiary"
+                        onClick={() => handleEditOption(questionIndex, index)}
+                        disabled={showOptionEditor || isSaving}
+                      />
+                      <Button
+                        icon={copy}
+                        label={__("Duplicate option", "tutorpress")}
+                        isSmall
+                        variant="tertiary"
+                        onClick={() => handleDuplicateOption(questionIndex, index)}
+                        disabled={showOptionEditor || isSaving}
+                      />
+                      <Button
+                        icon={trash}
+                        label={__("Delete option", "tutorpress")}
+                        isSmall
+                        variant="tertiary"
+                        onClick={() => handleDeleteOption(questionIndex, index)}
+                        disabled={showOptionEditor || isSaving}
+                      />
+                    </div>
+                  </div>
+                  <div className="quiz-modal-option-card-content">
+                    {option.answer_title || __("(Empty option)", "tutorpress")}
                   </div>
                 </div>
-                <div className="quiz-modal-option-card-content">
-                  {option.answer_title || __("(Empty option)", "tutorpress")}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* Option Editing Frame - Step 3.6.2 */}
-        {showOptionEditor && editingQuestionIndex === questionIndex && (
+        {/* Add Option Editor - only show when adding new option (editingOptionIndex === null) */}
+        {showOptionEditor && editingQuestionIndex === questionIndex && editingOptionIndex === null && (
           <div className="quiz-modal-option-editor">
             <div className="quiz-modal-option-editor-header">
-              <span className="quiz-modal-option-label">
-                {editingOptionIndex === null
-                  ? String.fromCharCode(65 + existingOptions.length) + "."
-                  : String.fromCharCode(65 + editingOptionIndex) + "."}
-              </span>
+              <span className="quiz-modal-option-label">{String.fromCharCode(65 + existingOptions.length)}.</span>
               <button
                 type="button"
                 className="quiz-modal-add-image-btn"
