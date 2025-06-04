@@ -1660,6 +1660,9 @@
   font-size: 14px;
   line-height: 1.4;
   word-wrap: break-word;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .quiz-modal-option-card-content:empty::before {
@@ -1681,4 +1684,62 @@
   padding: 16px;
   box-shadow: none;
   background: transparent;
+}
+
+/* Multiple Choice Correct Answer Indicator - Step 3.6.4 */
+.quiz-modal-correct-answer-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.quiz-modal-correct-answer-indicator svg {
+  width: 14px;
+  height: 14px;
+  color: #999;
+  transition: color 0.2s ease;
+}
+
+/* Show indicator on hover */
+.quiz-modal-option-card:hover .quiz-modal-correct-answer-indicator {
+  opacity: 1;
+}
+
+/* Correct answer state - using same colors as True/False */
+.quiz-modal-option-card.is-correct .quiz-modal-correct-answer-indicator {
+  opacity: 1;
+  border-color: #4caf50;
+  background: #4caf50;
+}
+
+.quiz-modal-option-card.is-correct .quiz-modal-correct-answer-indicator svg {
+  color: white;
+}
+
+/* Correct answer card styling - using same colors as True/False */
+.quiz-modal-option-card.is-correct {
+  background: #e8f5e8;
+}
+
+.quiz-modal-option-card.is-correct:hover {
+  border-color: #4caf50;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+}
+
+.quiz-modal-option-card.is-correct .quiz-modal-option-text {
+  color: #2e7d32;
+}
+
+.quiz-modal-option-text {
+  flex: 1;
+  min-width: 0;
 }

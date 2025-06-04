@@ -1884,6 +1884,8 @@ const resolvers = {
             randomize_question: question_settings.randomize_question ? 1 : 0,
             question_mark: question.question_mark,
             show_question_mark: question_settings.show_question_mark ? 1 : 0,
+            has_multiple_correct_answer: question_settings.has_multiple_correct_answer ? 1 : 0,
+            is_image_matching: question_settings.is_image_matching ? 1 : 0,
           };
 
           return {

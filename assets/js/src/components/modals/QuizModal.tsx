@@ -15,7 +15,7 @@ import {
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { edit, copy, trash, dragHandle } from "@wordpress/icons";
+import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
 import { useQuizForm } from "../../hooks/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
@@ -802,6 +802,41 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     const updatedQuestions = [...questions];
     const currentQuestion = updatedQuestions[questionIndex];
+
+    // Handle "Multiple Correct Answers" toggle transition
+    if (setting === "has_multiple_correct_answer") {
+      const isChangingToSingle = currentQuestion.question_settings.has_multiple_correct_answer && !value;
+
+      if (isChangingToSingle) {
+        // When switching from multiple to single mode, clear all correct answers
+        const correctAnswers = currentQuestion.question_answers.filter((answer) => answer.is_correct === "1");
+
+        if (correctAnswers.length > 0) {
+          // Clear all correct answers to match Tutor LMS behavior
+          const updatedAnswers = currentQuestion.question_answers.map((answer: QuizQuestionOption) => ({
+            ...answer,
+            is_correct: "0" as "0" | "1",
+            _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
+          }));
+
+          updatedQuestions[questionIndex] = {
+            ...currentQuestion,
+            question_answers: updatedAnswers,
+            question_settings: {
+              ...currentQuestion.question_settings,
+              [setting]: value,
+            },
+            _data_status: currentQuestion._data_status === "new" ? "new" : "update",
+          };
+
+          setQuestions(updatedQuestions);
+          console.log(`Switched to single mode - cleared all ${correctAnswers.length} correct answers`);
+          return;
+        }
+      }
+    }
+
+    // Standard setting update for all other cases
     updatedQuestions[questionIndex] = {
       ...currentQuestion,
       question_settings: {
@@ -989,6 +1024,59 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Handle multiple choice correct answer selection - Step 3.6.4
+   */
+  const handleMultipleChoiceCorrectAnswer = (questionIndex: number, optionIndex: number) => {
+    if (questionIndex < 0 || questionIndex >= questions.length) {
+      return;
+    }
+
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+    const targetOption = currentQuestion.question_answers[optionIndex];
+
+    if (!targetOption) {
+      return;
+    }
+
+    // For single mode (default), only one option can be correct
+    // Check if this is single or multiple mode
+    const isMultipleMode = currentQuestion.question_settings.has_multiple_correct_answer;
+
+    let updatedAnswers;
+
+    if (isMultipleMode) {
+      // Multiple mode: toggle the clicked option
+      updatedAnswers = currentQuestion.question_answers.map((answer, index) => ({
+        ...answer,
+        is_correct: index === optionIndex ? ((answer.is_correct === "1" ? "0" : "1") as "0" | "1") : answer.is_correct,
+        _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
+      }));
+    } else {
+      // Single mode: only the clicked option is correct, all others are incorrect
+      updatedAnswers = currentQuestion.question_answers.map((answer, index) => ({
+        ...answer,
+        is_correct: (index === optionIndex ? "1" : "0") as "0" | "1",
+        _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
+      }));
+    }
+
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
+    updatedQuestions[questionIndex] = {
+      ...currentQuestion,
+      question_answers: updatedAnswers,
+      _data_status: preservedStatus,
+    };
+
+    setQuestions(updatedQuestions);
+    console.log(
+      `Set correct answer for multiple choice question ${currentQuestion.question_id}, option ${optionIndex}:`,
+      targetOption.answer_id
+    );
+  };
+
+  /**
    * Render question type-specific settings - Step 3.3
    */
   const renderQuestionTypeSettings = (question: QuizQuestion): JSX.Element => {
@@ -1104,7 +1192,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
               // Regular option card display
               return (
-                <div key={option.answer_id} className="quiz-modal-option-card">
+                <div
+                  key={option.answer_id}
+                  className={`quiz-modal-option-card ${option.is_correct === "1" ? "is-correct" : ""}`}
+                >
                   <div className="quiz-modal-option-card-header">
                     <div className="quiz-modal-option-card-icon">
                       <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
@@ -1138,7 +1229,20 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     </div>
                   </div>
                   <div className="quiz-modal-option-card-content">
-                    {option.answer_title || __("(Empty option)", "tutorpress")}
+                    <div
+                      className="quiz-modal-correct-answer-indicator"
+                      onClick={() => handleMultipleChoiceCorrectAnswer(questionIndex, index)}
+                      title={
+                        option.is_correct === "1"
+                          ? __("Correct answer", "tutorpress")
+                          : __("Mark as correct answer", "tutorpress")
+                      }
+                    >
+                      <Icon icon={check} />
+                    </div>
+                    <div className="quiz-modal-option-text">
+                      {option.answer_title || __("(Empty option)", "tutorpress")}
+                    </div>
                   </div>
                 </div>
               );
