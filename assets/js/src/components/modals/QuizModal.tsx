@@ -368,29 +368,44 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       }
 
       if (questionTypesData && typeof questionTypesData === "object") {
-        // Convert to our option format
-        const options: QuestionTypeOption[] = Object.entries(questionTypesData).map(
-          ([value, config]: [string, any]) => ({
+        // Convert to our option format and filter out single_choice and image_matching
+        const options: QuestionTypeOption[] = Object.entries(questionTypesData)
+          .filter(([value]) => value !== "single_choice" && value !== "image_matching")
+          .map(([value, config]: [string, any]) => ({
             label: config.name || value.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
             value: value as QuizQuestionType,
             is_pro: config.is_pro || false,
-          })
-        );
+          }))
+          // Sort according to the specified order
+          .sort((a, b) => {
+            const order = [
+              "true_false",
+              "multiple_choice",
+              "open_ended",
+              "fill_in_the_blank",
+              "short_answer",
+              "matching",
+              "image_answering",
+              "ordering",
+            ];
+            const aIndex = order.indexOf(a.value);
+            const bIndex = order.indexOf(b.value);
+            return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+          });
 
         setQuestionTypes(options);
         console.log("Successfully loaded question types:", options);
       } else {
-        // Fallback to static question types based on Tutor LMS core
+        // Fallback to static question types based on correct Tutor LMS order
+        // Excludes single_choice and image_matching from dropdown as requested
         console.warn("Using fallback question types - Tutor LMS question types not available");
         const fallbackTypes: QuestionTypeOption[] = [
           { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
-          { label: __("Single Choice", "tutorpress"), value: "single_choice", is_pro: false },
           { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
-          { label: __("Open Ended", "tutorpress"), value: "open_ended", is_pro: false },
+          { label: __("Open Ended/Essay", "tutorpress"), value: "open_ended", is_pro: false },
           { label: __("Fill In The Blanks", "tutorpress"), value: "fill_in_the_blank", is_pro: false },
           { label: __("Short Answer", "tutorpress"), value: "short_answer", is_pro: true },
           { label: __("Matching", "tutorpress"), value: "matching", is_pro: true },
-          { label: __("Image Matching", "tutorpress"), value: "image_matching", is_pro: true },
           { label: __("Image Answering", "tutorpress"), value: "image_answering", is_pro: true },
           { label: __("Ordering", "tutorpress"), value: "ordering", is_pro: true },
         ];
@@ -599,22 +614,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Render question type-specific content - Step 3.3
    */
   const renderQuestionTypeContent = (question: QuizQuestion): JSX.Element => {
-    // This will be expanded in Steps 3.5-3.9 for each question type
+    // This will be expanded in Steps 3.6-3.9 for each question type
     switch (question.question_type) {
       case "true_false":
         return renderTrueFalseContent(question);
-      case "single_choice":
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("Single Choice answer options will be implemented in Step 3.7", "tutorpress")}</p>
-          </div>
-        );
       case "multiple_choice":
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("Multiple Choice answer options will be implemented in Step 3.6", "tutorpress")}</p>
-          </div>
-        );
+        return renderMultipleChoiceContent(question);
       case "fill_in_the_blank":
         return (
           <div className="quiz-modal-question-placeholder">
@@ -630,7 +635,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       case "h5p":
         return (
           <div className="quiz-modal-question-placeholder">
-            <p>{__("This question type will be implemented in Step 3.9", "tutorpress")}</p>
+            <p>{__("This question type will be implemented in future steps", "tutorpress")}</p>
           </div>
         );
       default:
@@ -839,6 +844,44 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         // Return empty fragment for question types without additional settings
         return <></>;
     }
+  };
+
+  /**
+   * Render Multiple Choice question content - Step 3.6.1
+   */
+  const renderMultipleChoiceContent = (question: QuizQuestion): JSX.Element => {
+    const existingOptions = question.question_answers || [];
+    const hasOptions = existingOptions.length > 0;
+
+    return (
+      <div className="quiz-modal-multiple-choice-content">
+        {/* TODO: Step 3.6.3 - Display existing options here */}
+        {hasOptions && (
+          <div className="quiz-modal-multiple-choice-options">
+            <p className="quiz-modal-placeholder-text">
+              {__(`${existingOptions.length} option(s) - Display functionality coming in Step 3.6.3`, "tutorpress")}
+            </p>
+          </div>
+        )}
+
+        {/* Add Option Button - Step 3.6.1 Basic Structure */}
+        <div className="quiz-modal-add-option-container">
+          <button
+            type="button"
+            className="quiz-modal-add-option-btn"
+            onClick={() => {
+              console.log("Add Option clicked - functionality coming in Step 3.6.2");
+              // TODO: Step 3.6.2 - Implement option addition functionality
+            }}
+          >
+            <span className="quiz-modal-add-option-icon">+</span>
+            <span className="quiz-modal-add-option-text">{__("Add Option", "tutorpress")}</span>
+          </button>
+        </div>
+
+        {/* TODO: Step 3.6.2 - Option editing frame will be added here */}
+      </div>
+    );
   };
 
   /**
@@ -1422,6 +1465,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     </label>
                   </div>
 
+                  {/* Type-Specific Settings First (Multiple Correct Answer, etc.) */}
+                  {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
+
                   {/* Answer Required */}
                   <ToggleControl
                     label={__("Answer Required", "tutorpress")}
@@ -1455,9 +1501,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                     }
                     disabled={isSaving}
                   />
-
-                  {/* Type-Specific Settings (only for certain types) */}
-                  {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
                 </div>
               ) : (
                 <div className="quiz-modal-empty-state">
