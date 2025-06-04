@@ -15,6 +15,7 @@ import {
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { edit, copy, trash, dragHandle } from "@wordpress/icons";
 import { useQuizForm } from "../../hooks/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
@@ -899,6 +900,95 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Handle editing existing option - Step 3.6.3
+   */
+  const handleEditOption = (questionIndex: number, optionIndex: number) => {
+    console.log(`Editing option ${optionIndex} in question ${questionIndex}`);
+    handleStartOptionEditing(questionIndex, optionIndex);
+  };
+
+  /**
+   * Handle duplicating option - Step 3.6.3
+   */
+  const handleDuplicateOption = (questionIndex: number, optionIndex: number) => {
+    if (questionIndex < 0 || questionIndex >= questions.length) {
+      return;
+    }
+
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+    const optionToDuplicate = currentQuestion.question_answers[optionIndex];
+
+    if (!optionToDuplicate) {
+      return;
+    }
+
+    // Create duplicate option
+    const duplicatedOption: QuizQuestionOption = {
+      ...optionToDuplicate,
+      answer_id: -(Date.now() + Math.floor(Math.random() * 1000)),
+      answer_title: `${optionToDuplicate.answer_title} (Copy)`,
+      is_correct: "0", // Reset to not correct
+      answer_order: currentQuestion.question_answers.length + 1,
+      _data_status: "new",
+    };
+
+    const updatedAnswers = [...currentQuestion.question_answers, duplicatedOption];
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
+    updatedQuestions[questionIndex] = {
+      ...currentQuestion,
+      question_answers: updatedAnswers,
+      _data_status: preservedStatus,
+    };
+
+    setQuestions(updatedQuestions);
+    console.log("Duplicated option:", duplicatedOption);
+  };
+
+  /**
+   * Handle deleting option - Step 3.6.3
+   */
+  const handleDeleteOption = (questionIndex: number, optionIndex: number) => {
+    if (questionIndex < 0 || questionIndex >= questions.length) {
+      return;
+    }
+
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+    const optionToDelete = currentQuestion.question_answers[optionIndex];
+
+    if (!optionToDelete) {
+      return;
+    }
+
+    // Track deleted answer ID for existing options
+    if (optionToDelete.answer_id > 0) {
+      setDeletedAnswerIds((prev) => [...prev, optionToDelete.answer_id]);
+    }
+
+    // Remove option and reorder remaining options
+    const updatedAnswers = currentQuestion.question_answers
+      .filter((_, index) => index !== optionIndex)
+      .map((answer, index) => ({
+        ...answer,
+        answer_order: index + 1,
+        _data_status: answer._data_status === "new" ? ("new" as DataStatus) : ("update" as DataStatus),
+      }));
+
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+
+    updatedQuestions[questionIndex] = {
+      ...currentQuestion,
+      question_answers: updatedAnswers,
+      _data_status: preservedStatus,
+    };
+
+    setQuestions(updatedQuestions);
+    console.log("Deleted option:", optionToDelete);
+  };
+
+  /**
    * Render question type-specific settings - Step 3.3
    */
   const renderQuestionTypeSettings = (question: QuizQuestion): JSX.Element => {
@@ -951,12 +1041,48 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     return (
       <div className="quiz-modal-multiple-choice-content">
-        {/* TODO: Step 3.6.3 - Display existing options here */}
+        {/* Display existing options - Step 3.6.3 */}
         {hasOptions && (
           <div className="quiz-modal-multiple-choice-options">
-            <p className="quiz-modal-placeholder-text">
-              {__(`${existingOptions.length} option(s) - Display functionality coming in Step 3.6.3`, "tutorpress")}
-            </p>
+            {existingOptions.map((option, index) => (
+              <div key={option.answer_id} className="quiz-modal-option-card">
+                <div className="quiz-modal-option-card-header">
+                  <span className="quiz-modal-option-card-label">{String.fromCharCode(65 + index)}.</span>
+                  <div className="quiz-modal-option-card-drag">
+                    <Icon icon={dragHandle} />
+                  </div>
+                  <div className="quiz-modal-option-card-actions">
+                    <Button
+                      icon={edit}
+                      label={__("Edit option", "tutorpress")}
+                      isSmall
+                      variant="tertiary"
+                      onClick={() => handleEditOption(questionIndex, index)}
+                      disabled={showOptionEditor || isSaving}
+                    />
+                    <Button
+                      icon={copy}
+                      label={__("Duplicate option", "tutorpress")}
+                      isSmall
+                      variant="tertiary"
+                      onClick={() => handleDuplicateOption(questionIndex, index)}
+                      disabled={showOptionEditor || isSaving}
+                    />
+                    <Button
+                      icon={trash}
+                      label={__("Delete option", "tutorpress")}
+                      isSmall
+                      variant="tertiary"
+                      onClick={() => handleDeleteOption(questionIndex, index)}
+                      disabled={showOptionEditor || isSaving}
+                    />
+                  </div>
+                </div>
+                <div className="quiz-modal-option-card-content">
+                  {option.answer_title || __("(Empty option)", "tutorpress")}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
