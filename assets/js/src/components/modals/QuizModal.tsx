@@ -294,6 +294,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
   const [showExplanationEditor, setShowExplanationEditor] = useState(false);
 
+  // Multiple Choice Option editing state - Step 3.6.2
+  const [showOptionEditor, setShowOptionEditor] = useState(false);
+  const [currentOptionText, setCurrentOptionText] = useState("");
+  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+
   // Initialize quiz form hook with loaded data
   const {
     formState,
@@ -458,6 +464,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // Reset editor visibility when selecting a new question
     setShowDescriptionEditor(false);
     setShowExplanationEditor(false);
+    // Reset option editing state when switching questions - Step 3.6.2
+    setShowOptionEditor(false);
+    setCurrentOptionText("");
+    setEditingOptionIndex(null);
+    setEditingQuestionIndex(null);
     console.log("Selected question:", questions[questionIndex]);
   };
 
@@ -804,6 +815,90 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Handle starting option editing - Step 3.6.2
+   */
+  const handleStartOptionEditing = (questionIndex: number, optionIndex?: number) => {
+    setEditingQuestionIndex(questionIndex);
+    setEditingOptionIndex(optionIndex ?? null);
+
+    // If editing existing option, load its text
+    if (optionIndex !== undefined && questions[questionIndex]?.question_answers[optionIndex]) {
+      setCurrentOptionText(questions[questionIndex].question_answers[optionIndex].answer_title || "");
+    } else {
+      setCurrentOptionText("");
+    }
+
+    setShowOptionEditor(true);
+    console.log(`Started editing option - Question: ${questionIndex}, Option: ${optionIndex ?? "new"}`);
+  };
+
+  /**
+   * Handle saving option - Step 3.6.2
+   */
+  const handleSaveOption = () => {
+    if (editingQuestionIndex === null || !currentOptionText.trim()) {
+      return;
+    }
+
+    const questionIndex = editingQuestionIndex;
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+    let updatedAnswers = [...currentQuestion.question_answers];
+
+    if (editingOptionIndex === null) {
+      // Adding new option
+      const newOptionOrder = updatedAnswers.length + 1;
+      const newOption: QuizQuestionOption = {
+        answer_id: -(Date.now() + Math.floor(Math.random() * 1000)),
+        belongs_question_id: currentQuestion.question_id,
+        belongs_question_type: currentQuestion.question_type,
+        answer_title: currentOptionText.trim(),
+        is_correct: "0",
+        image_id: 0,
+        image_url: "",
+        answer_two_gap_match: "",
+        answer_view_format: "",
+        answer_order: newOptionOrder,
+        _data_status: "new",
+      };
+      updatedAnswers.push(newOption);
+      console.log("Added new option:", newOption);
+    } else {
+      // Editing existing option
+      if (editingOptionIndex >= 0 && editingOptionIndex < updatedAnswers.length) {
+        updatedAnswers[editingOptionIndex] = {
+          ...updatedAnswers[editingOptionIndex],
+          answer_title: currentOptionText.trim(),
+          _data_status: updatedAnswers[editingOptionIndex]._data_status === "new" ? "new" : "update",
+        };
+        console.log("Updated existing option:", updatedAnswers[editingOptionIndex]);
+      }
+    }
+
+    // Update question with new answers
+    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+    updatedQuestions[questionIndex] = {
+      ...currentQuestion,
+      question_answers: updatedAnswers,
+      _data_status: preservedStatus,
+    };
+
+    setQuestions(updatedQuestions);
+    handleCancelOptionEditing();
+  };
+
+  /**
+   * Handle canceling option editing - Step 3.6.2
+   */
+  const handleCancelOptionEditing = () => {
+    setShowOptionEditor(false);
+    setCurrentOptionText("");
+    setEditingOptionIndex(null);
+    setEditingQuestionIndex(null);
+    console.log("Canceled option editing");
+  };
+
+  /**
    * Render question type-specific settings - Step 3.3
    */
   const renderQuestionTypeSettings = (question: QuizQuestion): JSX.Element => {
@@ -852,6 +947,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const renderMultipleChoiceContent = (question: QuizQuestion): JSX.Element => {
     const existingOptions = question.question_answers || [];
     const hasOptions = existingOptions.length > 0;
+    const questionIndex = questions.findIndex((q) => q.question_id === question.question_id);
 
     return (
       <div className="quiz-modal-multiple-choice-content">
@@ -864,22 +960,75 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           </div>
         )}
 
+        {/* Option Editing Frame - Step 3.6.2 */}
+        {showOptionEditor && editingQuestionIndex === questionIndex && (
+          <div className="quiz-modal-option-editor">
+            <div className="quiz-modal-option-editor-header">
+              <span className="quiz-modal-option-label">
+                {editingOptionIndex === null
+                  ? String.fromCharCode(65 + existingOptions.length) + "."
+                  : String.fromCharCode(65 + editingOptionIndex) + "."}
+              </span>
+              <button
+                type="button"
+                className="quiz-modal-add-image-btn"
+                onClick={() => {
+                  console.log("Add Image clicked - media library functionality coming in future step");
+                  // TODO: Future step - Implement media library integration
+                }}
+                disabled={isSaving}
+              >
+                {__("Add Image", "tutorpress")}
+              </button>
+            </div>
+
+            <textarea
+              className="quiz-modal-option-textarea"
+              placeholder={__("Write option...", "tutorpress")}
+              value={currentOptionText}
+              onChange={(e) => setCurrentOptionText(e.target.value)}
+              rows={3}
+              disabled={isSaving}
+              autoFocus
+            />
+
+            <div className="quiz-modal-option-editor-actions">
+              <button
+                type="button"
+                className="quiz-modal-option-cancel-btn"
+                onClick={handleCancelOptionEditing}
+                disabled={isSaving}
+              >
+                {__("Cancel", "tutorpress")}
+              </button>
+              <button
+                type="button"
+                className="quiz-modal-option-ok-btn"
+                onClick={handleSaveOption}
+                disabled={isSaving || !currentOptionText.trim()}
+              >
+                {__("Ok", "tutorpress")}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Add Option Button - Step 3.6.1 Basic Structure */}
         <div className="quiz-modal-add-option-container">
           <button
             type="button"
             className="quiz-modal-add-option-btn"
             onClick={() => {
-              console.log("Add Option clicked - functionality coming in Step 3.6.2");
-              // TODO: Step 3.6.2 - Implement option addition functionality
+              if (questionIndex !== -1) {
+                handleStartOptionEditing(questionIndex);
+              }
             }}
+            disabled={showOptionEditor || isSaving}
           >
             <span className="quiz-modal-add-option-icon">+</span>
             <span className="quiz-modal-add-option-text">{__("Add Option", "tutorpress")}</span>
           </button>
         </div>
-
-        {/* TODO: Step 3.6.2 - Option editing frame will be added here */}
       </div>
     );
   };
@@ -1069,6 +1218,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setSelectedQuestionType(null);
     setDeletedQuestionIds([]);
     setDeletedAnswerIds([]);
+    // Reset option editing state - Step 3.6.2
+    setShowOptionEditor(false);
+    setCurrentOptionText("");
+    setEditingOptionIndex(null);
+    setEditingQuestionIndex(null);
     onClose();
   };
 
