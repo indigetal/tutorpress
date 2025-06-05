@@ -281,11 +281,14 @@ interface SortableOptionProps {
   isCorrect: boolean;
   isEditing: boolean;
   currentOptionText: string;
+  currentOptionImage: { id: number; url: string } | null;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onCorrectToggle: () => void;
   onTextChange: (value: string) => void;
+  onImageAdd: () => void;
+  onImageRemove: () => void;
   onSave: () => void;
   onCancel: () => void;
   isSaving: boolean;
@@ -298,11 +301,14 @@ const SortableOption: React.FC<SortableOptionProps> = ({
   isCorrect,
   isEditing,
   currentOptionText,
+  currentOptionImage,
   onEdit,
   onDuplicate,
   onDelete,
   onCorrectToggle,
   onTextChange,
+  onImageAdd,
+  onImageRemove,
   onSave,
   onCancel,
   isSaving,
@@ -336,16 +342,24 @@ const SortableOption: React.FC<SortableOptionProps> = ({
             <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
             <button
               type="button"
-              className="quiz-modal-add-image-btn"
-              onClick={() => {
-                console.log("Add Image clicked - media library functionality coming in future step");
-                // TODO: Future step - Implement media library integration
-              }}
+              className={`quiz-modal-add-image-btn ${currentOptionImage ? "has-image" : ""}`}
+              onClick={currentOptionImage ? onImageRemove : onImageAdd}
               disabled={isSaving}
             >
-              {__("Add Image", "tutorpress")}
+              {currentOptionImage ? __("Remove Image", "tutorpress") : __("Add Image", "tutorpress")}
             </button>
           </div>
+
+          {/* Display image above textarea if present */}
+          {currentOptionImage && (
+            <div className="quiz-modal-option-image-container">
+              <img
+                src={currentOptionImage.url}
+                alt={__("Option image", "tutorpress")}
+                className="quiz-modal-option-image"
+              />
+            </div>
+          )}
 
           <textarea
             className="quiz-modal-option-textarea"
@@ -427,7 +441,22 @@ const SortableOption: React.FC<SortableOptionProps> = ({
         >
           <Icon icon={check} />
         </div>
-        <div className="quiz-modal-option-text">{option.answer_title || __("(Empty option)", "tutorpress")}</div>
+        <div className="quiz-modal-option-content-wrapper">
+          {/* Display image above text if present */}
+          {(() => {
+            const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
+            return imageId && imageId > 0 && option.image_url ? (
+              <div className="quiz-modal-option-image-container">
+                <img
+                  src={option.image_url}
+                  alt={__("Option image", "tutorpress")}
+                  className="quiz-modal-option-image"
+                />
+              </div>
+            ) : null;
+          })()}
+          <div className="quiz-modal-option-text">{option.answer_title || __("(Empty option)", "tutorpress")}</div>
+        </div>
       </div>
     </div>
   );
@@ -464,6 +493,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [currentOptionText, setCurrentOptionText] = useState("");
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+
+  // Image handling state for options
+  const [currentOptionImage, setCurrentOptionImage] = useState<{
+    id: number;
+    url: string;
+  } | null>(null);
 
   // Drag and drop state for options - Step 3.6.7
   const [activeOptionId, setActiveOptionId] = useState<number | null>(null);
@@ -1029,11 +1064,24 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setEditingQuestionIndex(questionIndex);
     setEditingOptionIndex(optionIndex ?? null);
 
-    // If editing existing option, load its text
+    // If editing existing option, load its text and image
     if (optionIndex !== undefined && questions[questionIndex]?.question_answers[optionIndex]) {
-      setCurrentOptionText(questions[questionIndex].question_answers[optionIndex].answer_title || "");
+      const option = questions[questionIndex].question_answers[optionIndex];
+      setCurrentOptionText(option.answer_title || "");
+
+      // Load existing image if available - handle both string and number image_id
+      const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
+      if (imageId && imageId > 0 && option.image_url) {
+        setCurrentOptionImage({
+          id: imageId,
+          url: option.image_url,
+        });
+      } else {
+        setCurrentOptionImage(null);
+      }
     } else {
       setCurrentOptionText("");
+      setCurrentOptionImage(null);
     }
 
     setShowOptionEditor(true);
@@ -1061,8 +1109,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         belongs_question_type: currentQuestion.question_type,
         answer_title: currentOptionText.trim(),
         is_correct: "0",
-        image_id: 0,
-        image_url: "",
+        image_id: currentOptionImage?.id || 0,
+        image_url: currentOptionImage?.url || "",
         answer_two_gap_match: "",
         answer_view_format: "",
         answer_order: newOptionOrder,
@@ -1075,6 +1123,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         updatedAnswers[editingOptionIndex] = {
           ...updatedAnswers[editingOptionIndex],
           answer_title: currentOptionText.trim(),
+          image_id: currentOptionImage?.id || 0,
+          image_url: currentOptionImage?.url || "",
           _data_status: updatedAnswers[editingOptionIndex]._data_status === "new" ? "new" : "update",
         };
       }
@@ -1098,6 +1148,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const handleCancelOptionEditing = () => {
     setShowOptionEditor(false);
     setCurrentOptionText("");
+    setCurrentOptionImage(null);
     setEditingOptionIndex(null);
     setEditingQuestionIndex(null);
   };
@@ -1290,6 +1341,110 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const handleOptionDragCancel = () => {
     setActiveOptionId(null);
     setIsDraggingOption(false);
+  };
+
+  /**
+   * Handle option image addition
+   */
+  const handleOptionImageAdd = (questionIndex: number, optionIndex?: number) => {
+    // Open WordPress media library
+    if (typeof (window as any).wp !== "undefined" && (window as any).wp.media) {
+      const mediaFrame = (window as any).wp.media({
+        title: __("Select Image for Option", "tutorpress"),
+        button: {
+          text: __("Use this image", "tutorpress"),
+        },
+        multiple: false,
+        library: {
+          type: "image",
+          uploadedTo: null, // Allow all images in media library
+        },
+        // Restrict to image file types only
+        states: [
+          new (window as any).wp.media.controller.Library({
+            title: __("Select Image for Option", "tutorpress"),
+            library: (window as any).wp.media.query({
+              type: "image",
+            }),
+            multiple: false,
+            date: false,
+          }),
+        ],
+      });
+
+      mediaFrame.on("select", () => {
+        const attachment = mediaFrame.state().get("selection").first().toJSON();
+
+        // Double-check that the selected file is an image
+        if (!attachment.type || attachment.type !== "image") {
+          console.error("Selected file is not an image");
+          return;
+        }
+
+        const imageData = {
+          id: attachment.id,
+          url: attachment.url,
+        };
+
+        setCurrentOptionImage(imageData);
+
+        // If editing existing option, update the option immediately
+        if (optionIndex !== undefined && questionIndex !== null) {
+          handleSaveOptionImage(questionIndex, optionIndex, imageData);
+        }
+      });
+
+      mediaFrame.open();
+    } else {
+      console.error("WordPress media library not available");
+    }
+  };
+
+  /**
+   * Handle option image removal
+   */
+  const handleOptionImageRemove = (questionIndex: number, optionIndex?: number) => {
+    setCurrentOptionImage(null);
+
+    // If editing existing option, update the option immediately
+    if (optionIndex !== undefined && questionIndex !== null) {
+      handleSaveOptionImage(questionIndex, optionIndex, null);
+    }
+  };
+
+  /**
+   * Save image data to option
+   */
+  const handleSaveOptionImage = (
+    questionIndex: number,
+    optionIndex: number,
+    imageData: { id: number; url: string } | null
+  ) => {
+    if (questionIndex < 0 || questionIndex >= questions.length) {
+      return;
+    }
+
+    const updatedQuestions = [...questions];
+    const currentQuestion = updatedQuestions[questionIndex];
+    let updatedAnswers = [...currentQuestion.question_answers];
+
+    if (optionIndex >= 0 && optionIndex < updatedAnswers.length) {
+      updatedAnswers[optionIndex] = {
+        ...updatedAnswers[optionIndex],
+        image_id: imageData?.id || 0,
+        image_url: imageData?.url || "",
+        _data_status: updatedAnswers[optionIndex]._data_status === "new" ? "new" : "update",
+      };
+
+      const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
+      updatedQuestions[questionIndex] = {
+        ...currentQuestion,
+        question_answers: updatedAnswers,
+        _data_status: preservedStatus,
+      };
+
+      setQuestions(updatedQuestions);
+    }
   };
 
   /**
@@ -1495,11 +1650,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                       isCorrect={option.is_correct === "1"}
                       isEditing={isEditingThisOption}
                       currentOptionText={currentOptionText}
+                      currentOptionImage={currentOptionImage}
                       onEdit={() => handleEditOption(questionIndex, index)}
                       onDuplicate={() => handleDuplicateOption(questionIndex, index)}
                       onDelete={() => handleDeleteOption(questionIndex, index)}
                       onCorrectToggle={() => handleMultipleChoiceCorrectAnswer(questionIndex, index)}
                       onTextChange={setCurrentOptionText}
+                      onImageAdd={() => handleOptionImageAdd(questionIndex, index)}
+                      onImageRemove={() => handleOptionImageRemove(questionIndex, index)}
                       onSave={handleSaveOption}
                       onCancel={handleCancelOptionEditing}
                       isSaving={isSaving}
@@ -1518,16 +1676,26 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
               <span className="quiz-modal-option-label">{String.fromCharCode(65 + existingOptions.length)}.</span>
               <button
                 type="button"
-                className="quiz-modal-add-image-btn"
-                onClick={() => {
-                  console.log("Add Image clicked - media library functionality coming in future step");
-                  // TODO: Future step - Implement media library integration
-                }}
+                className={`quiz-modal-add-image-btn ${currentOptionImage ? "has-image" : ""}`}
+                onClick={() =>
+                  currentOptionImage ? handleOptionImageRemove(questionIndex) : handleOptionImageAdd(questionIndex)
+                }
                 disabled={isSaving}
               >
-                {__("Add Image", "tutorpress")}
+                {currentOptionImage ? __("Remove Image", "tutorpress") : __("Add Image", "tutorpress")}
               </button>
             </div>
+
+            {/* Display image above textarea if present */}
+            {currentOptionImage && (
+              <div className="quiz-modal-option-image-container">
+                <img
+                  src={currentOptionImage.url}
+                  alt={__("Option image", "tutorpress")}
+                  className="quiz-modal-option-image"
+                />
+              </div>
+            )}
 
             <textarea
               className="quiz-modal-option-textarea"
@@ -1763,6 +1931,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // Reset option editing state - Step 3.6.2
     setShowOptionEditor(false);
     setCurrentOptionText("");
+    setCurrentOptionImage(null);
     setEditingOptionIndex(null);
     setEditingQuestionIndex(null);
     // Reset validation state - Step 3.6.8

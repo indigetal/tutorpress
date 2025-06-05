@@ -1892,3 +1892,44 @@
 }
 
 /* Quiz Modal Multiple Choice Drag and Drop - Step 3.6.7 */
+
+/* Multiple Choice Option Image Styles */
+.quiz-modal-option-image-container {
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f9f9f9;
+}
+
+.quiz-modal-option-image {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Option content wrapper for images + text */
+.quiz-modal-option-content-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Remove Image button styling */
+.quiz-modal-add-image-btn.has-image {
+  background: #cc5a5a;
+  border-color: #cc5a5a;
+  color: white;
+}
+
+.quiz-modal-add-image-btn.has-image:hover {
+  background: #b94545;
+  border-color: #b94545;
+}
+
+.quiz-modal-add-image-btn.has-image:disabled {
+  background: #cc5a5a;
+  border-color: #cc5a5a;
+  opacity: 0.5;
+}

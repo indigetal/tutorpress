@@ -572,8 +572,11 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
                 // Fix multiple escaping issues by unslashing answer content
                 $answer->answer_title = wp_unslash($answer->answer_title);
                 
-                // Ensure image_url is set
-                if (empty($answer->image_url)) {
+                // Populate image_url from WordPress media library if image_id exists
+                if (!empty($answer->image_id) && $answer->image_id > 0) {
+                    $image_url = wp_get_attachment_image_url($answer->image_id, 'full');
+                    $answer->image_url = $image_url ? $image_url : '';
+                } else {
                     $answer->image_url = '';
                 }
             }
