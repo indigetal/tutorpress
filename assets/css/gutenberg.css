@@ -1570,28 +1570,33 @@
 
 .quiz-modal-option-card-icon {
   position: relative;
-  width: 24px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quiz-modal-option-card-icon .quiz-modal-option-label,
-.quiz-modal-option-card-icon .quiz-modal-drag-icon {
+.quiz-modal-option-card-icon .quiz-modal-drag-handle {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   transition: opacity 0.2s ease;
 }
 
-.quiz-modal-option-card-icon .quiz-modal-drag-icon {
+.quiz-modal-option-card-icon .quiz-modal-drag-handle {
   opacity: 0;
+  z-index: 10;
 }
 
 .quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-option-label {
   opacity: 0;
 }
 
-.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-drag-icon {
+.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-drag-handle {
   opacity: 1;
 }
 
@@ -1600,13 +1605,41 @@
   font-size: 14px;
   color: #1e1e1e;
   min-width: 24px;
+  text-align: center;
 }
 
-.quiz-modal-drag-icon {
-  width: 20px;
-  height: 20px;
-  color: #999;
-  cursor: grab;
+.quiz-modal-drag-handle {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: grab !important;
+  color: #666 !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 15 !important;
+}
+
+.quiz-modal-drag-handle:hover {
+  background: #f0f0f0 !important;
+  color: #333 !important;
+}
+
+.quiz-modal-drag-handle:active {
+  cursor: grabbing !important;
+  background: #e0e0e0 !important;
+}
+
+.quiz-modal-drag-handle svg {
+  width: 20px !important;
+  height: 20px !important;
+  pointer-events: none !important;
 }
 
 .quiz-modal-option-card-drag {
@@ -1742,4 +1775,28 @@
 .quiz-modal-option-text {
   flex: 1;
   min-width: 0;
+}
+
+/* Drag and drop styles for multiple choice options - Step 3.6.7 */
+.quiz-modal-option-card {
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.quiz-modal-option-card.is-dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+/* Remove conflicting drag handle styles - handled above */
+
+/* Drag overlay styles */
+.quiz-modal-multiple-choice-options .quiz-modal-option-card {
+  margin-bottom: 8px;
+}
+
+.quiz-modal-multiple-choice-options .quiz-modal-option-card:last-child {
+  margin-bottom: 0;
 }
