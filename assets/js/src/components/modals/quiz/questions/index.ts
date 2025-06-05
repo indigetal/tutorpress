@@ -40,6 +40,7 @@ export interface QuestionComponentProps {
   onQuestionUpdate: (questionIndex: number, field: keyof QuizQuestion, value: any) => void;
   showValidationErrors: boolean;
   isSaving: boolean;
+  onDeletedAnswerId?: (answerId: number) => void;
 }
 
 /**

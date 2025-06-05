@@ -28,7 +28,7 @@
  * @since 1.0.0
  */
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { __ } from "@wordpress/i18n";
 import { useQuestionValidation } from "../../../../hooks/quiz";
 import { ValidationDisplay } from "./ValidationDisplay";
@@ -40,6 +40,7 @@ interface TrueFalseQuestionProps {
   onQuestionUpdate: (questionIndex: number, field: keyof QuizQuestion, value: any) => void;
   showValidationErrors: boolean;
   isSaving: boolean;
+  onDeletedAnswerId?: (answerId: number) => void;
 }
 
 export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
@@ -48,67 +49,82 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
   onQuestionUpdate,
   showValidationErrors,
   isSaving,
+  onDeletedAnswerId,
 }) => {
+  // Track if we've already initialized True/False answers for this question
+  const initializedRef = useRef<Set<number>>(new Set());
+
   /**
-   * Ensure True/False answers exist for question
+   * Ensure True/False answers exist using useEffect - similar to original pattern
    */
-  const ensureTrueFalseAnswers = (question: QuizQuestion): QuizQuestionOption[] => {
-    let answers = [...question.question_answers];
-
-    // Check if True answer exists
-    let trueAnswer = answers.find((answer: QuizQuestionOption) => answer.answer_title === "True");
-    if (!trueAnswer) {
-      trueAnswer = {
-        answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 1),
-        belongs_question_id: question.question_id,
-        belongs_question_type: question.question_type,
-        answer_title: "True",
-        is_correct: "0",
-        image_id: 0,
-        image_url: "",
-        answer_two_gap_match: "",
-        answer_view_format: "",
-        answer_order: 1,
-        _data_status: "new",
-      };
-      answers.push(trueAnswer);
+  useEffect(() => {
+    // Only run if we haven't initialized this question yet
+    if (initializedRef.current.has(question.question_id)) {
+      return;
     }
 
-    // Check if False answer exists
-    let falseAnswer = answers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
-    if (!falseAnswer) {
-      falseAnswer = {
-        answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 2),
-        belongs_question_id: question.question_id,
-        belongs_question_type: question.question_type,
-        answer_title: "False",
-        is_correct: "0",
-        image_id: 0,
-        image_url: "",
-        answer_two_gap_match: "",
-        answer_view_format: "",
-        answer_order: 2,
-        _data_status: "new",
-      };
-      answers.push(falseAnswer);
-    }
+    const existingAnswers = question.question_answers || [];
+    const hasTrue = existingAnswers.some((answer) => answer.answer_title === "True");
+    const hasFalse = existingAnswers.some((answer) => answer.answer_title === "False");
 
-    // Update question if answers were added
-    if (answers.length !== question.question_answers.length) {
-      const preservedStatus = question._data_status === "new" ? "new" : "update";
+    // Only update if we're missing True or False answers
+    if (!hasTrue || !hasFalse) {
+      let answers = [...existingAnswers];
 
+      // Add True answer if missing
+      if (!hasTrue) {
+        const trueAnswer: QuizQuestionOption = {
+          answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 1),
+          belongs_question_id: question.question_id,
+          belongs_question_type: question.question_type,
+          answer_title: "True",
+          is_correct: "0",
+          image_id: 0,
+          image_url: "",
+          answer_two_gap_match: "",
+          answer_view_format: "",
+          answer_order: 1,
+          _data_status: "new",
+        };
+        answers.push(trueAnswer);
+      }
+
+      // Add False answer if missing
+      if (!hasFalse) {
+        const falseAnswer: QuizQuestionOption = {
+          answer_id: -(Date.now() + Math.floor(Math.random() * 1000) + 2),
+          belongs_question_id: question.question_id,
+          belongs_question_type: question.question_type,
+          answer_title: "False",
+          is_correct: "0",
+          image_id: 0,
+          image_url: "",
+          answer_two_gap_match: "",
+          answer_view_format: "",
+          answer_order: 2,
+          _data_status: "new",
+        };
+        answers.push(falseAnswer);
+      }
+
+      // Update the question with new answers
       onQuestionUpdate(questionIndex, "question_answers", answers);
-      onQuestionUpdate(questionIndex, "_data_status", preservedStatus);
-    }
 
-    return answers;
-  };
+      // Mark this question as initialized
+      initializedRef.current.add(question.question_id);
+    } else {
+      // Even if no update needed, mark as initialized
+      initializedRef.current.add(question.question_id);
+    }
+  }, [question.question_id, question.question_answers.length, questionIndex, onQuestionUpdate]);
 
   /**
-   * Handle True/False correct answer selection
+   * Handle True/False correct answer selection - following MultipleChoice pattern
    */
   const handleCorrectAnswerSelection = (selectedAnswerId: number) => {
-    const updatedAnswers = question.question_answers.map((answer: QuizQuestionOption) => ({
+    const existingAnswers = question.question_answers || [];
+
+    const updatedAnswers = existingAnswers.map((answer: QuizQuestionOption) => ({
       ...answer,
       is_correct: (answer.answer_id === selectedAnswerId ? "1" : "0") as "0" | "1",
       _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
@@ -117,11 +133,11 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
     onQuestionUpdate(questionIndex, "question_answers", updatedAnswers);
   };
 
-  // Ensure we have True/False answer options
-  const trueFalseAnswers = ensureTrueFalseAnswers(question);
-  const trueAnswer = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "True");
-  const falseAnswer = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
-  const correctAnswerId = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.is_correct === "1")?.answer_id;
+  // Get existing answers - following MultipleChoice pattern
+  const existingAnswers = question.question_answers || [];
+  const trueAnswer = existingAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "True");
+  const falseAnswer = existingAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
+  const correctAnswerId = existingAnswers.find((answer: QuizQuestionOption) => answer.is_correct === "1")?.answer_id;
 
   // Use centralized validation hook
   const { getQuestionErrors } = useQuestionValidation();

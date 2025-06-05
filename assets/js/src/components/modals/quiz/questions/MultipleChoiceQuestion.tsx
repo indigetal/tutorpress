@@ -56,6 +56,7 @@ interface MultipleChoiceQuestionProps {
   onQuestionUpdate: (questionIndex: number, field: keyof QuizQuestion, value: any) => void;
   showValidationErrors: boolean;
   isSaving: boolean;
+  onDeletedAnswerId?: (answerId: number) => void;
 }
 
 export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
@@ -64,6 +65,7 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   onQuestionUpdate,
   showValidationErrors,
   isSaving,
+  onDeletedAnswerId,
 }) => {
   // Option editing state
   const [showOptionEditor, setShowOptionEditor] = useState(false);
@@ -226,6 +228,10 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
       }));
 
     onQuestionUpdate(questionIndex, "question_answers", updatedAnswers);
+
+    if (onDeletedAnswerId) {
+      onDeletedAnswerId(optionToDelete.answer_id);
+    }
   };
 
   /**

@@ -23,7 +23,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useQuizForm } from "../../hooks/quiz/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
-import { getQuestionComponent, hasQuestionComponent, SortableOption } from "./quiz/questions";
+import { getQuestionComponent, hasQuestionComponent } from "./quiz/questions";
 import { useQuestionValidation } from "../../hooks/quiz";
 import type {
   TimeUnit,
@@ -304,18 +304,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
   const [showExplanationEditor, setShowExplanationEditor] = useState(false);
 
-  // Multiple Choice Option editing state - Step 3.6.2
-  const [showOptionEditor, setShowOptionEditor] = useState(false);
-  const [currentOptionText, setCurrentOptionText] = useState("");
-  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
-
-  // Image handling state for options
-  const [currentOptionImage, setCurrentOptionImage] = useState<{
-    id: number;
-    url: string;
-  } | null>(null);
-
   // Drag and drop state for options - Step 3.6.7
   const [activeOptionId, setActiveOptionId] = useState<number | null>(null);
   const [isDraggingOption, setIsDraggingOption] = useState(false);
@@ -372,6 +360,15 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   // Use centralized validation hook
   const { validateAllQuestions: validateAllQuestionsHook } = useQuestionValidation();
+
+  /**
+   * Handle tracking deleted answer IDs from question components
+   */
+  const handleDeletedAnswerId = (answerId: number) => {
+    if (answerId > 0) {
+      setDeletedAnswerIds((prev) => [...prev, answerId]);
+    }
+  };
 
   /**
    * Load existing quiz data when editing
@@ -506,12 +503,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setSelectedQuestionType(null);
     setDeletedQuestionIds([]);
     setDeletedAnswerIds([]);
-    // Reset option editing state - Step 3.6.2
-    setShowOptionEditor(false);
-    setCurrentOptionText("");
-    setCurrentOptionImage(null);
-    setEditingOptionIndex(null);
-    setEditingQuestionIndex(null);
     // Reset validation state - Step 3.6.8
     setShowValidationErrors(false);
     onClose();
@@ -903,11 +894,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // Reset editor visibility when selecting a new question
     setShowDescriptionEditor(false);
     setShowExplanationEditor(false);
-    // Reset option editing state when switching questions - Step 3.6.2
-    setShowOptionEditor(false);
-    setCurrentOptionText("");
-    setEditingOptionIndex(null);
-    setEditingQuestionIndex(null);
   };
 
   /**
@@ -1074,6 +1060,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           onQuestionUpdate={handleQuestionFieldUpdate}
           showValidationErrors={showValidationErrors}
           isSaving={isSaving}
+          onDeletedAnswerId={handleDeletedAnswerId}
         />
       );
     }
@@ -1252,147 +1239,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         // Return empty fragment for question types without additional settings
         return <></>;
     }
-  };
-
-  /**
-   * Handle starting option editing - Step 3.6.2
-   */
-  const handleStartOptionEditing = (questionIndex: number, optionIndex?: number) => {
-    setEditingQuestionIndex(questionIndex);
-    setEditingOptionIndex(optionIndex ?? null);
-
-    // If editing existing option, load its text and image
-    if (optionIndex !== undefined && questions[questionIndex]?.question_answers[optionIndex]) {
-      const option = questions[questionIndex].question_answers[optionIndex];
-      setCurrentOptionText(option.answer_title || "");
-
-      // Load existing image if available - handle both string and number image_id
-      const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
-      if (imageId && imageId > 0 && option.image_url) {
-        setCurrentOptionImage({
-          id: imageId,
-          url: option.image_url,
-        });
-      } else {
-        setCurrentOptionImage(null);
-      }
-    } else {
-      setCurrentOptionText("");
-      setCurrentOptionImage(null);
-    }
-
-    setShowOptionEditor(true);
-  };
-
-  /**
-   * Handle saving option - Step 3.6.2
-   */
-  const handleSaveOption = () => {
-    if (editingQuestionIndex === null || !currentOptionText.trim()) {
-      return;
-    }
-
-    const questionIndex = editingQuestionIndex;
-    const updatedQuestions = [...questions];
-    const currentQuestion = updatedQuestions[questionIndex];
-    let updatedAnswers = [...currentQuestion.question_answers];
-
-    if (editingOptionIndex === null) {
-      // Adding new option
-      const newOptionOrder = updatedAnswers.length + 1;
-      const newOption: QuizQuestionOption = {
-        answer_id: -(Date.now() + Math.floor(Math.random() * 1000)),
-        belongs_question_id: currentQuestion.question_id,
-        belongs_question_type: currentQuestion.question_type,
-        answer_title: currentOptionText.trim(),
-        is_correct: "0",
-        image_id: currentOptionImage?.id || 0,
-        image_url: currentOptionImage?.url || "",
-        answer_two_gap_match: "",
-        answer_view_format: "",
-        answer_order: newOptionOrder,
-        _data_status: "new",
-      };
-      updatedAnswers.push(newOption);
-    } else {
-      // Editing existing option
-      if (editingOptionIndex >= 0 && editingOptionIndex < updatedAnswers.length) {
-        updatedAnswers[editingOptionIndex] = {
-          ...updatedAnswers[editingOptionIndex],
-          answer_title: currentOptionText.trim(),
-          image_id: currentOptionImage?.id || 0,
-          image_url: currentOptionImage?.url || "",
-          _data_status: updatedAnswers[editingOptionIndex]._data_status === "new" ? "new" : "update",
-        };
-      }
-    }
-
-    // Update question with new answers
-    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
-    updatedQuestions[questionIndex] = {
-      ...currentQuestion,
-      question_answers: updatedAnswers,
-      _data_status: preservedStatus,
-    };
-
-    setQuestions(updatedQuestions);
-    handleCancelOptionEditing();
-  };
-
-  /**
-   * Handle canceling option editing - Step 3.6.2
-   */
-  const handleCancelOptionEditing = () => {
-    setShowOptionEditor(false);
-    setCurrentOptionText("");
-    setCurrentOptionImage(null);
-    setEditingOptionIndex(null);
-    setEditingQuestionIndex(null);
-  };
-
-  /**
-   * Handle editing existing option - Step 3.6.3
-   */
-  const handleEditOption = (questionIndex: number, optionIndex: number) => {
-    handleStartOptionEditing(questionIndex, optionIndex);
-  };
-
-  /**
-   * Handle duplicating option - Step 3.6.3
-   */
-  const handleDuplicateOption = (questionIndex: number, optionIndex: number) => {
-    if (questionIndex < 0 || questionIndex >= questions.length) {
-      return;
-    }
-
-    const updatedQuestions = [...questions];
-    const currentQuestion = updatedQuestions[questionIndex];
-    const optionToDuplicate = currentQuestion.question_answers[optionIndex];
-
-    if (!optionToDuplicate) {
-      return;
-    }
-
-    // Create duplicate option
-    const duplicatedOption: QuizQuestionOption = {
-      ...optionToDuplicate,
-      answer_id: -(Date.now() + Math.floor(Math.random() * 1000)),
-      answer_title: `${optionToDuplicate.answer_title} (Copy)`,
-      is_correct: "0", // Reset to not correct
-      answer_order: currentQuestion.question_answers.length + 1,
-      _data_status: "new",
-    };
-
-    const updatedAnswers = [...currentQuestion.question_answers, duplicatedOption];
-    const preservedStatus = currentQuestion._data_status === "new" ? "new" : "update";
-
-    updatedQuestions[questionIndex] = {
-      ...currentQuestion,
-      question_answers: updatedAnswers,
-      _data_status: preservedStatus,
-    };
-
-    setQuestions(updatedQuestions);
   };
 
   if (!isOpen) {
