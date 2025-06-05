@@ -1929,3 +1929,49 @@
   border-color: #cc5a5a;
   opacity: 0.5;
 }
+
+/* Open Ended Question Notification Styles */
+.quiz-modal-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.quiz-modal-notification--info {
+  background-color: #f0f9ff;
+  border-color: #0ea5e9;
+  color: #0c4a6e;
+}
+
+.quiz-modal-notification__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.quiz-modal-notification__icon svg {
+  width: 20px;
+  height: 20px;
+  color: #0ea5e9;
+}
+
+.quiz-modal-notification__content {
+  flex: 1;
+  margin: 0;
+  color: #0c4a6e;
+}
+
+/* Open Ended Question Content Styles */
+.quiz-modal-open-ended-content {
+  padding: 0;
+}
