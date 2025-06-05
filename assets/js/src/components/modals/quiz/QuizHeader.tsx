@@ -1,3 +1,32 @@
+/**
+ * Quiz Modal Header Component
+ *
+ * @description Header section for the quiz modal containing the title and primary action buttons.
+ *              Displays context-aware labels for creating vs editing quizzes and manages button
+ *              states including loading, validation, and success states. Extracted from QuizModal
+ *              during Phase 1 refactoring for better separation of concerns.
+ *
+ * @features
+ * - Context-aware title (Create vs Edit Quiz)
+ * - Save/Update button with loading states
+ * - Cancel button functionality
+ * - Validation state handling
+ * - Success state indication
+ *
+ * @usage
+ * <QuizHeader
+ *   quizId={quizId}
+ *   isValid={isValid}
+ *   isSaving={isSaving}
+ *   onSave={handleSave}
+ *   onClose={handleClose}
+ * />
+ *
+ * @package TutorPress
+ * @subpackage Quiz/Components
+ * @since 1.0.0
+ */
+
 import React from "react";
 import { Button } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";

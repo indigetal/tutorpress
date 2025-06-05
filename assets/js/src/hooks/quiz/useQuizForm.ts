@@ -1,3 +1,27 @@
+/**
+ * Quiz Form Management Hook
+ *
+ * @description Custom React hook for managing quiz form state, validation, and data transformation.
+ *              Handles all quiz-level settings including title, description, time limits, grading,
+ *              and integration with WordPress/Tutor LMS. Extracted from QuizModal during Phase 1
+ *              refactoring to improve code organization and reusability.
+ *
+ * @features
+ * - Form state management with validation
+ * - WordPress Course Preview addon integration
+ * - Time limit configuration with multiple units
+ * - Passing grade and question limit settings
+ * - Content drip functionality
+ * - Form data transformation for API submission
+ *
+ * @usage
+ * const { formState, updateTitle, validateEntireForm } = useQuizForm(initialData);
+ *
+ * @package TutorPress
+ * @subpackage Quiz/Hooks
+ * @since 1.0.0
+ */
+
 import { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
 import type { QuizForm, QuizSettings, QuizQuestion, TimeUnit, FeedbackMode } from "../../types/quiz";

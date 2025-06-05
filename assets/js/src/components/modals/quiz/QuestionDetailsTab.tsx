@@ -1,3 +1,39 @@
+/**
+ * Quiz Question Details Tab Component
+ *
+ * @description Main tab component for the Question Details view in the quiz modal. Orchestrates
+ *              the three-column layout containing quiz metadata, question list, question form,
+ *              and question settings. Acts as a container component that delegates rendering
+ *              to specialized child components. Extracted from QuizModal during Phase 1
+ *              refactoring for better code organization.
+ *
+ * @features
+ * - Three-column responsive layout
+ * - Quiz title and description management
+ * - Question list integration with QuestionList component
+ * - Dynamic question form rendering based on selection
+ * - Dynamic question settings rendering
+ * - Success/error message display
+ * - Topic context display
+ *
+ * @layout
+ * Left: Quiz info + QuestionList component
+ * Center: Dynamic question form (renderQuestionForm)
+ * Right: Dynamic question settings (renderQuestionSettings)
+ *
+ * @usage
+ * <QuestionDetailsTab
+ *   formTitle={formTitle}
+ *   questions={questions}
+ *   renderQuestionForm={renderQuestionForm}
+ *   renderQuestionSettings={renderQuestionSettings}
+ * />
+ *
+ * @package TutorPress
+ * @subpackage Quiz/Components
+ * @since 1.0.0
+ */
+
 import React from "react";
 import { Notice, TextControl, TextareaControl } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";

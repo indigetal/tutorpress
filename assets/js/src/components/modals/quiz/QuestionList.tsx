@@ -1,3 +1,34 @@
+/**
+ * Quiz Question List Component
+ *
+ * @description Sidebar component for managing quiz questions. Handles question creation workflow
+ *              with type selection dropdown, displays existing questions with drag handles, and
+ *              provides question management actions. Extracted from QuizModal during Phase 1
+ *              refactoring to create focused, reusable components.
+ *
+ * @features
+ * - Add Question button with type selection dropdown
+ * - Question type loading from Tutor LMS
+ * - Question list with selection highlighting
+ * - Question type badges and numbering
+ * - Duplicate and delete actions per question
+ * - Form validation integration (requires quiz title)
+ * - Empty state handling
+ *
+ * @usage
+ * <QuestionList
+ *   questions={questions}
+ *   selectedQuestionIndex={selectedQuestionIndex}
+ *   questionTypes={questionTypes}
+ *   onQuestionSelect={handleQuestionSelect}
+ *   onDeleteQuestion={handleDeleteQuestion}
+ * />
+ *
+ * @package TutorPress
+ * @subpackage Quiz/Components
+ * @since 1.0.0
+ */
+
 import React from "react";
 import { Button, SelectControl, Spinner, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";

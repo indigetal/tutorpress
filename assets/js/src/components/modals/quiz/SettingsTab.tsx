@@ -1,3 +1,42 @@
+/**
+ * Quiz Settings Tab Component
+ *
+ * @description Complete settings management interface for quiz configuration. Handles all
+ *              quiz-level settings including time limits, feedback modes, grading criteria,
+ *              and integration with WordPress addons like Course Preview. Extracted from
+ *              QuizModal during Phase 1 refactoring to create focused, maintainable components.
+ *
+ * @features
+ * - Time limit configuration with multiple units (seconds to weeks)
+ * - Feedback mode selection (Default, Reveal, Retry)
+ * - Passing grade percentage setting
+ * - Maximum questions configuration
+ * - Course Preview addon integration (content drip)
+ * - Real-time validation with error display
+ * - Success/error message handling
+ *
+ * @settings
+ * - Time Limit: Configurable with units
+ * - Hide Quiz Time: Toggle for time display
+ * - Feedback Mode: How answers are revealed
+ * - Passing Grade: Minimum percentage to pass
+ * - Max Questions: Random question selection limit
+ * - Available After Days: Content drip functionality
+ *
+ * @usage
+ * <SettingsTab
+ *   timeValue={timeValue}
+ *   timeType={timeType}
+ *   feedbackMode={feedbackMode}
+ *   onTimeChange={updateTimeLimit}
+ *   onSettingChange={updateSettings}
+ * />
+ *
+ * @package TutorPress
+ * @subpackage Quiz/Components
+ * @since 1.0.0
+ */
+
 import React from "react";
 import {
   Notice,
