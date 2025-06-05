@@ -22,6 +22,7 @@ export { TrueFalseQuestion } from "./TrueFalseQuestion";
 export { MultipleChoiceQuestion } from "./MultipleChoiceQuestion";
 export { OpenEndedQuestion } from "./OpenEndedQuestion";
 export { ShortAnswerQuestion } from "./ShortAnswerQuestion";
+export { OrderingQuestion } from "./OrderingQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -34,6 +35,7 @@ import { TrueFalseQuestion } from "./TrueFalseQuestion";
 import { MultipleChoiceQuestion } from "./MultipleChoiceQuestion";
 import { OpenEndedQuestion } from "./OpenEndedQuestion";
 import { ShortAnswerQuestion } from "./ShortAnswerQuestion";
+import { OrderingQuestion } from "./OrderingQuestion";
 
 /**
  * Common props interface for all question components
@@ -65,12 +67,12 @@ export const QuestionComponentMap = {
   single_choice: MultipleChoiceQuestion, // Single choice uses the same component as multiple choice
   open_ended: OpenEndedQuestion, // Open Ended/Essay question component
   short_answer: ShortAnswerQuestion, // Short Answer question component
+  ordering: OrderingQuestion, // Ordering question component
   // Additional question types will be added here as they are implemented
   // fill_in_the_blanks: FillInTheBlanksQuestion,
   // matching: MatchingQuestion,
   // image_matching: ImageMatchingQuestion,
   // image_answering: ImageAnsweringQuestion,
-  // ordering: OrderingQuestion,
   // h5p: H5PQuestion,
 } as const;
 

@@ -222,9 +222,31 @@ export const useQuestionValidation = () => {
 
       // Ordering validation rules
       ordering: [
-        // Will be implemented when ordering is added
+        // Minimum options requirement
         (question: QuizQuestion) => {
-          // Placeholder for future implementation
+          const answers = question.question_answers || [];
+          if (answers.length < 2) {
+            return [__("Ordering questions must have at least 2 options.", "tutorpress")];
+          }
+          return [];
+        },
+        // Answer text requirement
+        (question: QuizQuestion) => {
+          const answers = question.question_answers || [];
+          const emptyAnswers = answers.filter((answer) => !answer.answer_title?.trim());
+          if (emptyAnswers.length > 0) {
+            return [__("All ordering options must have text.", "tutorpress")];
+          }
+          return [];
+        },
+        // Duplicate answers check
+        (question: QuizQuestion) => {
+          const answers = question.question_answers || [];
+          const answerTexts = answers.map((answer) => answer.answer_title?.trim().toLowerCase()).filter(Boolean);
+          const uniqueTexts = new Set(answerTexts);
+          if (answerTexts.length !== uniqueTexts.size) {
+            return [__("Ordering options must be unique.", "tutorpress")];
+          }
           return [];
         },
       ],
