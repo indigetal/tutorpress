@@ -31,6 +31,8 @@ export { TrueFalseQuestion } from "./TrueFalseQuestion";
 export { MultipleChoiceQuestion } from "./MultipleChoiceQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
+export { OptionEditor } from "./OptionEditor";
+export type { OptionEditorProps } from "./OptionEditor";
 
 // Import component types for the registry
 import { TrueFalseQuestion } from "./TrueFalseQuestion";

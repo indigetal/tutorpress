@@ -50,6 +50,7 @@ import { __ } from "@wordpress/i18n";
 import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { OptionEditor } from "./OptionEditor";
 import type { QuizQuestionOption } from "../../../../types/quiz";
 
 /**
@@ -140,54 +141,17 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   if (isEditing) {
     return (
       <div ref={setNodeRef} style={style} className={classNames}>
-        <div className="quiz-modal-option-editor">
-          <div className="quiz-modal-option-editor-header">
-            <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
-            <button
-              type="button"
-              className={`quiz-modal-add-image-btn ${currentOptionImage ? "has-image" : ""}`}
-              onClick={currentOptionImage ? onImageRemove : onImageAdd}
-              disabled={isSaving}
-            >
-              {currentOptionImage ? __("Remove Image", "tutorpress") : __("Add Image", "tutorpress")}
-            </button>
-          </div>
-
-          {/* Display image above textarea if present */}
-          {currentOptionImage && (
-            <div className="quiz-modal-option-image-container">
-              <img
-                src={currentOptionImage.url}
-                alt={__("Option image", "tutorpress")}
-                className="quiz-modal-option-image"
-              />
-            </div>
-          )}
-
-          <textarea
-            className="quiz-modal-option-textarea"
-            placeholder={__("Write option...", "tutorpress")}
-            value={currentOptionText}
-            onChange={(e) => onTextChange(e.target.value)}
-            rows={3}
-            disabled={isSaving}
-            autoFocus
-          />
-
-          <div className="quiz-modal-option-editor-actions">
-            <button type="button" className="quiz-modal-option-cancel-btn" onClick={onCancel} disabled={isSaving}>
-              {__("Cancel", "tutorpress")}
-            </button>
-            <button
-              type="button"
-              className="quiz-modal-option-ok-btn"
-              onClick={onSave}
-              disabled={isSaving || !currentOptionText.trim()}
-            >
-              {__("Ok", "tutorpress")}
-            </button>
-          </div>
-        </div>
+        <OptionEditor
+          optionLabel={String.fromCharCode(65 + index)}
+          currentText={currentOptionText}
+          currentImage={currentOptionImage}
+          onTextChange={onTextChange}
+          onImageAdd={onImageAdd}
+          onImageRemove={onImageRemove}
+          onSave={onSave}
+          onCancel={onCancel}
+          isSaving={isSaving}
+        />
       </div>
     );
   }
