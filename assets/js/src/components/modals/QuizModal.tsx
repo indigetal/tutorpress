@@ -1588,7 +1588,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setLoadError(null);
 
     try {
-
       // Use the curriculum store to get quiz details
       await getQuizDetails(id);
 
@@ -1818,7 +1817,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       } else {
         console.log(`TutorPress: Creating new quiz with ${questions.length} questions`);
       }
-
 
       // Use the curriculum store instead of direct quiz service
       await saveQuiz(formData, courseId, topicId);
@@ -2408,13 +2406,36 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   }
 
   return (
-    <Modal
-      title={quizId ? __("Edit Quiz", "tutorpress") : __("Create Quiz", "tutorpress")}
-      onRequestClose={handleClose}
-      className="quiz-modal"
-      size="large"
-    >
+    <Modal onRequestClose={handleClose} className="quiz-modal" size="large">
       <div className="quiz-modal-content">
+        {/* Modal Header with Action Buttons */}
+        <div className="quiz-modal-header">
+          <h1 className="quiz-modal-title">
+            {quizId ? __("Edit Quiz", "tutorpress") : __("Create Quiz", "tutorpress")}
+          </h1>
+          <div className="quiz-modal-header-actions">
+            <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
+              {__("Cancel", "tutorpress")}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              disabled={!isValid || isSaving || saveSuccess}
+              isBusy={isSaving}
+            >
+              {isSaving
+                ? quizId
+                  ? __("Updating...", "tutorpress")
+                  : __("Saving...", "tutorpress")
+                : saveSuccess
+                ? __("Saved!", "tutorpress")
+                : quizId
+                ? __("Update Quiz", "tutorpress")
+                : __("Save Quiz", "tutorpress")}
+            </Button>
+          </div>
+        </div>
+
         {/* Loading state when editing quiz */}
         {isLoading && (
           <div className="quiz-modal-loading" style={{ padding: "40px", textAlign: "center" }}>
@@ -2460,29 +2481,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                 }
               }}
             </TabPanel>
-
-            {/* Modal Footer */}
-            <div className="quiz-modal-footer">
-              <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
-                {__("Cancel", "tutorpress")}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={!isValid || isSaving || saveSuccess}
-                isBusy={isSaving}
-              >
-                {isSaving
-                  ? quizId
-                    ? __("Updating...", "tutorpress")
-                    : __("Saving...", "tutorpress")
-                  : saveSuccess
-                  ? __("Saved!", "tutorpress")
-                  : quizId
-                  ? __("Update Quiz", "tutorpress")
-                  : __("Save Quiz", "tutorpress")}
-              </Button>
-            </div>
           </>
         )}
       </div>
