@@ -469,6 +469,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [activeOptionId, setActiveOptionId] = useState<number | null>(null);
   const [isDraggingOption, setIsDraggingOption] = useState(false);
 
+  // Validation state - Step 3.6.8
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+
   // Configure drag sensors - Step 3.6.7
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -612,7 +615,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle add question button click - Step 3.2 - Toggle dropdown
    */
   const handleAddQuestion = () => {
-    console.log("Toggling add question dropdown");
     setIsAddingQuestion(!isAddingQuestion);
     if (isAddingQuestion) {
       // Closing dropdown - reset state
@@ -626,7 +628,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    */
   const handleQuestionTypeSelect = (questionType: QuizQuestionType) => {
     setSelectedQuestionType(questionType);
-    console.log("Selected question type:", questionType);
 
     // Immediately create a new question after type selection - Step 3.2
     handleCreateNewQuestion(questionType);
@@ -647,7 +648,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setCurrentOptionText("");
     setEditingOptionIndex(null);
     setEditingQuestionIndex(null);
-    console.log("Selected question:", questions[questionIndex]);
   };
 
   /**
@@ -700,7 +700,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setShowDescriptionEditor(false);
     setShowExplanationEditor(false);
 
-    console.log("Created new question:", newQuestion);
+    // Reset validation state for new question - Step 3.6.8
+    setShowValidationErrors(false);
   };
 
   /**
@@ -745,8 +746,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     } else if (selectedQuestionIndex !== null && selectedQuestionIndex > questionIndex) {
       setSelectedQuestionIndex(selectedQuestionIndex - 1);
     }
-
-    console.log("Deleted question:", questionToDelete);
   };
 
   /**
@@ -796,7 +795,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log(`Updated question ${questionIndex} field ${field}:`, value);
   };
 
   /**
@@ -966,7 +964,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log(`Set correct answer for True/False question ${question.question_id}:`, selectedAnswerId);
   };
 
   /**
@@ -1007,7 +1004,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           };
 
           setQuestions(updatedQuestions);
-          console.log(`Switched to single mode - cleared all ${correctAnswers.length} correct answers`);
           return;
         }
       }
@@ -1024,7 +1020,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log(`Updated question ${questionIndex} setting ${String(setting)}:`, value);
   };
 
   /**
@@ -1042,7 +1037,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     setShowOptionEditor(true);
-    console.log(`Started editing option - Question: ${questionIndex}, Option: ${optionIndex ?? "new"}`);
   };
 
   /**
@@ -1075,7 +1069,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         _data_status: "new",
       };
       updatedAnswers.push(newOption);
-      console.log("Added new option:", newOption);
     } else {
       // Editing existing option
       if (editingOptionIndex >= 0 && editingOptionIndex < updatedAnswers.length) {
@@ -1084,7 +1077,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           answer_title: currentOptionText.trim(),
           _data_status: updatedAnswers[editingOptionIndex]._data_status === "new" ? "new" : "update",
         };
-        console.log("Updated existing option:", updatedAnswers[editingOptionIndex]);
       }
     }
 
@@ -1108,14 +1100,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setCurrentOptionText("");
     setEditingOptionIndex(null);
     setEditingQuestionIndex(null);
-    console.log("Canceled option editing");
   };
 
   /**
    * Handle editing existing option - Step 3.6.3
    */
   const handleEditOption = (questionIndex: number, optionIndex: number) => {
-    console.log(`Editing option ${optionIndex} in question ${questionIndex}`);
     handleStartOptionEditing(questionIndex, optionIndex);
   };
 
@@ -1155,7 +1145,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log("Duplicated option:", duplicatedOption);
   };
 
   /**
@@ -1197,7 +1186,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log("Deleted option:", optionToDelete);
   };
 
   /**
@@ -1247,10 +1235,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     };
 
     setQuestions(updatedQuestions);
-    console.log(
-      `Set correct answer for multiple choice question ${currentQuestion.question_id}, option ${optionIndex}:`,
-      targetOption.answer_id
-    );
   };
 
   /**
@@ -1259,7 +1243,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const handleOptionDragStart = (event: any) => {
     setActiveOptionId(Number(event.active.id));
     setIsDraggingOption(true);
-    console.log("Started dragging option:", event.active.id);
   };
 
   /**
@@ -1294,7 +1277,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         };
 
         setQuestions(updatedQuestions);
-        console.log(`Reordered options for question ${questionIndex}: moved from ${oldIndex} to ${newIndex}`);
       }
     }
 
@@ -1308,7 +1290,117 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const handleOptionDragCancel = () => {
     setActiveOptionId(null);
     setIsDraggingOption(false);
-    console.log("Cancelled option drag");
+  };
+
+  /**
+   * Validate multiple choice question - Step 3.6.8
+   */
+  const validateMultipleChoiceQuestion = (question: QuizQuestion): string[] => {
+    const errors: string[] = [];
+    const options = question.question_answers || [];
+    const correctAnswers = options.filter((answer) => answer.is_correct === "1");
+    const isAnswerRequired = question.question_settings.answer_required;
+
+    // Minimum 2 options required
+    if (options.length < 2) {
+      errors.push(__("Multiple choice questions must have at least 2 options.", "tutorpress"));
+    }
+
+    // Check for empty option text
+    const emptyOptions = options.filter((option) => !option.answer_title?.trim());
+    if (emptyOptions.length > 0) {
+      errors.push(__("All options must have text content.", "tutorpress"));
+    }
+
+    // Check for duplicate option content
+    const optionTexts = options.map((option) => option.answer_title?.trim().toLowerCase()).filter(Boolean);
+    const uniqueTexts = new Set(optionTexts);
+    if (optionTexts.length !== uniqueTexts.size) {
+      errors.push(__("Options cannot have duplicate content.", "tutorpress"));
+    }
+
+    // At least 1 correct answer required (unless answer not required)
+    if (isAnswerRequired && correctAnswers.length === 0) {
+      errors.push(__("At least one option must be marked as correct.", "tutorpress"));
+    }
+
+    return errors;
+  };
+
+  /**
+   * Validate all questions before save - Step 3.6.8
+   */
+  const validateAllQuestions = (): { isValid: boolean; errors: string[] } => {
+    const allErrors: string[] = [];
+
+    questions.forEach((question, index) => {
+      // Question title validation
+      if (!question.question_title?.trim()) {
+        allErrors.push(__(`Question ${index + 1}: Question title is required.`, "tutorpress"));
+      }
+
+      // Question type specific validation
+      switch (question.question_type) {
+        case "multiple_choice":
+          const mcErrors = validateMultipleChoiceQuestion(question);
+          mcErrors.forEach((error) => {
+            allErrors.push(__(`Question ${index + 1}: ${error}`, "tutorpress"));
+          });
+          break;
+        case "true_false":
+          const tfOptions = question.question_answers || [];
+          const tfCorrectAnswers = tfOptions.filter((answer) => answer.is_correct === "1");
+          if (question.question_settings.answer_required && tfCorrectAnswers.length === 0) {
+            allErrors.push(
+              __(`Question ${index + 1}: Please select the correct answer (True or False).`, "tutorpress")
+            );
+          }
+          break;
+        // Add validation for other question types as they are implemented
+      }
+    });
+
+    return {
+      isValid: allErrors.length === 0,
+      errors: allErrors,
+    };
+  };
+
+  /**
+   * Verify data format compatibility with Tutor LMS - Step 3.6.8
+   */
+  const verifyTutorLMSCompatibility = (questions: QuizQuestion[]): boolean => {
+    try {
+      questions.forEach((question) => {
+        // Verify question structure
+        if (!question.question_type || !question.question_title) {
+          throw new Error("Invalid question structure");
+        }
+
+        // Verify answer structure for multiple choice
+        if (question.question_type === "multiple_choice") {
+          question.question_answers.forEach((answer) => {
+            if (!answer.answer_title || !["0", "1"].includes(answer.is_correct)) {
+              throw new Error("Invalid answer structure for multiple choice");
+            }
+            if (typeof answer.answer_order !== "number") {
+              throw new Error("Invalid answer order");
+            }
+          });
+
+          // Verify settings structure
+          if (typeof question.question_settings.has_multiple_correct_answer !== "boolean") {
+            throw new Error("Invalid multiple correct answer setting");
+          }
+        }
+      });
+
+      console.log("Data format verification passed - compatible with Tutor LMS");
+      return true;
+    } catch (error) {
+      console.error("Data format verification failed:", error);
+      return false;
+    }
   };
 
   /**
@@ -1363,8 +1455,22 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     const questionIndex = questions.findIndex((q) => q.question_id === question.question_id);
     const optionIds = existingOptions.map((option) => option.answer_id);
 
+    // Get validation errors for this question - Step 3.6.8
+    // Only show validation errors if the question has been interacted with (has options or is being saved)
+    const validationErrors = validateMultipleChoiceQuestion(question);
+    const shouldShowValidationErrors = showValidationErrors && hasOptions && validationErrors.length > 0;
+
     return (
       <div className="quiz-modal-multiple-choice-content">
+        {/* Display validation errors only if question has been interacted with - Step 3.6.8 */}
+        {shouldShowValidationErrors && (
+          <div className="quiz-modal-validation-error">
+            {validationErrors.map((error, index) => (
+              <p key={index}>{error}</p>
+            ))}
+          </div>
+        )}
+
         {/* Display existing options with drag and drop - Step 3.6.7 */}
         {hasOptions && (
           <DndContext
@@ -1482,7 +1588,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setLoadError(null);
 
     try {
-      console.log("Loading quiz data for ID:", id);
 
       // Use the curriculum store to get quiz details
       await getQuizDetails(id);
@@ -1493,8 +1598,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         path: `/tutorpress/v1/quizzes/${id}`,
         method: "GET",
       })) as any;
-
-      console.log("Loaded quiz data:", response);
 
       if (response.success && response.data) {
         const quizData = response.data;
@@ -1524,8 +1627,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           }));
 
           setQuestions(questionsWithStatus);
-          console.log("Loaded", questionsWithStatus.length, "questions for quiz", id);
-          console.log("Loaded questions with _data_status:", questionsWithStatus);
+          console.log(`TutorPress: Loaded quiz ${id} with ${questionsWithStatus.length} questions`);
         } else {
           setQuestions([]);
         }
@@ -1664,12 +1766,32 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setCurrentOptionText("");
     setEditingOptionIndex(null);
     setEditingQuestionIndex(null);
+    // Reset validation state - Step 3.6.8
+    setShowValidationErrors(false);
     onClose();
   };
 
   const handleSave = async () => {
     if (!validateEntireForm()) {
       setSaveError(__("Please fix the form errors before saving.", "tutorpress"));
+      return;
+    }
+
+    // Validate questions - Step 3.6.8
+    const questionValidation = validateAllQuestions();
+    if (!questionValidation.isValid) {
+      const errorMessage = questionValidation.errors.join(" ");
+      setSaveError(errorMessage);
+      setShowValidationErrors(true); // Show validation errors in UI
+      return;
+    }
+
+    // Verify Tutor LMS compatibility - Step 3.6.8
+    if (!verifyTutorLMSCompatibility(questions)) {
+      setSaveError(
+        __("Data format is not compatible with Tutor LMS. Please check your question configuration.", "tutorpress")
+      );
+      setShowValidationErrors(true); // Show validation errors in UI
       return;
     }
 
@@ -1689,18 +1811,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       formData.deleted_question_ids = deletedQuestionIds;
       formData.deleted_answer_ids = deletedAnswerIds;
 
-      console.log("Saving quiz with", questions.length, "questions");
-
       // Add quiz ID for updates
       if (quizId) {
-        console.log("Updating existing quiz:", quizId);
         formData.ID = quizId; // Add the quiz ID to make it an update operation
+        console.log(`TutorPress: Updating quiz ${quizId} with ${questions.length} questions`);
       } else {
-        console.log("Creating new quiz");
+        console.log(`TutorPress: Creating new quiz with ${questions.length} questions`);
       }
 
-      console.log("Saving quiz with data:", formData);
-      console.log("Course ID:", courseId, "Topic ID:", topicId, "Quiz ID:", quizId);
 
       // Use the curriculum store instead of direct quiz service
       await saveQuiz(formData, courseId, topicId);

@@ -1800,3 +1800,25 @@
 .quiz-modal-multiple-choice-options .quiz-modal-option-card:last-child {
   margin-bottom: 0;
 }
+
+/* Quiz Modal Multiple Choice Validation Errors - Step 3.6.8 */
+.quiz-modal-validation-error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.quiz-modal-validation-error p {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.quiz-modal-validation-error p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+/* Quiz Modal Multiple Choice Drag and Drop - Step 3.6.7 */
