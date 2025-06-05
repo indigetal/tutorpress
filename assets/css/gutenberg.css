@@ -174,7 +174,6 @@
 /* Content action buttons */
 .tutorpress-content-actions {
   padding-top: 16px;
-  /* Remove the top border */
 }
 
 .tutorpress-content-actions button.components-button.is-secondary {
@@ -350,7 +349,7 @@
   min-height: 500px;
   max-height: 70vh;
   overflow-y: auto;
-  padding: 0 24px 24px 24px; /* Add padding to content but not top */
+  padding: 0 24px 24px 24px;
 }
 
 /* Quiz Modal Header */
@@ -413,11 +412,11 @@
 /* Tab Panel Styles */
 .quiz-modal-tabs .components-tab-panel__tabs {
   border-bottom: 1px solid #ddd;
-  margin-bottom: 16px; /* Reduced from 20px */
+  margin-bottom: 16px;
 }
 
 .quiz-modal-tabs .components-tab-panel__tabs-item {
-  padding: 10px 16px; /* Reduced padding */
+  padding: 10px 16px;
   border: none;
   background: none;
   cursor: pointer;
@@ -433,22 +432,22 @@
 .quiz-modal-three-column-layout {
   display: grid;
   grid-template-columns: 300px 1fr 280px;
-  gap: 16px; /* Reduced from 20px */
-  min-height: 400px; /* Reduced from 500px */
+  gap: 16px;
+  min-height: 400px;
 }
 
 .quiz-modal-left-column {
   border-right: 1px solid #ddd;
-  padding-right: 16px; /* Reduced from 20px */
+  padding-right: 16px;
 }
 
 .quiz-modal-center-column {
-  padding: 0 16px; /* Reduced from 20px */
+  padding: 0 16px;
   border-right: 1px solid #ddd;
 }
 
 .quiz-modal-right-column {
-  padding-left: 16px; /* Reduced from 20px */
+  padding-left: 16px;
 }
 
 /* Left Column Styles */
@@ -462,14 +461,14 @@
 .quiz-modal-topic-context {
   color: #666;
   font-size: 12px;
-  margin: 0 0 16px 0; /* Reduced from 20px */
+  margin: 0 0 16px 0;
 }
 
 .quiz-modal-questions-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px; /* Reduced from 15px */
+  margin-bottom: 12px;
 }
 
 .quiz-modal-questions-header h4 {
@@ -483,7 +482,7 @@
   min-width: 32px !important;
   height: 32px !important;
   padding: 0 !important;
-  border-radius: 4px !important; /* Square like Tutor LMS */
+  border-radius: 4px !important;
   font-size: 16px !important;
   font-weight: bold !important;
   display: flex !important;
@@ -504,7 +503,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 150px; /* Reduced from 200px */
+  height: 150px;
   background: #f9f9f9;
   border: 2px dashed #ddd;
   border-radius: 4px;
@@ -523,7 +522,7 @@
 }
 
 .quiz-modal-settings-content h3 {
-  margin: 0 0 16px 0; /* Reduced from 20px */
+  margin: 0 0 16px 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -531,8 +530,8 @@
 
 .quiz-modal-basic-settings,
 .quiz-modal-advanced-settings {
-  margin-bottom: 20px; /* Reduced from 30px */
-  padding: 16px; /* Reduced from 20px */
+  margin-bottom: 20px;
+  padding: 16px;
   background: #f9f9f9;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
@@ -540,7 +539,7 @@
 
 .quiz-modal-basic-settings h4,
 .quiz-modal-advanced-settings h4 {
-  margin: 0 0 12px 0; /* Reduced from 15px */
+  margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -551,9 +550,9 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 16px; /* Reduced from 20px */
+  padding-top: 16px;
   border-top: 1px solid #ddd;
-  margin-top: 16px; /* Reduced from 20px */
+  margin-top: 16px;
   position: sticky; /* Make footer sticky */
   bottom: 0;
   background: white;
@@ -562,11 +561,11 @@
 
 /* Quiz Modal Form Styles */
 .quiz-modal-quiz-info {
-  margin-bottom: 16px; /* Reduced from 20px */
+  margin-bottom: 16px;
 }
 
 .quiz-modal-quiz-info .components-base-control {
-  margin-bottom: 12px; /* Reduced from 16px */
+  margin-bottom: 12px;
 }
 
 .quiz-modal-quiz-info .components-text-control__input.has-error,
@@ -576,8 +575,8 @@
 
 /* Quiz Settings Form Styles */
 .quiz-modal-setting-group {
-  margin-bottom: 16px; /* Reduced from 24px */
-  padding-bottom: 12px; /* Reduced from 16px */
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -589,12 +588,12 @@
 .quiz-modal-setting-label {
   display: block;
   font-weight: 600;
-  margin-bottom: 6px; /* Reduced from 8px */
+  margin-bottom: 6px;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
 }
 
 .quiz-modal-setting-help {
-  margin: 6px 0 0 0; /* Reduced from 8px */
+  margin: 6px 0 0 0;
   font-size: 13px;
   color: #666;
   font-style: italic;
@@ -626,7 +625,7 @@
 
 /* Toggle Control Styling */
 .quiz-modal-settings .components-toggle-control {
-  margin-bottom: 6px; /* Reduced from 8px */
+  margin-bottom: 6px;
 }
 
 .quiz-modal-settings .components-toggle-control .components-toggle-control__label {
@@ -636,8 +635,8 @@
 
 /* Notice Styling in Modal */
 .quiz-modal-setting-group .components-notice {
-  margin: 6px 0 0 0; /* Reduced from 8px */
-  padding: 6px 10px; /* Reduced padding */
+  margin: 6px 0 0 0;
+  padding: 6px 10px;
 }
 
 .quiz-modal-setting-group .components-notice.is-error {
@@ -740,7 +739,7 @@
   margin: 0;
 }
 
-/* Question List - Step 3.2 - Using content-item pattern */
+/* Question List - Using content-item pattern */
 .quiz-modal-questions-list .tutorpress-content-item {
   margin-bottom: 8px;
   display: flex;
@@ -818,7 +817,7 @@
   color: #d63638 !important;
 }
 
-/* Questions Items Container - Step 3.2 */
+/* Questions Items Container */
 .quiz-modal-questions-items {
   margin-top: 8px;
 }
@@ -837,7 +836,7 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-/* Question Form Structure - Step 3.3 */
+/* Question Form Structure */
 .quiz-modal-question-core-fields {
   margin-bottom: 24px;
 }
@@ -865,7 +864,7 @@
 .quiz-modal-explanation-label {
   display: block;
   font-weight: 400;
-  color: #999; /* Made grey as requested */
+  color: #999;
   margin-bottom: 6px;
   cursor: pointer;
   font-size: 14px;
@@ -990,7 +989,7 @@
   margin-bottom: 24px;
 }
 
-/* Question Settings Panel - Simplified */
+/* Question Settings Panel */
 .quiz-modal-question-type-display {
   margin-bottom: 16px;
   padding-bottom: 12px;
@@ -1056,7 +1055,7 @@
 
   .quiz-modal-three-column-layout {
     grid-template-columns: 1fr;
-    gap: 16px; /* Reduced gap */
+    gap: 16px;
   }
 
   .quiz-modal-left-column,
@@ -1064,7 +1063,7 @@
     border-right: none;
     padding-right: 0;
     border-bottom: 1px solid #ddd;
-    padding-bottom: 16px; /* Reduced padding */
+    padding-bottom: 16px;
   }
 
   .quiz-modal-right-column {
@@ -1074,7 +1073,7 @@
   .quiz-modal-setting-group .components-h-stack {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px; /* Reduced gap */
+    gap: 6px;
   }
 
   .quiz-modal-settings .components-number-control,
@@ -1083,10 +1082,8 @@
   }
 }
 
-/* Question Settings Panel - Step 3.3 */
-/* Old universal settings and type-specific settings styling removed - now using simplified approach */
+/* Question Settings Panel */
 
-/* True/False Question Styling - Step 3.5 */
 .quiz-modal-true-false-content {
   padding: 16px;
 }
@@ -1176,7 +1173,6 @@
   outline: none;
 }
 
-/* TinyMCE will replace the textarea, so these styles apply to the editor iframe */
 .quiz-modal-tinymce-editor .mce-tinymce {
   border: 1px solid #ddd !important;
   border-radius: 4px !important;
@@ -1421,7 +1417,7 @@
   z-index: 5 !important;
 }
 
-/* Multiple Choice Question Type Styles - Step 3.6.1 */
+/* Multiple Choice Question Type Styles */
 .quiz-modal-multiple-choice-content {
   padding: 16px 0;
 }
@@ -1483,7 +1479,7 @@
   font-weight: 500;
 }
 
-/* Option Editor Frame - Step 3.6.2 */
+/* Option Editor Frame */
 .quiz-modal-option-editor {
   margin-bottom: 20px;
   background: #fff;
@@ -1616,7 +1612,7 @@
   cursor: not-allowed;
 }
 
-/* Option Cards Display - Step 3.6.3 */
+/* Option Cards Display */
 .quiz-modal-option-card {
   background: #fff;
   border: 1px solid #ddd;
@@ -1847,7 +1843,7 @@
   min-width: 0;
 }
 
-/* Drag and drop styles for multiple choice options - Step 3.6.7 */
+/* Drag and drop styles for multiple choice options */
 .quiz-modal-option-card {
   transition:
     transform 0.2s ease,
@@ -1871,7 +1867,7 @@
   margin-bottom: 0;
 }
 
-/* Quiz Modal Multiple Choice Validation Errors - Step 3.6.8 */
+/* Quiz Modal Multiple Choice Validation Errors */
 .quiz-modal-validation-error {
   background-color: #fef2f2;
   border: 1px solid #fecaca;
@@ -1891,7 +1887,7 @@
   margin-bottom: 8px;
 }
 
-/* Quiz Modal Multiple Choice Drag and Drop - Step 3.6.7 */
+/* Quiz Modal Multiple Choice Drag and Drop */
 
 /* Multiple Choice Option Image Styles */
 .quiz-modal-option-image-container {
