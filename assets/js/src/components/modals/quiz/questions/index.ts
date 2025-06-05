@@ -29,6 +29,8 @@ import type { QuizQuestion, QuizQuestionType } from "../../../../types/quiz";
 // Import all question components
 export { TrueFalseQuestion } from "./TrueFalseQuestion";
 export { MultipleChoiceQuestion } from "./MultipleChoiceQuestion";
+export { SortableOption } from "./SortableOption";
+export type { SortableOptionProps } from "./SortableOption";
 
 // Import component types for the registry
 import { TrueFalseQuestion } from "./TrueFalseQuestion";

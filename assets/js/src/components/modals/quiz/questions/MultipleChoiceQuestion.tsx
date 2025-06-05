@@ -44,6 +44,7 @@ import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
+import { SortableOption } from "./SortableOption";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface MultipleChoiceQuestionProps {
@@ -53,195 +54,6 @@ interface MultipleChoiceQuestionProps {
   showValidationErrors: boolean;
   isSaving: boolean;
 }
-
-// SortableOption Component
-interface SortableOptionProps {
-  option: QuizQuestionOption;
-  index: number;
-  questionIndex: number;
-  isCorrect: boolean;
-  isEditing: boolean;
-  currentOptionText: string;
-  currentOptionImage: { id: number; url: string } | null;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-  onCorrectToggle: () => void;
-  onTextChange: (value: string) => void;
-  onImageAdd: () => void;
-  onImageRemove: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  isSaving: boolean;
-}
-
-const SortableOption: React.FC<SortableOptionProps> = ({
-  option,
-  index,
-  questionIndex,
-  isCorrect,
-  isEditing,
-  currentOptionText,
-  currentOptionImage,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  onCorrectToggle,
-  onTextChange,
-  onImageAdd,
-  onImageRemove,
-  onSave,
-  onCancel,
-  isSaving,
-}) => {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: option.answer_id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    position: "relative" as const,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const classNames = [
-    "quiz-modal-option-card",
-    isCorrect && "is-correct",
-    isEditing && "quiz-modal-option-card-editing",
-    isDragging && "is-dragging",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  if (isEditing) {
-    // Transform this option card into the editor
-    return (
-      <div ref={setNodeRef} style={style} className={classNames}>
-        <div className="quiz-modal-option-editor">
-          <div className="quiz-modal-option-editor-header">
-            <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
-            <button
-              type="button"
-              className={`quiz-modal-add-image-btn ${currentOptionImage ? "has-image" : ""}`}
-              onClick={currentOptionImage ? onImageRemove : onImageAdd}
-              disabled={isSaving}
-            >
-              {currentOptionImage ? __("Remove Image", "tutorpress") : __("Add Image", "tutorpress")}
-            </button>
-          </div>
-
-          {/* Display image above textarea if present */}
-          {currentOptionImage && (
-            <div className="quiz-modal-option-image-container">
-              <img
-                src={currentOptionImage.url}
-                alt={__("Option image", "tutorpress")}
-                className="quiz-modal-option-image"
-              />
-            </div>
-          )}
-
-          <textarea
-            className="quiz-modal-option-textarea"
-            placeholder={__("Write option...", "tutorpress")}
-            value={currentOptionText}
-            onChange={(e) => onTextChange(e.target.value)}
-            rows={3}
-            disabled={isSaving}
-            autoFocus
-          />
-
-          <div className="quiz-modal-option-editor-actions">
-            <button type="button" className="quiz-modal-option-cancel-btn" onClick={onCancel} disabled={isSaving}>
-              {__("Cancel", "tutorpress")}
-            </button>
-            <button
-              type="button"
-              className="quiz-modal-option-ok-btn"
-              onClick={onSave}
-              disabled={isSaving || !currentOptionText.trim()}
-            >
-              {__("Ok", "tutorpress")}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Regular option card display
-  return (
-    <div ref={setNodeRef} style={style} className={classNames}>
-      <div className="quiz-modal-option-card-header">
-        <div className="quiz-modal-option-card-icon">
-          <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
-          <Button
-            icon={dragHandle}
-            label={__("Drag to reorder", "tutorpress")}
-            isSmall
-            variant="tertiary"
-            className="quiz-modal-drag-handle"
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-          />
-        </div>
-        <div className="quiz-modal-option-card-actions">
-          <Button
-            icon={edit}
-            label={__("Edit option", "tutorpress")}
-            isSmall
-            variant="tertiary"
-            onClick={onEdit}
-            disabled={isSaving}
-          />
-          <Button
-            icon={copy}
-            label={__("Duplicate option", "tutorpress")}
-            isSmall
-            variant="tertiary"
-            onClick={onDuplicate}
-            disabled={isSaving}
-          />
-          <Button
-            icon={trash}
-            label={__("Delete option", "tutorpress")}
-            isSmall
-            variant="tertiary"
-            onClick={onDelete}
-            disabled={isSaving}
-          />
-        </div>
-      </div>
-      <div className="quiz-modal-option-card-content">
-        <div
-          className="quiz-modal-correct-answer-indicator"
-          onClick={onCorrectToggle}
-          title={isCorrect ? __("Correct answer", "tutorpress") : __("Mark as correct answer", "tutorpress")}
-        >
-          <Icon icon={check} />
-        </div>
-        <div className="quiz-modal-option-content-wrapper">
-          {/* Display image above text if present */}
-          {(() => {
-            const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
-            return imageId && imageId > 0 && option.image_url ? (
-              <div className="quiz-modal-option-image-container">
-                <img
-                  src={option.image_url}
-                  alt={__("Option image", "tutorpress")}
-                  className="quiz-modal-option-image"
-                />
-              </div>
-            ) : null;
-          })()}
-          <div className="quiz-modal-option-text">{option.answer_title || __("(Empty option)", "tutorpress")}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   question,
@@ -635,7 +447,6 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                     key={option.answer_id}
                     option={option}
                     index={index}
-                    questionIndex={questionIndex}
                     isCorrect={option.is_correct === "1"}
                     isEditing={isEditingThisOption}
                     currentOptionText={currentOptionText}
