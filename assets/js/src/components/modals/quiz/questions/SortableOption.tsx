@@ -74,6 +74,12 @@ export interface SortableOptionProps {
   showCorrectIndicator?: boolean;
   /** Custom label for the option (e.g., "A", "Step 1", "Term 1") - defaults to A, B, C format */
   optionLabel?: string;
+  /** Whether an image is required to save the option (for Image Answering, Matching) */
+  requireImage?: boolean;
+  /** Whether to show the image upload area above the text field instead of a button */
+  showImageUploadArea?: boolean;
+  /** Helper text to display below the text field */
+  helperText?: string;
   /** Callback when edit button is clicked */
   onEdit: () => void;
   /** Callback when duplicate button is clicked */
@@ -88,6 +94,8 @@ export interface SortableOptionProps {
   onImageAdd: () => void;
   /** Callback when remove image button is clicked during editing */
   onImageRemove: () => void;
+  /** Callback when image is set directly (for drag-and-drop) */
+  onImageSet?: (imageData: { id: number; url: string } | null) => void;
   /** Callback when save button is clicked during editing */
   onSave: () => void;
   /** Callback when cancel button is clicked during editing */
@@ -112,6 +120,9 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   currentOptionImage,
   showCorrectIndicator = true, // Default to true for backward compatibility
   optionLabel,
+  requireImage,
+  showImageUploadArea,
+  helperText,
   onEdit,
   onDuplicate,
   onDelete,
@@ -119,6 +130,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   onTextChange,
   onImageAdd,
   onImageRemove,
+  onImageSet,
   onSave,
   onCancel,
   isSaving,
@@ -156,9 +168,13 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
           optionLabel={displayLabel}
           currentText={currentOptionText}
           currentImage={currentOptionImage}
+          requireImage={requireImage}
+          showImageUploadArea={showImageUploadArea}
+          helperText={helperText}
           onTextChange={onTextChange}
           onImageAdd={onImageAdd}
           onImageRemove={onImageRemove}
+          onImageSet={onImageSet}
           onSave={onSave}
           onCancel={onCancel}
           isSaving={isSaving}

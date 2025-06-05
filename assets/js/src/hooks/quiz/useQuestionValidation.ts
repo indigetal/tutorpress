@@ -213,10 +213,25 @@ export const useQuestionValidation = () => {
 
       // Image Answering validation rules
       image_answering: [
-        // Will be implemented when image answering is added
+        // Minimum options requirement (1+ since UI prevents empty options)
         (question: QuizQuestion) => {
-          // Placeholder for future implementation
-          return [];
+          const options = question.question_answers || [];
+          return options.length < 1 ? [__("Image answering questions must have at least 1 option.", "tutorpress")] : [];
+        },
+        // Empty option text rule
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          const emptyOptions = options.filter((option) => !option.answer_title?.trim());
+          return emptyOptions.length > 0 ? [__("All options must have text content.", "tutorpress")] : [];
+        },
+        // Image requirement (UI enforced, but validate for completeness)
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          const optionsWithoutImages = options.filter((option) => {
+            const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
+            return !imageId || imageId <= 0 || !option.image_url;
+          });
+          return optionsWithoutImages.length > 0 ? [__("All options must have images.", "tutorpress")] : [];
         },
       ],
 

@@ -82,6 +82,8 @@ export interface OptionEditorProps {
   onImageAdd: () => void;
   /** Callback when remove image button is clicked */
   onImageRemove: () => void;
+  /** Callback when image is set directly (for drag-and-drop) */
+  onImageSet?: (imageData: { id: number; url: string } | null) => void;
   /** Callback when save button is clicked */
   onSave: () => void;
   /** Callback when cancel button is clicked */
@@ -112,6 +114,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
   onTextChange,
   onImageAdd,
   onImageRemove,
+  onImageSet,
   onSave,
   onCancel,
   isSaving,
@@ -120,6 +123,92 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
 }) => {
   // Determine if save button should be disabled
   const isSaveDisabled = isSaving || !currentText.trim() || (requireImage && !currentImage);
+
+  // Drag and drop handlers for upload area
+  const [isDragOver, setIsDragOver] = React.useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find((file) => file.type.startsWith("image/"));
+
+    if (imageFile) {
+      // Upload the dropped image file directly
+      uploadImageFile(imageFile);
+    } else {
+      // No valid image file, fallback to media library
+      onImageAdd();
+    }
+  };
+
+  // Upload image file directly to WordPress
+  const uploadImageFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      console.error("File is not an image");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch((window as any).wpApiSettings?.root + "wp/v2/media", {
+        method: "POST",
+        headers: {
+          "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const attachment = await response.json();
+        const imageData = {
+          id: attachment.id,
+          url: attachment.source_url || attachment.url,
+        };
+
+        // For drag-and-drop, we need a way to directly set the image
+        // Since the current architecture expects onImageAdd to open media library,
+        // we'll need to modify the parent component to handle direct image setting
+        // For now, let's try to use the existing hook pattern
+        if (onImageSet) {
+          onImageSet(imageData);
+        } else {
+          // Fallback: open media library (but the image should be there now)
+          onImageAdd();
+        }
+      } else {
+        console.error("Failed to upload image");
+        // Fallback to media library
+        onImageAdd();
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      // Fallback to media library
+      onImageAdd();
+    }
+  };
 
   return (
     <div className="quiz-modal-option-editor">
@@ -141,7 +230,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
 
       {/* Image Upload Area (for image-required modes) */}
       {showImageUploadArea && (
-        <div className="quiz-modal-image-upload-area">
+        <div className="quiz-modal-image-upload-area" style={{ marginBottom: "16px" }}>
           {currentImage ? (
             <div className="quiz-modal-image-preview">
               <img src={currentImage.url} alt={__("Option image", "tutorpress")} className="quiz-modal-option-image" />
@@ -156,12 +245,111 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
               </button>
             </div>
           ) : (
-            <div className="quiz-modal-image-upload-placeholder">
-              <button type="button" className="quiz-modal-upload-image-btn" onClick={onImageAdd} disabled={isSaving}>
+            <div
+              className="quiz-modal-image-upload-placeholder"
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={onImageAdd}
+              style={{
+                border: `2px dashed ${isDragOver ? "#007cba" : "#d0d5dd"}`,
+                borderRadius: "8px",
+                padding: "32px 20px",
+                textAlign: "center",
+                cursor: "pointer",
+                backgroundColor: isDragOver ? "#f0f8ff" : "#fafbfc",
+                minHeight: "140px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!isDragOver) {
+                  e.currentTarget.style.borderColor = "#007cba";
+                  e.currentTarget.style.backgroundColor = "#f8fafc";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDragOver) {
+                  e.currentTarget.style.borderColor = "#d0d5dd";
+                  e.currentTarget.style.backgroundColor = "#fafbfc";
+                }
+              }}
+            >
+              {/* Modern SVG Upload Icon */}
+              <div style={{ marginBottom: "12px" }}>
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ color: "#9ca3af" }}
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <button
+                type="button"
+                className="quiz-modal-upload-image-btn"
+                onClick={onImageAdd}
+                disabled={isSaving}
+                style={{
+                  background: "transparent",
+                  color: "#374151",
+                  border: "1px solid #d1d5db",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  marginBottom: "8px",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f9fafb";
+                  e.currentTarget.style.borderColor = "#9ca3af";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.borderColor = "#d1d5db";
+                }}
+              >
                 {__("Upload Image", "tutorpress")}
               </button>
-              <p className="quiz-modal-upload-instruction">
-                {__("Click to upload an image for this option", "tutorpress")}
+
+              <p
+                style={{
+                  margin: "0",
+                  fontSize: "12px",
+                  color: "#6b7280",
+                  lineHeight: "1.4",
+                  marginBottom: "4px",
+                }}
+              >
+                {__("or drag and drop", "tutorpress")}
+              </p>
+
+              <p
+                className="quiz-modal-upload-instruction"
+                style={{
+                  margin: "0",
+                  fontSize: "11px",
+                  color: "#9ca3af",
+                  lineHeight: "1.4",
+                }}
+              >
+                {__("PNG, JPG up to 10MB • Recommended: 700x430px", "tutorpress")}
               </p>
             </div>
           )}
