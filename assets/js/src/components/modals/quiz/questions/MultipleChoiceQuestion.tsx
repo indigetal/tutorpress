@@ -387,6 +387,8 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                     isEditing={isEditingThisOption}
                     currentOptionText={currentOptionText}
                     currentOptionImage={currentOptionImage}
+                    showCorrectIndicator={true}
+                    optionLabel={String.fromCharCode(65 + index)}
                     onEdit={() => handleEditOption(index)}
                     onDuplicate={() => handleDuplicateOption(index)}
                     onDelete={() => handleDeleteOption(index)}

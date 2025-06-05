@@ -10,7 +10,8 @@
  * - Drag & drop reordering with dnd-kit
  * - Inline editing with textarea
  * - Image support with upload/remove
- * - Correct answer selection
+ * - Optional correct answer selection (configurable per question type)
+ * - Customizable option labeling
  * - Option actions (edit, duplicate, delete)
  * - Visual states (correct, editing, dragging)
  * - Accessibility features
@@ -20,23 +21,23 @@
  * - WordPress components and icons
  *
  * @usage
+ * // Multiple Choice (with correct answer selection)
  * <SortableOption
  *   option={option}
  *   index={index}
  *   isCorrect={isCorrect}
- *   isEditing={isEditing}
- *   currentOptionText={currentOptionText}
- *   currentOptionImage={currentOptionImage}
- *   onEdit={handleEdit}
- *   onDuplicate={handleDuplicate}
- *   onDelete={handleDelete}
- *   onCorrectToggle={handleCorrectToggle}
- *   onTextChange={handleTextChange}
- *   onImageAdd={handleImageAdd}
- *   onImageRemove={handleImageRemove}
- *   onSave={handleSave}
- *   onCancel={handleCancel}
- *   isSaving={isSaving}
+ *   showCorrectIndicator={true}
+ *   optionLabel="A"
+ *   // ... other props
+ * />
+ *
+ * // Ordering/Matching (without correct answer selection)
+ * <SortableOption
+ *   option={option}
+ *   index={index}
+ *   showCorrectIndicator={false}
+ *   optionLabel="Step 1"
+ *   // ... other props
  * />
  *
  * @package TutorPress
@@ -59,24 +60,28 @@ import type { QuizQuestionOption } from "../../../../types/quiz";
 export interface SortableOptionProps {
   /** The question option data */
   option: QuizQuestionOption;
-  /** The index of this option in the list (for A, B, C labels) */
+  /** The index of this option in the list */
   index: number;
-  /** Whether this option is marked as correct */
-  isCorrect: boolean;
+  /** Whether this option is marked as correct (only used when showCorrectIndicator=true) */
+  isCorrect?: boolean;
   /** Whether this option is currently being edited */
   isEditing: boolean;
   /** Current text being edited (only used when isEditing=true) */
   currentOptionText: string;
   /** Current image being edited (only used when isEditing=true) */
   currentOptionImage: { id: number; url: string } | null;
+  /** Whether to show the correct answer indicator (green checkmark) - defaults to true for backward compatibility */
+  showCorrectIndicator?: boolean;
+  /** Custom label for the option (e.g., "A", "Step 1", "Term 1") - defaults to A, B, C format */
+  optionLabel?: string;
   /** Callback when edit button is clicked */
   onEdit: () => void;
   /** Callback when duplicate button is clicked */
   onDuplicate: () => void;
   /** Callback when delete button is clicked */
   onDelete: () => void;
-  /** Callback when correct answer indicator is clicked */
-  onCorrectToggle: () => void;
+  /** Callback when correct answer indicator is clicked (only used when showCorrectIndicator=true) */
+  onCorrectToggle?: () => void;
   /** Callback when option text changes during editing */
   onTextChange: (value: string) => void;
   /** Callback when add image button is clicked during editing */
@@ -96,14 +101,17 @@ export interface SortableOptionProps {
  *
  * Displays a single quiz option with drag & drop, editing, and action capabilities.
  * Can switch between display mode and editing mode based on isEditing prop.
+ * Supports different question types through optional correct answer functionality.
  */
 export const SortableOption: React.FC<SortableOptionProps> = ({
   option,
   index,
-  isCorrect,
+  isCorrect = false,
   isEditing,
   currentOptionText,
   currentOptionImage,
+  showCorrectIndicator = true, // Default to true for backward compatibility
+  optionLabel,
   onEdit,
   onDuplicate,
   onDelete,
@@ -127,10 +135,13 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Generate default option label if not provided (A, B, C format)
+  const displayLabel = optionLabel ?? String.fromCharCode(65 + index);
+
   // Build CSS classes for different states
   const classNames = [
     "quiz-modal-option-card",
-    isCorrect && "is-correct",
+    showCorrectIndicator && isCorrect && "is-correct", // Only apply correct styling if indicator is shown
     isEditing && "quiz-modal-option-card-editing",
     isDragging && "is-dragging",
   ]
@@ -142,7 +153,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
     return (
       <div ref={setNodeRef} style={style} className={classNames}>
         <OptionEditor
-          optionLabel={String.fromCharCode(65 + index)}
+          optionLabel={displayLabel}
           currentText={currentOptionText}
           currentImage={currentOptionImage}
           onTextChange={onTextChange}
@@ -161,7 +172,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
     <div ref={setNodeRef} style={style} className={classNames}>
       <div className="quiz-modal-option-card-header">
         <div className="quiz-modal-option-card-icon">
-          <span className="quiz-modal-option-label">{String.fromCharCode(65 + index)}.</span>
+          <span className="quiz-modal-option-label">{displayLabel}.</span>
           <Button
             icon={dragHandle}
             label={__("Drag to reorder", "tutorpress")}
@@ -201,13 +212,16 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
         </div>
       </div>
       <div className="quiz-modal-option-card-content">
-        <div
-          className="quiz-modal-correct-answer-indicator"
-          onClick={onCorrectToggle}
-          title={isCorrect ? __("Correct answer", "tutorpress") : __("Mark as correct answer", "tutorpress")}
-        >
-          <Icon icon={check} />
-        </div>
+        {/* Conditionally render correct answer indicator only for question types that need it */}
+        {showCorrectIndicator && (
+          <div
+            className="quiz-modal-correct-answer-indicator"
+            onClick={onCorrectToggle}
+            title={isCorrect ? __("Correct answer", "tutorpress") : __("Mark as correct answer", "tutorpress")}
+          >
+            <Icon icon={check} />
+          </div>
+        )}
         <div className="quiz-modal-option-content-wrapper">
           {/* Display image above text if present */}
           {(() => {
