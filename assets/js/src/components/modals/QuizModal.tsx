@@ -15,11 +15,6 @@ import {
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
-import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { arrayMove } from "@dnd-kit/sortable";
 import { useQuizForm } from "../../hooks/quiz/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
@@ -304,21 +299,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
   const [showExplanationEditor, setShowExplanationEditor] = useState(false);
 
-  // Drag and drop state for options - Step 3.6.7
-  const [activeOptionId, setActiveOptionId] = useState<number | null>(null);
-  const [isDraggingOption, setIsDraggingOption] = useState(false);
-
   // Validation state - Step 3.6.8
   const [showValidationErrors, setShowValidationErrors] = useState(false);
-
-  // Configure drag sensors - Step 3.6.7
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
 
   // Initialize quiz form hook with loaded data
   const {
