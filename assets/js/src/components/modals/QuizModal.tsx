@@ -20,7 +20,7 @@ import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
-import { useQuizForm } from "../../hooks/useQuizForm";
+import { useQuizForm } from "../../hooks/quiz";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import type {
@@ -35,6 +35,9 @@ import type {
   QuizQuestionOption,
   DataStatus,
 } from "../../types/quiz";
+import { QuizHeader } from "./quiz/QuizHeader";
+import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
+import { SettingsTab } from "./quiz/SettingsTab";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -2071,503 +2074,160 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     },
   ];
 
-  const renderQuestionDetailsTab = () => {
-    return (
-      <div className="quiz-modal-question-details">
-        {/* Success/Error Messages */}
-        {saveSuccess && (
-          <Notice status="success" isDismissible={false}>
-            {__("Quiz saved successfully! Updating curriculum...", "tutorpress")}
-          </Notice>
-        )}
+  /**
+   * Render the question form for the center column
+   */
+  const renderQuestionForm = (): JSX.Element => {
+    if (selectedQuestionIndex !== null && questions[selectedQuestionIndex]) {
+      return (
+        <div className="quiz-modal-question-form-content">
+          {/* Core Question Fields */}
+          <div className="quiz-modal-question-core-fields">
+            <TextControl
+              label={__("Question Title", "tutorpress")}
+              value={questions[selectedQuestionIndex].question_title}
+              onChange={(value) => handleQuestionFieldUpdate(selectedQuestionIndex, "question_title", value)}
+              placeholder={__("Enter your question...", "tutorpress")}
+              disabled={isSaving}
+            />
 
-        {saveError && (
-          <Notice status="error" isDismissible={true} onRemove={() => setSaveError(null)}>
-            {saveError}
-          </Notice>
-        )}
-
-        <div className="quiz-modal-three-column-layout">
-          {/* Left Column: Quiz name, Question dropdown, Questions list */}
-          <div className="quiz-modal-left-column">
-            <div className="quiz-modal-quiz-info">
-              <TextControl
-                label={__("Quiz Title", "tutorpress")}
-                value={formState.title}
-                onChange={updateTitle}
-                placeholder={__("Enter quiz title...", "tutorpress")}
-                help={errors.title}
-                className={errors.title ? "has-error" : ""}
-                disabled={isSaving}
-              />
-
-              <TextareaControl
-                label={__("Quiz Description", "tutorpress")}
-                value={formState.description}
-                onChange={updateDescription}
-                placeholder={__("Enter quiz description...", "tutorpress")}
-                rows={3}
-                disabled={isSaving}
-              />
-
-              {topicId && <p className="quiz-modal-topic-context">{__("Topic ID: ", "tutorpress") + topicId}</p>}
-            </div>
-
-            <div className="quiz-modal-questions-section">
-              <div className="quiz-modal-questions-header">
-                <h4>{__("Questions", "tutorpress")}</h4>
-                <Button
-                  variant="primary"
-                  className="quiz-modal-add-question-btn"
-                  onClick={handleAddQuestion}
-                  disabled={!formState.title.trim() || isSaving}
+            <div className="quiz-modal-description-field">
+              {!showDescriptionEditor && (
+                <div
+                  className="quiz-modal-description-label"
+                  onClick={() => setShowDescriptionEditor(!showDescriptionEditor)}
                 >
-                  +
-                </Button>
-              </div>
-
-              {/* Question Type Dropdown - Show when adding question - Tutor LMS Style */}
-              {isAddingQuestion && (
-                <div className="quiz-modal-question-type-section">
-                  <SelectControl
-                    label={__("Question Type", "tutorpress")}
-                    value={selectedQuestionType || ""}
-                    options={[
-                      { label: __("Select Question Type", "tutorpress"), value: "" },
-                      ...questionTypes.map((type) => ({
-                        label: type.is_pro ? `${type.label} ${__("(Pro)", "tutorpress")}` : type.label,
-                        value: type.value,
-                      })),
-                    ]}
-                    onChange={(value) => {
-                      if (value) {
-                        handleQuestionTypeSelect(value as QuizQuestionType);
-                      } else {
-                        setSelectedQuestionType(null);
-                      }
-                    }}
-                    disabled={loadingQuestionTypes || isSaving}
-                    className="quiz-modal-question-type-select"
-                  />
-
-                  {loadingQuestionTypes && (
-                    <div className="quiz-modal-loading-question-types">
-                      <Spinner style={{ margin: "0 8px 0 0" }} />
-                      <span>{__("Loading question types...", "tutorpress")}</span>
-                    </div>
-                  )}
-
-                  <div className="quiz-modal-question-type-actions">
-                    <Button
-                      variant="secondary"
-                      isSmall
-                      onClick={() => {
-                        setIsAddingQuestion(false);
-                        setSelectedQuestionType(null);
+                  {questions[selectedQuestionIndex].question_description.trim() ? (
+                    <div
+                      className="quiz-modal-saved-content"
+                      dangerouslySetInnerHTML={{
+                        __html: questions[selectedQuestionIndex].question_description,
                       }}
-                    >
-                      {__("Cancel", "tutorpress")}
-                    </Button>
-                  </div>
+                    />
+                  ) : (
+                    __("Description (optional)", "tutorpress")
+                  )}
                 </div>
               )}
+              {showDescriptionEditor && (
+                <TinyMCEEditor
+                  value={questions[selectedQuestionIndex].question_description}
+                  onChange={(value) => handleQuestionFieldUpdate(selectedQuestionIndex, "question_description", value)}
+                  editorId="question_description"
+                  onCancel={() => setShowDescriptionEditor(false)}
+                  onOk={() => setShowDescriptionEditor(false)}
+                />
+              )}
+            </div>
+          </div>
 
-              {/* Questions List - Always visible, dropdown overlays when needed */}
-              <div className="quiz-modal-questions-list">
-                {!formState.title.trim() ? (
-                  <div className="quiz-modal-no-questions">
-                    <p>{__("Enter a quiz title to add questions.", "tutorpress")}</p>
-                  </div>
-                ) : questions.length === 0 && !isAddingQuestion ? (
-                  <div className="quiz-modal-no-questions">
-                    <p>{__("No questions added yet. Click + to add your first question.", "tutorpress")}</p>
+          {/* Question Type-Specific Content Area */}
+          <div className="quiz-modal-question-type-content">
+            {renderQuestionTypeContent(questions[selectedQuestionIndex])}
+          </div>
+
+          {/* Answer Explanation */}
+          <div className="quiz-modal-question-explanation">
+            {!showExplanationEditor && (
+              <div
+                className="quiz-modal-explanation-label"
+                onClick={() => setShowExplanationEditor(!showExplanationEditor)}
+              >
+                {questions[selectedQuestionIndex].answer_explanation.trim() ? (
+                  <div>
+                    <label>{__("Answer Explanation", "tutorpress")}</label>
+                    <div
+                      className="quiz-modal-saved-content"
+                      dangerouslySetInnerHTML={{ __html: questions[selectedQuestionIndex].answer_explanation }}
+                    />
                   </div>
                 ) : (
-                  questions.map((question, index) => (
-                    <div
-                      key={question.question_id}
-                      className={`tutorpress-content-item quiz-modal-question-item ${
-                        selectedQuestionIndex === index ? "is-selected" : ""
-                      }`}
-                      onClick={() => handleQuestionSelect(index)}
-                    >
-                      <div className="tutorpress-content-item-icon">
-                        <span className="quiz-modal-question-number item-icon">{index + 1}</span>
-                        <Icon icon="menu" className="drag-icon" />
-                      </div>
-                      <div className="quiz-modal-question-content">
-                        <div className="quiz-modal-question-title">
-                          {question.question_title || `${__("Question", "tutorpress")} ${index + 1}`}
-                        </div>
-                        <div className="quiz-modal-question-type-badge">
-                          {getQuestionTypeDisplayName(question.question_type)}
-                        </div>
-                      </div>
-                      <div className="tutorpress-content-item-actions">
-                        <Button
-                          icon="admin-page"
-                          label={__("Duplicate Question", "tutorpress")}
-                          isSmall
-                          variant="tertiary"
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            e.stopPropagation();
-                            // TODO: Implement duplication in future step
-                            console.log("Duplicate question:", index);
-                          }}
-                        />
-                        <Button
-                          icon="trash"
-                          label={__("Delete Question", "tutorpress")}
-                          isSmall
-                          variant="tertiary"
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            e.stopPropagation();
-                            handleDeleteQuestion(index);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))
+                  __("Write answer explanation", "tutorpress")
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Center Column: Contextual question form */}
-          <div className="quiz-modal-center-column">
-            <div className="quiz-modal-question-form">
-              {selectedQuestionIndex !== null && questions[selectedQuestionIndex] ? (
-                <div className="quiz-modal-question-form-content">
-                  {/* Core Question Fields */}
-                  <div className="quiz-modal-question-core-fields">
-                    <TextControl
-                      label={__("Question Title", "tutorpress")}
-                      value={questions[selectedQuestionIndex].question_title}
-                      onChange={(value) => handleQuestionFieldUpdate(selectedQuestionIndex, "question_title", value)}
-                      placeholder={__("Enter your question...", "tutorpress")}
-                      disabled={isSaving}
-                    />
-
-                    <div className="quiz-modal-description-field">
-                      {!showDescriptionEditor && (
-                        <div
-                          className="quiz-modal-description-label"
-                          onClick={() => setShowDescriptionEditor(!showDescriptionEditor)}
-                        >
-                          {questions[selectedQuestionIndex].question_description.trim() ? (
-                            <div
-                              className="quiz-modal-saved-content"
-                              dangerouslySetInnerHTML={{
-                                __html: questions[selectedQuestionIndex].question_description,
-                              }}
-                            />
-                          ) : (
-                            __("Description (optional)", "tutorpress")
-                          )}
-                        </div>
-                      )}
-                      {showDescriptionEditor && (
-                        <TinyMCEEditor
-                          value={questions[selectedQuestionIndex].question_description}
-                          onChange={(value) =>
-                            handleQuestionFieldUpdate(selectedQuestionIndex, "question_description", value)
-                          }
-                          editorId="question_description"
-                          onCancel={() => setShowDescriptionEditor(false)}
-                          onOk={() => setShowDescriptionEditor(false)}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Question Type-Specific Content Area */}
-                  <div className="quiz-modal-question-type-content">
-                    {renderQuestionTypeContent(questions[selectedQuestionIndex])}
-                  </div>
-
-                  {/* Answer Explanation */}
-                  <div className="quiz-modal-question-explanation">
-                    {!showExplanationEditor && (
-                      <div
-                        className="quiz-modal-explanation-label"
-                        onClick={() => setShowExplanationEditor(!showExplanationEditor)}
-                      >
-                        {questions[selectedQuestionIndex].answer_explanation.trim() ? (
-                          <div>
-                            <label>{__("Answer Explanation", "tutorpress")}</label>
-                            <div
-                              className="quiz-modal-saved-content"
-                              dangerouslySetInnerHTML={{ __html: questions[selectedQuestionIndex].answer_explanation }}
-                            />
-                          </div>
-                        ) : (
-                          __("Write answer explanation", "tutorpress")
-                        )}
-                      </div>
-                    )}
-                    {showExplanationEditor && (
-                      <div>
-                        <label>{__("Answer Explanation", "tutorpress")}</label>
-                        <TinyMCEEditor
-                          value={questions[selectedQuestionIndex].answer_explanation}
-                          onChange={(value) =>
-                            handleQuestionFieldUpdate(selectedQuestionIndex, "answer_explanation", value)
-                          }
-                          editorId="answer_explanation"
-                          onCancel={() => setShowExplanationEditor(false)}
-                          onOk={() => setShowExplanationEditor(false)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="quiz-modal-empty-state">
-                  <p>{__("Create or select a question to view details", "tutorpress")}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Contextual question settings */}
-          <div className="quiz-modal-right-column">
-            <div className="quiz-modal-question-settings">
-              <h4>{__("Question Settings", "tutorpress")}</h4>
-              {selectedQuestionIndex !== null && questions[selectedQuestionIndex] ? (
-                <div className="quiz-modal-question-settings-content">
-                  {/* Question Type Display */}
-                  <div className="quiz-modal-question-type-display">
-                    <label>
-                      {__("Question Type: ", "tutorpress")}
-                      <span className="quiz-modal-question-type-value">
-                        {getQuestionTypeDisplayName(questions[selectedQuestionIndex].question_type)}
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Type-Specific Settings First (Multiple Correct Answer, etc.) */}
-                  {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
-
-                  {/* Answer Required */}
-                  <ToggleControl
-                    label={__("Answer Required", "tutorpress")}
-                    checked={questions[selectedQuestionIndex].question_settings.answer_required}
-                    onChange={(checked) =>
-                      handleQuestionSettingUpdate(selectedQuestionIndex, "answer_required", checked)
-                    }
-                    disabled={isSaving}
-                  />
-
-                  {/* Points For This Question */}
-                  <NumberControl
-                    label={__("Points For This Question", "tutorpress")}
-                    value={questions[selectedQuestionIndex].question_mark}
-                    onChange={(value) =>
-                      handleQuestionFieldUpdate(selectedQuestionIndex, "question_mark", parseInt(value as string) || 1)
-                    }
-                    min={1}
-                    max={100}
-                    step={1}
-                    type="number"
-                    disabled={isSaving}
-                  />
-
-                  {/* Display Points */}
-                  <ToggleControl
-                    label={__("Display Points", "tutorpress")}
-                    checked={questions[selectedQuestionIndex].question_settings.show_question_mark}
-                    onChange={(checked) =>
-                      handleQuestionSettingUpdate(selectedQuestionIndex, "show_question_mark", checked)
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-              ) : (
-                <div className="quiz-modal-empty-state">
-                  <p>{__("Select a question to view settings", "tutorpress")}</p>
-                </div>
-              )}
-            </div>
+            )}
+            {showExplanationEditor && (
+              <div>
+                <label>{__("Answer Explanation", "tutorpress")}</label>
+                <TinyMCEEditor
+                  value={questions[selectedQuestionIndex].answer_explanation}
+                  onChange={(value) => handleQuestionFieldUpdate(selectedQuestionIndex, "answer_explanation", value)}
+                  editorId="answer_explanation"
+                  onCancel={() => setShowExplanationEditor(false)}
+                  onOk={() => setShowExplanationEditor(false)}
+                />
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    );
+      );
+    } else {
+      return (
+        <div className="quiz-modal-empty-state">
+          <p>{__("Create or select a question to view details", "tutorpress")}</p>
+        </div>
+      );
+    }
   };
 
-  const renderSettingsTab = () => {
-    const selectedFeedbackMode = feedbackModeOptions.find(
-      (option) => option.value === formState.settings.feedback_mode
-    );
-
-    return (
-      <div className="quiz-modal-settings">
-        {/* Success/Error Messages */}
-        {saveSuccess && (
-          <Notice status="success" isDismissible={false}>
-            {__("Quiz saved successfully! Updating curriculum...", "tutorpress")}
-          </Notice>
-        )}
-
-        {saveError && (
-          <Notice status="error" isDismissible={true} onRemove={() => setSaveError(null)}>
-            {saveError}
-          </Notice>
-        )}
-
-        <div className="quiz-modal-single-column-layout">
-          <div className="quiz-modal-settings-content">
-            <h3>{__("Quiz Settings", "tutorpress")}</h3>
-
-            <div className="quiz-modal-basic-settings">
-              <h4>{__("Basic Settings", "tutorpress")}</h4>
-
-              {/* Time Limit */}
-              <div className="quiz-modal-setting-group">
-                <label className="quiz-modal-setting-label">{__("Time Limit", "tutorpress")}</label>
-                <HStack spacing={2} alignment="flex-start">
-                  <NumberControl
-                    value={formState.settings.time_limit.time_value}
-                    onChange={(value) =>
-                      updateTimeLimit(parseInt(value as string) || 0, formState.settings.time_limit.time_type)
-                    }
-                    min={0}
-                    step={1}
-                    style={{ width: "100px", flexShrink: 0 }}
-                    disabled={isSaving}
-                  />
-                  <SelectControl
-                    value={formState.settings.time_limit.time_type}
-                    options={timeUnitOptions}
-                    onChange={(value) => updateTimeLimit(formState.settings.time_limit.time_value, value as TimeUnit)}
-                    style={{ width: "100px", flexShrink: 0 }}
-                    __nextHasNoMarginBottom
-                    disabled={isSaving}
-                  />
-                </HStack>
-                <p className="quiz-modal-setting-help">
-                  {__('Set a time limit for this quiz. A time limit of "0" indicates no time limit', "tutorpress")}
-                </p>
-                {errors.timeLimit && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.timeLimit}
-                  </Notice>
-                )}
-              </div>
-
-              {/* Hide Quiz Time */}
-              <div className="quiz-modal-setting-group">
-                <ToggleControl
-                  label={__("Hide Quiz Time", "tutorpress")}
-                  checked={formState.settings.hide_quiz_time_display}
-                  onChange={(checked) => updateSettings({ hide_quiz_time_display: checked })}
-                  disabled={isSaving}
-                />
-              </div>
-
-              {/* Feedback Mode */}
-              <div className="quiz-modal-setting-group">
-                <SelectControl
-                  label={__("Feedback Mode", "tutorpress")}
-                  value={formState.settings.feedback_mode}
-                  options={feedbackModeOptions.map((option) => ({
-                    label: option.label,
-                    value: option.value,
-                  }))}
-                  onChange={(value) => updateSettings({ feedback_mode: value as FeedbackMode })}
-                  disabled={isSaving}
-                />
-                {selectedFeedbackMode && <p className="quiz-modal-setting-help">{selectedFeedbackMode.help}</p>}
-              </div>
-
-              {/* Passing Grade */}
-              <div className="quiz-modal-setting-group">
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <NumberControl
-                    label={__("Passing Grade", "tutorpress")}
-                    value={formState.settings.passing_grade}
-                    onChange={(value) =>
-                      updateSettings({
-                        passing_grade: parseInt(value as string) || 0,
-                      })
-                    }
-                    min={0}
-                    max={100}
-                    step={1}
-                    style={{ width: "120px" }}
-                    disabled={isSaving}
-                  />
-                  <span style={{ fontSize: "16px", fontWeight: "bold" }}>%</span>
-                </div>
-                <p className="quiz-modal-setting-help">
-                  {__("Set the minimum score percentage required to pass this quiz", "tutorpress")}
-                </p>
-                {errors.passingGrade && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.passingGrade}
-                  </Notice>
-                )}
-              </div>
-
-              {/* Max Questions Allowed to Answer */}
-              <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Max Question Allowed to Answer", "tutorpress")}
-                  value={formState.settings.max_questions_for_answer}
-                  onChange={(value) =>
-                    updateSettings({
-                      max_questions_for_answer: parseInt(value as string) || 0,
-                    })
-                  }
-                  min={0}
-                  step={1}
-                  style={{ width: "120px" }}
-                  disabled={isSaving}
-                />
-                <p className="quiz-modal-setting-help">
-                  {__(
-                    "Set the number of quiz questions randomly from your question pool. If the set number exceeds available questions, all questions will be included",
-                    "tutorpress"
-                  )}
-                </p>
-                {errors.maxQuestions && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.maxQuestions}
-                  </Notice>
-                )}
-              </div>
-
-              {/* Available after days (Course Preview addon) */}
-              {coursePreviewAddon.available && (
-                <div className="quiz-modal-setting-group">
-                  <NumberControl
-                    label={__("Available after days", "tutorpress")}
-                    value={formState.settings.content_drip_settings.after_xdays_of_enroll}
-                    onChange={(value) => updateContentDrip(parseInt(value as string) || 0)}
-                    min={0}
-                    step={1}
-                    style={{ width: "120px" }}
-                    disabled={isSaving}
-                  />
-                  <p className="quiz-modal-setting-help">
-                    {__("This quiz will be available after the given number of days.", "tutorpress")}
-                  </p>
-                  {errors.availableAfterDays && (
-                    <Notice status="error" isDismissible={false}>
-                      {errors.availableAfterDays}
-                    </Notice>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="quiz-modal-advanced-settings">
-              <h4>{__("Advanced Settings", "tutorpress")}</h4>
-              <p>{__("Advanced quiz settings will be implemented in the next step", "tutorpress")}</p>
-            </div>
+  /**
+   * Render the question settings for the right column
+   */
+  const renderQuestionSettings = (): JSX.Element => {
+    if (selectedQuestionIndex !== null && questions[selectedQuestionIndex]) {
+      return (
+        <div className="quiz-modal-question-settings-content">
+          {/* Question Type Display */}
+          <div className="quiz-modal-question-type-display">
+            <label>
+              {__("Question Type: ", "tutorpress")}
+              <span className="quiz-modal-question-type-value">
+                {getQuestionTypeDisplayName(questions[selectedQuestionIndex].question_type)}
+              </span>
+            </label>
           </div>
+
+          {/* Type-Specific Settings First (Multiple Correct Answer, etc.) */}
+          {renderQuestionTypeSettings(questions[selectedQuestionIndex])}
+
+          {/* Answer Required */}
+          <ToggleControl
+            label={__("Answer Required", "tutorpress")}
+            checked={questions[selectedQuestionIndex].question_settings.answer_required}
+            onChange={(checked) => handleQuestionSettingUpdate(selectedQuestionIndex, "answer_required", checked)}
+            disabled={isSaving}
+          />
+
+          {/* Points For This Question */}
+          <NumberControl
+            label={__("Points For This Question", "tutorpress")}
+            value={questions[selectedQuestionIndex].question_mark}
+            onChange={(value) =>
+              handleQuestionFieldUpdate(selectedQuestionIndex, "question_mark", parseInt(value as string) || 1)
+            }
+            min={1}
+            max={100}
+            step={1}
+            type="number"
+            disabled={isSaving}
+          />
+
+          {/* Display Points */}
+          <ToggleControl
+            label={__("Display Points", "tutorpress")}
+            checked={questions[selectedQuestionIndex].question_settings.show_question_mark}
+            onChange={(checked) => handleQuestionSettingUpdate(selectedQuestionIndex, "show_question_mark", checked)}
+            disabled={isSaving}
+          />
         </div>
-      </div>
-    );
+      );
+    } else {
+      return (
+        <div className="quiz-modal-empty-state">
+          <p>{__("Select a question to view settings", "tutorpress")}</p>
+        </div>
+      );
+    }
   };
 
   if (!isOpen) {
@@ -2578,32 +2238,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     <Modal onRequestClose={handleClose} className="quiz-modal" size="large">
       <div className="quiz-modal-content">
         {/* Modal Header with Action Buttons */}
-        <div className="quiz-modal-header">
-          <h1 className="quiz-modal-title">
-            {quizId ? __("Edit Quiz", "tutorpress") : __("Create Quiz", "tutorpress")}
-          </h1>
-          <div className="quiz-modal-header-actions">
-            <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
-              {__("Cancel", "tutorpress")}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              disabled={!isValid || isSaving || saveSuccess}
-              isBusy={isSaving}
-            >
-              {isSaving
-                ? quizId
-                  ? __("Updating...", "tutorpress")
-                  : __("Saving...", "tutorpress")
-                : saveSuccess
-                ? __("Saved!", "tutorpress")
-                : quizId
-                ? __("Update Quiz", "tutorpress")
-                : __("Save Quiz", "tutorpress")}
-            </Button>
-          </div>
-        </div>
+        <QuizHeader
+          quizId={quizId}
+          isValid={isValid}
+          isSaving={isSaving}
+          saveSuccess={saveSuccess}
+          onSave={handleSave}
+          onClose={handleClose}
+        />
 
         {/* Loading state when editing quiz */}
         {isLoading && (
@@ -2642,9 +2284,54 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
               {(tab) => {
                 switch (tab.name) {
                   case "question-details":
-                    return renderQuestionDetailsTab();
+                    return (
+                      <QuestionDetailsTab
+                        formTitle={formState.title}
+                        formDescription={formState.description}
+                        topicId={topicId}
+                        questions={questions}
+                        selectedQuestionIndex={selectedQuestionIndex}
+                        isAddingQuestion={isAddingQuestion}
+                        selectedQuestionType={selectedQuestionType}
+                        questionTypes={questionTypes}
+                        loadingQuestionTypes={loadingQuestionTypes}
+                        isSaving={isSaving}
+                        saveSuccess={saveSuccess}
+                        saveError={saveError}
+                        onTitleChange={updateTitle}
+                        onDescriptionChange={updateDescription}
+                        onAddQuestion={handleAddQuestion}
+                        onQuestionSelect={handleQuestionSelect}
+                        onQuestionTypeSelect={handleQuestionTypeSelect}
+                        onDeleteQuestion={handleDeleteQuestion}
+                        onCancelAddQuestion={() => setIsAddingQuestion(false)}
+                        onSaveErrorDismiss={() => setSaveError(null)}
+                        getQuestionTypeDisplayName={getQuestionTypeDisplayName}
+                        renderQuestionForm={() => renderQuestionForm()}
+                        renderQuestionSettings={() => renderQuestionSettings()}
+                      />
+                    );
                   case "settings":
-                    return renderSettingsTab();
+                    return (
+                      <SettingsTab
+                        timeValue={formState.settings.time_limit.time_value}
+                        timeType={formState.settings.time_limit.time_type}
+                        hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
+                        feedbackMode={formState.settings.feedback_mode}
+                        passingGrade={formState.settings.passing_grade}
+                        maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
+                        afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
+                        coursePreviewAddonAvailable={coursePreviewAddon.available}
+                        isSaving={isSaving}
+                        saveSuccess={saveSuccess}
+                        saveError={saveError}
+                        onTimeChange={updateTimeLimit}
+                        onSettingChange={updateSettings}
+                        onContentDripChange={updateContentDrip}
+                        onSaveErrorDismiss={() => setSaveError(null)}
+                        errors={errors}
+                      />
+                    );
                   default:
                     return null;
                 }

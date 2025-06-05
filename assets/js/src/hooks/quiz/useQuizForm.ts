@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
-import type { QuizSettings, QuizForm, QuizError, QuizErrorCode, QuizQuestion } from "../types/quiz";
-import { getDefaultQuizSettings } from "../types/quiz";
+import type { QuizForm, QuizSettings, QuizQuestion, TimeUnit, FeedbackMode } from "../../types/quiz";
+import { getDefaultQuizSettings } from "../../types/quiz";
 
 /**
  * Quiz form validation errors
@@ -36,9 +36,29 @@ export interface CoursePreviewAddon {
 }
 
 /**
+ * Return type for useQuizForm hook
+ */
+export interface UseQuizFormReturn {
+  formState: QuizFormState;
+  coursePreviewAddon: CoursePreviewAddon;
+  updateTitle: (title: string) => void;
+  updateDescription: (description: string) => void;
+  updateSettings: (settings: Partial<QuizSettings>) => void;
+  updateTimeLimit: (value: number, type: TimeUnit) => void;
+  updateContentDrip: (days: number) => void;
+  resetForm: () => void;
+  validateEntireForm: () => boolean;
+  checkCoursePreviewAddon: () => Promise<boolean>;
+  getFormData: (questions: QuizQuestion[]) => QuizForm;
+  isValid: boolean;
+  isDirty: boolean;
+  errors: QuizFormErrors;
+}
+
+/**
  * Custom hook for managing quiz form state
  */
-export const useQuizForm = (initialData?: Partial<QuizForm>) => {
+export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn => {
   // Initialize form state
   const [formState, setFormState] = useState<QuizFormState>(() => ({
     title: initialData?.post_title || "",
