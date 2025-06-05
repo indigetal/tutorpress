@@ -1,20 +1,20 @@
 /**
- * Open Ended Question Component
+ * Short Answer Question Component
  *
- * @description Component for Open Ended/Essay question type in quiz modal. Since
- *              open ended questions don't require answer options or special controls,
- *              this component primarily provides instructional content and validation.
+ * @description Component for Short Answer question type in quiz modal. Similar to
+ *              Open Ended questions but optimized for shorter, more concise responses.
  *              The main question fields (title, description, answer explanation) are
  *              handled by the parent QuizModal interface.
  *
  * @features
- * - Instructional content for essay questions
+ * - Instructional content for short answer questions
  * - Validation error display
- * - Simple, clean interface
+ * - Character limit information (configurable via quiz settings)
+ * - Clean, focused interface
  * - Full Tutor LMS compatibility
  *
  * @usage
- * <OpenEndedQuestion
+ * <ShortAnswerQuestion
  *   question={question}
  *   questionIndex={questionIndex}
  *   onQuestionUpdate={handleQuestionFieldUpdate}
@@ -33,7 +33,7 @@ import { ValidationDisplay } from "./ValidationDisplay";
 import { useQuestionValidation } from "../../../../hooks/quiz";
 import type { QuizQuestion } from "../../../../types/quiz";
 
-interface OpenEndedQuestionProps {
+interface ShortAnswerQuestionProps {
   question: QuizQuestion;
   questionIndex: number;
   onQuestionUpdate: (questionIndex: number, field: keyof QuizQuestion, value: any) => void;
@@ -42,7 +42,7 @@ interface OpenEndedQuestionProps {
   onDeletedAnswerId?: (answerId: number) => void; // Not used but kept for interface consistency
 }
 
-export const OpenEndedQuestion: React.FC<OpenEndedQuestionProps> = ({
+export const ShortAnswerQuestion: React.FC<ShortAnswerQuestionProps> = ({
   question,
   questionIndex,
   onQuestionUpdate,
@@ -54,11 +54,11 @@ export const OpenEndedQuestion: React.FC<OpenEndedQuestionProps> = ({
   const validationErrors = getQuestionErrors(question);
 
   return (
-    <div className="quiz-modal-open-ended-content">
+    <div className="quiz-modal-short-answer-content">
       {/* Display validation errors */}
       <ValidationDisplay errors={validationErrors} show={showValidationErrors} severity="error" />
 
-      {/* Informational notification box for open ended questions */}
+      {/* Informational notification box for short answer questions */}
       <div className="quiz-modal-notification quiz-modal-notification--info">
         <div className="quiz-modal-notification__icon">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -70,7 +70,7 @@ export const OpenEndedQuestion: React.FC<OpenEndedQuestionProps> = ({
         </div>
         <div className="quiz-modal-notification__content">
           {__(
-            "Students will see a text area where they can type their essay response to this question. Character limits can be configured in quiz settings. Their answers will need to be manually reviewed and graded.",
+            "Students will see a text area where they can type short, concise answers to this question. Character limits can be configured in quiz settings. Their answers will need to be manually reviewed and graded.",
             "tutorpress"
           )}
         </div>
