@@ -46,6 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
 import { SortableOption } from "./SortableOption";
 import { OptionEditor } from "./OptionEditor";
+import { useQuestionValidation } from "../../../../hooks/quiz";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface MultipleChoiceQuestionProps {
@@ -89,43 +90,9 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   const hasOptions = existingOptions.length > 0;
   const optionIds = existingOptions.map((option) => option.answer_id);
 
-  /**
-   * Validate multiple choice question
-   */
-  const validateMultipleChoiceQuestion = (question: QuizQuestion): string[] => {
-    const errors: string[] = [];
-    const options = question.question_answers || [];
-    const correctAnswers = options.filter((answer) => answer.is_correct === "1");
-    const isAnswerRequired = question.question_settings.answer_required;
-
-    // Minimum 2 options required
-    if (options.length < 2) {
-      errors.push(__("Multiple choice questions must have at least 2 options.", "tutorpress"));
-    }
-
-    // Check for empty option text
-    const emptyOptions = options.filter((option) => !option.answer_title?.trim());
-    if (emptyOptions.length > 0) {
-      errors.push(__("All options must have text content.", "tutorpress"));
-    }
-
-    // Check for duplicate option content
-    const optionTexts = options.map((option) => option.answer_title?.trim().toLowerCase()).filter(Boolean);
-    const uniqueTexts = new Set(optionTexts);
-    if (optionTexts.length !== uniqueTexts.size) {
-      errors.push(__("Options cannot have duplicate content.", "tutorpress"));
-    }
-
-    // At least 1 correct answer required (unless answer not required)
-    if (isAnswerRequired && correctAnswers.length === 0) {
-      errors.push(__("At least one option must be marked as correct.", "tutorpress"));
-    }
-
-    return errors;
-  };
-
-  // Get validation errors for this question
-  const validationErrors = validateMultipleChoiceQuestion(question);
+  // Use centralized validation hook
+  const { getQuestionErrors } = useQuestionValidation();
+  const validationErrors = getQuestionErrors(question);
   const shouldShowValidationErrors = showValidationErrors && hasOptions && validationErrors.length > 0;
 
   /**

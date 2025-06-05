@@ -20,10 +20,11 @@ import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
-import { useQuizForm } from "../../hooks/quiz";
+import { useQuizForm } from "../../hooks/quiz/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { getQuestionComponent, hasQuestionComponent, SortableOption } from "./quiz/questions";
+import { useQuestionValidation } from "../../hooks/quiz";
 import type {
   TimeUnit,
   FeedbackMode,
@@ -368,6 +369,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }),
     []
   );
+
+  // Use centralized validation hook
+  const { validateAllQuestions: validateAllQuestionsHook } = useQuestionValidation();
 
   /**
    * Load existing quiz data when editing
@@ -1163,74 +1167,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Validate all questions before save - Step 3.6.8
    */
   const validateAllQuestions = (): { isValid: boolean; errors: string[] } => {
-    const allErrors: string[] = [];
-
-    questions.forEach((question, index) => {
-      // Question title validation
-      if (!question.question_title?.trim()) {
-        allErrors.push(__(`Question ${index + 1}: Question title is required.`, "tutorpress"));
-      }
-
-      // Question type specific validation
-      switch (question.question_type) {
-        case "multiple_choice":
-          const mcErrors = validateMultipleChoiceQuestion(question);
-          mcErrors.forEach((error) => {
-            allErrors.push(__(`Question ${index + 1}: ${error}`, "tutorpress"));
-          });
-          break;
-        case "true_false":
-          const tfOptions = question.question_answers || [];
-          const tfCorrectAnswers = tfOptions.filter((answer) => answer.is_correct === "1");
-          if (question.question_settings.answer_required && tfCorrectAnswers.length === 0) {
-            allErrors.push(
-              __(`Question ${index + 1}: Please select the correct answer (True or False).`, "tutorpress")
-            );
-          }
-          break;
-        // Add validation for other question types as they are implemented
-      }
-    });
-
+    const result = validateAllQuestionsHook(questions);
     return {
-      isValid: allErrors.length === 0,
-      errors: allErrors,
+      isValid: result.isValid,
+      errors: result.errors,
     };
-  };
-
-  /**
-   * Validate multiple choice question - Step 3.6.8
-   */
-  const validateMultipleChoiceQuestion = (question: QuizQuestion): string[] => {
-    const errors: string[] = [];
-    const options = question.question_answers || [];
-    const correctAnswers = options.filter((answer) => answer.is_correct === "1");
-    const isAnswerRequired = question.question_settings.answer_required;
-
-    // Minimum 2 options required
-    if (options.length < 2) {
-      errors.push(__("Multiple choice questions must have at least 2 options.", "tutorpress"));
-    }
-
-    // Check for empty option text
-    const emptyOptions = options.filter((option) => !option.answer_title?.trim());
-    if (emptyOptions.length > 0) {
-      errors.push(__("All options must have text content.", "tutorpress"));
-    }
-
-    // Check for duplicate option content
-    const optionTexts = options.map((option) => option.answer_title?.trim().toLowerCase()).filter(Boolean);
-    const uniqueTexts = new Set(optionTexts);
-    if (optionTexts.length !== uniqueTexts.size) {
-      errors.push(__("Options cannot have duplicate content.", "tutorpress"));
-    }
-
-    // At least 1 correct answer required (unless answer not required)
-    if (isAnswerRequired && correctAnswers.length === 0) {
-      errors.push(__("At least one option must be marked as correct.", "tutorpress"));
-    }
-
-    return errors;
   };
 
   /**

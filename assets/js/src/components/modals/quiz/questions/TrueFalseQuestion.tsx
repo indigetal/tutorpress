@@ -30,6 +30,7 @@
 
 import React from "react";
 import { __ } from "@wordpress/i18n";
+import { useQuestionValidation } from "../../../../hooks/quiz";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface TrueFalseQuestionProps {
@@ -121,6 +122,11 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
   const falseAnswer = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.answer_title === "False");
   const correctAnswerId = trueFalseAnswers.find((answer: QuizQuestionOption) => answer.is_correct === "1")?.answer_id;
 
+  // Use centralized validation hook
+  const { getQuestionErrors } = useQuestionValidation();
+  const validationErrors = getQuestionErrors(question);
+  const shouldShowValidationErrors = showValidationErrors && validationErrors.length > 0;
+
   return (
     <div className="quiz-modal-true-false-content">
       <div className="quiz-modal-true-false-options">
@@ -141,9 +147,11 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
         </div>
       </div>
 
-      {!correctAnswerId && (
+      {shouldShowValidationErrors && (
         <div className="quiz-modal-validation-error">
-          <p>{__("Please select the correct answer (True or False)", "tutorpress")}</p>
+          {validationErrors.map((error, index) => (
+            <p key={index}>{error}</p>
+          ))}
         </div>
       )}
     </div>
