@@ -3,8 +3,8 @@
  *
  * @description Central export file for all quiz-related React hooks. Provides a single
  *              import point for quiz functionality including form management, validation,
- *              and other quiz operations. Updated during Phase 2 refactoring to include
- *              extracted and organized hook modules.
+ *              image management, and other quiz operations. Updated during Phase 2 refactoring
+ *              to include extracted and organized hook modules.
  *
  * @package TutorPress
  * @subpackage Quiz/Hooks
@@ -19,6 +19,15 @@ export type { UseQuizFormReturn, QuizFormState } from "./useQuizForm";
 export { useQuestionValidation } from "./useQuestionValidation";
 export type { QuestionValidationResult, QuizValidationResult, ValidationRule } from "./useQuestionValidation";
 
+// Image management hook
+export { useImageManagement } from "./useImageManagement";
+export type {
+  ImageData,
+  MediaLibraryConfig,
+  ImageSelectCallback,
+  ImageRemoveCallback,
+  UseImageManagementReturn,
+} from "./useImageManagement";
+
 // Additional hooks will be exported here as we extract them
 // export { useQuestionManagement } from './useQuestionManagement';
-// export { useImageManagement } from './useImageManagement';

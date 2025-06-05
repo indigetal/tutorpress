@@ -46,7 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
 import { SortableOption } from "./SortableOption";
 import { OptionEditor } from "./OptionEditor";
-import { useQuestionValidation } from "../../../../hooks/quiz";
+import { useQuestionValidation, useImageManagement } from "../../../../hooks/quiz";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface MultipleChoiceQuestionProps {
@@ -68,14 +68,17 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   const [showOptionEditor, setShowOptionEditor] = useState(false);
   const [currentOptionText, setCurrentOptionText] = useState("");
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
-  const [currentOptionImage, setCurrentOptionImage] = useState<{
-    id: number;
-    url: string;
-  } | null>(null);
 
   // Drag and drop state
   const [activeOptionId, setActiveOptionId] = useState<number | null>(null);
   const [isDraggingOption, setIsDraggingOption] = useState(false);
+
+  // Use centralized image management hook
+  const {
+    currentImage: currentOptionImage,
+    setCurrentImage: setCurrentOptionImage,
+    createImageHandlers,
+  } = useImageManagement();
 
   // Configure drag sensors
   const sensors = useSensors(
@@ -305,67 +308,32 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
    * Handle image addition
    */
   const handleImageAdd = (optionIndex?: number) => {
-    // Open WordPress media library
-    if (typeof (window as any).wp !== "undefined" && (window as any).wp.media) {
-      const mediaFrame = (window as any).wp.media({
-        title: __("Select Image for Option", "tutorpress"),
-        button: {
-          text: __("Use this image", "tutorpress"),
-        },
-        multiple: false,
-        library: {
-          type: "image",
-          uploadedTo: null,
-        },
-        states: [
-          new (window as any).wp.media.controller.Library({
-            title: __("Select Image for Option", "tutorpress"),
-            library: (window as any).wp.media.query({
-              type: "image",
-            }),
-            multiple: false,
-            date: false,
-          }),
-        ],
-      });
+    const { handleImageAdd: addImage } = createImageHandlers((imageData) => {
+      setCurrentOptionImage(imageData);
 
-      mediaFrame.on("select", () => {
-        const attachment = mediaFrame.state().get("selection").first().toJSON();
+      // If editing existing option, update the option immediately
+      if (optionIndex !== undefined) {
+        handleSaveOptionImage(optionIndex, imageData);
+      }
+    });
 
-        if (!attachment.type || attachment.type !== "image") {
-          console.error("Selected file is not an image");
-          return;
-        }
-
-        const imageData = {
-          id: attachment.id,
-          url: attachment.url,
-        };
-
-        setCurrentOptionImage(imageData);
-
-        // If editing existing option, update the option immediately
-        if (optionIndex !== undefined) {
-          handleSaveOptionImage(optionIndex, imageData);
-        }
-      });
-
-      mediaFrame.open();
-    } else {
-      console.error("WordPress media library not available");
-    }
+    addImage();
   };
 
   /**
    * Handle image removal
    */
   const handleImageRemove = (optionIndex?: number) => {
-    setCurrentOptionImage(null);
+    const { handleImageRemove: removeImage } = createImageHandlers((imageData) => {
+      setCurrentOptionImage(imageData);
 
-    // If editing existing option, update the option immediately
-    if (optionIndex !== undefined) {
-      handleSaveOptionImage(optionIndex, null);
-    }
+      // If editing existing option, update the option immediately
+      if (optionIndex !== undefined) {
+        handleSaveOptionImage(optionIndex, imageData);
+      }
+    });
+
+    removeImage();
   };
 
   /**
