@@ -46,6 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { arrayMove } from "@dnd-kit/sortable";
 import { SortableOption } from "./SortableOption";
 import { OptionEditor } from "./OptionEditor";
+import { ValidationDisplay } from "./ValidationDisplay";
 import { useQuestionValidation, useImageManagement } from "../../../../hooks/quiz";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
@@ -96,7 +97,6 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   // Use centralized validation hook
   const { getQuestionErrors } = useQuestionValidation();
   const validationErrors = getQuestionErrors(question);
-  const shouldShowValidationErrors = showValidationErrors && hasOptions && validationErrors.length > 0;
 
   /**
    * Handle starting option editing
@@ -356,13 +356,7 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   return (
     <div className="quiz-modal-multiple-choice-content">
       {/* Display validation errors */}
-      {shouldShowValidationErrors && (
-        <div className="quiz-modal-validation-error">
-          {validationErrors.map((error, index) => (
-            <p key={index}>{error}</p>
-          ))}
-        </div>
-      )}
+      <ValidationDisplay errors={validationErrors} show={showValidationErrors && hasOptions} severity="error" />
 
       {/* Display existing options with drag and drop */}
       {hasOptions && (

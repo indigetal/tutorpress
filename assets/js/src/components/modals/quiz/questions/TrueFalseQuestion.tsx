@@ -31,6 +31,7 @@
 import React from "react";
 import { __ } from "@wordpress/i18n";
 import { useQuestionValidation } from "../../../../hooks/quiz";
+import { ValidationDisplay } from "./ValidationDisplay";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface TrueFalseQuestionProps {
@@ -125,7 +126,6 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
   // Use centralized validation hook
   const { getQuestionErrors } = useQuestionValidation();
   const validationErrors = getQuestionErrors(question);
-  const shouldShowValidationErrors = showValidationErrors && validationErrors.length > 0;
 
   return (
     <div className="quiz-modal-true-false-content">
@@ -147,13 +147,7 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({
         </div>
       </div>
 
-      {shouldShowValidationErrors && (
-        <div className="quiz-modal-validation-error">
-          {validationErrors.map((error, index) => (
-            <p key={index}>{error}</p>
-          ))}
-        </div>
-      )}
+      <ValidationDisplay errors={validationErrors} show={showValidationErrors} severity="error" />
     </div>
   );
 };

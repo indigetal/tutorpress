@@ -1,22 +1,13 @@
 /**
- * Question Types Registry
+ * Quiz Question Components Registry
  *
- * @description Central registry for all quiz question type components. Provides a clean
- *              interface for importing and using question components in the QuizModal.
- *              Extracted during Phase 2 refactoring to create a scalable system for
- *              adding new question types without modifying the main modal component.
- *
- * @features
- * - Centralized component exports
- * - Question type to component mapping
- * - Type-safe component registry
- * - Easy addition of new question types
- * - Consistent import interface
+ * @description Central registry for all question type components and shared question utilities.
+ *              Maps question types to their corresponding React components for dynamic loading.
+ *              Created during Phase 2 refactoring to enable modular question type architecture.
  *
  * @usage
- * import { TrueFalseQuestion, MultipleChoiceQuestion, QuestionComponentMap } from './questions';
- *
- * const QuestionComponent = QuestionComponentMap[question.question_type];
+ * import { getQuestionComponent, MultipleChoiceQuestion } from './questions';
+ * const Component = getQuestionComponent('multiple_choice');
  *
  * @package TutorPress
  * @subpackage Quiz/Questions
@@ -33,6 +24,8 @@ export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
 export type { OptionEditorProps } from "./OptionEditor";
+export { ValidationDisplay } from "./ValidationDisplay";
+export type { ValidationError, ValidationSeverity, ValidationDisplayProps } from "./ValidationDisplay";
 
 // Import component types for the registry
 import { TrueFalseQuestion } from "./TrueFalseQuestion";
@@ -61,19 +54,20 @@ export type QuestionComponent = React.FC<QuestionComponentProps>;
  *              the appropriate component based on the question type without
  *              having to maintain a large switch statement.
  */
-export const QuestionComponentMap: Partial<Record<QuizQuestionType, QuestionComponent>> = {
+export const QuestionComponentMap = {
   true_false: TrueFalseQuestion,
   multiple_choice: MultipleChoiceQuestion,
-  // Future question types will be added here:
-  // fill_in_the_blank: FillInTheBlankQuestion,
-  // open_ended: OpenEndedQuestion,
-  // short_answer: ShortAnswerQuestion,
+  single_choice: MultipleChoiceQuestion, // Single choice uses the same component as multiple choice
+  // Additional question types will be added here as they are implemented
+  // fill_in_the_blanks: FillInTheBlanksQuestion,
   // matching: MatchingQuestion,
   // image_matching: ImageMatchingQuestion,
   // image_answering: ImageAnsweringQuestion,
   // ordering: OrderingQuestion,
-  // h5p: H5pQuestion,
-};
+  // short_answer: ShortAnswerQuestion,
+  // essay: EssayQuestion,
+  // h5p: H5PQuestion,
+} as const;
 
 /**
  * Get the component for a specific question type
@@ -82,7 +76,7 @@ export const QuestionComponentMap: Partial<Record<QuizQuestionType, QuestionComp
  * @returns The component or null if not found
  */
 export const getQuestionComponent = (questionType: QuizQuestionType): QuestionComponent | null => {
-  return QuestionComponentMap[questionType] || null;
+  return QuestionComponentMap[questionType as keyof typeof QuestionComponentMap] || null;
 };
 
 /**
