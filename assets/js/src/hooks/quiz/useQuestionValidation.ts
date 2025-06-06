@@ -195,19 +195,76 @@ export const useQuestionValidation = () => {
 
       // Matching validation rules
       matching: [
-        // Will be implemented when matching is added
+        // Minimum options requirement
         (question: QuizQuestion) => {
-          // Placeholder for future implementation
-          return [];
+          const options = question.question_answers || [];
+          return options.length < 2 ? [__("Matching questions must have at least 2 options.", "tutorpress")] : [];
+        },
+        // Empty option text rule
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          const emptyOptions = options.filter((option) => !option.answer_title?.trim());
+          return emptyOptions.length > 0 ? [__("All options must have text content.", "tutorpress")] : [];
+        },
+        // Matching text requirement (when Image Matching is disabled)
+        (question: QuizQuestion) => {
+          const isImageMatching = question.question_settings.is_image_matching || false;
+          if (!isImageMatching) {
+            const options = question.question_answers || [];
+            // Check that both answer_title (Question field) and answer_two_gap_match (Matched option field) are filled
+            const optionsWithoutQuestionText = options.filter((option) => !option.answer_title?.trim());
+            const optionsWithoutMatchedText = options.filter((option) => !option.answer_two_gap_match?.trim());
+
+            if (optionsWithoutQuestionText.length > 0) {
+              return [__("Please add question text to all options.", "tutorpress")];
+            }
+            if (optionsWithoutMatchedText.length > 0) {
+              return [__("Please add matched text to all options.", "tutorpress")];
+            }
+          }
+          return []; // No matching text requirement for image matching mode
+        },
+        // Conditional image requirement (only when Image Matching is enabled)
+        (question: QuizQuestion) => {
+          const isImageMatching = question.question_settings.is_image_matching || false;
+          if (!isImageMatching) {
+            return []; // No image requirement for text-only matching
+          }
+
+          const options = question.question_answers || [];
+          const optionsWithoutImages = options.filter((option) => {
+            const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
+            return !imageId || imageId <= 0 || !option.image_url;
+          });
+          return optionsWithoutImages.length > 0
+            ? [__("All options must have images when Image Matching is enabled.", "tutorpress")]
+            : [];
         },
       ],
 
       // Image Matching validation rules
       image_matching: [
-        // Will be implemented when image matching is added
+        // Minimum options requirement
         (question: QuizQuestion) => {
-          // Placeholder for future implementation
-          return [];
+          const options = question.question_answers || [];
+          return options.length < 2 ? [__("Matching questions must have at least 2 options.", "tutorpress")] : [];
+        },
+        // Empty option text rule
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          const emptyOptions = options.filter((option) => !option.answer_title?.trim());
+          return emptyOptions.length > 0 ? [__("All options must have text content.", "tutorpress")] : [];
+        },
+        // Image requirement (always required for image_matching type)
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          const optionsWithoutImages = options.filter((option) => {
+            const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
+            return !imageId || imageId <= 0 || !option.image_url;
+          });
+          return optionsWithoutImages.length > 0
+            ? [__("All options must have images for Image Matching questions.", "tutorpress")]
+            : [];
         },
       ],
 

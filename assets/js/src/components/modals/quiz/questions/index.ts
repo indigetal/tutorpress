@@ -24,6 +24,7 @@ export { OpenEndedQuestion } from "./OpenEndedQuestion";
 export { ShortAnswerQuestion } from "./ShortAnswerQuestion";
 export { OrderingQuestion } from "./OrderingQuestion";
 export { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
+export { MatchingQuestion } from "./MatchingQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -38,6 +39,7 @@ import { OpenEndedQuestion } from "./OpenEndedQuestion";
 import { ShortAnswerQuestion } from "./ShortAnswerQuestion";
 import { OrderingQuestion } from "./OrderingQuestion";
 import { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
+import { MatchingQuestion } from "./MatchingQuestion";
 
 /**
  * Common props interface for all question components
@@ -71,10 +73,10 @@ export const QuestionComponentMap = {
   short_answer: ShortAnswerQuestion, // Short Answer question component
   ordering: OrderingQuestion, // Ordering question component
   image_answering: ImageAnsweringQuestion,
+  matching: MatchingQuestion,
+  image_matching: MatchingQuestion, // Image matching uses the same component as matching
   // Additional question types will be added here as they are implemented
   // fill_in_the_blanks: FillInTheBlanksQuestion,
-  // matching: MatchingQuestion,
-  // image_matching: ImageMatchingQuestion,
   // h5p: H5PQuestion,
 } as const;
 

@@ -66,6 +66,8 @@ export interface OptionEditorProps {
   optionLabel: string;
   /** Current text being edited */
   currentText: string;
+  /** Current matching text being edited (for text-only matching questions) */
+  currentMatchingText?: string;
   /** Current image being edited (if any) */
   currentImage: { id: number; url: string } | null;
   /** Placeholder text for the textarea */
@@ -74,10 +76,16 @@ export interface OptionEditorProps {
   requireImage?: boolean;
   /** Whether to show the image upload area above the text field instead of a button */
   showImageUploadArea?: boolean;
+  /** Whether to show the matching text field (for text-only matching questions) */
+  showMatchingTextField?: boolean;
+  /** Placeholder text for the matching text field */
+  matchingTextPlaceholder?: string;
   /** Helper text to display below the text field */
   helperText?: string;
   /** Callback when text changes */
   onTextChange: (text: string) => void;
+  /** Callback when matching text changes */
+  onMatchingTextChange?: (text: string) => void;
   /** Callback when add image button is clicked */
   onImageAdd: () => void;
   /** Callback when remove image button is clicked */
@@ -106,12 +114,16 @@ export interface OptionEditorProps {
 export const OptionEditor: React.FC<OptionEditorProps> = ({
   optionLabel,
   currentText,
+  currentMatchingText,
   currentImage,
   placeholder = __("Write option...", "tutorpress"),
   requireImage = false,
   showImageUploadArea = false,
+  showMatchingTextField = false,
+  matchingTextPlaceholder = __("Matching text...", "tutorpress"),
   helperText,
   onTextChange,
+  onMatchingTextChange,
   onImageAdd,
   onImageRemove,
   onImageSet,
@@ -122,7 +134,11 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
   rows = 3,
 }) => {
   // Determine if save button should be disabled
-  const isSaveDisabled = isSaving || !currentText.trim() || (requireImage && !currentImage);
+  const isSaveDisabled =
+    isSaving ||
+    !currentText.trim() ||
+    (requireImage && !currentImage) ||
+    (showMatchingTextField && !currentMatchingText?.trim());
 
   // Drag and drop handlers for upload area
   const [isDragOver, setIsDragOver] = React.useState(false);
@@ -215,8 +231,8 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
       {/* Editor Header */}
       <div className="quiz-modal-option-editor-header">
         <span className="quiz-modal-option-label">{optionLabel}.</span>
-        {/* Show Add Image button only in standard mode when no image exists */}
-        {!showImageUploadArea && !currentImage && (
+        {/* Show Add Image button only in standard mode when no image exists and not in text-only matching mode */}
+        {!showImageUploadArea && !showMatchingTextField && !currentImage && (
           <button type="button" className="quiz-modal-add-image-btn" onClick={onImageAdd} disabled={isSaving}>
             {__("Add Image", "tutorpress")}
           </button>
@@ -542,16 +558,45 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
         </div>
       )}
 
-      {/* Text Editor */}
-      <textarea
-        className="quiz-modal-option-textarea"
-        placeholder={placeholder}
-        value={currentText}
-        onChange={(e) => onTextChange(e.target.value)}
-        rows={rows}
-        disabled={isSaving}
-        autoFocus={autoFocus}
-      />
+      {/* Text Fields - Order matters for matching questions */}
+      {showMatchingTextField ? (
+        <>
+          {/* Matching Text Field (first - "Question" placeholder) */}
+          <textarea
+            className="quiz-modal-option-textarea quiz-modal-matching-textarea"
+            placeholder={matchingTextPlaceholder}
+            value={currentMatchingText || ""}
+            onChange={(e) => onMatchingTextChange?.(e.target.value)}
+            rows={2}
+            disabled={isSaving}
+            autoFocus={autoFocus}
+            style={{
+              marginBottom: "8px",
+            }}
+          />
+
+          {/* Main Text Field (second - "Matched option" placeholder) */}
+          <textarea
+            className="quiz-modal-option-textarea"
+            placeholder={placeholder}
+            value={currentText}
+            onChange={(e) => onTextChange(e.target.value)}
+            rows={rows}
+            disabled={isSaving}
+          />
+        </>
+      ) : (
+        /* Standard Text Editor (for non-matching questions) */
+        <textarea
+          className="quiz-modal-option-textarea"
+          placeholder={placeholder}
+          value={currentText}
+          onChange={(e) => onTextChange(e.target.value)}
+          rows={rows}
+          disabled={isSaving}
+          autoFocus={autoFocus}
+        />
+      )}
 
       {/* Helper Text */}
       {helperText && (

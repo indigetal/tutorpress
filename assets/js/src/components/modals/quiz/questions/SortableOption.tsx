@@ -68,6 +68,8 @@ export interface SortableOptionProps {
   isEditing: boolean;
   /** Current text being edited (only used when isEditing=true) */
   currentOptionText: string;
+  /** Current matching text being edited (only used when isEditing=true and showMatchingTextField=true) */
+  currentMatchingText?: string;
   /** Current image being edited (only used when isEditing=true) */
   currentOptionImage: { id: number; url: string } | null;
   /** Whether to show the correct answer indicator (green checkmark) - defaults to true for backward compatibility */
@@ -78,6 +80,12 @@ export interface SortableOptionProps {
   requireImage?: boolean;
   /** Whether to show the image upload area above the text field instead of a button */
   showImageUploadArea?: boolean;
+  /** Whether to show the matching text field (for text-only matching questions) */
+  showMatchingTextField?: boolean;
+  /** Placeholder text for the matching text field */
+  matchingTextPlaceholder?: string;
+  /** Placeholder text for the main text field */
+  placeholder?: string;
   /** Helper text to display below the text field */
   helperText?: string;
   /** Callback when edit button is clicked */
@@ -90,6 +98,8 @@ export interface SortableOptionProps {
   onCorrectToggle?: () => void;
   /** Callback when option text changes during editing */
   onTextChange: (value: string) => void;
+  /** Callback when matching text changes during editing */
+  onMatchingTextChange?: (value: string) => void;
   /** Callback when add image button is clicked during editing */
   onImageAdd: () => void;
   /** Callback when remove image button is clicked during editing */
@@ -117,17 +127,22 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   isCorrect = false,
   isEditing,
   currentOptionText,
+  currentMatchingText,
   currentOptionImage,
   showCorrectIndicator = true, // Default to true for backward compatibility
   optionLabel,
   requireImage,
   showImageUploadArea,
+  showMatchingTextField,
+  matchingTextPlaceholder,
+  placeholder,
   helperText,
   onEdit,
   onDuplicate,
   onDelete,
   onCorrectToggle,
   onTextChange,
+  onMatchingTextChange,
   onImageAdd,
   onImageRemove,
   onImageSet,
@@ -167,11 +182,16 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
         <OptionEditor
           optionLabel={displayLabel}
           currentText={currentOptionText}
+          currentMatchingText={currentMatchingText}
           currentImage={currentOptionImage}
           requireImage={requireImage}
           showImageUploadArea={showImageUploadArea}
+          showMatchingTextField={showMatchingTextField}
+          matchingTextPlaceholder={matchingTextPlaceholder}
+          placeholder={placeholder}
           helperText={helperText}
           onTextChange={onTextChange}
+          onMatchingTextChange={onMatchingTextChange}
           onImageAdd={onImageAdd}
           onImageRemove={onImageRemove}
           onImageSet={onImageSet}
@@ -271,6 +291,15 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
             ) : null;
           })()}
           <div className="quiz-modal-option-text">{option.answer_title || __("(Empty option)", "tutorpress")}</div>
+          {/* Display matching text if it exists (for text-only matching questions) */}
+          {option.answer_two_gap_match && (
+            <div
+              className="quiz-modal-option-matching-text"
+              style={{ marginTop: "8px", fontSize: "14px", color: "#6b7280", fontStyle: "italic" }}
+            >
+              {__("Matches:", "tutorpress")} {option.answer_two_gap_match}
+            </div>
+          )}
         </div>
       </div>
     </div>

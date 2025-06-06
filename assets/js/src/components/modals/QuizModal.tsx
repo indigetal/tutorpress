@@ -1197,7 +1197,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
             disabled={isSaving}
           />
         );
-      case "image_matching":
+      case "matching":
         return (
           <ToggleControl
             label={__("Image Matching", "tutorpress")}
@@ -1213,7 +1213,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       case "fill_in_the_blank":
       case "open_ended":
       case "short_answer":
-      case "matching":
+      case "image_matching":
       case "ordering":
       case "image_answering": // Image Answering questions have no additional settings
       case "h5p":
