@@ -25,6 +25,7 @@ export { ShortAnswerQuestion } from "./ShortAnswerQuestion";
 export { OrderingQuestion } from "./OrderingQuestion";
 export { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
 export { MatchingQuestion } from "./MatchingQuestion";
+export { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -40,6 +41,7 @@ import { ShortAnswerQuestion } from "./ShortAnswerQuestion";
 import { OrderingQuestion } from "./OrderingQuestion";
 import { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
 import { MatchingQuestion } from "./MatchingQuestion";
+import { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
 
 /**
  * Common props interface for all question components
@@ -75,8 +77,8 @@ export const QuestionComponentMap = {
   image_answering: ImageAnsweringQuestion,
   matching: MatchingQuestion,
   image_matching: MatchingQuestion, // Image matching uses the same component as matching
+  fill_in_the_blank: FillInTheBlanksQuestion,
   // Additional question types will be added here as they are implemented
-  // fill_in_the_blanks: FillInTheBlanksQuestion,
   // h5p: H5PQuestion,
 } as const;
 

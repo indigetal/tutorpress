@@ -1049,12 +1049,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     // Fallback for question types not yet implemented
     switch (question.question_type) {
-      case "fill_in_the_blank":
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("Fill in the Blanks will be implemented in Step 3.8", "tutorpress")}</p>
-          </div>
-        );
       case "open_ended":
       case "short_answer":
       case "matching":

@@ -177,9 +177,44 @@ export const useQuestionValidation = () => {
 
       // Fill in the Blank validation rules
       fill_in_the_blank: [
-        // Will be implemented when fill-in-the-blank is added
+        // Prompt content requirement
         (question: QuizQuestion) => {
-          // Placeholder for future implementation
+          const options = question.question_answers || [];
+          if (options.length === 0) {
+            return [__("Fill in the blanks questions must have prompt content and answers.", "tutorpress")];
+          }
+          const answer = options[0];
+          return !answer.answer_title?.trim()
+            ? [__("Please add prompt content for the fill in the blanks question.", "tutorpress")]
+            : [];
+        },
+        // Answers requirement
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          if (options.length === 0) {
+            return []; // Already handled by prompt content requirement
+          }
+          const answer = options[0];
+          return !answer.answer_two_gap_match?.trim()
+            ? [__("Please add answers for the fill in the blanks question.", "tutorpress")]
+            : [];
+        },
+        // {dash} variable validation
+        (question: QuizQuestion) => {
+          const options = question.question_answers || [];
+          if (options.length === 0) {
+            return []; // Already handled by other requirements
+          }
+          const answer = options[0];
+          const promptContent = answer.answer_title?.trim();
+          if (promptContent && !promptContent.includes("{dash}")) {
+            return [
+              __(
+                "Please use {dash} variables in your prompt content to indicate where students should fill in answers.",
+                "tutorpress"
+              ),
+            ];
+          }
           return [];
         },
       ],

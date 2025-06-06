@@ -1975,3 +1975,110 @@
 .quiz-modal-open-ended-content {
   padding: 0;
 }
+
+/* Fill in the Blanks Question Styles */
+.quiz-modal-fill-blanks-content {
+  padding: 0;
+}
+
+.quiz-modal-fill-blanks-preview {
+  position: relative;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 20px;
+  background: #ffffff;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.15s ease;
+}
+
+.quiz-modal-fill-blanks-preview:hover {
+  border-color: #8c8f94;
+}
+
+.quiz-modal-fill-blanks-edit-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #007cba;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.quiz-modal-fill-blanks-edit-btn:hover {
+  background: #005a87;
+}
+
+.quiz-modal-fill-blanks-student-preview {
+  margin-bottom: 16px;
+}
+
+.quiz-modal-fill-blanks-question-text {
+  font-size: 16px;
+  color: #374151;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.quiz-modal-fill-blanks-answers {
+  margin-top: 16px;
+}
+
+.quiz-modal-fill-blanks-answers-text {
+  font-size: 14px;
+  color: #16a34a;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.quiz-modal-fill-blanks-editor {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 20px;
+  background: #ffffff;
+  margin-bottom: 16px;
+}
+
+.quiz-modal-fill-blanks-field {
+  margin-bottom: 20px;
+}
+
+.quiz-modal-fill-blanks-field:last-of-type {
+  margin-bottom: 0;
+}
+
+.quiz-modal-fill-blanks-field .quiz-modal-option-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.quiz-modal-fill-blanks-field .quiz-modal-option-textarea[rows="3"] {
+  min-height: 80px;
+}
+
+.quiz-modal-fill-blanks-help-text {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.quiz-modal-fill-blanks-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
