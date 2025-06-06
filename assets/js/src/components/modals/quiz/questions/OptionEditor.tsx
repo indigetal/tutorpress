@@ -215,15 +215,10 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
       {/* Editor Header */}
       <div className="quiz-modal-option-editor-header">
         <span className="quiz-modal-option-label">{optionLabel}.</span>
-        {/* Show Add Image button only in standard mode (not when showImageUploadArea is true) */}
-        {!showImageUploadArea && (
-          <button
-            type="button"
-            className={`quiz-modal-add-image-btn ${currentImage ? "has-image" : ""}`}
-            onClick={currentImage ? onImageRemove : onImageAdd}
-            disabled={isSaving}
-          >
-            {currentImage ? __("Remove Image", "tutorpress") : __("Add Image", "tutorpress")}
+        {/* Show Add Image button only in standard mode when no image exists */}
+        {!showImageUploadArea && !currentImage && (
+          <button type="button" className="quiz-modal-add-image-btn" onClick={onImageAdd} disabled={isSaving}>
+            {__("Add Image", "tutorpress")}
           </button>
         )}
       </div>
@@ -232,17 +227,104 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
       {showImageUploadArea && (
         <div className="quiz-modal-image-upload-area" style={{ marginBottom: "16px" }}>
           {currentImage ? (
-            <div className="quiz-modal-image-preview">
-              <img src={currentImage.url} alt={__("Option image", "tutorpress")} className="quiz-modal-option-image" />
-              <button
-                type="button"
-                className="quiz-modal-remove-image-btn"
-                onClick={onImageRemove}
-                disabled={isSaving}
-                title={__("Remove image", "tutorpress")}
+            <div
+              className="quiz-modal-image-preview"
+              style={{
+                position: "relative",
+                borderRadius: "8px",
+                overflow: "hidden",
+                backgroundColor: "#f3f4f6",
+                minHeight: "200px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={currentImage.url}
+                alt={__("Option image", "tutorpress")}
+                className="quiz-modal-option-image"
+                style={{
+                  width: "100%",
+                  height: "200px",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+
+              {/* Hover Overlay */}
+              <div
+                className="quiz-modal-image-overlay"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: "rgba(0, 0, 0, 0.7)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0,
+                  transition: "opacity 0.2s ease",
+                  gap: "8px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = "0";
+                }}
               >
-                {__("Remove Image", "tutorpress")}
-              </button>
+                <button
+                  type="button"
+                  onClick={onImageAdd}
+                  disabled={isSaving}
+                  style={{
+                    background: "#007cba",
+                    color: "white",
+                    border: "none",
+                    padding: "8px 16px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#005a87";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#007cba";
+                  }}
+                >
+                  {__("Replace Image", "tutorpress")}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onImageRemove}
+                  disabled={isSaving}
+                  style={{
+                    background: "transparent",
+                    color: "white",
+                    border: "none",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#fca5a5";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "white";
+                  }}
+                >
+                  {__("Remove", "tutorpress")}
+                </button>
+              </div>
             </div>
           ) : (
             <div
@@ -259,7 +341,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
                 textAlign: "center",
                 cursor: "pointer",
                 backgroundColor: isDragOver ? "#f0f8ff" : "#fafbfc",
-                minHeight: "140px",
+                minHeight: "200px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -358,8 +440,105 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
 
       {/* Image Display (for standard mode when image exists) */}
       {!showImageUploadArea && currentImage && (
-        <div className="quiz-modal-option-image-container">
-          <img src={currentImage.url} alt={__("Option image", "tutorpress")} className="quiz-modal-option-image" />
+        <div
+          className="quiz-modal-option-image-container"
+          style={{
+            position: "relative",
+            borderRadius: "8px",
+            overflow: "hidden",
+            backgroundColor: "#f3f4f6",
+            marginBottom: "12px",
+            height: "200px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={currentImage.url}
+            alt={__("Option image", "tutorpress")}
+            className="quiz-modal-option-image"
+            style={{
+              width: "100%",
+              height: "200px",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+
+          {/* Hover Overlay */}
+          <div
+            className="quiz-modal-image-overlay"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 0,
+              transition: "opacity 0.2s ease",
+              gap: "8px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "0";
+            }}
+          >
+            <button
+              type="button"
+              onClick={onImageAdd}
+              disabled={isSaving}
+              style={{
+                background: "#007cba",
+                color: "white",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#005a87";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#007cba";
+              }}
+            >
+              {__("Replace Image", "tutorpress")}
+            </button>
+
+            <button
+              type="button"
+              onClick={onImageRemove}
+              disabled={isSaving}
+              style={{
+                background: "transparent",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                cursor: "pointer",
+                fontSize: "12px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fca5a5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "white";
+              }}
+            >
+              {__("Remove", "tutorpress")}
+            </button>
+          </div>
         </div>
       )}
 

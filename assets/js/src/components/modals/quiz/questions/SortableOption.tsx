@@ -243,11 +243,29 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
           {(() => {
             const imageId = typeof option.image_id === "string" ? parseInt(option.image_id, 10) : option.image_id;
             return imageId && imageId > 0 && option.image_url ? (
-              <div className="quiz-modal-option-image-container">
+              <div
+                className="quiz-modal-option-image-container"
+                style={{
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  backgroundColor: "#f3f4f6",
+                  marginBottom: "12px",
+                  height: "200px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <img
                   src={option.image_url}
                   alt={__("Option image", "tutorpress")}
                   className="quiz-modal-option-image"
+                  style={{
+                    width: "100%",
+                    height: "200px",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
                 />
               </div>
             ) : null;
