@@ -1,0 +1,270 @@
+/**
+ * Quiz Editors Styles
+ * TinyMCE and WordPress editor integration for quiz questions
+ */
+
+/* TinyMCE Editor Styling - WordPress Classic Editor */
+.quiz-modal-tinymce-editor {
+  margin-bottom: 8px;
+}
+
+.quiz-modal-tinymce-editor textarea {
+  width: 100%;
+  min-height: 200px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.quiz-modal-tinymce-editor textarea:focus {
+  border-color: var(--wp-admin-theme-color, #0073aa);
+  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
+  outline: none;
+}
+
+.quiz-modal-tinymce-editor .mce-tinymce {
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+}
+
+.quiz-modal-tinymce-editor .mce-toolbar-grp {
+  border-bottom: 1px solid #e0e0e0 !important;
+  background: #f9f9f9 !important;
+}
+
+.quiz-modal-tinymce-editor .mce-edit-area {
+  border: none !important;
+}
+
+.quiz-modal-tinymce-editor .mce-edit-area iframe {
+  border: none !important;
+}
+
+/* WordPress Visual/Code Tab Styling for TinyMCE in Quiz Modal */
+.quiz-modal-wp-editor .wp-editor-wrap {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.quiz-modal-wp-editor .wp-editor-tabs {
+  background: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+}
+
+.quiz-modal-wp-editor .wp-switch-editor {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+  text-decoration: none;
+  border-radius: 0;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.quiz-modal-wp-editor .wp-switch-editor:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.quiz-modal-wp-editor .wp-switch-editor.active {
+  background: white;
+  color: #333;
+  font-weight: 600;
+  border-bottom: 1px solid white;
+  margin-bottom: -1px;
+}
+
+.quiz-modal-wp-editor .wp-editor-container {
+  background: white;
+}
+
+/* FORCE Visual mode by hiding text editor when in tmce-active mode - STRONGER RULES */
+.quiz-modal-wp-editor .wp-editor-wrap.tmce-active .wp-editor-area {
+  display: block !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap.html-active .wp-editor-area {
+  display: none !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap.html-active textarea.wp-editor-area {
+  display: none !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap.tmce-active textarea.wp-editor-area {
+  display: none !important;
+}
+
+/* Ensure TinyMCE editor container is visible in Visual mode - STRONGER RULES */
+.quiz-modal-wp-editor .wp-editor-wrap.tmce-active .mce-tinymce {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 200px !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap.html-active .mce-tinymce {
+  display: none !important;
+}
+
+/* FORCE all quiz modal editors to show Visual mode regardless of WordPress defaults */
+.quiz-modal-wp-editor .wp-editor-wrap {
+  /* Always force tmce-active class behavior */
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap textarea {
+  display: none !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap .mce-tinymce {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 200px !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap .mce-edit-area {
+  min-height: 200px !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap .mce-edit-area iframe {
+  border: none !important;
+  min-height: 200px !important;
+}
+
+/* Force Visual tab to always appear active */
+.quiz-modal-wp-editor .wp-switch-editor[id$="-tmce"] {
+  background: white !important;
+  color: #333 !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid white !important;
+  margin-bottom: -1px !important;
+}
+
+.quiz-modal-wp-editor .wp-switch-editor[id$="-html"] {
+  background: transparent !important;
+  color: #555 !important;
+  font-weight: normal !important;
+}
+
+/* Prevent editor collapse by ensuring container has minimum height */
+.quiz-modal-wp-editor .wp-editor-container {
+  min-height: 240px !important;
+}
+
+.quiz-modal-wp-editor .wp-editor-wrap {
+  min-height: 240px !important;
+}
+
+/* Additional Editor Action Buttons for TinyMCE */
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button {
+  min-height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 3px;
+}
+
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-secondary {
+  background: #f6f7f7;
+  border: 1px solid #ddd;
+  color: #555;
+}
+
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-secondary:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-primary {
+  background: #0073aa;
+  border: 1px solid #005a87;
+  color: white;
+}
+
+.quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-primary:hover {
+  background: #005a87;
+  border-color: #004a6b;
+}
+
+/* Fix saved content display - ensure proper list styling and formatting */
+.quiz-modal-saved-content {
+  padding: 8px 0;
+  line-height: 1.5;
+  color: #1e1e1e;
+}
+
+.quiz-modal-saved-content ul {
+  list-style-type: disc !important;
+  margin-left: 20px !important;
+  padding-left: 0 !important;
+}
+
+.quiz-modal-saved-content ol {
+  list-style-type: decimal !important;
+  margin-left: 20px !important;
+  padding-left: 0 !important;
+}
+
+.quiz-modal-saved-content li {
+  margin-bottom: 4px !important;
+  display: list-item !important;
+}
+
+.quiz-modal-saved-content p {
+  margin-bottom: 8px !important;
+}
+
+.quiz-modal-saved-content p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.quiz-modal-saved-content strong {
+  font-weight: bold !important;
+}
+
+.quiz-modal-saved-content em {
+  font-style: italic !important;
+}
+
+.quiz-modal-saved-content a {
+  color: #0073aa !important;
+  text-decoration: underline !important;
+}
+
+/* Ensure Visual/Code tabs are clickable with proper hover effects */
+.quiz-modal-wp-editor .wp-switch-editor {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+.quiz-modal-wp-editor .wp-switch-editor:hover {
+  background: #e0e0e0 !important;
+  color: #333 !important;
+}
+
+/* Make sure tabs have proper click areas */
+.quiz-modal-wp-editor .wp-editor-tabs {
+  position: relative !important;
+  z-index: 5 !important;
+}

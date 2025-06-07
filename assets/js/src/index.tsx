@@ -10,6 +10,9 @@ import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import { QuizModal } from "./components/modals/QuizModal";
 import "./api"; // Import API module to expose it to window
 
+// Import CSS for bundling
+import "../../css/src/index.css";
+
 // Register the assignment settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-assignment-settings", {
   render: AssignmentSettingsPanel,

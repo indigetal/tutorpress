@@ -13,6 +13,7 @@ tutor-master/
 tutor-pro/
 .git/
 .cursor/
+gutenberg-original.css
 
 # Source files (already compiled to build/)
 assets/js/src/

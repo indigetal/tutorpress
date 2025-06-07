@@ -1,0 +1,199 @@
+/**
+ * Multiple Choice Question Type Styles
+ * Styles for multiple choice options, add option button, and option editor
+ */
+
+/* Multiple Choice Question Type Styles */
+.quiz-modal-multiple-choice-content {
+  padding: 16px 0;
+}
+
+.quiz-modal-multiple-choice-options {
+  margin-bottom: 20px;
+}
+
+.quiz-modal-placeholder-text {
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+  padding: 12px;
+  background: #f0f6fc;
+  border: 1px solid #c3dcf3;
+  border-radius: 4px;
+}
+
+.quiz-modal-add-option-container {
+  margin-bottom: 20px;
+}
+
+.quiz-modal-add-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f6f7f7;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #2c3338;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  width: auto;
+  min-width: 120px;
+}
+
+.quiz-modal-add-option-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+  color: #1e1e1e;
+}
+
+.quiz-modal-add-option-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #0073aa;
+  border-color: #0073aa;
+}
+
+.quiz-modal-add-option-icon {
+  font-size: 16px;
+  font-weight: bold;
+  color: #0073aa;
+}
+
+.quiz-modal-add-option-text {
+  font-weight: 500;
+}
+
+/* Option Editor Frame */
+.quiz-modal-option-editor {
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-modal-option-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.quiz-modal-option-label {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1e1e1e;
+}
+
+.quiz-modal-add-image-btn {
+  padding: 6px 12px;
+  background: #f6f7f7;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #2c3338;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.quiz-modal-add-image-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+  color: #1e1e1e;
+}
+
+.quiz-modal-add-image-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-option-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #1e1e1e;
+  background: #fff;
+  resize: vertical;
+  transition:
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
+  margin-bottom: 12px;
+}
+
+.quiz-modal-option-textarea:focus {
+  border-color: #0073aa;
+  box-shadow: 0 0 0 1px #0073aa;
+  outline: none;
+}
+
+.quiz-modal-option-textarea::placeholder {
+  color: #757575;
+}
+
+.quiz-modal-option-textarea:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.quiz-modal-option-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.quiz-modal-option-cancel-btn,
+.quiz-modal-option-ok-btn {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: 1px solid;
+}
+
+.quiz-modal-option-cancel-btn {
+  background: #f6f7f7;
+  border-color: #ddd;
+  color: #555;
+}
+
+.quiz-modal-option-cancel-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.quiz-modal-option-ok-btn {
+  background: #0073aa;
+  border-color: #005a87;
+  color: white;
+}
+
+.quiz-modal-option-ok-btn:hover:not(:disabled) {
+  background: #005a87;
+  border-color: #004a6b;
+}
+
+.quiz-modal-option-ok-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-option-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add Option Button disabled state when editor is open */
+.quiz-modal-add-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

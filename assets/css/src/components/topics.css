@@ -1,0 +1,164 @@
+/**
+ * Topic Styles
+ * Styles for topic headers, actions, and interactions
+ */
+
+.tutorpress-topic {
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.tutorpress-topic:hover {
+  background-color: rgb(245, 246, 250);
+}
+
+.tutorpress-topic.is-open {
+  border-color: #007cba;
+}
+
+.tutorpress-topic-header {
+  cursor: pointer;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tutorpress-topic-title {
+  cursor: pointer;
+}
+
+.tutorpress-topic-summary {
+  margin-top: 4px;
+  color: #757575;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Fix action buttons layout */
+.tutorpress-topic-header .components-flex {
+  min-height: 36px;
+}
+
+.tutorpress-topic-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto; /* Push to right */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+.tutorpress-topic-header:not(.is-open) .tutorpress-topic-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic-header:not(.is-open):hover .tutorpress-topic-actions {
+  opacity: 1;
+}
+
+/* Form styles */
+.tutorpress-topic form {
+  border-top: 1px solid #e0e0e0;
+}
+
+.tutorpress-add-topic {
+  margin-top: 8px;
+}
+
+/* Topic wrapper and sorting styles */
+.tutorpress-topics-list {
+  position: relative;
+}
+
+.tutorpress-topic-wrapper {
+  position: relative;
+}
+
+.tutorpress-topic-wrapper.show-indicator::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--wp-admin-theme-color);
+}
+
+.tutorpress-topic-wrapper.show-indicator::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--wp-admin-theme-color);
+}
+
+.tutorpress-topic-wrapper.last-topic.show-indicator::before {
+  top: auto;
+  bottom: 0;
+}
+
+.tutorpress-topic-wrapper.last-topic.show-indicator::after {
+  top: auto;
+  bottom: 0;
+}
+
+/* Sortable Topic Styles */
+.tutorpress-sortable-topic {
+  position: relative;
+  margin-bottom: 16px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.tutorpress-sortable-topic--dragging {
+  z-index: 1000;
+}
+
+.tutorpress-sortable-topic--dragging .tutorpress-topic {
+  opacity: 0.8;
+  background: var(--wp-admin-theme-color-darker-10);
+  border-color: var(--wp-admin-theme-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Remove conflicting styles */
+.tutorpress-topic-placeholder,
+.tutorpress-drag-overlay,
+.tutorpress-drop-bar,
+.tutorpress-topic--placeholder {
+  display: none;
+}
+
+.tutorpress-topic-placeholder,
+.tutorpress-topic-placeholder .tutorpress-topic {
+  background-color: #f0f9ff;
+  border: 2px dashed #007cba;
+  border-radius: 4px;
+}
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper.show-indicator {
+  /* existing indicator styles */
+}
+
+.tutorpress-curriculum .tutorpress-topics-list .tutorpress-topic-wrapper .tutorpress-saving-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  z-index: 1;
+  opacity: 0;
+  animation: tutorpress-fade-in 0.2s ease forwards;
+}
