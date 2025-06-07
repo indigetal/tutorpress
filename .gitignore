@@ -8,9 +8,14 @@
 # Development Files
 memory-bank/
 tutor-master/
+tutor-pro/
 
 # Dependencies
 node_modules/
 
 # Build/Compiled Files
 assets/js/build/
+
+# Distribution Files
+dist/
+tutorpress.zip
