@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import {
   Topic,
@@ -9,7 +9,7 @@ import {
 } from "../../types/curriculum";
 import apiFetch from "@wordpress/api-fetch";
 import { __ } from "@wordpress/i18n";
-import { arrayMove } from "@dnd-kit/sortable";
+import { useSortableList, type SortableItem } from "../common/useSortableList";
 
 // Type guard for WP REST API response
 const isWpRestResponse = (response: unknown): response is { success: boolean; message: string; data: unknown } => {
@@ -32,6 +32,12 @@ export interface UseDragDropReturn {
   handleDragEnd: (event: DragEndEvent) => Promise<void>;
   handleDragCancel: () => void;
   handleReorderTopics: (newOrder: Topic[]) => Promise<OperationResult<void>>;
+  // Additional properties for SortableList integration
+  sensors: ReturnType<typeof useSortableList>["sensors"];
+  itemIds: number[];
+  getItemClasses: (item: SortableItem, isDragging?: boolean) => string;
+  getWrapperClasses: (item: SortableItem, showIndicator?: boolean) => string;
+  dragState: ReturnType<typeof useSortableList>["dragState"];
 }
 
 export function useDragDrop({
@@ -41,117 +47,114 @@ export function useDragDrop({
   setEditState,
   setReorderState,
 }: UseDragDropOptions): UseDragDropReturn {
-  // Drag and drop state
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [overId, setOverId] = useState<number | null>(null);
+  /** Handle topic reordering with API persistence */
+  const handleReorderTopics = useCallback(
+    async (newOrder: Topic[]): Promise<OperationResult<void>> => {
+      setReorderState({ status: "reordering" });
 
-  /** Handle drag start: cancel edit mode and close all topics */
-  const handleDragStart = useCallback((event: DragStartEvent): void => {
-    setActiveId(Number(event.active.id));
-    // Cancel edit mode if active
-    setEditState({ isEditing: false, topicId: null });
-    // Close all topics when dragging starts
-    setTopics((currentTopics) =>
-      currentTopics.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }))
-    );
-  }, []);
+      try {
+        const res = await apiFetch<unknown>({
+          path: `/tutorpress/v1/topics/reorder`,
+          method: "POST",
+          data: {
+            course_id: courseId,
+            topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
+          },
+        });
 
-  /** Handle drag over: track item being dragged over */
-  const handleDragOver = useCallback((event: DragOverEvent): void => {
-    setOverId(event.over?.id ? Number(event.over.id) : null);
-  }, []);
-
-  /** Handle topic reordering */
-  const handleReorderTopics = async (newOrder: Topic[]): Promise<OperationResult<void>> => {
-    setReorderState({ status: "reordering" });
-
-    try {
-      const res = await apiFetch<unknown>({
-        path: `/tutorpress/v1/topics/reorder`,
-        method: "POST",
-        data: {
-          course_id: courseId,
-          topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
-        },
-      });
-
-      if (!isWpRestResponse(res)) {
-        throw {
-          code: CurriculumErrorCode.INVALID_RESPONSE,
-          message: __("Invalid response format from server", "tutorpress"),
-        };
-      }
-
-      if (!res.success) {
-        throw {
-          code: CurriculumErrorCode.SERVER_ERROR,
-          message: res.message || __("Server returned an error", "tutorpress"),
-        };
-      }
-
-      setReorderState({ status: "success" });
-      return { success: true };
-    } catch (err) {
-      console.error("Error reordering topics:", err);
-
-      const isNetworkError =
-        err instanceof Error &&
-        (err.message.includes("offline") || err.message.includes("network") || err.message.includes("fetch"));
-
-      const error: CurriculumError = {
-        code: isNetworkError ? CurriculumErrorCode.NETWORK_ERROR : CurriculumErrorCode.REORDER_FAILED,
-        message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
-        context: {
-          action: "reorder_topics",
-        },
-      };
-
-      setReorderState({ status: "error", error });
-      return { success: false, error };
-    }
-  };
-
-  /** Handle drag end: update topic order */
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent): Promise<void> => {
-      const { active, over } = event;
-
-      if (over && active.id !== over.id) {
-        const oldIndex = topics.findIndex((t) => t.id === Number(active.id));
-        const newIndex = topics.findIndex((t) => t.id === Number(over.id));
-
-        const newOrder = arrayMove(topics, oldIndex, newIndex);
-        setTopics(newOrder);
-
-        const result = await handleReorderTopics(newOrder);
-        if (!result.success) {
-          // Revert to original order on failure
-          setTopics(topics);
+        if (!isWpRestResponse(res)) {
+          throw {
+            code: CurriculumErrorCode.INVALID_RESPONSE,
+            message: __("Invalid response format from server", "tutorpress"),
+          };
         }
-      }
 
-      setActiveId(null);
-      setOverId(null);
+        if (!res.success) {
+          throw {
+            code: CurriculumErrorCode.SERVER_ERROR,
+            message: res.message || __("Server returned an error", "tutorpress"),
+          };
+        }
+
+        setReorderState({ status: "success" });
+        return { success: true };
+      } catch (err) {
+        console.error("Error reordering topics:", err);
+
+        const isNetworkError =
+          err instanceof Error &&
+          (err.message.includes("offline") || err.message.includes("network") || err.message.includes("fetch"));
+
+        const error: CurriculumError = {
+          code: isNetworkError ? CurriculumErrorCode.NETWORK_ERROR : CurriculumErrorCode.REORDER_FAILED,
+          message: err instanceof Error ? err.message : __("Failed to reorder topics", "tutorpress"),
+          context: {
+            action: "reorder_topics",
+          },
+        };
+
+        setReorderState({ status: "error", error });
+        return { success: false, error };
+      }
     },
-    [topics, handleReorderTopics]
+    [courseId, setReorderState]
   );
 
-  /** Handle drag cancel: reset state */
-  const handleDragCancel = useCallback((): void => {
-    setActiveId(null);
-    setOverId(null);
-  }, []);
+  /** Handle drag start: cancel edit mode and close all topics */
+  const handleTopicDragStart = useCallback(
+    (activeId: number): void => {
+      // Cancel edit mode if active
+      setEditState({ isEditing: false, topicId: null });
+      // Close all topics when dragging starts
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+        }))
+      );
+    },
+    [setEditState, setTopics]
+  );
+
+  /** Handle reorder with optimistic updates and rollback on failure */
+  const handleTopicReorder = useCallback(
+    async (newOrder: Topic[]): Promise<OperationResult<void>> => {
+      // Optimistic update
+      setTopics(newOrder);
+
+      const result = await handleReorderTopics(newOrder);
+      if (!result.success) {
+        // Revert to original order on failure
+        setTopics(topics);
+      }
+      return result;
+    },
+    [topics, setTopics, handleReorderTopics]
+  );
+
+  // Use the generic sortable list hook
+  const { dragHandlers, dragState, sensors, itemIds, getItemClasses, getWrapperClasses } = useSortableList<Topic>({
+    items: topics,
+    onReorder: handleTopicReorder,
+    persistenceMode: "api",
+    context: "topics",
+    onDragStart: handleTopicDragStart,
+    activationDistance: 0, // Match original topics behavior
+  });
 
   return {
-    activeId,
-    overId,
-    handleDragStart,
-    handleDragOver,
-    handleDragEnd,
-    handleDragCancel,
+    activeId: dragState.activeId,
+    overId: dragState.overId,
+    handleDragStart: dragHandlers.handleDragStart,
+    handleDragOver: dragHandlers.handleDragOver,
+    handleDragEnd: dragHandlers.handleDragEnd,
+    handleDragCancel: dragHandlers.handleDragCancel,
     handleReorderTopics,
+    // Additional properties for SortableList integration
+    sensors,
+    itemIds,
+    getItemClasses,
+    getWrapperClasses,
+    dragState,
   };
 }

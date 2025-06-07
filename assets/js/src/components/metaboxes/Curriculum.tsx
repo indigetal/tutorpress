@@ -13,9 +13,9 @@ import React, { useMemo } from "react";
 import { Button, Flex, FlexBlock, Spinner } from "@wordpress/components";
 import { plus, update, close } from "@wordpress/icons";
 import { CurriculumErrorCode } from "../../types/curriculum";
-import type { Topic, SortableTopicProps, OperationResult } from "../../types/curriculum";
+import type { Topic, OperationResult } from "../../types/curriculum";
 import { __ } from "@wordpress/i18n";
-import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { store as noticesStore } from "@wordpress/notices";
@@ -31,9 +31,20 @@ import { useCurriculumError } from "../../hooks/curriculum/useCurriculumError";
 // ============================================================================
 
 /**
- * Wraps a TopicSection component with drag-and-drop functionality.
+ * Wraps a TopicSection component with drag-and-drop functionality using generic CSS classes
  */
-const SortableTopic: React.FC<SortableTopicProps> = ({
+const SortableTopic: React.FC<{
+  topic: Topic;
+  courseId?: number;
+  onEdit: () => void;
+  onEditCancel: () => void;
+  onEditSave: (topicId: number, data: any) => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onToggle?: () => void;
+  isEditing: boolean;
+  getItemClasses: (item: any, isDragging?: boolean) => string;
+}> = ({
   topic,
   courseId,
   onEdit,
@@ -43,6 +54,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
   onDelete,
   onToggle,
   isEditing,
+  getItemClasses,
 }): JSX.Element => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: topic.id,
@@ -55,9 +67,7 @@ const SortableTopic: React.FC<SortableTopicProps> = ({
     height: isDragging ? "auto" : undefined,
   };
 
-  const classNames = ["tutorpress-sortable-topic", isDragging && "tutorpress-sortable-topic--dragging"]
-    .filter(Boolean)
-    .join(" ");
+  const classNames = getItemClasses(topic, isDragging);
 
   return (
     <div ref={setNodeRef} className={classNames} style={style}>
@@ -125,7 +135,20 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Get store actions
   const { setTopics, setEditState, setReorderState } = useDispatch(curriculumStore);
 
-  const { activeId, overId, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel } = useDragDrop({
+  const {
+    activeId,
+    overId,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    handleDragCancel,
+    handleReorderTopics,
+    sensors,
+    itemIds,
+    getItemClasses,
+    getWrapperClasses,
+    dragState,
+  } = useDragDrop({
     courseId: courseId ?? 0,
     topics,
     setTopics,
@@ -161,8 +184,6 @@ const Curriculum: React.FC = (): JSX.Element => {
   });
 
   const { createNotice } = useDispatch(noticesStore);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 0 } }));
-  const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
 
   // =============================
   // Render Methods
@@ -212,7 +233,7 @@ const Curriculum: React.FC = (): JSX.Element => {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            <SortableContext items={topicIds} strategy={verticalListSortingStrategy}>
+            <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
               <div className="tutorpress-topics-list">
                 {topics.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 0", color: "#757575" }}>
@@ -220,10 +241,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                   </div>
                 ) : (
                   topics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className={`tutorpress-topic-wrapper ${activeId && overId === topic.id ? "show-indicator" : ""}`}
-                    >
+                    <div key={topic.id} className={getWrapperClasses(topic)}>
                       <SortableTopic
                         topic={topic}
                         courseId={courseId}
@@ -234,6 +252,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                         onDelete={() => handleTopicDelete(topic.id)}
                         onToggle={() => handleTopicToggle(topic.id)}
                         isEditing={editState.isEditing && editState.topicId === topic.id}
+                        getItemClasses={getItemClasses}
                       />
                       {reorderState.status === "reordering" && activeId === topic.id && (
                         <div className="tutorpress-saving-indicator">
