@@ -20,4 +20,17 @@ export {
   type SimpleDragHandleProps,
 } from "./SortableList";
 
+export {
+  QuizSortableList,
+  QuizDragHandle,
+  useQuizReorder,
+  type QuizDragHandleProps,
+  type QuizSortableItemRenderContext,
+  type QuizSortableItemRenderFunction,
+  type QuizDragOverlayRenderFunction,
+  type QuizSortableListProps,
+  type QuizDragHandleComponentProps,
+  type QuizSortableContext,
+} from "./QuizSortableList";
+
 export { default } from "./SortableList";

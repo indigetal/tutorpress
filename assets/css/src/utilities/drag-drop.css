@@ -81,11 +81,18 @@
  * Overrides for quiz modal option cards
  */
 .quiz-modal-option-card.tutorpress-dragging {
-  /* Inherit base dragging styles */
+  /* Inherit base dragging styles with quiz-specific enhancements */
+  border-radius: 8px !important;
 }
 
 .quiz-modal-option-wrapper.tutorpress-drop-indicator {
   /* Inherit base drop indicator styles */
+}
+
+.quiz-modal-option-wrapper.tutorpress-drop-indicator::before {
+  /* Quiz option specific drop line styling */
+  margin: 0 8px;
+  border-radius: 1px;
 }
 
 /**
@@ -93,11 +100,17 @@
  * Overrides for quiz modal question items
  */
 .quiz-modal-question-item.tutorpress-dragging {
-  /* Inherit base dragging styles */
+  /* Inherit base dragging styles with question-specific enhancements */
+  border-radius: 6px !important;
 }
 
 .quiz-modal-question-wrapper.tutorpress-drop-indicator {
   /* Inherit base drop indicator styles */
+}
+
+.quiz-modal-question-wrapper.tutorpress-drop-indicator::before {
+  /* Question list specific drop line styling */
+  margin: 0 12px;
 }
 
 /* ============================================================================
@@ -263,4 +276,49 @@
   border-radius: 3px;
   font-size: 12px;
   z-index: 1001;
+}
+
+/* ============================================================================
+   Quiz-Specific Extensions
+   ============================================================================ */
+
+/**
+ * Quiz sortable list containers - reuse base styles with quiz naming
+ */
+.quiz-sortable-list-container {
+  /* Inherit from .sortable-list-container */
+  position: relative;
+}
+
+.quiz-sortable-list {
+  /* Inherit from .sortable-list */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/**
+ * Quiz loading and error states - reuse base patterns
+ */
+.quiz-sortable-list-loading {
+  /* Based on .sortable-list-loading with quiz-specific styling */
+  padding: 16px;
+  text-align: center;
+  border-radius: 6px;
+  margin: 8px 0;
+  background: #f8f9fa;
+  color: #6c757d;
+  font-size: 14px;
+  border: 1px solid #e9ecef;
+}
+
+/**
+ * Quiz drag overlay - optimized for quiz contexts
+ */
+.quiz-sortable-drag-overlay {
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.9;
+  transform: rotate(2deg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
