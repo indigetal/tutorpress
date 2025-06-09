@@ -201,7 +201,7 @@ export const QuestionList: React.FC<QuestionListProps> = ({
             options={[
               { label: __("Select Question Type", "tutorpress"), value: "" },
               ...questionTypes.map((type) => ({
-                label: type.is_pro ? `${type.label} ${__("(Pro)", "tutorpress")}` : type.label,
+                label: type.label,
                 value: type.value,
               })),
             ]}

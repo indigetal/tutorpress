@@ -728,9 +728,41 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .quiz-modal-three-column-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    grid-template-areas:
+      "left center"
+      "settings settings";
+  }
+
+  .quiz-modal-left-column {
+    grid-area: left;
+  }
+
+  .quiz-modal-center-column {
+    grid-area: center;
+  }
+
+  .quiz-modal-right-column {
+    grid-area: settings;
+    border: none;
+    border-top: 1px solid #ddd;
+    padding: 16px 0 0 0;
+    margin-top: 8px;
+  }
+
+  .quiz-modal-right-column h4 {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 1024px) {
   .quiz-modal-three-column-layout {
-    grid-template-columns: 250px 1fr 250px;
+    grid-template-columns: 250px 1fr;
     gap: 12px;
   }
 }
@@ -742,19 +774,35 @@
   }
 
   .quiz-modal-three-column-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    grid-template-areas: none;
     gap: 16px;
   }
 
   .quiz-modal-left-column,
   .quiz-modal-center-column,
   .quiz-modal-right-column {
+    grid-area: auto;
     border: none;
     padding: 0;
+    margin: 0;
+    display: block;
+  }
+
+  /* Correct order for 1-column layout */
+  .quiz-modal-left-column {
+    order: 1;
+  }
+
+  .quiz-modal-center-column {
+    order: 2;
   }
 
   .quiz-modal-right-column {
-    order: -1;
+    order: 3;
   }
 
   .quiz-modal-setting-group .components-h-stack {
@@ -765,5 +813,27 @@
   .quiz-modal-settings .components-number-control,
   .quiz-modal-settings .components-select-control {
     width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .quiz-modal {
+    height: auto !important;
+    max-height: 90vh !important;
+  }
+
+  .quiz-modal-content {
+    max-height: calc(90vh - 120px);
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
+  }
+
+  .quiz-modal-footer {
+    position: relative;
+    z-index: 2;
+    margin: 16px -24px -24px -24px;
+    background: #f9f9f9;
+    border-top: 1px solid #e0e0e0;
   }
 }
