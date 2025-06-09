@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Modal,
   TabPanel,
   Button,
   TextControl,
@@ -20,6 +19,7 @@ import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { getQuestionComponent, hasQuestionComponent } from "./quiz/questions";
 import { useQuestionValidation } from "../../hooks/quiz";
+import { BaseModalLayout, BaseModalHeader } from "../common";
 import type {
   TimeUnit,
   FeedbackMode,
@@ -32,7 +32,6 @@ import type {
   QuizQuestionOption,
   DataStatus,
 } from "../../types/quiz";
-import { QuizHeader } from "./quiz/QuizHeader";
 import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { SettingsTab } from "./quiz/SettingsTab";
 
@@ -1252,124 +1251,108 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  const modalHeader = (
+    <BaseModalHeader
+      title={quizId ? __("Edit Quiz", "tutorpress") : __("Create Quiz", "tutorpress")}
+      isValid={isValid}
+      isSaving={isSaving}
+      saveSuccess={saveSuccess}
+      primaryButtonText={quizId ? __("Update Quiz", "tutorpress") : __("Save Quiz", "tutorpress")}
+      savingButtonText={quizId ? __("Updating...", "tutorpress") : __("Saving...", "tutorpress")}
+      successButtonText={__("Saved!", "tutorpress")}
+      onSave={handleSave}
+      onClose={handleClose}
+      className="quiz-modal"
+    />
+  );
+
+  const handleRetry = () => {
+    if (quizId) {
+      loadExistingQuizData(quizId);
+    }
+  };
 
   return (
-    <Modal onRequestClose={handleClose} className="quiz-modal" size="large">
-      <div className="quiz-modal-content">
-        {/* Modal Header with Action Buttons */}
-        <QuizHeader
-          quizId={quizId}
-          isValid={isValid}
-          isSaving={isSaving}
-          saveSuccess={saveSuccess}
-          onSave={handleSave}
-          onClose={handleClose}
-        />
-
-        {/* Loading state when editing quiz */}
-        {isLoading && (
-          <div className="quiz-modal-loading" style={{ padding: "40px", textAlign: "center" }}>
-            <Spinner style={{ margin: "0 auto 16px" }} />
-            <p>{__("Loading quiz data...", "tutorpress")}</p>
-          </div>
-        )}
-
-        {/* Error state when loading quiz fails */}
-        {loadError && (
-          <div className="quiz-modal-error" style={{ padding: "20px" }}>
-            <Notice status="error" isDismissible={false}>
-              <strong>{__("Error loading quiz:", "tutorpress")}</strong> {loadError}
-            </Notice>
-            <div style={{ marginTop: "16px", textAlign: "center" }}>
-              <Button variant="primary" onClick={() => quizId && loadExistingQuizData(quizId)}>
-                {__("Try Again", "tutorpress")}
-              </Button>
-              <Button variant="secondary" onClick={handleClose} style={{ marginLeft: "8px" }}>
-                {__("Cancel", "tutorpress")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Main content - only show when not loading and no error */}
-        {!isLoading && !loadError && (
-          <>
-            <TabPanel
-              className="quiz-modal-tabs"
-              activeClass="is-active"
-              tabs={tabs}
-              onSelect={(tabName) => setActiveTab(tabName)}
-            >
-              {(tab) => {
-                switch (tab.name) {
-                  case "question-details":
-                    return (
-                      <QuestionDetailsTab
-                        formTitle={formState.title}
-                        formDescription={formState.description}
-                        topicId={topicId}
-                        questions={questions}
-                        selectedQuestionIndex={selectedQuestionIndex}
-                        isAddingQuestion={isAddingQuestion}
-                        selectedQuestionType={selectedQuestionType}
-                        questionTypes={questionTypes}
-                        loadingQuestionTypes={loadingQuestionTypes}
-                        isSaving={isSaving}
-                        saveSuccess={saveSuccess}
-                        saveError={saveError}
-                        onTitleChange={updateTitle}
-                        onDescriptionChange={updateDescription}
-                        onAddQuestion={handleAddQuestion}
-                        onQuestionSelect={handleQuestionSelect}
-                        onQuestionTypeSelect={handleQuestionTypeSelect}
-                        onDeleteQuestion={handleDeleteQuestion}
-                        onQuestionReorder={handleQuestionReorder}
-                        onCancelAddQuestion={() => setIsAddingQuestion(false)}
-                        onSaveErrorDismiss={() => setSaveError(null)}
-                        getQuestionTypeDisplayName={getQuestionTypeDisplayName}
-                        renderQuestionForm={() => renderQuestionForm()}
-                        renderQuestionSettings={() => renderQuestionSettings()}
-                      />
-                    );
-                  case "settings":
-                    return (
-                      <SettingsTab
-                        timeValue={formState.settings.time_limit.time_value}
-                        timeType={formState.settings.time_limit.time_type}
-                        hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
-                        feedbackMode={formState.settings.feedback_mode}
-                        passingGrade={formState.settings.passing_grade}
-                        maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
-                        afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
-                        quizAutoStart={formState.settings.quiz_auto_start}
-                        questionLayoutView={formState.settings.question_layout_view}
-                        questionsOrder={formState.settings.questions_order}
-                        hideQuestionNumberOverview={formState.settings.hide_question_number_overview}
-                        shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
-                        openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
-                        attemptsAllowed={formState.settings.attempts_allowed}
-                        coursePreviewAddonAvailable={coursePreviewAddon.available}
-                        isSaving={isSaving}
-                        saveSuccess={saveSuccess}
-                        saveError={saveError}
-                        onTimeChange={updateTimeLimit}
-                        onSettingChange={updateSettings}
-                        onContentDripChange={updateContentDrip}
-                        onSaveErrorDismiss={() => setSaveError(null)}
-                        errors={errors}
-                      />
-                    );
-                  default:
-                    return null;
-                }
-              }}
-            </TabPanel>
-          </>
-        )}
-      </div>
-    </Modal>
+    <BaseModalLayout
+      isOpen={isOpen}
+      onClose={handleClose}
+      className="quiz-modal"
+      isLoading={isLoading}
+      loadingMessage={__("Loading quiz data...", "tutorpress")}
+      loadError={loadError}
+      onRetry={handleRetry}
+      header={modalHeader}
+    >
+      <TabPanel
+        className="quiz-modal-tabs"
+        activeClass="is-active"
+        tabs={tabs}
+        onSelect={(tabName) => setActiveTab(tabName)}
+      >
+        {(tab) => {
+          switch (tab.name) {
+            case "question-details":
+              return (
+                <QuestionDetailsTab
+                  formTitle={formState.title}
+                  formDescription={formState.description}
+                  topicId={topicId}
+                  questions={questions}
+                  selectedQuestionIndex={selectedQuestionIndex}
+                  isAddingQuestion={isAddingQuestion}
+                  selectedQuestionType={selectedQuestionType}
+                  questionTypes={questionTypes}
+                  loadingQuestionTypes={loadingQuestionTypes}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                  saveError={saveError}
+                  onTitleChange={updateTitle}
+                  onDescriptionChange={updateDescription}
+                  onAddQuestion={handleAddQuestion}
+                  onQuestionSelect={handleQuestionSelect}
+                  onQuestionTypeSelect={handleQuestionTypeSelect}
+                  onDeleteQuestion={handleDeleteQuestion}
+                  onQuestionReorder={handleQuestionReorder}
+                  onCancelAddQuestion={() => setIsAddingQuestion(false)}
+                  onSaveErrorDismiss={() => setSaveError(null)}
+                  getQuestionTypeDisplayName={getQuestionTypeDisplayName}
+                  renderQuestionForm={() => renderQuestionForm()}
+                  renderQuestionSettings={() => renderQuestionSettings()}
+                />
+              );
+            case "settings":
+              return (
+                <SettingsTab
+                  timeValue={formState.settings.time_limit.time_value}
+                  timeType={formState.settings.time_limit.time_type}
+                  hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
+                  feedbackMode={formState.settings.feedback_mode}
+                  passingGrade={formState.settings.passing_grade}
+                  maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
+                  afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
+                  quizAutoStart={formState.settings.quiz_auto_start}
+                  questionLayoutView={formState.settings.question_layout_view}
+                  questionsOrder={formState.settings.questions_order}
+                  hideQuestionNumberOverview={formState.settings.hide_question_number_overview}
+                  shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
+                  openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
+                  attemptsAllowed={formState.settings.attempts_allowed}
+                  coursePreviewAddonAvailable={coursePreviewAddon.available}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                  saveError={saveError}
+                  onTimeChange={updateTimeLimit}
+                  onSettingChange={updateSettings}
+                  onContentDripChange={updateContentDrip}
+                  onSaveErrorDismiss={() => setSaveError(null)}
+                  errors={errors}
+                />
+              );
+            default:
+              return null;
+          }
+        }}
+      </TabPanel>
+    </BaseModalLayout>
   );
 };

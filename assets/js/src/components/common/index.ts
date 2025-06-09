@@ -37,4 +37,8 @@ export {
   type QuizDragHandlerOptions,
 } from "./QuizSortableList";
 
+export { BaseModalLayout, type BaseModalLayoutProps } from "./BaseModalLayout";
+
+export { BaseModalHeader, type BaseModalHeaderProps } from "./BaseModalHeader";
+
 export { default } from "./SortableList";
