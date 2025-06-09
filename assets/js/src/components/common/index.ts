@@ -24,6 +24,9 @@ export {
   QuizSortableList,
   QuizDragHandle,
   useQuizReorder,
+  createQuizDragHandlers,
+  getQuizOptionClasses,
+  createQuizOptionReorder,
   type QuizDragHandleProps,
   type QuizSortableItemRenderContext,
   type QuizSortableItemRenderFunction,
@@ -31,6 +34,7 @@ export {
   type QuizSortableListProps,
   type QuizDragHandleComponentProps,
   type QuizSortableContext,
+  type QuizDragHandlerOptions,
 } from "./QuizSortableList";
 
 export { default } from "./SortableList";

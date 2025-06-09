@@ -52,6 +52,7 @@ import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionEditor } from "./OptionEditor";
+import { getQuizOptionClasses } from "../../../../components/common";
 import type { QuizQuestionOption } from "../../../../types/quiz";
 
 /**
@@ -165,15 +166,8 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   // Generate default option label if not provided (A, B, C format)
   const displayLabel = optionLabel ?? String.fromCharCode(65 + index);
 
-  // Build CSS classes for different states
-  const classNames = [
-    "quiz-modal-option-card",
-    showCorrectIndicator && isCorrect && "is-correct", // Only apply correct styling if indicator is shown
-    isEditing && "quiz-modal-option-card-editing",
-    isDragging && "is-dragging",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  // Use shared CSS utility for consistent styling
+  const classNames = getQuizOptionClasses(option, isDragging, isEditing, showCorrectIndicator);
 
   // Render editing mode
   if (isEditing) {

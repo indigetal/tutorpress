@@ -51,6 +51,7 @@ import type {
   OperationResult,
   SortableContext as SortableContextType,
 } from "../../hooks/common/useSortableList";
+import { arrayMove } from "@dnd-kit/sortable";
 
 // ============================================================================
 // Types and Interfaces
@@ -402,5 +403,122 @@ export function useQuizReorder<T extends SortableItem>(setItems: React.Dispatch<
       setItems(newOrder);
     },
     [setItems]
+  );
+}
+
+// ============================================================================
+// Quiz Drag Handler Utilities - for preserving original architecture
+// ============================================================================
+
+/**
+ * Shared drag handler logic for quiz options with original architecture preservation
+ */
+export interface QuizDragHandlerOptions<T extends SortableItem> {
+  items: T[];
+  onReorder: (newItems: T[]) => void;
+  onDragStart?: (activeId: number) => void;
+  onDragEnd?: () => void;
+}
+
+/**
+ * Create reusable drag handlers that work with original DndContext
+ */
+export function createQuizDragHandlers<T extends SortableItem>({
+  items,
+  onReorder,
+  onDragStart,
+  onDragEnd,
+}: QuizDragHandlerOptions<T>) {
+  const handleDragStart = React.useCallback(
+    (event: any) => {
+      const activeId = Number(event.active.id);
+      onDragStart?.(activeId);
+    },
+    [onDragStart]
+  );
+
+  const handleDragEnd = React.useCallback(
+    (event: any) => {
+      const { active, over } = event;
+
+      if (over && active.id !== over.id) {
+        const oldIndex = items.findIndex((item) => item.id === Number(active.id));
+        const newIndex = items.findIndex((item) => item.id === Number(over.id));
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          // Reorder the items using arrayMove
+          const reorderedItems = arrayMove(items, oldIndex, newIndex);
+
+          // Update order fields and data status if it's a quiz question option
+          const updatedItems = reorderedItems.map((item, index) => ({
+            ...item,
+            // Update answer_order if it exists (for quiz options)
+            ...("answer_order" in item && { answer_order: index + 1 }),
+            // Update data status if it exists
+            ...("_data_status" in item && {
+              _data_status: (item as any)._data_status === "new" ? "new" : "update",
+            }),
+          }));
+
+          onReorder(updatedItems as T[]);
+        }
+      }
+
+      onDragEnd?.();
+    },
+    [items, onReorder, onDragEnd]
+  );
+
+  const handleDragCancel = React.useCallback(() => {
+    onDragEnd?.();
+  }, [onDragEnd]);
+
+  return {
+    handleDragStart,
+    handleDragEnd,
+    handleDragCancel,
+  };
+}
+
+/**
+ * Get CSS classes for quiz options that match the centralized styling
+ */
+export function getQuizOptionClasses(
+  option: { is_correct?: string | "0" | "1"; _data_status?: string },
+  isDragging: boolean = false,
+  isEditing: boolean = false,
+  showCorrectIndicator: boolean = true
+): string {
+  const classes = [
+    "quiz-modal-option-card",
+    showCorrectIndicator && option.is_correct === "1" && "is-correct",
+    isEditing && "quiz-modal-option-card-editing",
+    isDragging && "is-dragging",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return classes;
+}
+
+/**
+ * Quiz option reorder utility specifically for question options
+ */
+export function createQuizOptionReorder(
+  onQuestionUpdate: (questionIndex: number, field: any, value: any) => void,
+  questionIndex: number
+) {
+  return React.useCallback(
+    (newOrder: any[]) => {
+      // Update answer_order for all options
+      const updatedAnswers = newOrder.map((answer: any, index: number) => ({
+        ...answer,
+        answer_order: index + 1,
+        _data_status: answer._data_status === "new" ? "new" : "update",
+      }));
+
+      onQuestionUpdate(questionIndex, "question_answers", updatedAnswers);
+    },
+    [onQuestionUpdate, questionIndex]
   );
 }
