@@ -7,6 +7,8 @@ import {
   isValidQuizDetails,
   createQuizError,
 } from "../types/quiz";
+// Import quiz form utilities
+import * as quizFormUtils from "../utils/quizForm";
 import type { TutorPressApi } from "../types/wordpress";
 
 // Create the quiz utilities object
@@ -40,8 +42,10 @@ if (typeof window.tutorpress === "undefined") {
   window.tutorpress = {
     api,
     quiz: quizUtils,
+    utils: quizFormUtils,
   };
 } else {
   window.tutorpress.api = api;
   window.tutorpress.quiz = quizUtils;
+  window.tutorpress.utils = quizFormUtils;
 }

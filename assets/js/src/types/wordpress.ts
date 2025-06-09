@@ -232,6 +232,7 @@ declare global {
     tutorpress: {
       api: TutorPressApi;
       quiz: TutorPressQuizUtils;
+      utils: any; // Quiz form utilities
     };
   }
 }
