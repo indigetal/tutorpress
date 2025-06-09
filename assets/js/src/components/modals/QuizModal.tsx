@@ -1347,6 +1347,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                         hideQuestionNumberOverview={formState.settings.hide_question_number_overview}
                         shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
                         openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
+                        attemptsAllowed={formState.settings.attempts_allowed}
                         coursePreviewAddonAvailable={coursePreviewAddon.available}
                         isSaving={isSaving}
                         saveSuccess={saveSuccess}

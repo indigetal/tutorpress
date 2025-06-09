@@ -66,6 +66,9 @@ interface SettingsTabProps {
   shortAnswerCharactersLimit: number;
   openEndedAnswerCharactersLimit: number;
 
+  // Attempts allowed (conditional on retry feedback mode)
+  attemptsAllowed: number;
+
   // Addon state
   coursePreviewAddonAvailable: boolean;
 
@@ -86,6 +89,7 @@ interface SettingsTabProps {
     passingGrade?: string;
     maxQuestions?: string;
     availableAfterDays?: string;
+    attemptsAllowed?: string;
   };
 }
 
@@ -103,6 +107,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   hideQuestionNumberOverview,
   shortAnswerCharactersLimit,
   openEndedAnswerCharactersLimit,
+  attemptsAllowed,
   coursePreviewAddonAvailable,
   isSaving,
   saveSuccess,
@@ -219,6 +224,32 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               {selectedFeedbackMode && <p className="quiz-modal-setting-help">{selectedFeedbackMode.help}</p>}
             </div>
 
+            {/* Attempts Allowed (conditional on retry feedback mode) */}
+            {feedbackMode === "retry" && (
+              <div className="quiz-modal-setting-group">
+                <NumberControl
+                  label={__("Attempts Allowed", "tutorpress")}
+                  value={attemptsAllowed}
+                  onChange={(value) => onSettingChange({ attempts_allowed: parseInt(value as string) || 0 })}
+                  min={0}
+                  max={20}
+                  step={1}
+                  disabled={isSaving}
+                />
+                <p className="quiz-modal-setting-help">
+                  {__(
+                    'Define how many times a student can retake this quiz. Setting it to "0" allows unlimited attempts.',
+                    "tutorpress"
+                  )}
+                </p>
+                {errors.attemptsAllowed && (
+                  <Notice status="error" isDismissible={false}>
+                    {errors.attemptsAllowed}
+                  </Notice>
+                )}
+              </div>
+            )}
+
             {/* Passing Grade */}
             <div className="quiz-modal-setting-group">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -229,7 +260,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   min={0}
                   max={100}
                   step={1}
-                  style={{ width: "120px" }}
                   disabled={isSaving}
                 />
                 <span style={{ fontSize: "16px", fontWeight: "bold" }}>%</span>
@@ -247,12 +277,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {/* Max Questions Allowed to Answer */}
             <div className="quiz-modal-setting-group">
               <NumberControl
-                label={__("Max Question Allowed to Answer", "tutorpress")}
+                label={__("Max Questions Allowed to Answer", "tutorpress")}
                 value={maxQuestionsForAnswer}
                 onChange={(value) => onSettingChange({ max_questions_for_answer: parseInt(value as string) || 0 })}
                 min={0}
                 step={1}
-                style={{ width: "120px" }}
                 disabled={isSaving}
               />
               <p className="quiz-modal-setting-help">
@@ -277,7 +306,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   onChange={(value) => onContentDripChange(parseInt(value as string) || 0)}
                   min={0}
                   step={1}
-                  style={{ width: "120px" }}
                   disabled={isSaving}
                 />
                 <p className="quiz-modal-setting-help">
@@ -353,7 +381,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {/* Character Limits */}
             <div className="quiz-modal-setting-group">
               <NumberControl
-                label={__("Set Character Limit for Short Answers", "tutorpress")}
+                label={__("Short Answer Character Limit", "tutorpress")}
                 value={shortAnswerCharactersLimit}
                 onChange={(value) =>
                   onSettingChange({ short_answer_characters_limit: parseInt(value as string) || 200 })
@@ -361,14 +389,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 min={1}
                 max={10000}
                 step={1}
-                style={{ width: "150px" }}
                 disabled={isSaving}
               />
             </div>
 
             <div className="quiz-modal-setting-group">
               <NumberControl
-                label={__("Set Character Limit for Open-Ended/Essay Answers", "tutorpress")}
+                label={__("Essay Answer Character Limit", "tutorpress")}
                 value={openEndedAnswerCharactersLimit}
                 onChange={(value) =>
                   onSettingChange({ open_ended_answer_characters_limit: parseInt(value as string) || 500 })
@@ -376,7 +403,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 min={1}
                 max={50000}
                 step={1}
-                style={{ width: "150px" }}
                 disabled={isSaving}
               />
             </div>

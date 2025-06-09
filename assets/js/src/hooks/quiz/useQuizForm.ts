@@ -37,6 +37,7 @@ export interface QuizFormErrors {
   passingGrade?: string;
   maxQuestions?: string;
   availableAfterDays?: string;
+  attemptsAllowed?: string;
 }
 
 /**
@@ -159,6 +160,13 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
       // Available after days validation (if Course Preview addon is available)
       if (coursePreviewAddon.available && state.settings.content_drip_settings.after_xdays_of_enroll < 0) {
         errors.availableAfterDays = __("Available after days cannot be negative", "tutorpress");
+      }
+
+      // Attempts allowed validation (only validate when feedback mode is "retry")
+      if (state.settings.feedback_mode === "retry") {
+        if (state.settings.attempts_allowed < 0 || state.settings.attempts_allowed > 20) {
+          errors.attemptsAllowed = __("Allowed attempts must be between 0 and 20", "tutorpress");
+        }
       }
 
       return errors;
