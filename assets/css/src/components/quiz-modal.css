@@ -202,6 +202,23 @@
   margin: 0 auto;
 }
 
+/* Two Column Layout for Settings */
+.quiz-modal-two-column-layout {
+  display: flex;
+  gap: 16px;
+}
+
+.quiz-modal-setting-column {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .quiz-modal-two-column-layout {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 .quiz-modal-settings-content h3 {
   margin: 0 0 16px 0;
   font-size: 18px;

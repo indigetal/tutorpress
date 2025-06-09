@@ -210,16 +210,42 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
   );
 
   /**
+   * Convert Tutor LMS integer booleans to actual booleans
+   */
+  const convertTutorBooleans = useCallback((settings: any): any => {
+    const booleanFields = [
+      "hide_quiz_time_display",
+      "quiz_auto_start",
+      "hide_question_number_overview",
+      "pass_is_required",
+    ];
+
+    const converted = { ...settings };
+
+    booleanFields.forEach((field) => {
+      if (field in converted) {
+        // Convert integer (0/1) or string ("0"/"1") to boolean
+        converted[field] = converted[field] === 1 || converted[field] === "1" || converted[field] === true;
+      }
+    });
+
+    return converted;
+  }, []);
+
+  /**
    * Update quiz settings
    */
   const updateSettings = useCallback(
     (settings: Partial<QuizSettings>) => {
+      // Convert Tutor LMS integer booleans to actual booleans
+      const convertedSettings = convertTutorBooleans(settings);
+
       setFormState((prevState) => {
         const newState = {
           ...prevState,
           settings: {
             ...prevState.settings,
-            ...settings,
+            ...convertedSettings,
           },
           isDirty: true,
         };
@@ -232,7 +258,7 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
         return newState;
       });
     },
-    [validateForm]
+    [validateForm, convertTutorBooleans]
   );
 
   /**
@@ -280,22 +306,48 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
   }, [initialData]);
 
   /**
+   * Convert booleans back to integers for Tutor LMS compatibility
+   */
+  const convertBooleansToIntegers = useCallback((settings: any): any => {
+    const booleanFields = [
+      "hide_quiz_time_display",
+      "quiz_auto_start",
+      "hide_question_number_overview",
+      "pass_is_required",
+    ];
+
+    const converted = { ...settings };
+
+    booleanFields.forEach((field) => {
+      if (field in converted && typeof converted[field] === "boolean") {
+        // Convert boolean to integer (0/1) for Tutor LMS
+        converted[field] = converted[field] ? 1 : 0;
+      }
+    });
+
+    return converted;
+  }, []);
+
+  /**
    * Get form data for saving
    */
   const getFormData = useCallback(
     (currentQuestions?: QuizQuestion[]): QuizForm => {
+      // Convert booleans back to integers for Tutor LMS compatibility
+      const tutorCompatibleSettings = convertBooleansToIntegers(formState.settings);
+
       return {
         ID: initialData?.ID,
         post_title: formState.title.trim(),
         post_content: formState.description.trim(),
-        quiz_option: formState.settings,
+        quiz_option: tutorCompatibleSettings,
         questions: currentQuestions || initialData?.questions || [],
         deleted_question_ids: initialData?.deleted_question_ids || [],
         deleted_answer_ids: initialData?.deleted_answer_ids || [],
         menu_order: initialData?.menu_order || 0,
       };
     },
-    [formState, initialData]
+    [formState, initialData, convertBooleansToIntegers]
   );
 
   /**
