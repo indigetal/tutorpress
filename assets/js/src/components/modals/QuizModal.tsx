@@ -977,6 +977,38 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Handle reordering questions - Step 9
+   */
+  const handleQuestionReorder = (items: Array<{ id: number; [key: string]: any }>) => {
+    // Update question orders based on new positions
+    const updatedQuestions = items
+      .map((item, index) => {
+        const question = questions.find((q) => q.question_id === item.id);
+        if (!question) return null;
+
+        return {
+          ...question,
+          question_order: index + 1,
+          _data_status: question._data_status === "new" ? ("new" as DataStatus) : ("update" as DataStatus),
+        };
+      })
+      .filter(Boolean) as QuizQuestion[];
+
+    setQuestions(updatedQuestions);
+
+    // Update selected index if needed
+    if (selectedQuestionIndex !== null) {
+      const selectedQuestion = questions[selectedQuestionIndex];
+      if (selectedQuestion) {
+        const newIndex = updatedQuestions.findIndex((q) => q.question_id === selectedQuestion.question_id);
+        if (newIndex !== -1) {
+          setSelectedQuestionIndex(newIndex);
+        }
+      }
+    }
+  };
+
+  /**
    * Get question type display name for badges - Step 3.2
    */
   const getQuestionTypeDisplayName = (questionType: QuizQuestionType): string => {
@@ -1291,6 +1323,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                         onQuestionSelect={handleQuestionSelect}
                         onQuestionTypeSelect={handleQuestionTypeSelect}
                         onDeleteQuestion={handleDeleteQuestion}
+                        onQuestionReorder={handleQuestionReorder}
                         onCancelAddQuestion={() => setIsAddingQuestion(false)}
                         onSaveErrorDismiss={() => setSaveError(null)}
                         getQuestionTypeDisplayName={getQuestionTypeDisplayName}

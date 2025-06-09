@@ -29,9 +29,13 @@
  * @since 1.0.0
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Button, SelectControl, Spinner, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { createQuizDragHandlers } from "../../../components/common";
 import type { QuizQuestion, QuizQuestionType } from "../../../types/quiz";
 
 interface QuestionTypeOption {
@@ -53,9 +57,83 @@ interface QuestionListProps {
   onQuestionSelect: (index: number) => void;
   onQuestionTypeSelect: (type: QuizQuestionType) => void;
   onDeleteQuestion: (index: number) => void;
+  onQuestionReorder: (items: Array<{ id: number; [key: string]: any }>) => void;
   onCancelAddQuestion: () => void;
   getQuestionTypeDisplayName: (type: QuizQuestionType) => string;
 }
+
+interface SortableQuestionItemProps {
+  question: QuizQuestion;
+  index: number;
+  isSelected: boolean;
+  onQuestionSelect: (index: number) => void;
+  onDeleteQuestion: (index: number) => void;
+  getQuestionTypeDisplayName: (type: QuizQuestionType) => string;
+}
+
+const SortableQuestionItem: React.FC<SortableQuestionItemProps> = ({
+  question,
+  index,
+  isSelected,
+  onQuestionSelect,
+  onDeleteQuestion,
+  getQuestionTypeDisplayName,
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: question.question_id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`tutorpress-content-item quiz-modal-question-item ${isSelected ? "is-selected" : ""}`}
+      onClick={() => onQuestionSelect(index)}
+    >
+      <div className="tutorpress-content-item-icon">
+        <span className="quiz-modal-question-number item-icon">{index + 1}</span>
+        <div {...attributes} {...listeners} className="drag-icon" style={{ cursor: isDragging ? "grabbing" : "grab" }}>
+          <Icon icon="menu" />
+        </div>
+      </div>
+      <div className="quiz-modal-question-content">
+        <div className="quiz-modal-question-title">
+          {question.question_title || `${__("Question", "tutorpress")} ${index + 1}`}
+        </div>
+        <div className="quiz-modal-question-type-badge">{getQuestionTypeDisplayName(question.question_type)}</div>
+      </div>
+      <div className="tutorpress-content-item-actions">
+        <Button
+          icon="admin-page"
+          label={__("Duplicate Question", "tutorpress")}
+          isSmall
+          variant="tertiary"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            // TODO: Implement duplication in future step
+            console.log("Duplicate question:", index);
+          }}
+        />
+        <Button
+          icon="trash"
+          label={__("Delete Question", "tutorpress")}
+          isSmall
+          variant="tertiary"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            onDeleteQuestion(index);
+          }}
+        />
+      </div>
+    </div>
+  );
+};
 
 export const QuestionList: React.FC<QuestionListProps> = ({
   questions,
@@ -70,9 +148,36 @@ export const QuestionList: React.FC<QuestionListProps> = ({
   onQuestionSelect,
   onQuestionTypeSelect,
   onDeleteQuestion,
+  onQuestionReorder,
   onCancelAddQuestion,
   getQuestionTypeDisplayName,
 }) => {
+  // Drag and drop state
+  const [activeQuestionId, setActiveQuestionId] = useState<number | null>(null);
+  const [isDraggingQuestion, setIsDraggingQuestion] = useState(false);
+
+  // Configure drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // Create drag handlers using utility
+  const { handleDragStart, handleDragEnd, handleDragCancel } = createQuizDragHandlers({
+    items: questions.map((question) => ({ ...question, id: question.question_id })),
+    onReorder: onQuestionReorder,
+    onDragStart: (activeId) => {
+      setActiveQuestionId(activeId);
+      setIsDraggingQuestion(true);
+    },
+    onDragEnd: () => {
+      setActiveQuestionId(null);
+      setIsDraggingQuestion(false);
+    },
+  });
   return (
     <div className="quiz-modal-questions-section">
       <div className="quiz-modal-questions-header">
@@ -135,51 +240,26 @@ export const QuestionList: React.FC<QuestionListProps> = ({
             <p>{__("No questions added yet. Click + to add your first question.", "tutorpress")}</p>
           </div>
         ) : (
-          questions.map((question, index) => (
-            <div
-              key={question.question_id}
-              className={`tutorpress-content-item quiz-modal-question-item ${
-                selectedQuestionIndex === index ? "is-selected" : ""
-              }`}
-              onClick={() => onQuestionSelect(index)}
-            >
-              <div className="tutorpress-content-item-icon">
-                <span className="quiz-modal-question-number item-icon">{index + 1}</span>
-                <Icon icon="menu" className="drag-icon" />
-              </div>
-              <div className="quiz-modal-question-content">
-                <div className="quiz-modal-question-title">
-                  {question.question_title || `${__("Question", "tutorpress")} ${index + 1}`}
-                </div>
-                <div className="quiz-modal-question-type-badge">
-                  {getQuestionTypeDisplayName(question.question_type)}
-                </div>
-              </div>
-              <div className="tutorpress-content-item-actions">
-                <Button
-                  icon="admin-page"
-                  label={__("Duplicate Question", "tutorpress")}
-                  isSmall
-                  variant="tertiary"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation();
-                    // TODO: Implement duplication in future step
-                    console.log("Duplicate question:", index);
-                  }}
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext items={questions.map((q) => q.question_id)} strategy={verticalListSortingStrategy}>
+              {questions.map((question, index) => (
+                <SortableQuestionItem
+                  key={question.question_id}
+                  question={question}
+                  index={index}
+                  isSelected={selectedQuestionIndex === index}
+                  onQuestionSelect={onQuestionSelect}
+                  onDeleteQuestion={onDeleteQuestion}
+                  getQuestionTypeDisplayName={getQuestionTypeDisplayName}
                 />
-                <Button
-                  icon="trash"
-                  label={__("Delete Question", "tutorpress")}
-                  isSmall
-                  variant="tertiary"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation();
-                    onDeleteQuestion(index);
-                  }}
-                />
-              </div>
-            </div>
-          ))
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>

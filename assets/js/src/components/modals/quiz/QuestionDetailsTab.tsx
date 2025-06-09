@@ -72,6 +72,7 @@ interface QuestionDetailsTabProps {
   onQuestionSelect: (index: number) => void;
   onQuestionTypeSelect: (type: QuizQuestionType) => void;
   onDeleteQuestion: (index: number) => void;
+  onQuestionReorder: (items: Array<{ id: number; [key: string]: any }>) => void;
   onCancelAddQuestion: () => void;
   onSaveErrorDismiss: () => void;
   getQuestionTypeDisplayName: (type: QuizQuestionType) => string;
@@ -100,6 +101,7 @@ export const QuestionDetailsTab: React.FC<QuestionDetailsTabProps> = ({
   onQuestionSelect,
   onQuestionTypeSelect,
   onDeleteQuestion,
+  onQuestionReorder,
   onCancelAddQuestion,
   onSaveErrorDismiss,
   getQuestionTypeDisplayName,
@@ -158,6 +160,7 @@ export const QuestionDetailsTab: React.FC<QuestionDetailsTabProps> = ({
             onQuestionSelect={onQuestionSelect}
             onQuestionTypeSelect={onQuestionTypeSelect}
             onDeleteQuestion={onDeleteQuestion}
+            onQuestionReorder={onQuestionReorder}
             onCancelAddQuestion={() => onCancelAddQuestion()}
             getQuestionTypeDisplayName={getQuestionTypeDisplayName}
           />
