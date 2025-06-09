@@ -1,12 +1,29 @@
 /**
- * Common Hooks Index
+ * Common Hooks Exports
  *
- * @description Exports for shared hooks used across multiple components
+ * @description Centralized exports for reusable hooks that can be used across different modal types.
+ *              These hooks provide generic functionality for form state management, validation,
+ *              and other common patterns extracted from specific implementations.
  *
  * @package TutorPress
- * @subpackage Hooks/Common
+ * @subpackage Common/Hooks
  * @since 1.0.0
  */
+
+// Form State Management
+export {
+  useModalFormState,
+  createDefaultValidationRules,
+  mergeValidationErrors,
+  createNumericValidationRule,
+  createRequiredFieldValidationRule,
+  type ModalFormErrors,
+  type ModalFormState,
+  type ValidationRule,
+  type ModalFormInitialData,
+  type UseModalFormStateOptions,
+  type UseModalFormStateReturn,
+} from "./useModalFormState";
 
 export {
   useSortableList,
