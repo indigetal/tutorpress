@@ -72,6 +72,7 @@ export interface UseQuizFormReturn {
   updateTimeLimit: (value: number, type: TimeUnit) => void;
   updateContentDrip: (days: number) => void;
   resetForm: () => void;
+  resetToDefaults: () => void;
   validateEntireForm: () => boolean;
   checkCoursePreviewAddon: () => Promise<boolean>;
   getFormData: (questions: QuizQuestion[]) => QuizForm;
@@ -300,7 +301,7 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
   );
 
   /**
-   * Reset form to initial state
+   * Reset form to initial state or defaults for new quiz
    */
   const resetForm = useCallback(() => {
     setFormState({
@@ -312,6 +313,20 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
       isDirty: false,
     });
   }, [initialData]);
+
+  /**
+   * Reset form to completely clean defaults (for new quiz)
+   */
+  const resetToDefaults = useCallback(() => {
+    setFormState({
+      title: "",
+      description: "",
+      settings: getDefaultQuizSettings(),
+      errors: {},
+      isValid: true,
+      isDirty: false,
+    });
+  }, []);
 
   /**
    * Convert booleans back to integers for Tutor LMS compatibility
@@ -383,6 +398,7 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
     updateTimeLimit,
     updateContentDrip,
     resetForm,
+    resetToDefaults,
     validateEntireForm,
     checkCoursePreviewAddon,
     getFormData,

@@ -312,6 +312,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     updateTimeLimit,
     updateContentDrip,
     resetForm,
+    resetToDefaults,
     validateEntireForm,
     checkCoursePreviewAddon,
     getFormData,
@@ -433,6 +434,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       // Reset for new quiz
       setQuizData(null);
       setLoadError(null);
+      // Reset form to clean defaults for new quiz
+      resetToDefaults();
       // Reset questions state for new quiz - Step 3.2
       setQuestions([]);
       setSelectedQuestionIndex(null);
@@ -442,7 +445,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       setDeletedQuestionIds([]);
       setDeletedAnswerIds([]);
     }
-  }, [isOpen, quizId]);
+  }, [isOpen, quizId, resetToDefaults]);
 
   // Load question types when modal opens
   useEffect(() => {
