@@ -44,6 +44,7 @@ import { SortableOption } from "./SortableOption";
 import { OptionEditor } from "./OptionEditor";
 import { ValidationDisplay } from "./ValidationDisplay";
 import { useQuestionValidation, useImageManagement } from "../../../../hooks/quiz";
+import { createQuizDragHandlers, createQuizOptionReorder } from "../../../../components/common";
 import type { QuizQuestion, QuizQuestionOption, DataStatus } from "../../../../types/quiz";
 
 interface OrderingQuestionProps {
@@ -238,50 +239,22 @@ export const OrderingQuestion: React.FC<OrderingQuestionProps> = ({
     onQuestionUpdate(questionIndex, "question_answers", updatedAnswers);
   };
 
-  /**
-   * Handle drag start
-   */
-  const handleDragStart = (event: any) => {
-    setActiveOptionId(Number(event.active.id));
-    setIsDraggingOption(true);
-  };
+  // Create shared reorder handler using utility
+  const handleOptionReorder = createQuizOptionReorder(onQuestionUpdate, questionIndex);
 
-  /**
-   * Handle drag end
-   */
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = existingOptions.findIndex((answer) => answer.answer_id === Number(active.id));
-      const newIndex = existingOptions.findIndex((answer) => answer.answer_id === Number(over.id));
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        // Reorder the options
-        const reorderedAnswers = arrayMove(existingOptions, oldIndex, newIndex);
-
-        // Update answer_order for all options
-        const updatedAnswers = reorderedAnswers.map((answer, index) => ({
-          ...answer,
-          answer_order: index + 1,
-          _data_status: (answer._data_status === "new" ? "new" : "update") as DataStatus,
-        }));
-
-        onQuestionUpdate(questionIndex, "question_answers", updatedAnswers);
-      }
-    }
-
-    setActiveOptionId(null);
-    setIsDraggingOption(false);
-  };
-
-  /**
-   * Handle drag cancel
-   */
-  const handleDragCancel = () => {
-    setActiveOptionId(null);
-    setIsDraggingOption(false);
-  };
+  // Create shared drag handlers using utility
+  const { handleDragStart, handleDragEnd, handleDragCancel } = createQuizDragHandlers({
+    items: existingOptions.map((option) => ({ ...option, id: option.answer_id })),
+    onReorder: handleOptionReorder,
+    onDragStart: (activeId) => {
+      setActiveOptionId(activeId);
+      setIsDraggingOption(true);
+    },
+    onDragEnd: () => {
+      setActiveOptionId(null);
+      setIsDraggingOption(false);
+    },
+  });
 
   /**
    * Handle image addition
