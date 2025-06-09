@@ -212,6 +212,10 @@
   flex: 1;
 }
 
+.quiz-modal-setting-full-width {
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .quiz-modal-two-column-layout {
     flex-direction: column;
