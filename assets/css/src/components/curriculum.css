@@ -1,0 +1,55 @@
+/**
+ * Course Curriculum Metabox
+ * Basic styles for the curriculum metabox structure.
+ * Using WordPress admin color variables for consistency.
+ */
+.tutorpress-curriculum-metabox {
+  /* Box model */
+  padding: 16px;
+  margin: -6px -12px -12px -12px; /* Adjust for WP metabox padding */
+
+  /* Colors - using WP admin variables */
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+}
+
+.tutorpress-curriculum-container {
+  /* Box model */
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.tutorpress-curriculum-content {
+  /* Box model */
+  min-height: 100px;
+  padding: 16px;
+
+  /* Colors */
+  background: #fff;
+}
+
+#tutorpress-curriculum-root {
+  /* Box model */
+  width: 100%;
+  min-height: 50px;
+
+  /* Typography */
+  text-align: center;
+  color: var(--wp-admin-theme-color-darker-10, #50575e);
+}
+
+/* Loading state */
+#tutorpress-curriculum-root:empty::before {
+  content: attr(data-loading);
+  display: block;
+  padding: 20px;
+  color: var(--wp-admin-theme-color-darker-10, #50575e);
+  font-style: italic;
+}
+
+/**
+ * Curriculum Builder Styles
+ */
+
+.tutorpress-curriculum {
+  padding: 16px;
+}

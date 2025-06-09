@@ -1,0 +1,71 @@
+{
+  "name": "tutorpress",
+  "version": "0.1.0",
+  "description": "TutorPress is a comprehensive solution for Tutor LMS that extends the WordPress editor with advanced Gutenberg functionalities. It includes the innovative Course Curriculum metabox and is designed to evolve with additional features for enhanced course management, enrollment, and content delivery.",
+  "author": "",
+  "license": "GPL-2.0-or-later",
+  "private": true,
+  "keywords": [
+    "wordpress",
+    "tutor-lms",
+    "gutenberg",
+    "curriculum"
+  ],
+  "main": "assets/js/build/index.js",
+  "scripts": {
+    "start": "wp-scripts start --config webpack.config.js",
+    "build": "wp-scripts build --config webpack.config.js",
+    "build:production": "npm run build && npm run clean:dist && npm run copy:dist",
+    "clean:dist": "rm -rf dist && mkdir dist",
+    "copy:dist": "rsync -av --exclude-from=.distignore . dist/",
+    "package": "npm run build:production && cd dist && zip -r ../tutorpress.zip .",
+    "check-types": "tsc --noEmit",
+    "check-types:watch": "tsc --noEmit --watch",
+    "lint:js": "wp-scripts lint-js",
+    "lint:css": "wp-scripts lint-style",
+    "lint": "npm run lint:js && npm run lint:css",
+    "format": "wp-scripts format"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/wordpress__components": "^23.0.1",
+    "@types/wordpress__data": "^6.0.1",
+    "@types/wordpress__edit-post": "^8.4.2",
+    "@types/wordpress__editor": "^14.3.1",
+    "@types/wordpress__plugins": "^3.0.3",
+    "@wordpress/scripts": "^26.0.0",
+    "autoprefixer": "^10.4.21",
+    "css-loader": "^7.1.2",
+    "cssnano": "^7.0.7",
+    "postcss": "^8.5.4",
+    "postcss-import": "^16.1.0",
+    "postcss-import-ext-glob": "^2.1.1",
+    "postcss-loader": "^8.1.1",
+    "postcss-preset-env": "^10.2.1",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.0.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@wordpress/api-fetch": "^6.6.0",
+    "@wordpress/components": "^29.5.0",
+    "@wordpress/data": "^9.24.0",
+    "@wordpress/data-controls": "^4.22.0",
+    "@wordpress/edit-post": "^8.24.0",
+    "@wordpress/editor": "^13.24.0",
+    "@wordpress/element": "^5.24.0",
+    "@wordpress/hooks": "^3.47.0",
+    "@wordpress/i18n": "^4.47.0",
+    "@wordpress/notices": "^5.22.0",
+    "@wordpress/plugins": "^7.24.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

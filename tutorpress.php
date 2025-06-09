@@ -1,10 +1,12 @@
 <?php
-/*
-Plugin Name: TutorPress
-Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
-Version: 1.2.7
-Author: Brandon Meyer
-*/
+/**
+ * Plugin Name: TutorPress
+ * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
+ * Version: 1.2.7
+ * Author: Brandon Meyer
+ *
+ * @fs_premium_only /includes/gutenberg/
+ */
 
 // Exit if accessed directly.
 if (!defined('ABSPATH')) {
@@ -23,11 +25,75 @@ require_once TUTORPRESS_PATH . 'includes/class-admin-customizations.php';
 require_once TUTORPRESS_PATH . 'includes/class-dashboard-customizations.php';
 require_once TUTORPRESS_PATH . 'includes/class-sidebar-tabs.php';
 require_once TUTORPRESS_PATH . 'includes/class-scripts.php';
+require_once TUTORPRESS_PATH . 'includes/class-rest.php';
+
+require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-assignment-settings.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-lesson-settings.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-content-drip-helpers.php';
+
+// Load REST controllers early
+require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-topics-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
+require_once TUTORPRESS_PATH . 'includes/rest/class-quizzes-controller.php';
+
+// Initialize lesson handling
+TutorPress_REST_Lessons_Controller::init();
+
+// Initialize assignment handling
+TutorPress_REST_Assignments_Controller::init();
+
+// Initialize quiz handling
+TutorPress_REST_Quizzes_Controller::init();
+
+// Initialize assignment settings
+TutorPress_Assignment_Settings::init();
+
+// Initialize lesson settings
+TutorPress_Lesson_Settings::init();
+
+// Initialize Content Drip helpers
+TutorPress_Content_Drip_Helpers::init();
+
+// Initialize REST API early
+add_action('init', function() {
+    new TutorPress_REST();
+});
 
 // Initialize classes when Tutor LMS is fully loaded.
 add_action('tutor_loaded', function () {
     Tutor_LMS_Metadata_Handler::init(); // Metadata handler
 });
+
+// Modify assignment post type to enable WordPress admin UI
+add_action('init', function() {
+    // Check if Tutor LMS has registered the assignment post type
+    if (post_type_exists('tutor_assignments')) {
+        // Get the current post type object
+        $assignment_post_type = get_post_type_object('tutor_assignments');
+        
+        if ($assignment_post_type) {
+            // Enable admin UI for assignments
+            $assignment_post_type->show_ui = true;
+            $assignment_post_type->show_in_menu = false; // Keep it out of the main menu
+            $assignment_post_type->public = true;
+            $assignment_post_type->publicly_queryable = true;
+            
+            // Enable Gutenberg editor support (same as lessons)
+            $enable_gutenberg = (bool) tutor_utils()->get_option('enable_gutenberg_course_edit');
+            if ($enable_gutenberg) {
+                $assignment_post_type->show_in_rest = true;
+            }
+            
+            // Enable Gutenberg for assignments if not already enabled
+            if (!post_type_supports('tutor_assignments', 'editor')) {
+                add_post_type_support('tutor_assignments', 'editor');
+            }
+        }
+    }
+}, 20); // Priority 20 to run after Tutor LMS registration
 
 /* Freemius Integration Start */
 if ( ! function_exists( 'tutorpress_fs' ) ) {

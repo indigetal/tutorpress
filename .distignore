@@ -1,0 +1,35 @@
+# Development files and directories to exclude from production build
+# Node.js
+node_modules/
+package.json
+package-lock.json
+webpack.config.js
+postcss.config.js
+tsconfig.json
+
+# Development directories
+memory-bank/
+tutor-master/
+tutor-pro/
+.git/
+.cursor/
+gutenberg-original.css
+
+# Source files (already compiled to build/)
+assets/js/src/
+assets/css/src/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Development scripts
+.distignore
+
+# Distribution files
+dist/
+tutorpress.zip 

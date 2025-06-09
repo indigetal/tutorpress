@@ -1,10 +1,21 @@
-# Ignore OS generated files
+# Operating System Files
 .DS_Store
 
-# Ignore IDE/editor specific files
+# IDE/Editor Files
 .vscode/
-
-# Ignore IDE files and memory bank directories
 .cursor/
+
+# Development Files
 memory-bank/
 tutor-master/
+tutor-pro/
+
+# Dependencies
+node_modules/
+
+# Build/Compiled Files
+assets/js/build/
+
+# Distribution Files
+dist/
+tutorpress.zip

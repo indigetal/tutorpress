@@ -1,0 +1,362 @@
+/**
+ * Quiz Option Cards Styles
+ * Styles for option cards display, drag handles, and correct answer indicators
+ */
+
+/* Option Cards Display */
+.quiz-modal-option-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease-in-out;
+}
+
+.quiz-modal-option-card:hover {
+  border-color: #999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.quiz-modal-option-card-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+.quiz-modal-option-card-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quiz-modal-option-card-icon .quiz-modal-option-label,
+.quiz-modal-option-card-icon .quiz-modal-drag-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.2s ease;
+}
+
+.quiz-modal-option-card-icon .quiz-modal-drag-handle {
+  opacity: 0;
+  z-index: 10;
+}
+
+.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-option-label {
+  opacity: 0;
+}
+
+.quiz-modal-option-card:hover .quiz-modal-option-card-icon .quiz-modal-drag-handle {
+  opacity: 1;
+}
+
+.quiz-modal-option-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e1e1e;
+  min-width: 24px;
+  text-align: center;
+}
+
+.quiz-modal-drag-handle {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: grab !important;
+  color: #666 !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 15 !important;
+}
+
+.quiz-modal-drag-handle:hover {
+  background: #f0f0f0 !important;
+  color: #333 !important;
+}
+
+.quiz-modal-drag-handle:active {
+  cursor: grabbing !important;
+  background: #e0e0e0 !important;
+}
+
+.quiz-modal-drag-handle svg {
+  width: 20px !important;
+  height: 20px !important;
+  pointer-events: none !important;
+}
+
+.quiz-modal-option-card-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  cursor: grab;
+  color: #999;
+  padding: 4px;
+  border-radius: 2px;
+  transition: color 0.15s ease-in-out;
+}
+
+.quiz-modal-option-card-drag:hover {
+  color: #666;
+  background: #eee;
+}
+
+.quiz-modal-option-card-drag svg {
+  width: 20px;
+  height: 20px;
+}
+
+.quiz-modal-option-card-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  margin-left: auto;
+}
+
+.quiz-modal-option-card:hover .quiz-modal-option-card-actions {
+  opacity: 1;
+}
+
+.quiz-modal-option-card-actions .components-button {
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 4px !important;
+}
+
+.quiz-modal-option-card-actions .components-button svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.quiz-modal-option-card-content {
+  padding: 12px 16px;
+  color: #1e1e1e;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quiz-modal-option-card-content:empty::before {
+  content: "(Empty option)";
+  color: #999;
+  font-style: italic;
+}
+
+/* Option Card Editing State - In-place editing */
+.quiz-modal-option-card-editing {
+  border-color: #0073aa;
+  box-shadow: 0 2px 8px rgba(0, 115, 170, 0.2);
+}
+
+.quiz-modal-option-card-editing .quiz-modal-option-editor {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  padding: 16px;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Multiple Choice Correct Answer Indicator */
+.quiz-modal-correct-answer-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.quiz-modal-correct-answer-indicator svg {
+  width: 14px;
+  height: 14px;
+  color: #999;
+  transition: color 0.2s ease;
+}
+
+/* Show indicator on hover */
+.quiz-modal-option-card:hover .quiz-modal-correct-answer-indicator {
+  opacity: 1;
+}
+
+/* Correct answer state */
+.quiz-modal-option-card.is-correct .quiz-modal-correct-answer-indicator {
+  opacity: 1;
+  border-color: #4caf50;
+  background: #4caf50;
+}
+
+.quiz-modal-option-card.is-correct .quiz-modal-correct-answer-indicator svg {
+  color: white;
+}
+
+.quiz-modal-option-card.is-correct {
+  border-color: #4caf50;
+  background: #f8fff8;
+}
+
+.quiz-modal-option-card.is-correct:hover {
+  border-color: #45a049;
+}
+
+.quiz-modal-option-card.is-correct .quiz-modal-option-text {
+  font-weight: 500;
+}
+
+.quiz-modal-option-text {
+  flex: 1;
+  color: #1e1e1e;
+}
+
+/* Drag and drop styles for multiple choice options */
+.quiz-modal-option-card {
+  position: relative;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.quiz-modal-option-card.is-dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+/* Drag overlay styles */
+.quiz-modal-multiple-choice-options .quiz-modal-option-card {
+  margin-bottom: 8px;
+}
+
+.quiz-modal-multiple-choice-options .quiz-modal-option-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Quiz Modal Multiple Choice Validation Errors */
+.quiz-modal-validation-error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.quiz-modal-validation-error p {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.quiz-modal-validation-error p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+/* Quiz Modal Multiple Choice Drag and Drop */
+
+/* Multiple Choice Option Image Styles */
+.quiz-modal-option-image-container {
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f9f9f9;
+}
+
+.quiz-modal-option-image {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Option content wrapper for images + text */
+.quiz-modal-option-content-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Remove Image button styling */
+.quiz-modal-add-image-btn.has-image {
+  background: #cc5a5a;
+  border-color: #cc5a5a;
+  color: white;
+}
+
+.quiz-modal-add-image-btn.has-image:hover {
+  background: #b94545;
+  border-color: #b94545;
+}
+
+.quiz-modal-add-image-btn.has-image:disabled {
+  background: #cc5a5a;
+  border-color: #cc5a5a;
+  opacity: 0.5;
+}
+
+/* Open Ended Question Notification Styles */
+.quiz-modal-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.quiz-modal-notification--info {
+  background-color: #f0f9ff;
+  border-color: #0ea5e9;
+  color: #0c4a6e;
+}
+
+.quiz-modal-notification__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.quiz-modal-notification__icon svg {
+  width: 20px;
+  height: 20px;
+  color: #0ea5e9;
+}
+
+.quiz-modal-notification__content {
+  flex: 1;
+  margin: 0;
+  color: #0c4a6e;
+}

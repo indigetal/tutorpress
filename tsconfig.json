@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "es2015",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "./assets/js/build",
+    "rootDir": "./assets/js/src",
+    "baseUrl": "./assets/js/src",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": ["assets/js/src/**/*"],
+  "exclude": ["node_modules"]
+}

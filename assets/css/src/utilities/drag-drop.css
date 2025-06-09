@@ -1,0 +1,324 @@
+/**
+ * Drag and Drop Utility Styles
+ * 
+ * @description Centralized drag-and-drop styles with superior visual feedback
+ *              that can be applied across topics, question options, and question lists.
+ *              Based on the enhanced visual patterns from the topics implementation.
+ * 
+ * @usage Apply these classes via the useSortableList hook's getItemClasses and getWrapperClasses methods
+ * 
+ * @package TutorPress
+ * @subpackage CSS/Utilities
+ * @since 1.0.0
+ */
+
+/* ============================================================================
+   Base Drag and Drop Styles - Superior Visual Feedback
+   ============================================================================ */
+
+/**
+ * Enhanced dragging state with blue overlay and semi-transparency
+ * Applied to items being dragged across all contexts
+ */
+.tutorpress-dragging {
+  opacity: 0.8 !important;
+  background: var(--wp-admin-theme-color-darker-10) !important;
+  border-color: var(--wp-admin-theme-color) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+  transform: rotate(1deg) !important;
+  transition: transform 0.2s ease !important;
+}
+
+/**
+ * Drop zone indicators - blue line and dot
+ * Applied to wrapper elements when showing drop indicators
+ */
+.tutorpress-drop-indicator::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--wp-admin-theme-color);
+  z-index: 10;
+}
+
+.tutorpress-drop-indicator::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--wp-admin-theme-color);
+  z-index: 10;
+}
+
+/**
+ * Base wrapper for sortable items
+ * Provides positioning context for drop indicators
+ */
+.tutorpress-sortable-wrapper {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+/* ============================================================================
+   Context-Specific Overrides
+   ============================================================================ */
+
+/**
+ * Topics Context
+ * Uses existing .tutorpress-sortable-topic--dragging and .show-indicator classes
+ * No overrides needed - topics already have superior styling
+ */
+
+/**
+ * Question Options Context
+ * Overrides for quiz modal option cards
+ */
+.quiz-modal-option-card.tutorpress-dragging {
+  /* Inherit base dragging styles with quiz-specific enhancements */
+  border-radius: 8px !important;
+}
+
+.quiz-modal-option-wrapper.tutorpress-drop-indicator {
+  /* Inherit base drop indicator styles */
+}
+
+.quiz-modal-option-wrapper.tutorpress-drop-indicator::before {
+  /* Quiz option specific drop line styling */
+  margin: 0 8px;
+  border-radius: 1px;
+}
+
+/**
+ * Question List Context
+ * Overrides for quiz modal question items
+ */
+.quiz-modal-question-item.tutorpress-dragging {
+  /* Inherit base dragging styles with question-specific enhancements */
+  border-radius: 6px !important;
+}
+
+.quiz-modal-question-wrapper.tutorpress-drop-indicator {
+  /* Inherit base drop indicator styles */
+}
+
+.quiz-modal-question-wrapper.tutorpress-drop-indicator::before {
+  /* Question list specific drop line styling */
+  margin: 0 12px;
+}
+
+/* ============================================================================
+   Drag Handle Styles
+   ============================================================================ */
+
+/**
+ * Consistent drag handle styling across all contexts
+ */
+.tutorpress-drag-handle {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: grab !important;
+  color: #666 !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 15 !important;
+  transition: all 0.2s ease !important;
+}
+
+.tutorpress-drag-handle:hover {
+  background: #f0f0f0 !important;
+  color: #333 !important;
+}
+
+.tutorpress-drag-handle:active {
+  cursor: grabbing !important;
+  background: #e0e0e0 !important;
+}
+
+.tutorpress-drag-handle svg {
+  width: 20px !important;
+  height: 20px !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================================
+   Accessibility and States
+   ============================================================================ */
+
+/**
+ * Focus states for keyboard navigation
+ */
+.tutorpress-drag-handle:focus {
+  outline: 2px solid var(--wp-admin-theme-color);
+  outline-offset: 2px;
+}
+
+/**
+ * Disabled state
+ */
+.tutorpress-drag-handle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+.tutorpress-drag-handle:disabled:hover {
+  background: transparent !important;
+  color: #666 !important;
+}
+
+/**
+ * High contrast mode support
+ */
+@media (prefers-contrast: high) {
+  .tutorpress-dragging {
+    border-width: 2px !important;
+  }
+
+  .tutorpress-drop-indicator::before {
+    height: 3px;
+  }
+
+  .tutorpress-drop-indicator::after {
+    width: 6px;
+  }
+}
+
+/**
+ * Reduced motion support
+ */
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-dragging,
+  .tutorpress-sortable-wrapper,
+  .tutorpress-drag-handle {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================================================
+   Generic SortableList Component Styles
+   ============================================================================ */
+
+/**
+ * Base container for sortable lists
+ */
+.sortable-list-container {
+  position: relative;
+}
+
+.sortable-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/**
+ * Loading and error states
+ */
+.sortable-list-loading,
+.sortable-list-error {
+  padding: 16px;
+  text-align: center;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.sortable-list-loading {
+  background: #f9f9f9;
+  color: #666;
+}
+
+.sortable-list-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.sortable-list-retry-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: var(--wp-admin-theme-color);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.sortable-list-retry-btn:hover {
+  background: var(--wp-admin-theme-color-darker-10);
+}
+
+/**
+ * Operation status display
+ */
+.sortable-list-status {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  z-index: 1001;
+}
+
+/* ============================================================================
+   Quiz-Specific Extensions
+   ============================================================================ */
+
+/**
+ * Quiz sortable list containers - reuse base styles with quiz naming
+ */
+.quiz-sortable-list-container {
+  /* Inherit from .sortable-list-container */
+  position: relative;
+}
+
+.quiz-sortable-list {
+  /* Inherit from .sortable-list */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/**
+ * Quiz loading and error states - reuse base patterns
+ */
+.quiz-sortable-list-loading {
+  /* Based on .sortable-list-loading with quiz-specific styling */
+  padding: 16px;
+  text-align: center;
+  border-radius: 6px;
+  margin: 8px 0;
+  background: #f8f9fa;
+  color: #6c757d;
+  font-size: 14px;
+  border: 1px solid #e9ecef;
+}
+
+/**
+ * Quiz drag overlay - optimized for quiz contexts
+ */
+.quiz-sortable-drag-overlay {
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.9;
+  transform: rotate(2deg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
