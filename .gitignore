@@ -9,6 +9,7 @@
 memory-bank/
 tutor-master/
 tutor-pro/
+h5p-plugin/
 
 # Dependencies
 node_modules/
