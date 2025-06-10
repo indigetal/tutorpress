@@ -67,12 +67,6 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
     }
   };
 
-  // Truncate description for table display
-  const truncateDescription = (description?: string, maxLength = 100) => {
-    if (!description) return "";
-    return description.length > maxLength ? description.substring(0, maxLength) + "..." : description;
-  };
-
   return (
     <div className="tutorpress-h5p-content-table">
       <div className="tutorpress-h5p-table-wrapper">
@@ -82,7 +76,6 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
               <th className="column-title">{__("Title", "tutorpress")}</th>
               <th className="column-type">{__("Type", "tutorpress")}</th>
               <th className="column-author">{__("Author", "tutorpress")}</th>
-              <th className="column-description">{__("Description", "tutorpress")}</th>
               <th className="column-date">{__("Last Modified", "tutorpress")}</th>
               <th className="column-actions">{__("Actions", "tutorpress")}</th>
             </tr>
@@ -90,7 +83,7 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
           <tbody>
             {contents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="no-items">
+                <td colSpan={5} className="no-items">
                   {isLoading ? __("Loading...", "tutorpress") : __("No H5P content found.", "tutorpress")}
                 </td>
               </tr>
@@ -104,7 +97,6 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
                     <span className="h5p-type-badge">{content.library || content.content_type}</span>
                   </td>
                   <td className="column-author">{content.user_name}</td>
-                  <td className="column-description">{truncateDescription(content.description)}</td>
                   <td className="column-date">{formatDate(content.updated_at)}</td>
                   <td className="column-actions">
                     <Button

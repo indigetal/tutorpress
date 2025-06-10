@@ -140,18 +140,6 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
       __experimentalHideHeader={false}
     >
       <div className="tutorpress-h5p-modal-content">
-        {/* Header with close button - replicating Tutor LMS style */}
-        <div className="tutorpress-h5p-modal-header">
-          <h2 className="tutorpress-h5p-modal-title">{title}</h2>
-          <Button
-            icon={close}
-            label={__("Close", "tutorpress")}
-            onClick={onClose}
-            className="tutorpress-h5p-close-button"
-            isSmall
-          />
-        </div>
-
         {/* Search and Filter Controls */}
         <div className="tutorpress-h5p-modal-body">
           <H5PContentSearch
@@ -228,30 +216,6 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
           display: flex;
           flex-direction: column;
           height: 100%;
-        }
-
-        .tutorpress-h5p-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px 25px;
-          border-bottom: 1px solid #ddd;
-          background: #f9f9f9;
-        }
-
-        .tutorpress-h5p-modal-title {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-          color: #1e1e1e;
-        }
-
-        .tutorpress-h5p-close-button {
-          color: #757575;
-        }
-
-        .tutorpress-h5p-close-button:hover {
-          color: #1e1e1e;
         }
 
         .tutorpress-h5p-modal-body {
