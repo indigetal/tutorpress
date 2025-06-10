@@ -37,6 +37,7 @@ class TutorPress_REST {
             require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
             require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
             require_once TUTORPRESS_PATH . 'includes/rest/class-quizzes-controller.php';
+            require_once TUTORPRESS_PATH . 'includes/rest/class-h5p-controller.php';
 
             // Initialize controllers
             $controllers = [
@@ -44,6 +45,7 @@ class TutorPress_REST {
                 'lessons'     => new TutorPress_REST_Lessons_Controller(),
                 'assignments' => new TutorPress_REST_Assignments_Controller(),
                 'quizzes'     => new TutorPress_REST_Quizzes_Controller(),
+                'h5p'         => new TutorPress_REST_H5P_Controller(),
             ];
 
             // Register routes for each controller
