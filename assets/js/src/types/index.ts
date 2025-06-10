@@ -56,3 +56,6 @@ export type { QuizApiOperation } from "./quiz";
 
 // Export all Interactive Quiz types
 export * from "./interactiveQuiz";
+
+// Export H5P types
+export * from "./h5p";

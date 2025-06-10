@@ -10,47 +10,77 @@
 // ============================================================================
 
 /**
- * H5P Content Item from REST API
+ * H5P Content interface based on Tutor LMS H5P integration
+ *
+ * Represents H5P content that can be selected for Interactive Quiz
  */
 export interface H5PContent {
+  /** Unique H5P content ID */
   id: number;
+
+  /** Display title of the H5P content */
   title: string;
+
+  /** H5P content type (e.g., 'tutor_h5p_quiz') */
   content_type: string;
-  library: string;
-  slug: string;
-  created_at: string;
+
+  /** User ID who created the content */
+  user_id: number;
+
+  /** Username of the content creator */
+  user_name: string;
+
+  /** Last updated timestamp */
   updated_at: string;
-  author: {
-    id: number;
-    name: string;
-  };
-  parameters?: Record<string, any>;
-  filtered_parameters?: Record<string, any>;
+
+  /** Optional description of the H5P content */
+  description?: string;
+
+  /** H5P library used (e.g., 'H5P.InteractiveVideo') */
+  library?: string;
 }
 
 /**
- * H5P Content List Response
- */
-export interface H5PContentListResponse {
-  success: boolean;
-  message?: string;
-  data: H5PContent[];
-  pagination?: {
-    total: number;
-    total_pages: number;
-    current_page: number;
-    per_page: number;
-  };
-}
-
-/**
- * H5P Content Search Parameters
+ * H5P Content search/filter parameters
  */
 export interface H5PContentSearchParams {
-  search_filter?: string;
-  content_type?: string;
+  /** Search term for content title */
+  search?: string;
+
+  /** Filter by content type */
+  contentType?: string;
+
+  /** Pagination: items per page */
   per_page?: number;
+
+  /** Pagination: page number */
   page?: number;
+
+  /** Sort order */
+  order?: "asc" | "desc";
+
+  /** Sort by field */
+  orderby?: "title" | "date" | "author";
+}
+
+/**
+ * H5P Content API response
+ */
+export interface H5PContentResponse {
+  /** Array of H5P content items */
+  items: H5PContent[];
+
+  /** Total number of items available */
+  total: number;
+
+  /** Current page number */
+  page: number;
+
+  /** Items per page */
+  per_page: number;
+
+  /** Total number of pages */
+  total_pages: number;
 }
 
 // ============================================================================
@@ -260,41 +290,6 @@ export interface H5PResultsState {
       context?: Record<string, any>;
     };
   };
-}
-
-// ============================================================================
-// Interactive Quiz Modal Types
-// ============================================================================
-
-/**
- * Interactive Quiz Form Data
- */
-export interface InteractiveQuizForm {
-  title: string;
-  h5p_content_id: number;
-  h5p_content_title?: string;
-  settings: {
-    feedback_mode: string;
-    time_limit: {
-      time_limit_enabled: boolean;
-      time_limit_value: number;
-    };
-    question_layout: string;
-    short_answer_characters_limit: number;
-  };
-}
-
-/**
- * Interactive Quiz Settings (subset of regular quiz settings)
- */
-export interface InteractiveQuizSettings {
-  feedback_mode: string;
-  time_limit: {
-    time_limit_enabled: boolean;
-    time_limit_value: number;
-  };
-  question_layout: string;
-  short_answer_characters_limit: number;
 }
 
 // ============================================================================

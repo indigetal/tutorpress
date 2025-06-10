@@ -12,83 +12,11 @@
 
 import type { QuestionOrder, QuizError, QuizErrorCode, DataStatus } from "./quiz";
 
-// ============================================================================
-// H5P Content Types
-// ============================================================================
+// Import H5P types from dedicated h5p.ts file
+import type { H5PContent, H5PContentSearchParams, H5PContentResponse } from "./h5p";
 
-/**
- * H5P Content interface based on Tutor LMS H5P integration
- *
- * Represents H5P content that can be selected for Interactive Quiz
- */
-export interface H5PContent {
-  /** Unique H5P content ID */
-  id: number;
-
-  /** Display title of the H5P content */
-  title: string;
-
-  /** H5P content type (e.g., 'tutor_h5p_quiz') */
-  content_type: string;
-
-  /** User ID who created the content */
-  user_id: number;
-
-  /** Username of the content creator */
-  user_name: string;
-
-  /** Last updated timestamp */
-  updated_at: string;
-
-  /** Optional description of the H5P content */
-  description?: string;
-
-  /** H5P library used (e.g., 'H5P.InteractiveVideo') */
-  library?: string;
-}
-
-/**
- * H5P Content search/filter parameters
- */
-export interface H5PContentSearchParams {
-  /** Search term for content title */
-  search?: string;
-
-  /** Filter by content type */
-  contentType?: string;
-
-  /** Pagination: items per page */
-  per_page?: number;
-
-  /** Pagination: page number */
-  page?: number;
-
-  /** Sort order */
-  order?: "asc" | "desc";
-
-  /** Sort by field */
-  orderby?: "title" | "date" | "author";
-}
-
-/**
- * H5P Content API response
- */
-export interface H5PContentResponse {
-  /** Array of H5P content items */
-  items: H5PContent[];
-
-  /** Total number of items available */
-  total: number;
-
-  /** Current page number */
-  page: number;
-
-  /** Items per page */
-  per_page: number;
-
-  /** Total number of pages */
-  total_pages: number;
-}
+// Re-export H5P types for convenience
+export type { H5PContent, H5PContentSearchParams, H5PContentResponse };
 
 // ============================================================================
 // Interactive Quiz Settings

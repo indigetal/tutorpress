@@ -47,7 +47,7 @@ import {
   H5PQuestionStatement,
   H5PQuestionValidation,
   H5PQuizResult,
-  H5PContentListResponse,
+  H5PContentResponse,
   H5PStatementSaveResponse,
   H5PValidationResponse,
   H5PQuizResultResponse,
@@ -2534,17 +2534,23 @@ const resolvers = {
 
       // Build query string from search parameters
       const queryParams = new URLSearchParams();
-      if (searchParams.search_filter) {
-        queryParams.append("search_filter", searchParams.search_filter);
+      if (searchParams.search) {
+        queryParams.append("search", searchParams.search);
       }
-      if (searchParams.content_type) {
-        queryParams.append("content_type", searchParams.content_type);
+      if (searchParams.contentType) {
+        queryParams.append("content_type", searchParams.contentType);
       }
       if (searchParams.per_page) {
         queryParams.append("per_page", searchParams.per_page.toString());
       }
       if (searchParams.page) {
         queryParams.append("page", searchParams.page.toString());
+      }
+      if (searchParams.order) {
+        queryParams.append("order", searchParams.order);
+      }
+      if (searchParams.orderby) {
+        queryParams.append("orderby", searchParams.orderby);
       }
 
       const response = (yield {
@@ -2553,17 +2559,22 @@ const resolvers = {
           path: `/tutorpress/v1/h5p/contents?${queryParams.toString()}`,
           method: "GET",
         },
-      }) as H5PContentListResponse;
+      }) as H5PContentResponse;
 
-      if (!response || !response.success || !response.data) {
-        throw new Error(response?.message || "Failed to fetch H5P contents");
+      if (!response || !response.items) {
+        throw new Error("Failed to fetch H5P contents");
       }
 
       yield {
         type: "FETCH_H5P_CONTENTS_SUCCESS",
         payload: {
-          contents: response.data,
-          pagination: response.pagination,
+          contents: response.items,
+          pagination: {
+            total: response.total,
+            total_pages: response.total_pages,
+            current_page: response.page,
+            per_page: response.per_page,
+          },
         },
       };
     } catch (error) {
