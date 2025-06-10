@@ -216,16 +216,6 @@ export interface QuizDeletionState {
   quizId?: number;
 }
 
-/**
- * Quiz duplication state
- */
-export interface QuizDuplicationState {
-  status: "idle" | "duplicating" | "error" | "success";
-  error?: QuizError;
-  sourceQuizId?: number;
-  duplicatedQuizId?: number;
-}
-
 // ============================================================================
 // Error Handling
 // ============================================================================
@@ -265,13 +255,13 @@ export interface QuizError {
 }
 
 // ============================================================================
-// Active Operations
+// API Operations
 // ============================================================================
 
 /**
- * Quiz active operation types
+ * Quiz API operation types for error tracking and context
  */
-export type QuizActiveOperation =
+export type QuizApiOperation =
   | { type: "none" }
   | { type: "create"; topicId: number }
   | { type: "edit"; quizId: number; topicId: number }
@@ -374,7 +364,7 @@ export const isValidQuizDetails = (quiz: unknown): quiz is QuizDetails => {
 export const createQuizError = (
   code: QuizErrorCode,
   message: string,
-  operation: QuizActiveOperation,
+  operation: QuizApiOperation,
   context?: Omit<QuizError["context"], "operationType" | "operationData">
 ): QuizError => {
   const operationData: {
