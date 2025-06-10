@@ -23,6 +23,7 @@ import { BaseModalLayout, BaseModalHeader } from "../common";
 import { SettingsTab } from "./quiz/SettingsTab";
 import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { H5PContentSelectionModal } from "./interactive-quiz/H5PContentSelectionModal";
+import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
 import type { QuizQuestion, QuizQuestionType } from "../../types/quiz";
 
@@ -62,6 +63,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
 
   // Store state and dispatch
   const { createNotice } = useDispatch(noticesStore);
+  const { saveQuiz } = useDispatch(curriculumStore);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -151,25 +153,10 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       return (
         <div className="quiz-modal-h5p-preview">
           <div className="quiz-modal-h5p-preview-header">
-            <h4>{__("H5P Content Preview", "tutorpress")}</h4>
-            <p className="quiz-modal-h5p-preview-description">
-              {__("Content ID:", "tutorpress")} {h5pContentId}
-            </p>
+            <h4 className="quiz-modal-h5p-content-title">{selectedQuestion.question_title}</h4>
           </div>
           <div className="quiz-modal-h5p-preview-content">
-            {/* Step 3.4: This will be replaced with actual H5P content rendering */}
-            <div className="quiz-modal-h5p-placeholder">
-              <p>
-                <strong>{selectedQuestion.question_title}</strong>
-              </p>
-              <p>{__("H5P content preview will be implemented in Step 3.4", "tutorpress")}</p>
-              <p>
-                <em>
-                  {__("Content Type:", "tutorpress")}{" "}
-                  {selectedH5PContent?.content_type || __("Interactive Content", "tutorpress")}
-                </em>
-              </p>
-            </div>
+            <H5PContentPreview contentId={h5pContentId} className="quiz-modal-h5p-content" showHeader={false} />
           </div>
         </div>
       );
@@ -198,11 +185,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         <div className="quiz-modal-h5p-settings">
           <div className="quiz-modal-h5p-meta">
             <div className="quiz-modal-h5p-meta-item">
-              <strong>{__("H5P Type:", "tutorpress")}</strong>
-              <span>{selectedH5PContent?.content_type || __("Interactive Content", "tutorpress")}</span>
-            </div>
-
-            <div className="quiz-modal-h5p-meta-item">
               <strong>{__("Author:", "tutorpress")}</strong>
               <span>{selectedH5PContent?.user_name || __("Unknown", "tutorpress")}</span>
             </div>
@@ -210,17 +192,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
             <div className="quiz-modal-h5p-meta-item">
               <strong>{__("Last Updated:", "tutorpress")}</strong>
               <span>{selectedH5PContent?.updated_at || __("Unknown", "tutorpress")}</span>
-            </div>
-
-            <div className="quiz-modal-h5p-actions">
-              <Button
-                variant="primary"
-                href={`${adminUrl}admin.php?page=h5p_new&id=${h5pContentId}`}
-                target="_blank"
-                className="quiz-modal-h5p-edit-button"
-              >
-                {__("Edit", "tutorpress")}
-              </Button>
             </div>
           </div>
         </div>
@@ -230,7 +201,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     return <div>{__("Unsupported question type for Interactive Quiz.", "tutorpress")}</div>;
   };
 
-  // Handle save (placeholder - will use existing quiz save logic)
+  // Handle save (using WordPress data store like QuizModal)
   const handleSave = async () => {
     if (!isValid) {
       createNotice("error", __("Please fix the form errors before saving.", "tutorpress"), {
@@ -239,45 +210,91 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       return;
     }
 
+    if (!courseId || !topicId) {
+      setSaveError(__("Course ID and Topic ID are required to save the Interactive Quiz.", "tutorpress"));
+      return;
+    }
+
     setIsSaving(true);
     setSaveError(null);
+    setSaveSuccess(false);
 
     try {
-      // TODO: Implement actual save logic using existing quiz endpoints
-      // For now, just simulate a save operation
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Build form data in the same format as QuizModal
+      const formData: any = {
+        post_title: formState.title,
+        post_content: formState.description,
+        quiz_option: {
+          attempts_allowed: formState.settings.attempts_allowed,
+          passing_grade: formState.settings.passing_grade,
+          quiz_auto_start: formState.settings.quiz_auto_start,
+          questions_order: formState.settings.questions_order,
+        },
+        questions: questions,
+      };
+
+      // Add quiz ID for updates
+      if (quizId) {
+        formData.ID = quizId;
+        console.log(`TutorPress: Updating Interactive Quiz ${quizId} with ${questions.length} questions`);
+      } else {
+        console.log(`TutorPress: Creating new Interactive Quiz with ${questions.length} questions`);
+      }
+
+      // Use the curriculum store saveQuiz action (same as QuizModal)
+      await saveQuiz(formData, courseId, topicId);
 
       setSaveSuccess(true);
-      createNotice("success", __("Interactive Quiz saved successfully!", "tutorpress"), {
-        isDismissible: true,
-      });
 
-      // Close modal after brief success indication
+      if (quizId) {
+        createNotice("success", __("Interactive Quiz updated successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
+      } else {
+        createNotice("success", __("Interactive Quiz created successfully.", "tutorpress"), {
+          type: "snackbar",
+        });
+      }
+
+      // Close modal after successful save (following Quiz Modal pattern)
       setTimeout(() => {
-        onClose();
-        resetForm();
-        setSaveSuccess(false);
-      }, 1500);
+        handleClose();
+      }, 1000);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : __("Failed to save Interactive Quiz.", "tutorpress"));
-      createNotice("error", __("Failed to save Interactive Quiz.", "tutorpress"), {
-        isDismissible: true,
+      console.error("Error saving Interactive Quiz:", error);
+
+      let errorMessage = __("Failed to save Interactive Quiz. Please try again.", "tutorpress");
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+
+      setSaveError(errorMessage);
+
+      createNotice("error", errorMessage, {
+        type: "snackbar",
       });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle close (same logic as QuizModal)
+  // Handle close (now handled by BaseModalLayout and BaseModalHeader)
   const handleClose = () => {
-    if (isDirty) {
-      if (confirm(__("You have unsaved changes. Are you sure you want to close?", "tutorpress"))) {
-        resetForm();
-        onClose();
-      }
-    } else {
-      onClose();
-    }
+    // Reset form and state
+    resetForm();
+    setQuestions([]);
+    setSelectedQuestionIndex(null);
+    setIsAddingQuestion(false);
+    setSelectedQuestionType(null);
+    setSelectedH5PContent(null);
+    setIsH5PModalOpen(false);
+    setLoadError(null);
+    setSaveError(null);
+    setSaveSuccess(false);
+    onClose();
   };
 
   // Handle retry (same as QuizModal)
@@ -347,6 +364,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     <BaseModalHeader
       title={quizId ? __("Edit Interactive Quiz", "tutorpress") : __("Create Interactive Quiz", "tutorpress")}
       isValid={isValid}
+      isDirty={isDirty}
       isSaving={isSaving}
       saveSuccess={saveSuccess}
       primaryButtonText={
@@ -364,6 +382,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     <BaseModalLayout
       isOpen={isOpen}
       onClose={handleClose}
+      isDirty={isDirty}
       className="quiz-modal"
       isLoading={isLoading}
       loadingMessage={__("Loading Interactive Quiz data...", "tutorpress")}
@@ -451,46 +470,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         selectedContent={selectedH5PContent}
         title={__("Select H5P Content for Interactive Quiz", "tutorpress")}
       />
-
-      {/* H5P-specific styling for proper spacing */}
-      <style>{`
-        .quiz-modal-h5p-meta-item {
-          margin-bottom: 15px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .quiz-modal-h5p-meta-item strong {
-          margin-right: 10px;
-          min-width: 120px;
-        }
-
-        .quiz-modal-h5p-actions {
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #e0e0e0;
-        }
-
-        .quiz-modal-h5p-edit-button {
-          width: 100%;
-          text-align: center !important;
-          justify-content: flex-start !important;
-          background-color: #fff !important;
-          border: 1px solid #007cba !important;
-          color: #007cba !important;
-          padding: 10px 15px !important;
-          border-radius: 4px !important;
-          font-weight: normal !important;
-          min-height: auto !important;
-          height: auto !important;
-        }
-
-        .quiz-modal-h5p-edit-button:hover {
-          background: #007cba !important;
-          color: #fff !important;
-        }
-      `}</style>
     </BaseModalLayout>
   );
 };

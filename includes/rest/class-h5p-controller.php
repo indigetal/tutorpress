@@ -220,6 +220,28 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                 ]
             );
 
+            // Get H5P content preview HTML for embedding
+            // NEW: For Interactive Quiz Modal preview functionality
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/preview/(?P<content_id>\d+)',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_content_preview'],
+                        'permission_callback' => [$this, 'check_permission'],
+                        'args'               => [
+                            'content_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The H5P content ID to preview.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
         } catch (Exception $e) {
             error_log('TutorPress H5P Controller: Failed to register routes - ' . $e->getMessage());
         }
@@ -383,5 +405,151 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
 
     public function get_results($request) {
         return new WP_Error('not_implemented', 'Method not yet implemented', ['status' => 501]);
+    }
+
+    public function get_content_preview($request) {
+        // Check if H5P plugin is active
+        if (!class_exists('H5P_Plugin')) {
+            return new WP_Error('h5p_not_active', __('H5P plugin is not active.', 'tutorpress'), ['status' => 424]);
+        }
+
+        $content_id = absint($request['content_id']);
+        
+        if (!$content_id) {
+            return new WP_Error('invalid_content_id', __('Invalid H5P content ID.', 'tutorpress'), ['status' => 400]);
+        }
+
+        try {
+            // Fetch content with description field (tags) using the same H5P query we use elsewhere
+            $h5p_contents_query = new \H5PContentQuery(['id', 'title', 'content_type', 'tags'], null, null, null, null, [
+                ['id', $content_id, '='],
+                ['user_id', get_current_user_id(), '=']
+            ]);
+            $h5p_contents = $h5p_contents_query->get_rows();
+            
+            if (empty($h5p_contents)) {
+                return new WP_Error('content_not_found', __('H5P content not found or access denied.', 'tutorpress'), ['status' => 404]);
+            }
+            
+            $content_info = $h5p_contents[0];
+
+            // Get metadata including description from the query result
+            $metadata = [
+                'id' => (int) $content_info->id,
+                'title' => $content_info->title ?? 'H5P Content',
+                'library' => $content_info->content_type ?? 'Unknown',
+                'content_type' => $content_info->content_type ?? 'Interactive Content',
+                'description' => $content_info->tags ?? '', // H5P uses tags field for description
+            ];
+
+            // Use the H5P content description if available, otherwise use a fallback
+            $description = !empty($metadata['description']) 
+                ? esc_html($metadata['description'])
+                : __('This interactive H5P content will be embedded in the quiz for students to complete.', 'tutorpress');
+
+            // Create a functional preview HTML that works in the modal context
+            $admin_url = admin_url('admin.php?page=h5p&task=show&id=' . $content_id);
+            $edit_url = admin_url('admin.php?page=h5p_new&id=' . $content_id);
+            
+            $preview_html = sprintf('
+                <div class="h5p-content-preview-wrapper">
+                    <div class="h5p-content-preview-info">
+                        <div class="h5p-content-icon">
+                            <span class="dashicons dashicons-format-video"></span>
+                        </div>
+                        <div class="h5p-content-details">
+                            <p class="h5p-content-type">%s</p>
+                            <p class="h5p-content-description">%s</p>
+                        </div>
+                    </div>
+                    <div class="h5p-content-actions">
+                        <a href="%s" target="_blank" class="button button-secondary h5p-preview-button">
+                            <span class="dashicons dashicons-external"></span>
+                            %s
+                        </a>
+                        <a href="%s" target="_blank" class="button button-primary h5p-edit-button">
+                            <span class="dashicons dashicons-edit"></span>
+                            %s
+                        </a>
+                    </div>
+                    <div class="h5p-content-note">
+                        <p><strong>%s</strong> %s</p>
+                    </div>
+                </div>
+                <style>
+                .h5p-content-preview-wrapper {
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 20px;
+                    background: #f9f9f9;
+                    margin: 10px 0;
+                }
+                .h5p-content-preview-info {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                }
+                .h5p-content-icon {
+                    margin-right: 15px;
+                    font-size: 24px;
+                    color: #0073aa;
+                }
+                .h5p-content-type {
+                    margin: 0 0 8px 0;
+                    color: #666;
+                    font-style: italic;
+                }
+                .h5p-content-description {
+                    margin: 0;
+                    color: #555;
+                }
+                .h5p-content-actions {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 15px;
+                }
+                .h5p-content-actions .button {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    text-decoration: none;
+                }
+                .h5p-content-note {
+                    background: #e7f3ff;
+                    border: 1px solid #b3d9ff;
+                    border-radius: 4px;
+                    padding: 10px;
+                }
+                .h5p-content-note p {
+                    margin: 0;
+                    font-size: 14px;
+                    color: #004085;
+                }
+                </style>
+            ',
+                esc_html($metadata['content_type']),
+                $description,
+                esc_url($admin_url),
+                __('Preview Full Content', 'tutorpress'),
+                esc_url($edit_url),
+                __('Edit Content', 'tutorpress'),
+                __('Note:', 'tutorpress'),
+                __('Students will see the full interactive content embedded directly in the quiz when taking the assessment.', 'tutorpress')
+            );
+
+            return rest_ensure_response([
+                'success' => true,
+                'data' => [
+                    'html' => $preview_html,
+                    'metadata' => $metadata,
+                    'content_id' => $content_id,
+                    'preview_type' => 'functional_preview', // Indicate this is our custom preview
+                ],
+            ]);
+
+        } catch (Exception $e) {
+            error_log('TutorPress H5P Preview Error: ' . $e->getMessage());
+            return new WP_Error('preview_error', __('Failed to generate H5P preview: ' . $e->getMessage(), 'tutorpress'), ['status' => 500]);
+        }
     }
 } 

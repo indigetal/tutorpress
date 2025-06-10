@@ -1255,6 +1255,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     <BaseModalHeader
       title={quizId ? __("Edit Quiz", "tutorpress") : __("Create Quiz", "tutorpress")}
       isValid={isValid}
+      isDirty={isDirty}
       isSaving={isSaving}
       saveSuccess={saveSuccess}
       primaryButtonText={quizId ? __("Update Quiz", "tutorpress") : __("Save Quiz", "tutorpress")}
@@ -1276,6 +1277,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     <BaseModalLayout
       isOpen={isOpen}
       onClose={handleClose}
+      isDirty={isDirty}
       className="quiz-modal"
       isLoading={isLoading}
       loadingMessage={__("Loading quiz data...", "tutorpress")}
