@@ -9,6 +9,7 @@ import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
+import { InteractiveQuizModal } from "../../modals/InteractiveQuizModal";
 
 /**
  * Props for content item row
@@ -70,6 +71,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<number | undefined>(undefined);
 
+  // Interactive Quiz modal state
+  const [isInteractiveQuizModalOpen, setIsInteractiveQuizModalOpen] = useState(false);
+  const [editingInteractiveQuizId, setEditingInteractiveQuizId] = useState<number | undefined>(undefined);
+
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
     courseId,
@@ -114,6 +119,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     setIsQuizModalOpen(false);
     setEditingQuizId(undefined);
     // TODO: Refresh curriculum if quiz was created/updated
+  };
+
+  // Handle Interactive Quiz modal open
+  const handleInteractiveQuizModalOpen = () => {
+    setEditingInteractiveQuizId(undefined);
+    setIsInteractiveQuizModalOpen(true);
+  };
+
+  // Handle Interactive Quiz modal close
+  const handleInteractiveQuizModalClose = () => {
+    setIsInteractiveQuizModalOpen(false);
+    setEditingInteractiveQuizId(undefined);
+    // TODO: Refresh curriculum if Interactive Quiz was created/updated
   };
 
   // Handle double-click on title or summary
@@ -233,7 +251,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               <Button variant="secondary" isSmall icon={plus} onClick={handleQuizModalOpen}>
                 {__("Quiz", "tutorpress")}
               </Button>
-              <Button variant="secondary" isSmall icon={plus}>
+              <Button variant="secondary" isSmall icon={plus} onClick={handleInteractiveQuizModalOpen}>
                 {__("Interactive Quiz", "tutorpress")}
               </Button>
               <Button
@@ -264,6 +282,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
         topicId={topic.id}
         courseId={courseId}
         quizId={editingQuizId}
+      />
+
+      {/* Interactive Quiz Modal */}
+      <InteractiveQuizModal
+        isOpen={isInteractiveQuizModalOpen}
+        onClose={handleInteractiveQuizModalClose}
+        topicId={topic.id}
+        courseId={courseId}
+        quizId={editingInteractiveQuizId}
       />
     </Card>
   );
