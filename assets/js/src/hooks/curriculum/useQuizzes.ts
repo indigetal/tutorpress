@@ -58,9 +58,10 @@ export const useQuizzes = ({ courseId, topicId }: UseQuizzesProps): UseQuizzesRe
     setTopics((currentTopics: any[]) =>
       currentTopics.map((topic) => ({
         ...topic,
-        // Filter out the deleted quiz from the contents array
+        // Filter out the deleted quiz from the contents array (both regular and interactive quizzes)
         contents: (topic.contents || []).filter(
-          (item: any) => !(item.type === "tutor_quiz" && item.id === deletedQuizId)
+          (item: any) =>
+            !((item.type === "tutor_quiz" || item.type === "interactive_quiz") && item.id === deletedQuizId)
         ),
       }))
     );
@@ -80,7 +81,7 @@ export const useQuizzes = ({ courseId, topicId }: UseQuizzesProps): UseQuizzesRe
               {
                 id: newQuiz.id,
                 title: newQuiz.title,
-                type: "tutor_quiz",
+                type: newQuiz.quiz_option?.quiz_type === "tutor_h5p_quiz" ? "interactive_quiz" : "tutor_quiz",
                 menu_order: newQuiz.menu_order,
                 status: newQuiz.status,
               },
