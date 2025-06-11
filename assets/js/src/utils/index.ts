@@ -18,3 +18,15 @@ export {
 } from "./quizForm";
 
 export type { TimeUnit, TimeLimit, ContentDripSettings } from "./quizForm";
+
+// Addon detection utilities
+export {
+  AddonChecker,
+  isCoursePreviewEnabled,
+  isGoogleMeetEnabled,
+  isZoomEnabled,
+  isAnyLiveLessonEnabled,
+  getAvailableLiveLessonTypes,
+} from "./addonChecker";
+
+export type { AddonKey, AddonStatus } from "./addonChecker";

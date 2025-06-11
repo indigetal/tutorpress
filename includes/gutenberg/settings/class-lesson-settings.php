@@ -505,7 +505,7 @@ class TutorPress_Lesson_Settings {
         $post_id = $post['id'];
 
         // Check if Tutor Course Preview addon is available
-        $course_preview_available = self::is_course_preview_addon_available();
+        $course_preview_available = TutorPress_Addon_Checker::is_course_preview_enabled();
 
         // Debug: Check current meta values
         $gutenberg_preview = get_post_meta($post_id, '_lesson_is_preview', true);
@@ -734,51 +734,7 @@ class TutorPress_Lesson_Settings {
         ]);
     }
 
-    /**
-     * Check if Tutor Course Preview addon is available.
-     *
-     * @since 1.4.0
-     * @return bool True if addon is available.
-     */
-    private static function is_course_preview_addon_available() {
-        // Primary check: Look for the specific addon file
-        $addon_file = WP_PLUGIN_DIR . '/tutor-pro/addons/tutor-course-preview/tutor-course-preview.php';
-        
-        if (!file_exists($addon_file)) {
-            return false;
-        }
-        
-        // Check if Tutor Pro is active and addon is enabled using proper Tutor method
-        if (function_exists('tutor_utils')) {
-            $utils = tutor_utils();
-            
-            // Use the correct basename - it should be the full path from plugin directory
-            $addon_basename = 'tutor-pro/addons/tutor-course-preview/tutor-course-preview.php';
-            
-            // Check if the addon is enabled in Tutor's addon system
-            if (method_exists($utils, 'is_addon_enabled')) {
-                $is_enabled = $utils->is_addon_enabled($addon_basename);
-                return $is_enabled;
-            }
-            
-            // Fallback: Check tutor options for addon status
-            $tutor_options = get_option('tutor_option', array());
-            if (isset($tutor_options['tutor_pro_addons'])) {
-                $addons = $tutor_options['tutor_pro_addons'];
-                
-                if (isset($addons[$addon_basename])) {
-                    $is_enabled = !empty($addons[$addon_basename]);
-                    return $is_enabled;
-                }
-            }
-        }
-        
-        // Final fallback: Check for constant or class (but only if file exists)
-        $constant_check = defined('TUTOR_CP_VERSION');
-        $class_check = class_exists('TUTOR_CP\CoursePreview');
-        
-        return $constant_check || $class_check;
-    }
+
 
     /**
      * Sanitize video source value.

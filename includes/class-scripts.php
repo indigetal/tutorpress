@@ -150,6 +150,11 @@ class TutorPress_Scripts {
             'isAssignment' => 'tutor_assignments' === $screen->post_type,
             'adminUrl' => admin_url(),
         ]);
+
+        // Expose addon availability data to frontend
+        wp_localize_script('tutorpress-curriculum-metabox', 'tutorpressAddons', 
+            TutorPress_Addon_Checker::get_all_addon_status()
+        );
     }
 
     /**

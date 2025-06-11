@@ -8,6 +8,7 @@ import Curriculum from "./components/metaboxes/Curriculum";
 import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
 import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import { QuizModal } from "./components/modals/QuizModal";
+import { AddonChecker } from "./utils/addonChecker";
 import "./api"; // Import API module to expose it to window
 
 // Import CSS for bundling
@@ -31,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Expose QuizModal to global scope for testing
+// Expose utilities to global scope for testing
 (window as any).tutorpress = (window as any).tutorpress || {};
 (window as any).tutorpress.QuizModal = QuizModal;
+(window as any).tutorpress.AddonChecker = AddonChecker;
