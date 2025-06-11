@@ -12,7 +12,7 @@
  * @since 1.4.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { TabPanel, Button, TextControl, TextareaControl, Notice, Spinner } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -87,6 +87,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
 
   // Add state for "All Settings" toggle
   const [showAllSettings, setShowAllSettings] = useState(false);
+
+  // Custom validity check that includes H5P question validation
+  const isInteractiveQuizValid = useMemo(() => {
+    const hasH5PQuestions = questions.filter((q) => q.question_type === "h5p").length > 0;
+    return isValid && hasH5PQuestions;
+  }, [isValid, questions]);
 
   // Load existing quiz data function (same as QuizModal)
   const loadExistingQuizData = async (id: number) => {
@@ -413,6 +419,15 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       return;
     }
 
+    // Validate that at least one H5P question exists
+    const h5pQuestions = questions.filter((q) => q.question_type === "h5p");
+    if (h5pQuestions.length === 0) {
+      createNotice("error", __("Please add a question.", "tutorpress"), {
+        isDismissible: true,
+      });
+      return;
+    }
+
     if (!courseId || !topicId) {
       setSaveError(__("Course ID and Topic ID are required to save the Interactive Quiz.", "tutorpress"));
       return;
@@ -516,45 +531,55 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   };
 
   // H5P Content Selection handlers
-  const handleH5PContentSelect = (content: H5PContent) => {
-    setSelectedH5PContent(content);
+  const handleH5PContentSelect = (contentArray: H5PContent[]) => {
+    if (contentArray.length === 0) return;
 
-    // Create a new H5P question when content is selected
-    const tempQuestionId = -(Date.now() + Math.floor(Math.random() * 1000));
+    // Create H5P questions for each selected content
+    const newH5PQuestions: QuizQuestion[] = contentArray.map((content, index) => {
+      const tempQuestionId = -(Date.now() + Math.floor(Math.random() * 1000) + index);
 
-    const newH5PQuestion: QuizQuestion = {
-      question_id: tempQuestionId,
-      question_title: content.title || __("Interactive Content", "tutorpress"),
-      question_description: content.id.toString(), // Store H5P content ID in description (Tutor LMS format)
-      question_mark: 1,
-      answer_explanation: "",
-      question_order: questions.length + 1,
-      question_type: "h5p" as QuizQuestionType,
-      question_settings: {
-        question_type: "h5p" as QuizQuestionType,
-        answer_required: true,
-        randomize_question: false,
+      return {
+        question_id: tempQuestionId,
+        question_title: content.title || __("Interactive Content", "tutorpress"),
+        question_description: content.id.toString(), // Store H5P content ID in description (Tutor LMS format)
         question_mark: 1,
-        show_question_mark: true,
-        has_multiple_correct_answer: false,
-        is_image_matching: false,
-      },
-      question_answers: [], // H5P content doesn't use traditional answers
-      _data_status: "new",
-    };
+        answer_explanation: "",
+        question_order: questions.length + index + 1,
+        question_type: "h5p" as QuizQuestionType,
+        question_settings: {
+          question_type: "h5p" as QuizQuestionType,
+          answer_required: true,
+          randomize_question: false,
+          question_mark: 1,
+          show_question_mark: true,
+          has_multiple_correct_answer: false,
+          is_image_matching: false,
+        },
+        question_answers: [], // H5P content doesn't use traditional answers
+        _data_status: "new",
+      };
+    });
 
     // Add to questions array
-    const updatedQuestions = [...questions, newH5PQuestion];
+    const updatedQuestions = [...questions, ...newH5PQuestions];
     setQuestions(updatedQuestions);
 
-    // Select the new question
-    setSelectedQuestionIndex(updatedQuestions.length - 1);
+    // Select the first new question
+    setSelectedQuestionIndex(questions.length);
+
+    // Set the first selected content as current
+    setSelectedH5PContent(contentArray[0]);
 
     // Close H5P modal
     setIsH5PModalOpen(false);
 
     // Show success notice
-    createNotice("success", __("H5P content added to Interactive Quiz!", "tutorpress"), {
+    const message =
+      contentArray.length === 1
+        ? __("H5P content added to Interactive Quiz!", "tutorpress")
+        : __("%d H5P items added to Interactive Quiz!", "tutorpress").replace("%d", contentArray.length.toString());
+
+    createNotice("success", message, {
       isDismissible: true,
     });
   };
@@ -567,7 +592,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const modalHeader = (
     <BaseModalHeader
       title={quizId ? __("Edit Interactive Quiz", "tutorpress") : __("Create Interactive Quiz", "tutorpress")}
-      isValid={isValid}
+      isValid={isInteractiveQuizValid}
       isDirty={isDirty}
       isSaving={isSaving}
       saveSuccess={saveSuccess}
@@ -685,8 +710,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         isOpen={isH5PModalOpen}
         onClose={handleH5PModalClose}
         onContentSelect={handleH5PContentSelect}
-        selectedContent={selectedH5PContent}
+        selectedContent={selectedH5PContent ? [selectedH5PContent] : []}
         title={__("Select H5P Content for Interactive Quiz", "tutorpress")}
+        excludeContentIds={questions
+          .filter((q) => q.question_type === "h5p")
+          .map((q) => parseInt(q.question_description))
+          .filter((id) => !isNaN(id))}
       />
     </BaseModalLayout>
   );

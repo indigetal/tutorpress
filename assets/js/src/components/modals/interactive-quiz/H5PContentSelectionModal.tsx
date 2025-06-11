@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { Button, Modal, Spinner } from "@wordpress/components";
+import { Button, Modal, Spinner, Flex } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { close } from "@wordpress/icons";
 
@@ -32,13 +32,16 @@ interface H5PContentSelectionModalProps {
   onClose: () => void;
 
   /** Function called when content is selected */
-  onContentSelect: (content: H5PContent) => void;
+  onContentSelect: (content: H5PContent[]) => void;
 
   /** Currently selected content (for highlighting) */
-  selectedContent?: H5PContent | null;
+  selectedContent?: H5PContent[];
 
   /** Modal title */
   title?: string;
+
+  /** Array of H5P content IDs that should be excluded from the table */
+  excludeContentIds?: number[];
 }
 
 /**
@@ -50,12 +53,16 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   isOpen,
   onClose,
   onContentSelect,
-  selectedContent = null,
+  selectedContent = [],
   title = __("Select H5P Content", "tutorpress"),
+  excludeContentIds = [],
 }) => {
   // Local state for search and filters
   const [searchTerm, setSearchTerm] = useState("");
   const [contentTypeFilter, setContentTypeFilter] = useState("");
+
+  // Local state for multiple selections
+  const [localSelectedContent, setLocalSelectedContent] = useState<H5PContent[]>(selectedContent || []);
 
   // Get H5P data from store
   const { contents, pagination, searchParams, isLoading, hasError, error } = useSelect((select) => {
@@ -111,15 +118,33 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
     [searchParams, setH5PSearchParams, fetchH5PContents]
   );
 
-  // Handle content selection
-  const handleContentSelect = useCallback(
-    (content: H5PContent) => {
-      setH5PSelectedContent(content);
-      onContentSelect(content);
+  // Handle content selection (toggle for multi-select)
+  const handleContentSelect = useCallback((content: H5PContent) => {
+    setLocalSelectedContent((prev) => {
+      const isSelected = prev.some((selected) => selected.id === content.id);
+      if (isSelected) {
+        // Remove from selection
+        return prev.filter((selected) => selected.id !== content.id);
+      } else {
+        // Add to selection
+        return [...prev, content];
+      }
+    });
+  }, []);
+
+  // Handle adding selected content
+  const handleAdd = useCallback(() => {
+    if (localSelectedContent.length > 0) {
+      onContentSelect(localSelectedContent);
       onClose();
-    },
-    [setH5PSelectedContent, onContentSelect, onClose]
-  );
+    }
+  }, [localSelectedContent, onContentSelect, onClose]);
+
+  // Handle cancel
+  const handleCancel = useCallback(() => {
+    setLocalSelectedContent(selectedContent || []);
+    onClose();
+  }, [selectedContent, onClose]);
 
   // Handle retry on error
   const handleRetry = useCallback(() => {
@@ -173,8 +198,8 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
           {/* Content Table */}
           {!hasError && !isLoading && (
             <H5PContentTable
-              contents={contents}
-              selectedContent={selectedContent}
+              contents={contents.filter((content: H5PContent) => !excludeContentIds.includes(content.id))}
+              selectedContent={localSelectedContent}
               onContentSelect={handleContentSelect}
               pagination={pagination}
               onPageChange={handlePageChange}
@@ -194,6 +219,18 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
               </div>
             </div>
           )}
+        </div>
+
+        {/* Modal Footer with Cancel and Add buttons */}
+        <div className="tutorpress-h5p-modal-footer">
+          <Flex justify="flex-end" gap={3}>
+            <Button variant="secondary" onClick={handleCancel}>
+              {__("Cancel", "tutorpress")}
+            </Button>
+            <Button variant="primary" onClick={handleAdd} disabled={localSelectedContent.length === 0}>
+              {__("Add Selected", "tutorpress")} ({localSelectedContent.length})
+            </Button>
+          </Flex>
         </div>
       </div>
 
@@ -222,6 +259,12 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
           flex: 1;
           padding: 25px;
           overflow-y: auto;
+        }
+
+        .tutorpress-h5p-modal-footer {
+          padding: 20px 25px;
+          border-top: 1px solid #dcdcde;
+          background: #f6f7f7;
         }
 
         /* Loading State */

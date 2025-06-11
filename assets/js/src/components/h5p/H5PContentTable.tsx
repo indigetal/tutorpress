@@ -8,7 +8,7 @@
  */
 
 import React from "react";
-import { Button } from "@wordpress/components";
+import { Button, CheckboxControl } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 
 // Import types
@@ -32,7 +32,7 @@ interface H5PContentTableProps {
   contents: H5PContent[];
 
   /** Currently selected content */
-  selectedContent?: H5PContent | null;
+  selectedContent?: H5PContent[];
 
   /** Function called when content is selected */
   onContentSelect: (content: H5PContent) => void;
@@ -73,11 +73,11 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
         <table className="wp-list-table widefat fixed striped">
           <thead>
             <tr>
+              <th className="column-select"></th>
               <th className="column-title">{__("Title", "tutorpress")}</th>
               <th className="column-type">{__("Type", "tutorpress")}</th>
               <th className="column-author">{__("Author", "tutorpress")}</th>
               <th className="column-date">{__("Last Modified", "tutorpress")}</th>
-              <th className="column-actions">{__("Actions", "tutorpress")}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,7 +89,16 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
               </tr>
             ) : (
               contents.map((content) => (
-                <tr key={content.id} className={selectedContent?.id === content.id ? "selected" : ""}>
+                <tr
+                  key={content.id}
+                  className={selectedContent?.some((selected) => selected.id === content.id) ? "selected" : ""}
+                >
+                  <td className="column-select">
+                    <CheckboxControl
+                      checked={selectedContent?.some((selected) => selected.id === content.id) || false}
+                      onChange={() => onContentSelect(content)}
+                    />
+                  </td>
                   <td className="column-title">
                     <strong>{content.title}</strong>
                   </td>
@@ -98,15 +107,6 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
                   </td>
                   <td className="column-author">{content.user_name}</td>
                   <td className="column-date">{formatDate(content.updated_at)}</td>
-                  <td className="column-actions">
-                    <Button
-                      variant={selectedContent?.id === content.id ? "primary" : "secondary"}
-                      onClick={() => onContentSelect(content)}
-                      size="small"
-                    >
-                      {selectedContent?.id === content.id ? __("Selected", "tutorpress") : __("Select", "tutorpress")}
-                    </Button>
-                  </td>
                 </tr>
               ))
             )}
@@ -229,35 +229,40 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
         }
 
         /* Column widths */
-        .column-title { width: 25%; }
-        .column-type { width: 15%; }
-        .column-author { width: 15%; }
-        .column-description { width: 30%; }
-        .column-date { width: 10%; }
-        .column-actions { width: 5%; }
-
-        @media (max-width: 768px) {
-          .tutorpress-h5p-pagination {
-            flex-direction: column;
-            gap: 10px;
-            text-align: center;
-          }
-
-          .pagination-controls {
-            justify-content: center;
-          }
-
-          /* Hide some columns on mobile */
-          .column-description,
-          .column-date {
-            display: none;
-          }
-
-          .column-title { width: 40%; }
-          .column-type { width: 25%; }
-          .column-author { width: 20%; }
-          .column-actions { width: 15%; }
+        .column-select { 
+          width: 50px; 
+          text-align: center; 
+          padding-right: 8px;
         }
+        .column-title { 
+          width: 30%; 
+          padding-left: 8px;
+        }
+        .column-type { width: 20%; }
+        .column-author { width: 20%; }
+        .column-date { width: 15%; }
+
+                  @media (max-width: 768px) {
+            .tutorpress-h5p-pagination {
+              flex-direction: column;
+              gap: 10px;
+              text-align: center;
+            }
+
+            .pagination-controls {
+              justify-content: center;
+            }
+
+            /* Hide some columns on mobile */
+            .column-date {
+              display: none;
+            }
+
+            .column-select { width: 50px; }
+            .column-title { width: 40%; }
+            .column-type { width: 30%; }
+            .column-author { width: 20%; }
+          }
       `}</style>
     </div>
   );
