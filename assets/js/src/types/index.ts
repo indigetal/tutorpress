@@ -59,3 +59,6 @@ export * from "./interactiveQuiz";
 
 // Export H5P types
 export * from "./h5p";
+
+// Export Live Lessons types
+export * from "./liveLessons";
