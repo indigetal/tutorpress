@@ -62,7 +62,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   const [contentTypeFilter, setContentTypeFilter] = useState("");
 
   // Local state for multiple selections
-  const [localSelectedContent, setLocalSelectedContent] = useState<H5PContent[]>(selectedContent || []);
+  const [localSelectedContent, setLocalSelectedContent] = useState<H5PContent[]>([]);
 
   // Get H5P data from store
   const { contents, pagination, searchParams, isLoading, hasError, error } = useSelect((select) => {
@@ -80,10 +80,16 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   // Get dispatch functions
   const { fetchH5PContents, setH5PSearchParams, setH5PSelectedContent } = useDispatch("tutorpress/curriculum") as any;
 
-  // Fetch initial content when modal opens
+  // Reset selection state and fetch content when modal opens
   useEffect(() => {
-    if (isOpen && contents.length === 0) {
-      fetchH5PContents({});
+    if (isOpen) {
+      // Always reset selection state when modal opens
+      setLocalSelectedContent([]);
+
+      // Fetch content if needed
+      if (contents.length === 0) {
+        fetchH5PContents({});
+      }
     }
   }, [isOpen, contents.length, fetchH5PContents]);
 
@@ -142,9 +148,9 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
 
   // Handle cancel
   const handleCancel = useCallback(() => {
-    setLocalSelectedContent(selectedContent || []);
+    setLocalSelectedContent([]); // Always reset to empty on cancel
     onClose();
-  }, [selectedContent, onClose]);
+  }, [onClose]);
 
   // Handle retry on error
   const handleRetry = useCallback(() => {

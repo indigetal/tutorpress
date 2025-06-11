@@ -710,7 +710,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         isOpen={isH5PModalOpen}
         onClose={handleH5PModalClose}
         onContentSelect={handleH5PContentSelect}
-        selectedContent={selectedH5PContent ? [selectedH5PContent] : []}
+        selectedContent={[]} // Always start with empty selection for adding new content
         title={__("Select H5P Content for Interactive Quiz", "tutorpress")}
         excludeContentIds={questions
           .filter((q) => q.question_type === "h5p")
