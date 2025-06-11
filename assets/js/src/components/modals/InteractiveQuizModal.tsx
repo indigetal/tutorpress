@@ -25,7 +25,7 @@ import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { H5PContentSelectionModal } from "./interactive-quiz/H5PContentSelectionModal";
 import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
-import type { QuizQuestion, QuizQuestionType } from "../../types/quiz";
+import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption } from "../../types/quiz";
 
 interface InteractiveQuizModalProps {
   isOpen: boolean;
@@ -42,9 +42,24 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   courseId,
   quizId,
 }) => {
+  // Quiz data state for loading existing Interactive Quizzes
+  const [quizData, setQuizData] = useState<QuizDetails | null>(null);
+
   // Use the same quiz form hook as QuizModal for consistency
-  const { formState, updateTitle, updateDescription, updateSettings, resetForm, isValid, isDirty, errors } =
-    useQuizForm();
+  const {
+    formState,
+    updateTitle,
+    updateDescription,
+    updateSettings,
+    updateTimeLimit,
+    updateContentDrip,
+    resetForm,
+    resetToDefaults,
+    initializeWithData,
+    isValid,
+    isDirty,
+    errors,
+  } = useQuizForm();
 
   // Question management state (identical to QuizModal)
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -63,12 +78,155 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
 
   // Store state and dispatch
   const { createNotice } = useDispatch(noticesStore);
-  const { saveQuiz } = useDispatch(curriculumStore);
+  const { saveQuiz, getQuizDetails } = useDispatch(curriculumStore) as any;
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Add state for "All Settings" toggle
+  const [showAllSettings, setShowAllSettings] = useState(false);
+
+  // Load existing quiz data function (same as QuizModal)
+  const loadExistingQuizData = async (id: number) => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      console.log(`TutorPress: Loading Interactive Quiz data for ID ${id}`);
+
+      // Use the curriculum store to get quiz details (same as QuizModal)
+      await getQuizDetails(id);
+
+      // Use WordPress apiFetch with relative path as fallback (same as QuizModal)
+      const response = (await (window as any).wp.apiFetch({
+        path: `/tutorpress/v1/quizzes/${id}`,
+        method: "GET",
+      })) as any;
+
+      if (!response.success || !response.data) {
+        throw new Error(response.message || __("Failed to load Interactive Quiz data", "tutorpress"));
+      }
+
+      const data = response.data;
+      console.log("TutorPress: Loaded Interactive Quiz data:", data);
+
+      // Set quiz data for form initialization
+      setQuizData(data);
+
+      // Initialize form with loaded data (clean approach - no dirty state marking)
+      initializeWithData(data);
+
+      // Load questions and convert them to proper format
+      if (data.questions && Array.isArray(data.questions)) {
+        const loadedQuestions: QuizQuestion[] = data.questions.map((question: any, index: number) => ({
+          ...question,
+          _data_status: "no_change" as const,
+          question_answers:
+            question.question_answers?.map((answer: any) => ({
+              ...answer,
+              _data_status: "no_change" as const,
+            })) || [],
+        }));
+
+        setQuestions(loadedQuestions);
+        console.log(`TutorPress: Loaded ${loadedQuestions.length} Interactive Quiz questions`);
+
+        // Select first H5P question if available
+        if (loadedQuestions.length > 0) {
+          setSelectedQuestionIndex(0);
+
+          // If it's an H5P question, load the actual H5P content details
+          const firstQuestion = loadedQuestions[0];
+          if (firstQuestion.question_type === "h5p") {
+            const h5pContentId = parseInt(firstQuestion.question_description);
+            if (!isNaN(h5pContentId)) {
+              try {
+                // Fetch H5P content metadata from the API (get all user's content)
+                const h5pResponse = (await (window as any).wp.apiFetch({
+                  path: `/tutorpress/v1/h5p/contents?per_page=100`,
+                  method: "GET",
+                })) as any;
+
+                if (h5pResponse?.items?.length > 0) {
+                  // Find the specific content by ID
+                  const h5pContent = h5pResponse.items.find((item: any) => item.id === h5pContentId);
+                  if (h5pContent) {
+                    setSelectedH5PContent({
+                      id: h5pContent.id,
+                      title: h5pContent.title || firstQuestion.question_title,
+                      content_type: h5pContent.content_type || "h5p",
+                      user_id: h5pContent.user_id || 0,
+                      user_name: h5pContent.user_name || __("Unknown", "tutorpress"),
+                      updated_at: h5pContent.updated_at || __("Unknown", "tutorpress"),
+                    });
+                    console.log("TutorPress: Loaded H5P content metadata:", h5pContent);
+                  } else {
+                    // Content not found in user's content list
+                    setSelectedH5PContent({
+                      id: h5pContentId,
+                      title: firstQuestion.question_title,
+                      content_type: "h5p",
+                      user_id: 0,
+                      user_name: __("Unknown", "tutorpress"),
+                      updated_at: __("Unknown", "tutorpress"),
+                    });
+                    console.warn(`TutorPress: H5P content ${h5pContentId} not found in user's content list`);
+                  }
+                } else {
+                  // No H5P content found for this user
+                  setSelectedH5PContent({
+                    id: h5pContentId,
+                    title: firstQuestion.question_title,
+                    content_type: "h5p",
+                    user_id: 0,
+                    user_name: __("Unknown", "tutorpress"),
+                    updated_at: __("Unknown", "tutorpress"),
+                  });
+                  console.warn("TutorPress: No H5P content found for this user");
+                }
+              } catch (h5pError) {
+                console.error("TutorPress: Failed to load H5P content metadata:", h5pError);
+                // Fallback to basic H5P content object
+                setSelectedH5PContent({
+                  id: h5pContentId,
+                  title: firstQuestion.question_title,
+                  content_type: "h5p",
+                  user_id: 0,
+                  user_name: __("Unknown", "tutorpress"),
+                  updated_at: __("Unknown", "tutorpress"),
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading Interactive Quiz data:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setLoadError(__("Failed to load Interactive Quiz data: ", "tutorpress") + errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // useEffect to load existing quiz data when modal opens
+  useEffect(() => {
+    if (isOpen && quizId) {
+      loadExistingQuizData(quizId);
+    } else if (isOpen && !quizId) {
+      // Reset for new Interactive Quiz (same as QuizModal)
+      setQuizData(null);
+      setLoadError(null);
+      // Reset form to clean defaults for new quiz
+      resetToDefaults();
+      // Reset questions state for new quiz
+      setQuestions([]);
+      setSelectedQuestionIndex(null);
+      setSelectedH5PContent(null);
+    }
+  }, [isOpen, quizId, resetToDefaults]);
 
   // Tab configuration (identical to QuizModal)
   const tabs = [
@@ -91,16 +249,61 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   };
 
   // Question management handlers (same as QuizModal)
-  const handleQuestionSelect = (questionIndex: number) => {
+  const handleQuestionSelect = async (questionIndex: number) => {
     setSelectedQuestionIndex(questionIndex);
     setIsAddingQuestion(false);
 
     // Update selectedH5PContent when an H5P question is selected
     const selectedQuestion = questions[questionIndex];
     if (selectedQuestion?.question_type === "h5p") {
-      // Try to find the H5P content in our stored data
-      // For now, we'll need to maintain the selected H5P content state
-      // In a full implementation, we might want to fetch H5P content details by ID
+      const h5pContentId = parseInt(selectedQuestion.question_description);
+      if (!isNaN(h5pContentId)) {
+        try {
+          // Fetch H5P content metadata from the API
+          const h5pResponse = (await (window as any).wp.apiFetch({
+            path: `/tutorpress/v1/h5p/contents?per_page=100`, // Get all user's content
+            method: "GET",
+          })) as any;
+
+          if (h5pResponse?.items?.length > 0) {
+            // Find the specific content by ID
+            const h5pContent = h5pResponse.items.find((item: any) => item.id === h5pContentId);
+            if (h5pContent) {
+              setSelectedH5PContent({
+                id: h5pContent.id,
+                title: h5pContent.title || selectedQuestion.question_title,
+                content_type: h5pContent.content_type || "h5p",
+                user_id: h5pContent.user_id || 0,
+                user_name: h5pContent.user_name || __("Unknown", "tutorpress"),
+                updated_at: h5pContent.updated_at || __("Unknown", "tutorpress"),
+              });
+              console.log("TutorPress: Loaded H5P content metadata on question select:", h5pContent);
+            } else {
+              // Content not found in user's content list
+              setSelectedH5PContent({
+                id: h5pContentId,
+                title: selectedQuestion.question_title,
+                content_type: "h5p",
+                user_id: 0,
+                user_name: __("Unknown", "tutorpress"),
+                updated_at: __("Unknown", "tutorpress"),
+              });
+              console.warn(`TutorPress: H5P content ${h5pContentId} not found in user's content list`);
+            }
+          }
+        } catch (h5pError) {
+          console.error("TutorPress: Failed to load H5P content metadata on question select:", h5pError);
+          // Fallback to basic H5P content object
+          setSelectedH5PContent({
+            id: h5pContentId,
+            title: selectedQuestion.question_title,
+            content_type: "h5p",
+            user_id: 0,
+            user_name: __("Unknown", "tutorpress"),
+            updated_at: __("Unknown", "tutorpress"),
+          });
+        }
+      }
     }
   };
 
@@ -225,10 +428,10 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         post_title: formState.title,
         post_content: formState.description,
         quiz_option: {
-          attempts_allowed: formState.settings.attempts_allowed,
-          passing_grade: formState.settings.passing_grade,
-          quiz_auto_start: formState.settings.quiz_auto_start,
-          questions_order: formState.settings.questions_order,
+          // Include all default quiz settings for Tutor LMS frontend course builder compatibility
+          ...formState.settings,
+          // Override with Interactive Quiz identifier
+          quiz_type: "tutor_h5p_quiz",
         },
         questions: questions,
       };
@@ -285,6 +488,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const handleClose = () => {
     // Reset form and state
     resetForm();
+    setQuizData(null);
     setQuestions([]);
     setSelectedQuestionIndex(null);
     setIsAddingQuestion(false);
@@ -294,14 +498,14 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     setLoadError(null);
     setSaveError(null);
     setSaveSuccess(false);
+    setIsLoading(false);
     onClose();
   };
 
   // Handle retry (same as QuizModal)
   const handleRetry = () => {
     if (quizId) {
-      // TODO: Load existing Interactive Quiz data
-      setLoadError(null);
+      loadExistingQuizData(quizId);
     }
   };
 
@@ -436,24 +640,38 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
             case "settings":
               return (
                 <SettingsTab
-                  // Override 2: Pass only Interactive Quiz settings (4 fields)
-                  // This will trigger Interactive Quiz mode in SettingsTab
+                  // Core settings (always passed)
                   attemptsAllowed={formState.settings.attempts_allowed}
                   passingGrade={formState.settings.passing_grade}
                   quizAutoStart={formState.settings.quiz_auto_start}
                   questionsOrder={formState.settings.questions_order}
+                  // All settings with defaults (for Tutor LMS compatibility)
+                  timeValue={formState.settings.time_limit.time_value}
+                  timeType={formState.settings.time_limit.time_type}
+                  hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
+                  feedbackMode={formState.settings.feedback_mode}
+                  maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
+                  afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
+                  questionLayoutView={formState.settings.question_layout_view}
+                  hideQuestionNumberOverview={formState.settings.hide_question_number_overview}
+                  shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
+                  openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
+                  // Addon state
+                  coursePreviewAddonAvailable={false} // TODO: Implement if needed
                   // UI state
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   saveError={saveError}
-                  // Handlers
+                  // All Settings toggle state
+                  showAllSettings={showAllSettings}
+                  onShowAllSettingsChange={setShowAllSettings}
+                  // Handlers (always passed for full functionality)
                   onSettingChange={updateSettings}
+                  onTimeChange={updateTimeLimit}
+                  onContentDripChange={updateContentDrip}
                   onSaveErrorDismiss={() => setSaveError(null)}
                   // Validation errors
                   errors={errors}
-
-                  // Omit time limit and content drip handlers to trigger Interactive Quiz mode
-                  // onTimeChange and onContentDripChange are NOT passed
                 />
               );
             default:

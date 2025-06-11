@@ -20,15 +20,20 @@
  * - Generic interface supporting both Quiz and Interactive Quiz modals
  *
  * @settings
- * - Time Limit: Configurable with units (Quiz Modal only)
- * - Hide Quiz Time: Toggle for time display (Quiz Modal only)
- * - Feedback Mode: How answers are revealed (Quiz Modal only)
- * - Passing Grade: Minimum percentage to pass (Both modals)
- * - Max Questions: Random question selection limit (Quiz Modal only)
- * - Available After Days: Content drip functionality (Quiz Modal only)
- * - Attempts Allowed: Number of retries allowed (Both modals)
- * - Quiz Auto Start: Auto-start behavior (Both modals)
- * - Question Order: Order of question presentation (Both modals)
+ * Interactive Quiz Default (3 settings):
+ * - Passing Grade: Minimum percentage to pass
+ * - Quiz Auto Start: Auto-start behavior
+ * - Question Order: Order of question presentation
+ *
+ * Interactive Quiz All Settings (matches Quiz Modal):
+ * - Time Limit: Configurable with units
+ * - Hide Quiz Time: Toggle for time display
+ * - Feedback Mode: How answers are revealed
+ *   - Attempts Allowed: Shows when feedback mode is "retry" (DRY principle)
+ * - Max Questions: Random question selection limit
+ * - Available After Days: Content drip functionality
+ * - Hide Question Number: Question numbering display
+ * - Character Limits: Short and essay answer limits
  *
  * @usage
  * // Quiz Modal (all props)
@@ -69,6 +74,7 @@ import type { TimeUnit, FeedbackMode, QuestionLayoutView, QuestionOrder } from "
 
 interface SettingsTabProps {
   // Core settings (required for both Quiz and Interactive Quiz)
+  // Note: attemptsAllowed is core for Quiz Modal but only shown in Interactive Quiz when showAllSettings = true
   attemptsAllowed: number;
   passingGrade: number;
   quizAutoStart: boolean;
@@ -88,6 +94,10 @@ interface SettingsTabProps {
 
   // Addon state (optional)
   coursePreviewAddonAvailable?: boolean;
+
+  // All Settings toggle (for Interactive Quiz)
+  showAllSettings?: boolean;
+  onShowAllSettingsChange?: (show: boolean) => void;
 
   // UI state (required)
   isSaving: boolean;
@@ -134,6 +144,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   // Addon state
   coursePreviewAddonAvailable = false,
 
+  // All Settings toggle (for Interactive Quiz)
+  showAllSettings = false,
+  onShowAllSettingsChange,
+
   // UI state
   isSaving,
   saveSuccess,
@@ -148,8 +162,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   // Validation errors
   errors,
 }) => {
-  // Determine if this is Interactive Quiz mode (minimal props provided)
-  const isInteractiveQuizMode = !onTimeChange || !onContentDripChange;
+  // Determine if this is Interactive Quiz mode
+  // Interactive Quiz mode is when showAllSettings handler is provided (indicating this is InteractiveQuizModal)
+  const isInteractiveQuizMode = !!onShowAllSettingsChange;
 
   const timeUnitOptions = [
     { label: __("Seconds", "tutorpress"), value: "seconds" },
@@ -198,15 +213,43 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       <div className="quiz-modal-single-column-layout">
         <div className="quiz-modal-settings-content">
-          <h3>
-            {isInteractiveQuizMode ? __("Interactive Quiz Settings", "tutorpress") : __("Quiz Settings", "tutorpress")}
-          </h3>
+          <div
+            className="quiz-modal-settings-header"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "20px",
+            }}
+          >
+            <h3 style={{ margin: 0 }}>
+              {isInteractiveQuizMode
+                ? __("Interactive Quiz Settings", "tutorpress")
+                : __("Quiz Settings", "tutorpress")}
+            </h3>
+            {isInteractiveQuizMode && onShowAllSettingsChange && (
+              <div
+                className="quiz-modal-settings-toggle"
+                style={{
+                  flexShrink: 0,
+                  marginLeft: "20px",
+                }}
+              >
+                <ToggleControl
+                  label={__("Reveal All Quiz Settings", "tutorpress")}
+                  checked={showAllSettings}
+                  onChange={onShowAllSettingsChange}
+                  disabled={isSaving}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="quiz-modal-basic-settings">
             <h4>{__("Basic Settings", "tutorpress")}</h4>
 
-            {/* Time Limit - Quiz Modal only */}
-            {!isInteractiveQuizMode && onTimeChange && (
+            {/* Time Limit - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && onTimeChange && (
               <div className="quiz-modal-setting-group">
                 <label className="quiz-modal-setting-label">{__("Time Limit", "tutorpress")}</label>
                 <HStack spacing={2} alignment="flex-start">
@@ -238,8 +281,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* Hide Quiz Time Display - Quiz Modal only */}
-            {!isInteractiveQuizMode && (
+            {/* Hide Quiz Time Display - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && (
               <div className="quiz-modal-setting-group">
                 <ToggleControl
                   label={__("Hide Quiz Time Display", "tutorpress")}
@@ -251,8 +294,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* Feedback Mode - Quiz Modal only */}
-            {!isInteractiveQuizMode && (
+            {/* Feedback Mode - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && (
               <div className="quiz-modal-setting-group">
                 <SelectControl
                   label={__("Feedback Mode", "tutorpress")}
@@ -268,8 +311,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* Attempts Allowed - Always visible for Interactive Quiz, conditional for Quiz Modal */}
-            {(isInteractiveQuizMode || feedbackMode === "retry") && (
+            {/* Attempts Allowed - Shows when feedback mode is retry (DRY principle) */}
+            {feedbackMode === "retry" && (
               <div className="quiz-modal-setting-group">
                 <NumberControl
                   label={__("Attempts Allowed", "tutorpress")}
@@ -318,8 +361,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               )}
             </div>
 
-            {/* Max Questions Allowed to Answer - Quiz Modal only */}
-            {!isInteractiveQuizMode && (
+            {/* Max Questions Allowed to Answer - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && (
               <div className="quiz-modal-setting-group">
                 <NumberControl
                   label={__("Max Questions Allowed to Answer", "tutorpress")}
@@ -343,8 +386,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* Available after days (Course Preview addon) - Quiz Modal only */}
-            {!isInteractiveQuizMode && coursePreviewAddonAvailable && onContentDripChange && (
+            {/* Available after days (Course Preview addon) - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && coursePreviewAddonAvailable && onContentDripChange && (
               <div className="quiz-modal-setting-group">
                 <NumberControl
                   label={__("Available after days", "tutorpress")}
@@ -383,8 +426,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {/* Question Layout and Question Order */}
             <div className="quiz-modal-setting-group">
               <div className="quiz-modal-two-column-layout">
-                {/* Question Layout - Quiz Modal only */}
-                {!isInteractiveQuizMode && (
+                {/* Question Layout - Quiz Modal always, Interactive Quiz when showAllSettings */}
+                {(!isInteractiveQuizMode || showAllSettings) && (
                   <div className="quiz-modal-setting-column">
                     <SelectControl
                       label={__("Question Layout", "tutorpress")}
@@ -401,8 +444,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </div>
                 )}
 
-                {/* Question Order - Always visible, full width for Interactive Quiz */}
-                <div className={isInteractiveQuizMode ? "quiz-modal-setting-full-width" : "quiz-modal-setting-column"}>
+                {/* Question Order - Always visible, full width for Interactive Quiz when basic mode */}
+                <div
+                  className={
+                    isInteractiveQuizMode && !showAllSettings
+                      ? "quiz-modal-setting-full-width"
+                      : "quiz-modal-setting-column"
+                  }
+                >
                   <SelectControl
                     label={__("Question Order", "tutorpress")}
                     value={questionsOrder}
@@ -419,8 +468,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
 
-            {/* Hide Question Number - Quiz Modal only */}
-            {!isInteractiveQuizMode && (
+            {/* Hide Question Number - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && (
               <div className="quiz-modal-setting-group">
                 <ToggleControl
                   label={__("Hide Question Number", "tutorpress")}
@@ -431,8 +480,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* Character Limits - Quiz Modal only */}
-            {!isInteractiveQuizMode && (
+            {/* Character Limits - Quiz Modal always, Interactive Quiz when showAllSettings */}
+            {(!isInteractiveQuizMode || showAllSettings) && (
               <>
                 <div className="quiz-modal-setting-group">
                   <NumberControl

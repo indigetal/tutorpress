@@ -344,10 +344,20 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
         ]);
 
         return array_map(function($item) {
+            $content_type = $item->post_type;
+            
+            // Check if this is an Interactive Quiz (H5P Quiz)
+            if ($item->post_type === 'tutor_quiz') {
+                $quiz_option = get_post_meta($item->ID, 'tutor_quiz_option', true);
+                if (is_array($quiz_option) && isset($quiz_option['quiz_type']) && $quiz_option['quiz_type'] === 'tutor_h5p_quiz') {
+                    $content_type = 'interactive_quiz';
+                }
+            }
+            
             return [
                 'id'         => $item->ID,
                 'title'      => $item->post_title,
-                'type'       => $item->post_type,
+                'type'       => $content_type,
                 'menu_order' => (int) $item->menu_order,
                 'status'     => $item->post_status,
             ];

@@ -208,6 +208,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleAssignmentEdit(item.id)
                     : item.type === "tutor_quiz"
                     ? () => handleQuizEditModal(item.id)
+                    : item.type === "interactive_quiz"
+                    ? () => {
+                        setEditingInteractiveQuizId(item.id);
+                        setIsInteractiveQuizModalOpen(true);
+                      }
                     : undefined
                 }
                 onDuplicate={
@@ -217,6 +222,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleAssignmentDuplicate(item.id, topic.id)
                     : item.type === "tutor_quiz"
                     ? () => handleQuizDuplicate(item.id, topic.id)
+                    : item.type === "interactive_quiz"
+                    ? () => handleQuizDuplicate(item.id, topic.id)
                     : undefined
                 }
                 onDelete={
@@ -225,6 +232,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     : item.type === "tutor_assignments"
                     ? () => handleAssignmentDelete(item.id)
                     : item.type === "tutor_quiz"
+                    ? () => handleQuizDelete(item.id, topic.id)
+                    : item.type === "interactive_quiz"
                     ? () => handleQuizDelete(item.id, topic.id)
                     : undefined
                 }

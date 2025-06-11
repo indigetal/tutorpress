@@ -6,7 +6,7 @@ import { Topic, ContentItem } from "../types/curriculum";
 export interface TopicContent {
   id: number;
   title: string;
-  type: "lesson" | "quiz" | "assignment" | "tutor_assignments";
+  type: "lesson" | "tutor_quiz" | "assignment" | "tutor_assignments" | "interactive_quiz";
   menu_order: number;
   status: string;
 }

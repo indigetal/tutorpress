@@ -312,13 +312,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     updateContentDrip,
     resetForm,
     resetToDefaults,
+    initializeWithData,
     validateEntireForm,
     checkCoursePreviewAddon,
     getFormData,
     isValid,
     isDirty,
     errors,
-  } = useQuizForm(quizData);
+  } = useQuizForm();
 
   // Get quiz duplication state from curriculum store
   const quizDuplicationState = useSelect((select) => {
@@ -374,12 +375,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         const quizData = response.data;
         setQuizData(quizData);
 
-        // Manually update form fields with loaded data
-        updateTitle(quizData.post_title || "");
-        updateDescription(quizData.post_content || "");
-        if (quizData.quiz_option) {
-          updateSettings(quizData.quiz_option);
-        }
+        // Initialize form with loaded data (clean approach - no dirty state marking)
+        initializeWithData(quizData);
 
         // Load questions data - Step 3.2
         if (quizData.questions && Array.isArray(quizData.questions)) {

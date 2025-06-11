@@ -79,6 +79,8 @@ export interface UseQuizFormReturn {
   isValid: boolean;
   isDirty: boolean;
   errors: QuizFormErrors;
+  // Initialization functions (no dirty state marking)
+  initializeWithData: (data: Partial<QuizForm>) => void;
 }
 
 /**
@@ -386,6 +388,34 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
     return Object.keys(errors).length === 0;
   }, [formState, validateForm]);
 
+  /**
+   * Initialize form with data without marking as dirty
+   * Use this for loading existing quiz data - prevents "unsaved changes" warning
+   */
+  const initializeWithData = useCallback(
+    (data: Partial<QuizForm>) => {
+      const convertedSettings = data.quiz_option ? convertTutorBooleans(data.quiz_option) : getDefaultQuizSettings();
+
+      setFormState((prevState) => {
+        const newState = {
+          ...prevState,
+          title: data.post_title || "",
+          description: data.post_content || "",
+          settings: convertedSettings,
+          isDirty: false, // Key: Keep isDirty as false for initialization
+        };
+
+        // Validate but don't mark as dirty
+        const errors = validateForm(newState);
+        newState.errors = errors;
+        newState.isValid = Object.keys(errors).length === 0;
+
+        return newState;
+      });
+    },
+    [validateForm, convertTutorBooleans]
+  );
+
   return {
     // State
     formState,
@@ -402,6 +432,9 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
     validateEntireForm,
     checkCoursePreviewAddon,
     getFormData,
+
+    // Initialization (no dirty state)
+    initializeWithData,
 
     // Computed
     isValid: formState.isValid,
