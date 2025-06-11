@@ -37,16 +37,20 @@ class TutorPress_REST {
             require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
             require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
             require_once TUTORPRESS_PATH . 'includes/rest/class-quizzes-controller.php';
-            require_once TUTORPRESS_PATH . 'includes/rest/class-h5p-controller.php';
 
-            // Initialize controllers
+            // Initialize core controllers
             $controllers = [
                 'topics'      => new TutorPress_REST_Topics_Controller(),
                 'lessons'     => new TutorPress_REST_Lessons_Controller(),
                 'assignments' => new TutorPress_REST_Assignments_Controller(),
                 'quizzes'     => new TutorPress_REST_Quizzes_Controller(),
-                'h5p'         => new TutorPress_REST_H5P_Controller(),
             ];
+
+            // Conditionally load H5P controller only if H5P addon is available
+            if (TutorPress_Addon_Checker::is_h5p_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-h5p-controller.php';
+                $controllers['h5p'] = new TutorPress_REST_H5P_Controller();
+            }
 
             // Register routes for each controller
             foreach ($controllers as $name => $controller) {

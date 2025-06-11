@@ -51,6 +51,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_ZOOM_VERSION',
             'class' => 'TUTOR_ZOOM\Init',
         ],
+        'h5p' => [
+            'file' => 'tutor-pro/addons/h5p/h5p.php',
+            'basename' => 'tutor-pro/addons/h5p/h5p.php',
+            'constant' => 'TUTOR_H5P_VERSION',
+            'class' => 'TutorPro\H5P\H5P',
+        ],
     ];
 
     /**
@@ -105,6 +111,15 @@ class TutorPress_Addon_Checker {
      */
     public static function is_zoom_enabled() {
         return self::is_addon_enabled('zoom');
+    }
+
+    /**
+     * Check if H5P addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_h5p_enabled() {
+        return self::is_addon_enabled('h5p');
     }
 
     /**

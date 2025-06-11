@@ -25,6 +25,7 @@ export {
   isCoursePreviewEnabled,
   isGoogleMeetEnabled,
   isZoomEnabled,
+  isH5pEnabled,
   isAnyLiveLessonEnabled,
   getAvailableLiveLessonTypes,
 } from "./addonChecker";

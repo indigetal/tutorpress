@@ -9,7 +9,17 @@ import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
-import { InteractiveQuizModal } from "../../modals/InteractiveQuizModal";
+import { isH5pEnabled } from "../../../utils/addonChecker";
+import { store as noticesStore } from "@wordpress/notices";
+import { useDispatch } from "@wordpress/data";
+
+// Conditionally import Interactive Quiz components only when H5P is enabled
+let InteractiveQuizModal: React.ComponentType<any> | null = null;
+if (isH5pEnabled()) {
+  // Use dynamic import to prevent loading when H5P is not available
+  const { InteractiveQuizModal: ImportedInteractiveQuizModal } = require("../../modals/InteractiveQuizModal");
+  InteractiveQuizModal = ImportedInteractiveQuizModal;
+}
 
 /**
  * Props for content item row
@@ -71,9 +81,20 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<number | undefined>(undefined);
 
-  // Interactive Quiz modal state
+  // Interactive Quiz modal state - only when H5P is enabled
   const [isInteractiveQuizModalOpen, setIsInteractiveQuizModalOpen] = useState(false);
   const [editingInteractiveQuizId, setEditingInteractiveQuizId] = useState<number | undefined>(undefined);
+
+  // Get notice actions
+  const { createNotice } = useDispatch(noticesStore);
+
+  // Helper function to show H5P disabled notice
+  const showH5pDisabledNotice = () => {
+    createNotice("warning", __("H5P integration is currently disabled. Contact the site admin.", "tutorpress"), {
+      isDismissible: true,
+      type: "snackbar",
+    });
+  };
 
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
@@ -121,14 +142,16 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     // TODO: Refresh curriculum if quiz was created/updated
   };
 
-  // Handle Interactive Quiz modal open
+  // Handle Interactive Quiz modal open - only when H5P is enabled
   const handleInteractiveQuizModalOpen = () => {
+    if (!isH5pEnabled()) return;
     setEditingInteractiveQuizId(undefined);
     setIsInteractiveQuizModalOpen(true);
   };
 
-  // Handle Interactive Quiz modal close
+  // Handle Interactive Quiz modal close - only when H5P is enabled
   const handleInteractiveQuizModalClose = () => {
+    if (!isH5pEnabled()) return;
     setIsInteractiveQuizModalOpen(false);
     setEditingInteractiveQuizId(undefined);
     // TODO: Refresh curriculum if Interactive Quiz was created/updated
@@ -210,6 +233,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     ? () => handleQuizEditModal(item.id)
                     : item.type === "interactive_quiz"
                     ? () => {
+                        if (!isH5pEnabled()) {
+                          showH5pDisabledNotice();
+                          return;
+                        }
                         setEditingInteractiveQuizId(item.id);
                         setIsInteractiveQuizModalOpen(true);
                       }
@@ -223,7 +250,13 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     : item.type === "tutor_quiz"
                     ? () => handleQuizDuplicate(item.id, topic.id)
                     : item.type === "interactive_quiz"
-                    ? () => handleQuizDuplicate(item.id, topic.id)
+                    ? () => {
+                        if (!isH5pEnabled()) {
+                          showH5pDisabledNotice();
+                          return;
+                        }
+                        handleQuizDuplicate(item.id, topic.id);
+                      }
                     : undefined
                 }
                 onDelete={
@@ -234,7 +267,13 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     : item.type === "tutor_quiz"
                     ? () => handleQuizDelete(item.id, topic.id)
                     : item.type === "interactive_quiz"
-                    ? () => handleQuizDelete(item.id, topic.id)
+                    ? () => {
+                        if (!isH5pEnabled()) {
+                          showH5pDisabledNotice();
+                          return;
+                        }
+                        handleQuizDelete(item.id, topic.id);
+                      }
                     : undefined
                 }
               />
@@ -260,9 +299,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               <Button variant="secondary" isSmall icon={plus} onClick={handleQuizModalOpen}>
                 {__("Quiz", "tutorpress")}
               </Button>
-              <Button variant="secondary" isSmall icon={plus} onClick={handleInteractiveQuizModalOpen}>
-                {__("Interactive Quiz", "tutorpress")}
-              </Button>
+              {isH5pEnabled() && (
+                <Button variant="secondary" isSmall icon={plus} onClick={handleInteractiveQuizModalOpen}>
+                  {__("Interactive Quiz", "tutorpress")}
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 isSmall
@@ -294,13 +335,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       />
 
       {/* Interactive Quiz Modal */}
-      <InteractiveQuizModal
-        isOpen={isInteractiveQuizModalOpen}
-        onClose={handleInteractiveQuizModalClose}
-        topicId={topic.id}
-        courseId={courseId}
-        quizId={editingInteractiveQuizId}
-      />
+      {InteractiveQuizModal && (
+        <InteractiveQuizModal
+          isOpen={isInteractiveQuizModalOpen}
+          onClose={handleInteractiveQuizModalClose}
+          topicId={topic.id}
+          courseId={courseId}
+          quizId={editingInteractiveQuizId}
+        />
+      )}
     </Card>
   );
 };

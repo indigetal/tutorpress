@@ -13,7 +13,7 @@
 /**
  * Supported addon keys
  */
-export type AddonKey = "course_preview" | "google_meet" | "zoom";
+export type AddonKey = "course_preview" | "google_meet" | "zoom" | "h5p";
 
 /**
  * Addon status interface
@@ -22,6 +22,7 @@ export interface AddonStatus {
   course_preview: boolean;
   google_meet: boolean;
   zoom: boolean;
+  h5p: boolean;
 }
 
 /**
@@ -49,6 +50,7 @@ export class AddonChecker {
         course_preview: false,
         google_meet: false,
         zoom: false,
+        h5p: false,
       }
     );
   }
@@ -96,6 +98,13 @@ export class AddonChecker {
   }
 
   /**
+   * Check if H5P addon is available
+   */
+  public static isH5pEnabled(): boolean {
+    return this.isAddonEnabled("h5p");
+  }
+
+  /**
    * Get availability status for all supported addons
    */
   public static getAllAddonStatus(): AddonStatus {
@@ -138,7 +147,7 @@ export class AddonChecker {
    * Get supported addon keys
    */
   public static getSupportedAddons(): AddonKey[] {
-    return ["course_preview", "google_meet", "zoom"];
+    return ["course_preview", "google_meet", "zoom", "h5p"];
   }
 }
 
@@ -148,5 +157,6 @@ export class AddonChecker {
 export const isCoursePreviewEnabled = (): boolean => AddonChecker.isCoursePreviewEnabled();
 export const isGoogleMeetEnabled = (): boolean => AddonChecker.isGoogleMeetEnabled();
 export const isZoomEnabled = (): boolean => AddonChecker.isZoomEnabled();
+export const isH5pEnabled = (): boolean => AddonChecker.isH5pEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
