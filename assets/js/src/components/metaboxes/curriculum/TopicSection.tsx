@@ -1,5 +1,17 @@
 import React, { type MouseEvent, useState } from "react";
-import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock } from "@wordpress/components";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Icon,
+  Flex,
+  FlexBlock,
+  Modal,
+  Dropdown,
+  MenuGroup,
+  MenuItem,
+} from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
 import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../types/curriculum";
@@ -9,7 +21,7 @@ import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
-import { isH5pEnabled } from "../../../utils/addonChecker";
+import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch } from "@wordpress/data";
 
@@ -85,6 +97,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const [isInteractiveQuizModalOpen, setIsInteractiveQuizModalOpen] = useState(false);
   const [editingInteractiveQuizId, setEditingInteractiveQuizId] = useState<number | undefined>(undefined);
 
+  // Live Lessons modal state
+  const [isGoogleMeetModalOpen, setIsGoogleMeetModalOpen] = useState(false);
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
 
@@ -155,6 +171,25 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     setIsInteractiveQuizModalOpen(false);
     setEditingInteractiveQuizId(undefined);
     // TODO: Refresh curriculum if Interactive Quiz was created/updated
+  };
+
+  // Live Lessons modal handlers
+  const handleGoogleMeetModalOpen = () => {
+    setIsGoogleMeetModalOpen(true);
+  };
+
+  const handleGoogleMeetModalClose = () => {
+    setIsGoogleMeetModalOpen(false);
+    // TODO: Refresh curriculum if Google Meet lesson was created/updated
+  };
+
+  const handleZoomModalOpen = () => {
+    setIsZoomModalOpen(true);
+  };
+
+  const handleZoomModalClose = () => {
+    setIsZoomModalOpen(false);
+    // TODO: Refresh curriculum if Zoom lesson was created/updated
   };
 
   // Handle double-click on title or summary
@@ -280,7 +315,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             ))}
           </div>
           <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
-            <Flex gap={2} style={{ width: "auto" }}>
+            <Flex gap={2} style={{ width: "auto" }} className="tutorpress-content-buttons">
+              {/* Core content buttons - always visible */}
               <Button
                 variant="secondary"
                 isSmall
@@ -293,17 +329,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   url.searchParams.append("topic_id", topic.id.toString());
                   window.location.href = url.toString();
                 }}
+                className="tutorpress-btn-core"
               >
                 {__("Lesson", "tutorpress")}
               </Button>
-              <Button variant="secondary" isSmall icon={plus} onClick={handleQuizModalOpen}>
+              <Button
+                variant="secondary"
+                isSmall
+                icon={plus}
+                onClick={handleQuizModalOpen}
+                className="tutorpress-btn-core"
+              >
                 {__("Quiz", "tutorpress")}
               </Button>
-              {isH5pEnabled() && (
-                <Button variant="secondary" isSmall icon={plus} onClick={handleInteractiveQuizModalOpen}>
-                  {__("Interactive Quiz", "tutorpress")}
-                </Button>
-              )}
               <Button
                 variant="secondary"
                 isSmall
@@ -316,11 +354,108 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   url.searchParams.append("topic_id", topic.id.toString());
                   window.location.href = url.toString();
                 }}
+                className="tutorpress-btn-core"
               >
                 {__("Assignment", "tutorpress")}
               </Button>
+
+              {/* Extended content buttons - responsive visibility */}
+              {isH5pEnabled() && (
+                <Button
+                  variant="secondary"
+                  isSmall
+                  icon={plus}
+                  onClick={handleInteractiveQuizModalOpen}
+                  className="tutorpress-btn-extended"
+                >
+                  {__("Interactive Quiz", "tutorpress")}
+                </Button>
+              )}
+              {isGoogleMeetEnabled() && (
+                <Button
+                  variant="secondary"
+                  isSmall
+                  icon={plus}
+                  onClick={handleGoogleMeetModalOpen}
+                  className="tutorpress-btn-extended"
+                >
+                  {__("Google Meet", "tutorpress")}
+                </Button>
+              )}
+              {isZoomEnabled() && (
+                <Button
+                  variant="secondary"
+                  isSmall
+                  icon={plus}
+                  onClick={handleZoomModalOpen}
+                  className="tutorpress-btn-extended"
+                >
+                  {__("Zoom", "tutorpress")}
+                </Button>
+              )}
             </Flex>
-            <Button icon={moreVertical} label={__("More options", "tutorpress")} isSmall />
+
+            {/* Overflow menu for smaller screens */}
+            <Dropdown
+              className="tutorpress-content-overflow"
+              contentClassName="tutorpress-content-overflow-content"
+              popoverProps={{
+                placement: "bottom-end",
+                offset: 4,
+              }}
+              renderToggle={({ isOpen, onToggle }) => (
+                <Button
+                  icon={moreVertical}
+                  label={__("More content options", "tutorpress")}
+                  isSmall
+                  onClick={onToggle}
+                  aria-expanded={isOpen}
+                  className="tutorpress-content-overflow-toggle"
+                />
+              )}
+              renderContent={({ onClose }) => (
+                <MenuGroup label={__("Add Content", "tutorpress")}>
+                  {/* H5P option in overflow */}
+                  {isH5pEnabled() && (
+                    <MenuItem
+                      icon={plus}
+                      onClick={() => {
+                        handleInteractiveQuizModalOpen();
+                        onClose();
+                      }}
+                      className="tutorpress-overflow-h5p"
+                    >
+                      {__("Interactive Quiz", "tutorpress")}
+                    </MenuItem>
+                  )}
+                  {/* Live Lessons options in overflow */}
+                  {isGoogleMeetEnabled() && (
+                    <MenuItem
+                      icon={plus}
+                      onClick={() => {
+                        handleGoogleMeetModalOpen();
+                        onClose();
+                      }}
+                      className="tutorpress-overflow-google-meet"
+                    >
+                      {__("Google Meet", "tutorpress")}
+                    </MenuItem>
+                  )}
+                  {isZoomEnabled() && (
+                    <MenuItem
+                      icon={plus}
+                      onClick={() => {
+                        handleZoomModalOpen();
+                        onClose();
+                      }}
+                      className="tutorpress-overflow-zoom"
+                    >
+                      {__("Zoom", "tutorpress")}
+                    </MenuItem>
+                  )}
+                </MenuGroup>
+              )}
+            />
           </Flex>
         </CardBody>
       ) : null}
@@ -343,6 +478,62 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
           courseId={courseId}
           quizId={editingInteractiveQuizId}
         />
+      )}
+
+      {/* Google Meet Live Lesson Modal */}
+      {isGoogleMeetModalOpen && (
+        <Modal
+          title={__("Create Google Meet Live Lesson", "tutorpress")}
+          onRequestClose={handleGoogleMeetModalClose}
+          className="tutorpress-live-lesson-modal tutorpress-google-meet-modal"
+          size="medium"
+        >
+          <div className="tutorpress-modal-content">
+            <p>{__("Google Meet form will be implemented in Step 6", "tutorpress")}</p>
+            <p>
+              <strong>{__("Topic ID:", "tutorpress")}</strong> {topic.id}
+            </p>
+            <p>
+              <strong>{__("Course ID:", "tutorpress")}</strong> {courseId}
+            </p>
+          </div>
+          <div className="tutorpress-modal-footer">
+            <Button variant="secondary" onClick={handleGoogleMeetModalClose}>
+              {__("Cancel", "tutorpress")}
+            </Button>
+            <Button variant="primary" onClick={handleGoogleMeetModalClose}>
+              {__("Create Lesson", "tutorpress")}
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Zoom Live Lesson Modal */}
+      {isZoomModalOpen && (
+        <Modal
+          title={__("Create Zoom Live Lesson", "tutorpress")}
+          onRequestClose={handleZoomModalClose}
+          className="tutorpress-live-lesson-modal tutorpress-zoom-modal"
+          size="medium"
+        >
+          <div className="tutorpress-modal-content">
+            <p>{__("Zoom form will be implemented in Step 6", "tutorpress")}</p>
+            <p>
+              <strong>{__("Topic ID:", "tutorpress")}</strong> {topic.id}
+            </p>
+            <p>
+              <strong>{__("Course ID:", "tutorpress")}</strong> {courseId}
+            </p>
+          </div>
+          <div className="tutorpress-modal-footer">
+            <Button variant="secondary" onClick={handleZoomModalClose}>
+              {__("Cancel", "tutorpress")}
+            </Button>
+            <Button variant="primary" onClick={handleZoomModalClose}>
+              {__("Create Lesson", "tutorpress")}
+            </Button>
+          </div>
+        </Modal>
       )}
     </Card>
   );

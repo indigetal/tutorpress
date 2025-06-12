@@ -7,6 +7,7 @@
 @import "./components/curriculum.css";
 @import "./components/topics.css";
 @import "./components/content-items.css";
+@import "./components/live-lessons.css";
 
 /* Quiz Modal Core */
 @import "./components/quiz-modal.css";

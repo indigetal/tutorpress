@@ -53,3 +53,130 @@
 .tutorpress-curriculum {
   padding: 16px;
 }
+
+/* ========================================================================
+   TOPIC CONTENT BUTTON LAYOUT
+   ======================================================================== */
+
+.tutorpress-content-actions {
+  position: relative;
+}
+
+.tutorpress-content-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Core buttons (Lesson, Quiz, Assignment) - always visible */
+.tutorpress-btn-core {
+  flex-shrink: 0;
+}
+
+/* Extended buttons (Interactive Quiz, Google Meet, Zoom) - responsive visibility */
+.tutorpress-btn-extended {
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Overflow menu - hidden by default, shown at smaller breakpoints */
+.tutorpress-content-overflow {
+  flex-shrink: 0;
+}
+
+.tutorpress-content-overflow-toggle {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-content-overflow-toggle:hover {
+  opacity: 1;
+}
+
+/* ========================================================================
+     RESPONSIVE BREAKPOINTS
+     ======================================================================== */
+
+/* Large screens (≥1200px) - All buttons visible, overflow menu hidden */
+@media (min-width: 1200px) {
+  .tutorpress-btn-extended {
+    display: inline-flex;
+  }
+
+  .tutorpress-content-overflow {
+    display: none;
+  }
+}
+
+/* Medium-large screens (1024px-1199px) - All buttons visible, slightly compressed */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .tutorpress-content-buttons {
+    gap: 6px;
+  }
+
+  .tutorpress-btn-extended {
+    display: inline-flex;
+  }
+
+  .tutorpress-content-overflow {
+    display: none;
+  }
+}
+
+/* Medium screens (768px-1023px) - Extended buttons move to overflow menu */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tutorpress-btn-extended {
+    display: none;
+  }
+
+  .tutorpress-content-overflow {
+    display: inline-flex;
+  }
+
+  /* Show overflow menu items for extended buttons */
+  .tutorpress-overflow-h5p,
+  .tutorpress-overflow-google-meet,
+  .tutorpress-overflow-zoom {
+    display: block;
+  }
+}
+
+/* Small screens (≤767px) - Only core buttons visible, extended in overflow */
+@media (max-width: 767px) {
+  .tutorpress-content-buttons {
+    gap: 4px;
+  }
+
+  .tutorpress-btn-extended {
+    display: none;
+  }
+
+  .tutorpress-content-overflow {
+    display: inline-flex;
+  }
+
+  /* Compress core button text on very small screens */
+  .tutorpress-btn-core .components-button__text {
+    font-size: 12px;
+  }
+}
+
+/* Extra small screens (≤600px) - Further compression */
+@media (max-width: 600px) {
+  .tutorpress-content-actions {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .tutorpress-content-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tutorpress-content-overflow {
+    align-self: flex-end;
+  }
+}

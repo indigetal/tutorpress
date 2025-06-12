@@ -2856,7 +2856,7 @@ const resolvers = {
         type: "SAVE_LIVE_LESSON_ERROR",
         payload: {
           error: {
-            code: CurriculumErrorCode.CREATE_FAILED,
+            code: CurriculumErrorCode.SAVE_FAILED,
             message: error instanceof Error ? error.message : __("Failed to save live lesson", "tutorpress"),
             context: {
               action: "saveLiveLesson",
@@ -2966,7 +2966,7 @@ const resolvers = {
         type: "UPDATE_LIVE_LESSON_ERROR",
         payload: {
           error: {
-            code: CurriculumErrorCode.EDIT_FAILED,
+            code: CurriculumErrorCode.UPDATE_FAILED,
             message: error instanceof Error ? error.message : __("Failed to update live lesson", "tutorpress"),
             context: {
               action: "updateLiveLesson",

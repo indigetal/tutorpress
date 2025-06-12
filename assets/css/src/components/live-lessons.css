@@ -1,0 +1,116 @@
+/**
+ * Live Lessons Responsive Button Integration
+ * 
+ * Handles responsive behavior for Live Lessons buttons in the Course Curriculum Metabox.
+ * Follows established TutorPress breakpoint patterns for consistent behavior.
+ */
+
+/* ========================================================================
+   LIVE LESSONS MODAL STYLES
+   ======================================================================== */
+
+.tutorpress-live-lesson-modal {
+  max-width: 600px;
+}
+
+.tutorpress-live-lesson-modal .components-modal__content {
+  padding: 0;
+}
+
+.tutorpress-modal-content {
+  padding: 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tutorpress-modal-content p {
+  margin: 0 0 12px 0;
+  color: #666;
+}
+
+.tutorpress-modal-content p:last-child {
+  margin-bottom: 0;
+}
+
+.tutorpress-modal-footer {
+  padding: 16px 24px;
+  background: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ========================================================================
+   OVERFLOW MENU CONTENT STYLES
+   ======================================================================== */
+
+.tutorpress-content-overflow-content {
+  min-width: 180px;
+}
+
+.tutorpress-content-overflow-content .components-menu-group__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #666;
+  padding: 8px 12px 4px;
+  margin: 0;
+}
+
+.tutorpress-content-overflow-content .components-menu-item__button {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #1e1e1e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.tutorpress-content-overflow-content .components-menu-item__button:hover {
+  background-color: #f0f0f0;
+}
+
+.tutorpress-content-overflow-content .components-menu-item__button:focus {
+  background-color: #e0e0e0;
+  outline: 2px solid #007cba;
+  outline-offset: -2px;
+}
+
+/* ========================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   ======================================================================== */
+
+/* Ensure proper focus management */
+.tutorpress-content-overflow-toggle:focus {
+  outline: 2px solid #007cba;
+  outline-offset: 2px;
+}
+
+/* Screen reader improvements */
+.tutorpress-content-overflow[aria-expanded="true"] .tutorpress-content-overflow-toggle {
+  background-color: #f0f0f0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tutorpress-btn-extended {
+    border: 1px solid currentColor;
+  }
+
+  .tutorpress-content-overflow-toggle {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-btn-extended,
+  .tutorpress-content-overflow-toggle {
+    transition: none;
+  }
+}
