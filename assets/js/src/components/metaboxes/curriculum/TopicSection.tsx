@@ -195,6 +195,26 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     });
   };
 
+  // Helper function to show Google Meet disabled notice
+  const showGoogleMeetDisabledNotice = () => {
+    createNotice(
+      "warning",
+      __("Google Meet integration is currently disabled. Contact the site admin.", "tutorpress"),
+      {
+        isDismissible: true,
+        type: "snackbar",
+      }
+    );
+  };
+
+  // Helper function to show Zoom disabled notice
+  const showZoomDisabledNotice = () => {
+    createNotice("warning", __("Zoom integration is currently disabled. Contact the site admin.", "tutorpress"), {
+      isDismissible: true,
+      type: "snackbar",
+    });
+  };
+
   // Monitor for Live Lessons errors
   useEffect(() => {
     if (hasLiveLessonError && getLiveLessonError) {
@@ -269,6 +289,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   // Live Lessons modal handlers
   const handleGoogleMeetModalOpen = () => {
+    if (!isGoogleMeetEnabled()) {
+      showGoogleMeetDisabledNotice();
+      return;
+    }
     // Reset form state when opening
     setGoogleMeetForm({
       title: "",
@@ -296,6 +320,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   };
 
   const handleZoomModalOpen = () => {
+    if (!isZoomEnabled()) {
+      showZoomDisabledNotice();
+      return;
+    }
     // Reset form state when opening
     setZoomForm({
       title: "",

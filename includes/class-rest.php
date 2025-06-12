@@ -52,9 +52,11 @@ class TutorPress_REST {
                 $controllers['h5p'] = new TutorPress_REST_H5P_Controller();
             }
 
-            // Always load Live Lessons controller to provide proper error messages when addons are disabled
-            require_once TUTORPRESS_PATH . 'includes/rest/class-live-lessons-controller.php';
-            $controllers['live_lessons'] = new TutorPress_REST_Live_Lessons_Controller();
+            // Conditionally load Live Lessons controller only if either Live Lessons addon is available
+            if (TutorPress_Addon_Checker::is_google_meet_enabled() || TutorPress_Addon_Checker::is_zoom_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-live-lessons-controller.php';
+                $controllers['live_lessons'] = new TutorPress_REST_Live_Lessons_Controller();
+            }
 
             // Register routes for each controller
             foreach ($controllers as $name => $controller) {
