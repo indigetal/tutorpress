@@ -211,7 +211,7 @@ export const ValidationDisplay: React.FC<ValidationDisplayProps> = ({
 
       {hasMoreErrors && (
         <div className="quiz-modal-validation-more">
-          {__(`... and ${normalizedErrors.length - (maxErrors || 0)} more errors`, "tutorpress")}
+          {__(`… and ${normalizedErrors.length - (maxErrors || 0)} more errors`, "tutorpress")}
         </div>
       )}
     </div>

@@ -41,6 +41,139 @@
 }
 
 /* ========================================================================
+   LIVE LESSONS FORM STYLES
+   ======================================================================== */
+
+.tutorpress-modal-content .components-base-control {
+  margin-bottom: 20px;
+}
+
+.tutorpress-modal-content .components-base-control:last-child {
+  margin-bottom: 0;
+}
+
+.tutorpress-modal-content .components-text-control__input,
+.tutorpress-modal-content .components-textarea-control__input {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  width: 100%;
+}
+
+.tutorpress-modal-content .components-text-control__input:focus,
+.tutorpress-modal-content .components-textarea-control__input:focus {
+  border-color: #007cba;
+  box-shadow: 0 0 0 1px #007cba;
+  outline: none;
+}
+
+.tutorpress-modal-content .components-textarea-control__input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Form row layouts */
+.tutorpress-form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tutorpress-form-col {
+  flex: 1;
+}
+
+.tutorpress-form-col-half {
+  flex: 1;
+}
+
+/* DateTimePicker styling */
+.tutorpress-modal-content .components-datetime {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+.tutorpress-modal-content .components-datetime__date {
+  padding: 8px;
+}
+
+/* SelectControl styling */
+.tutorpress-modal-content .components-select-control__input {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  width: 100%;
+  background: white;
+}
+
+.tutorpress-modal-content .components-select-control__input:focus {
+  border-color: #007cba;
+  box-shadow: 0 0 0 1px #007cba;
+  outline: none;
+}
+
+/* NumberControl styling */
+.tutorpress-modal-content .components-number-control {
+  width: 100%;
+}
+
+.tutorpress-modal-content .components-number-control input {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  width: 100%;
+}
+
+.tutorpress-modal-content .components-number-control input:focus {
+  border-color: #007cba;
+  box-shadow: 0 0 0 1px #007cba;
+  outline: none;
+}
+
+/* Label styling */
+.tutorpress-modal-content .components-base-control__label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: block;
+  color: #1e1e1e;
+  font-size: 14px;
+}
+
+/* Required field indicator */
+.tutorpress-modal-content .components-text-control__input[required] {
+  border-left: 3px solid #007cba;
+}
+
+/* Responsive form layout */
+@media (max-width: 600px) {
+  .tutorpress-form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .tutorpress-modal-content {
+    padding: 16px;
+  }
+
+  .tutorpress-modal-footer {
+    padding: 12px 16px;
+    flex-direction: column-reverse;
+  }
+
+  .tutorpress-modal-footer .components-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ========================================================================
    OVERFLOW MENU CONTENT STYLES
    ======================================================================== */
 
@@ -113,4 +246,83 @@
   .tutorpress-content-overflow-toggle {
     transition: none;
   }
+}
+
+/* ========================================================================
+   DATETIMEPICKER POPOVER STYLES
+   ======================================================================== */
+
+/* Make DateTimePicker popovers wider for better usability */
+.tutorpress-live-lesson-modal .components-popover__content {
+  min-width: 380px !important;
+  max-width: 420px !important;
+  padding: 16px;
+}
+
+/* Ensure the DateTime component has enough space */
+.tutorpress-live-lesson-modal .components-datetime {
+  min-width: 350px;
+  max-width: 390px;
+}
+
+/* Style the calendar portion for better spacing */
+.tutorpress-live-lesson-modal .components-datetime__calendar {
+  min-width: 320px;
+  padding: 12px;
+}
+
+/* Style the time selection area */
+.tutorpress-live-lesson-modal .components-datetime__time {
+  padding: 12px 16px;
+}
+
+/* Improve spacing for date/time inputs */
+.tutorpress-live-lesson-modal .components-datetime__date input,
+.tutorpress-live-lesson-modal .components-datetime__time input {
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+/* Style readonly date inputs to look clickable */
+.tutorpress-modal-content .components-text-control__input[readonly] {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  color: #1e1e1e;
+  transition: all 0.15s ease-in-out;
+}
+
+.tutorpress-modal-content .components-text-control__input[readonly]:hover {
+  border-color: #007cba;
+  background-color: #f0f8ff;
+}
+
+.tutorpress-modal-content .components-text-control__input[readonly]:focus {
+  border-color: #007cba;
+  box-shadow: 0 0 0 1px #007cba;
+  background-color: white;
+  outline: none;
+}
+
+/* Fix VStack component width inside DateTimePickers */
+.tutorpress-live-lesson-modal .components-datetime .components-v-stack,
+.tutorpress-live-lesson-modal .components-datetime .components-h-stack {
+  width: 400px !important;
+  padding: 16px !important;
+}
+
+/* Target the specific VStack classes that contain the datetime UI */
+.tutorpress-live-lesson-modal .components-datetime .e1p5onf00,
+.tutorpress-live-lesson-modal .components-datetime .e19lxcc00 {
+  width: 400px !important;
+  padding: 16px !important;
+}
+
+/* Style the popover positioning to ensure it doesn't get cut off */
+.tutorpress-live-lesson-modal .components-popover[data-placement*="bottom"] {
+  margin-top: 8px;
+}
+
+.tutorpress-live-lesson-modal .components-popover[data-placement*="top"] {
+  margin-bottom: 8px;
 }
