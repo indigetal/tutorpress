@@ -366,6 +366,12 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function create_item($request) {
+        // Check Tutor LMS availability
+        $tutor_check = $this->ensure_tutor_lms();
+        if (is_wp_error($tutor_check)) {
+            return $tutor_check;
+        }
+
         // Extract and validate parameters
         $course_id = (int) $request->get_param('course_id');
         $topic_id = (int) $request->get_param('topic_id');
@@ -376,6 +382,32 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $end_date_time = $request->get_param('end_date_time');
         $settings = $request->get_param('settings') ?: [];
         $provider_config = $request->get_param('provider_config') ?: [];
+
+        // Validate live lesson type first
+        if (!in_array($type, ['google_meet', 'zoom'])) {
+            return new WP_Error(
+                'invalid_live_lesson_type',
+                __('Invalid live lesson type. Must be either "google_meet" or "zoom".', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Check if the requested addon is available and enabled
+        if ($type === 'google_meet' && !TutorPress_Addon_Checker::is_google_meet_enabled()) {
+            return new WP_Error(
+                'google_meet_addon_disabled',
+                __('Google Meet addon is not available or disabled. Please enable the Google Meet addon to create Google Meet live lessons.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        if ($type === 'zoom' && !TutorPress_Addon_Checker::is_zoom_enabled()) {
+            return new WP_Error(
+                'zoom_addon_disabled',
+                __('Zoom addon is not available or disabled. Please enable the Zoom addon to create Zoom live lessons.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
 
         // Default settings
         $default_settings = [
@@ -428,6 +460,12 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function update_item($request) {
+        // Check Tutor LMS availability
+        $tutor_check = $this->ensure_tutor_lms();
+        if (is_wp_error($tutor_check)) {
+            return $tutor_check;
+        }
+
         $lesson_id = (int) $request->get_param('id');
         
         // Find mock lesson by ID
@@ -474,6 +512,12 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function delete_item($request) {
+        // Check Tutor LMS availability
+        $tutor_check = $this->ensure_tutor_lms();
+        if (is_wp_error($tutor_check)) {
+            return $tutor_check;
+        }
+
         $lesson_id = (int) $request->get_param('id');
         
         // Remove from session lessons if it exists
