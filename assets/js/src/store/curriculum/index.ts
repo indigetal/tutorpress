@@ -54,6 +54,7 @@ import {
   H5PError,
   H5PErrorCode,
 } from "../../types/h5p";
+import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
 
 // Define the store's state interface
 interface CurriculumState {
@@ -87,6 +88,18 @@ interface CurriculumState {
     error?: CurriculumError;
     activeLessonId?: number;
   };
+  liveLessonState: {
+    status: "idle" | "saving" | "loading" | "deleting" | "duplicating" | "error" | "success";
+    error?: CurriculumError;
+    activeLiveLessonId?: number;
+    lastSavedLiveLessonId?: number;
+  };
+  liveLessonDuplicationState: {
+    status: "idle" | "duplicating" | "error" | "success";
+    error?: CurriculumError;
+    sourceLiveLessonId?: number;
+    duplicatedLiveLessonId?: number;
+  };
   isAddingTopic: boolean;
   activeOperation: { type: string; topicId?: number };
   fetchState: {
@@ -114,6 +127,8 @@ const DEFAULT_STATE: CurriculumState = {
   quizDuplicationState: { status: "idle" },
   reorderState: { status: "idle" },
   lessonState: { status: "idle" },
+  liveLessonState: { status: "idle" },
+  liveLessonDuplicationState: { status: "idle" },
   isAddingTopic: false,
   activeOperation: { type: "none" },
   fetchState: {
@@ -209,6 +224,31 @@ export type CurriculumAction =
   | { type: "DUPLICATE_QUIZ_ERROR"; payload: { error: CurriculumError; quizId: number } }
   | { type: "SET_QUIZ_STATE"; payload: CurriculumState["quizState"] }
   | { type: "REFRESH_TOPICS_AFTER_QUIZ_SAVE"; payload: { courseId: number } }
+  // Live Lessons Actions
+  | {
+      type: "SAVE_LIVE_LESSON_START";
+      payload: { liveLessonData: LiveLessonFormData; courseId: number; topicId: number };
+    }
+  | { type: "SAVE_LIVE_LESSON_SUCCESS"; payload: { liveLesson: LiveLesson; courseId: number } }
+  | { type: "SAVE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "GET_LIVE_LESSON_START"; payload: { liveLessonId: number } }
+  | { type: "GET_LIVE_LESSON_SUCCESS"; payload: { liveLesson: LiveLesson } }
+  | { type: "GET_LIVE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "UPDATE_LIVE_LESSON_START"; payload: { liveLessonId: number; data: Partial<LiveLessonFormData> } }
+  | { type: "UPDATE_LIVE_LESSON_SUCCESS"; payload: { liveLesson: LiveLesson; courseId: number } }
+  | { type: "UPDATE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_LIVE_LESSON_START"; payload: { liveLessonId: number } }
+  | { type: "DELETE_LIVE_LESSON_SUCCESS"; payload: { liveLessonId: number; courseId: number } }
+  | { type: "DELETE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DUPLICATE_LIVE_LESSON_START"; payload: { liveLessonId: number; topicId: number; courseId: number } }
+  | {
+      type: "DUPLICATE_LIVE_LESSON_SUCCESS";
+      payload: { liveLesson: LiveLesson; sourceLiveLessonId: number; courseId: number };
+    }
+  | { type: "DUPLICATE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError; liveLessonId: number } }
+  | { type: "SET_LIVE_LESSON_STATE"; payload: CurriculumState["liveLessonState"] }
+  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] }
+  | { type: "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE"; payload: { courseId: number } }
   // H5P Actions
   | { type: "FETCH_H5P_CONTENTS_START"; payload: { searchParams: H5PContentSearchParams } }
   | { type: "FETCH_H5P_CONTENTS_SUCCESS"; payload: { contents: H5PContent[]; pagination?: any } }
@@ -448,6 +488,63 @@ export const actions = {
       payload: { courseId },
     };
   },
+
+  // Live Lessons Actions
+  saveLiveLesson(liveLessonData: LiveLessonFormData, courseId: number, topicId: number) {
+    return {
+      type: "SAVE_LIVE_LESSON",
+      payload: { liveLessonData, courseId, topicId },
+    };
+  },
+
+  getLiveLessonDetails(liveLessonId: number) {
+    return {
+      type: "GET_LIVE_LESSON",
+      payload: { liveLessonId },
+    };
+  },
+
+  updateLiveLesson(liveLessonId: number, data: Partial<LiveLessonFormData>) {
+    return {
+      type: "UPDATE_LIVE_LESSON",
+      payload: { liveLessonId, data },
+    };
+  },
+
+  deleteLiveLesson(liveLessonId: number) {
+    return {
+      type: "DELETE_LIVE_LESSON",
+      payload: { liveLessonId },
+    };
+  },
+
+  duplicateLiveLesson(liveLessonId: number, topicId: number, courseId: number) {
+    return {
+      type: "DUPLICATE_LIVE_LESSON",
+      payload: { liveLessonId, topicId, courseId },
+    };
+  },
+
+  setLiveLessonState(state: CurriculumState["liveLessonState"]) {
+    return {
+      type: "SET_LIVE_LESSON_STATE",
+      payload: state,
+    };
+  },
+
+  setLiveLessonDuplicationState(state: CurriculumState["liveLessonDuplicationState"]) {
+    return {
+      type: "SET_LIVE_LESSON_DUPLICATION_STATE",
+      payload: state,
+    };
+  },
+
+  refreshTopicsAfterLiveLessonSave(courseId: number) {
+    return {
+      type: "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE",
+      payload: { courseId },
+    };
+  },
   *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
     try {
       yield actions.setEditState({
@@ -656,6 +753,47 @@ const selectors = {
   },
   getQuizError(state: CurriculumState) {
     return state.quizState.error;
+  },
+
+  // Live Lessons Selectors
+  getLiveLessonState(state: CurriculumState) {
+    return state.liveLessonState;
+  },
+
+  getActiveLiveLessonId(state: CurriculumState) {
+    return state.liveLessonState.activeLiveLessonId;
+  },
+
+  getLastSavedLiveLessonId(state: CurriculumState) {
+    return state.liveLessonState.lastSavedLiveLessonId;
+  },
+
+  isLiveLessonLoading(state: CurriculumState) {
+    return state.liveLessonState.status === "loading";
+  },
+
+  isLiveLessonSaving(state: CurriculumState) {
+    return state.liveLessonState.status === "saving";
+  },
+
+  isLiveLessonDeleting(state: CurriculumState) {
+    return state.liveLessonState.status === "deleting";
+  },
+
+  isLiveLessonDuplicating(state: CurriculumState) {
+    return state.liveLessonState.status === "duplicating";
+  },
+
+  hasLiveLessonError(state: CurriculumState) {
+    return Boolean(state.liveLessonState.error);
+  },
+
+  getLiveLessonError(state: CurriculumState) {
+    return state.liveLessonState.error;
+  },
+
+  getLiveLessonDuplicationState(state: CurriculumState) {
+    return state.liveLessonDuplicationState;
   },
   // H5P Selectors
   getH5PContents(state: CurriculumState) {
@@ -1212,6 +1350,135 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         quizState: action.payload,
       };
     case "REFRESH_TOPICS_AFTER_QUIZ_SAVE":
+      return {
+        ...state,
+        operationState: { status: "loading" },
+      };
+    // Live Lessons Reducer Cases
+    case "SAVE_LIVE_LESSON_START":
+      return {
+        ...state,
+        liveLessonState: { status: "saving" },
+      };
+    case "SAVE_LIVE_LESSON_SUCCESS":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "success",
+          lastSavedLiveLessonId: action.payload.liveLesson.id,
+        },
+      };
+    case "SAVE_LIVE_LESSON_ERROR":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "GET_LIVE_LESSON_START":
+      return {
+        ...state,
+        liveLessonState: { status: "loading" },
+      };
+    case "GET_LIVE_LESSON_SUCCESS":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "success",
+          activeLiveLessonId: action.payload.liveLesson.id,
+        },
+      };
+    case "GET_LIVE_LESSON_ERROR":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "UPDATE_LIVE_LESSON_START":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "saving",
+          activeLiveLessonId: action.payload.liveLessonId,
+        },
+      };
+    case "UPDATE_LIVE_LESSON_SUCCESS":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "success",
+          lastSavedLiveLessonId: action.payload.liveLesson.id,
+        },
+      };
+    case "UPDATE_LIVE_LESSON_ERROR":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "DELETE_LIVE_LESSON_START":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "deleting",
+          activeLiveLessonId: action.payload.liveLessonId,
+        },
+      };
+    case "DELETE_LIVE_LESSON_SUCCESS":
+      return {
+        ...state,
+        liveLessonState: { status: "success" },
+      };
+    case "DELETE_LIVE_LESSON_ERROR":
+      return {
+        ...state,
+        liveLessonState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "DUPLICATE_LIVE_LESSON_START":
+      return {
+        ...state,
+        liveLessonDuplicationState: {
+          status: "duplicating",
+          sourceLiveLessonId: action.payload.liveLessonId,
+        },
+      };
+    case "DUPLICATE_LIVE_LESSON_SUCCESS":
+      return {
+        ...state,
+        liveLessonDuplicationState: {
+          status: "success",
+          sourceLiveLessonId: action.payload.sourceLiveLessonId,
+          duplicatedLiveLessonId: action.payload.liveLesson.id,
+        },
+      };
+    case "DUPLICATE_LIVE_LESSON_ERROR":
+      return {
+        ...state,
+        liveLessonDuplicationState: {
+          status: "error",
+          error: action.payload.error,
+          sourceLiveLessonId: action.payload.liveLessonId,
+        },
+      };
+    case "SET_LIVE_LESSON_STATE":
+      return {
+        ...state,
+        liveLessonState: action.payload,
+      };
+    case "SET_LIVE_LESSON_DUPLICATION_STATE":
+      return {
+        ...state,
+        liveLessonDuplicationState: action.payload,
+      };
+    case "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE":
       return {
         ...state,
         operationState: { status: "loading" },
@@ -2519,6 +2786,374 @@ const resolvers = {
           code: CurriculumErrorCode.FETCH_FAILED,
           message: error instanceof Error ? error.message : "Failed to refresh topics after quiz save",
           context: { action: "refreshTopicsAfterQuizSave" },
+        },
+      });
+    }
+  },
+
+  // Live Lessons Resolvers using API_FETCH control pattern
+  *saveLiveLesson(
+    liveLessonData: LiveLessonFormData,
+    courseId: number,
+    topicId: number
+  ): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "SAVE_LIVE_LESSON_START",
+        payload: { liveLessonData, courseId, topicId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/live-lessons",
+          method: "POST",
+          data: {
+            ...liveLessonData,
+            topicId,
+            courseId,
+          },
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid live lesson save response");
+      }
+
+      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
+
+      yield {
+        type: "SAVE_LIVE_LESSON_SUCCESS",
+        payload: { liveLesson, courseId },
+      };
+
+      // Refresh topics to show the new live lesson
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after live lesson save:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "SAVE_LIVE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.CREATE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to save live lesson", "tutorpress"),
+            context: {
+              action: "saveLiveLesson",
+              details: `Failed to save live lesson for topic ${topicId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *getLiveLessonDetails(liveLessonId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "GET_LIVE_LESSON_START",
+        payload: { liveLessonId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
+          method: "GET",
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid live lesson details response");
+      }
+
+      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
+
+      yield {
+        type: "GET_LIVE_LESSON_SUCCESS",
+        payload: { liveLesson },
+      };
+    } catch (error) {
+      yield {
+        type: "GET_LIVE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.FETCH_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to fetch live lesson details", "tutorpress"),
+            context: {
+              action: "getLiveLessonDetails",
+              details: `Failed to fetch live lesson ${liveLessonId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *updateLiveLesson(liveLessonId: number, data: Partial<LiveLessonFormData>): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "UPDATE_LIVE_LESSON_START",
+        payload: { liveLessonId, data },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
+          method: "PATCH",
+          data,
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid live lesson update response");
+      }
+
+      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
+
+      yield {
+        type: "UPDATE_LIVE_LESSON_SUCCESS",
+        payload: { liveLesson, courseId: liveLesson.courseId },
+      };
+
+      // Refresh topics to show the updated live lesson
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after live lesson update:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "UPDATE_LIVE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.EDIT_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to update live lesson", "tutorpress"),
+            context: {
+              action: "updateLiveLesson",
+              details: `Failed to update live lesson ${liveLessonId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *deleteLiveLesson(liveLessonId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DELETE_LIVE_LESSON_START",
+        payload: { liveLessonId },
+      };
+
+      // First get the live lesson details to get the course ID for refresh
+      const liveLessonResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
+          method: "GET",
+        },
+      };
+
+      if (!liveLessonResponse || typeof liveLessonResponse !== "object" || !("data" in liveLessonResponse)) {
+        throw new Error("Invalid live lesson details response");
+      }
+
+      const liveLesson = (liveLessonResponse as LiveLessonApiResponse).data as LiveLesson;
+
+      // Delete the live lesson
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
+          method: "DELETE",
+        },
+      };
+
+      yield {
+        type: "DELETE_LIVE_LESSON_SUCCESS",
+        payload: { liveLessonId, courseId: liveLesson.courseId },
+      };
+
+      // Refresh topics to remove the deleted live lesson
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after live lesson delete:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "DELETE_LIVE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete live lesson", "tutorpress"),
+            context: {
+              action: "deleteLiveLesson",
+              details: `Failed to delete live lesson ${liveLessonId}`,
+            },
+          },
+        },
+      };
+    }
+  },
+
+  *duplicateLiveLesson(liveLessonId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DUPLICATE_LIVE_LESSON_START",
+        payload: { liveLessonId, topicId, courseId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/live-lessons/${liveLessonId}/duplicate`,
+          method: "POST",
+          data: { topic_id: topicId, course_id: courseId },
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid live lesson duplication response");
+      }
+
+      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
+
+      yield {
+        type: "DUPLICATE_LIVE_LESSON_SUCCESS",
+        payload: { liveLesson, sourceLiveLessonId: liveLessonId, courseId },
+      };
+
+      // Refresh topics to show the duplicated live lesson
+      try {
+        yield actions.setOperationState({ status: "loading" });
+
+        const topicsResponse = (yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${courseId}`,
+            method: "GET",
+          },
+        }) as { data: Topic[] };
+
+        if (topicsResponse && topicsResponse.data) {
+          const topics = topicsResponse.data.map((topic) => ({
+            ...topic,
+            isCollapsed: true,
+          }));
+
+          yield actions.setTopics(topics);
+          yield actions.setOperationState({ status: "success", data: topics });
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh topics after live lesson duplicate:", refreshError);
+      }
+    } catch (error) {
+      yield {
+        type: "DUPLICATE_LIVE_LESSON_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DUPLICATE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to duplicate live lesson", "tutorpress"),
+            context: {
+              action: "duplicateLiveLesson",
+              details: `Failed to duplicate live lesson ${liveLessonId}`,
+            },
+          },
+          liveLessonId,
+        },
+      };
+    }
+  },
+
+  *refreshTopicsAfterLiveLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
+    try {
+      yield actions.setOperationState({ status: "loading" });
+
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      }) as { data: Topic[] };
+
+      if (!response || !response.data) {
+        throw new Error("Invalid response format");
+      }
+
+      const topics = response.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+      }));
+
+      yield actions.setTopics(topics);
+      yield actions.setOperationState({ status: "success", data: topics });
+    } catch (error) {
+      yield actions.setOperationState({
+        status: "error",
+        error: {
+          code: CurriculumErrorCode.FETCH_FAILED,
+          message: error instanceof Error ? error.message : "Failed to refresh topics after live lesson save",
+          context: { action: "refreshTopicsAfterLiveLessonSave" },
         },
       });
     }
