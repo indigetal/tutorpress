@@ -197,3 +197,32 @@ export interface LiveLessonContentItem {
   status: LiveLesson["status"];
   meetingUrl?: string;
 }
+
+/**
+ * Google Meet Form Data Interface
+ * Used for Google Meet form state management
+ */
+export interface GoogleMeetFormData {
+  title: string;
+  summary: string;
+  startDate: Date;
+  endDate: Date;
+  timezone: string;
+  addEnrolledStudents: boolean;
+}
+
+/**
+ * Zoom Form Data Interface
+ * Used for Zoom form state management
+ */
+export interface ZoomFormData {
+  title: string;
+  summary: string;
+  date: Date;
+  duration: number;
+  durationUnit: "minutes" | "hours";
+  timezone: string;
+  autoRecording: "none" | "local" | "cloud";
+  password: string;
+  host: "default" | "alternative";
+}

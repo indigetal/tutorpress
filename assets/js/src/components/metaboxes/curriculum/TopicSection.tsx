@@ -30,7 +30,7 @@
  * @since 1.5.2
  */
 
-import React, { type MouseEvent, useState } from "react";
+import React, { type MouseEvent, useState, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -62,7 +62,8 @@ import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
 import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
-import { useDispatch } from "@wordpress/data";
+import { useDispatch, useSelect } from "@wordpress/data";
+const CURRICULUM_STORE = "tutorpress/curriculum";
 
 // Conditionally import Interactive Quiz components only when H5P is enabled
 let InteractiveQuizModal: React.ComponentType<any> | null = null;
@@ -175,6 +176,17 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
 
+  // Get curriculum store selectors and actions
+  const { saveLiveLesson } = useDispatch(CURRICULUM_STORE);
+  const { isLiveLessonSaving, hasLiveLessonError, getLiveLessonError } = useSelect(
+    (select) => ({
+      isLiveLessonSaving: select(CURRICULUM_STORE).isLiveLessonSaving(),
+      hasLiveLessonError: select(CURRICULUM_STORE).hasLiveLessonError(),
+      getLiveLessonError: select(CURRICULUM_STORE).getLiveLessonError(),
+    }),
+    []
+  );
+
   // Helper function to show H5P disabled notice
   const showH5pDisabledNotice = () => {
     createNotice("warning", __("H5P integration is currently disabled. Contact the site admin.", "tutorpress"), {
@@ -182,6 +194,17 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       type: "snackbar",
     });
   };
+
+  // Monitor for Live Lessons errors
+  useEffect(() => {
+    if (hasLiveLessonError && getLiveLessonError) {
+      const error = getLiveLessonError;
+      createNotice("error", error.message || __("An error occurred with the live lesson", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+    }
+  }, [hasLiveLessonError, getLiveLessonError, createNotice]);
 
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
@@ -261,7 +284,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const handleGoogleMeetModalClose = () => {
     setIsGoogleMeetModalOpen(false);
     setDatePickerOpen(null);
-    // TODO: Refresh curriculum if Google Meet lesson was created/updated
+    // Reset form state
+    setGoogleMeetForm({
+      title: "",
+      summary: "",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      addEnrolledStudents: false,
+    });
   };
 
   const handleZoomModalOpen = () => {
@@ -283,7 +314,18 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const handleZoomModalClose = () => {
     setIsZoomModalOpen(false);
     setDatePickerOpen(null);
-    // TODO: Refresh curriculum if Zoom lesson was created/updated
+    // Reset form state
+    setZoomForm({
+      title: "",
+      summary: "",
+      date: new Date(),
+      duration: 40,
+      durationUnit: "minutes",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      autoRecording: "none",
+      password: "",
+      host: "default",
+    });
   };
 
   // Common timezone options (simplified list)
@@ -309,7 +351,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   ];
 
   // Form submission handlers
-  const handleGoogleMeetSubmit = () => {
+  const handleGoogleMeetSubmit = async () => {
     // Basic validation
     if (!googleMeetForm.title.trim()) {
       createNotice("error", __("Meeting name is required", "tutorpress"), {
@@ -319,16 +361,36 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       return;
     }
 
-    // TODO: Connect to WordPress Data Store for actual submission
-    // Form data ready for submission: googleMeetForm
-    createNotice("success", __("Google Meet lesson created successfully", "tutorpress"), {
-      type: "snackbar",
-      isDismissible: true,
-    });
-    handleGoogleMeetModalClose();
+    // Convert form data to API format
+    const liveLessonData: LiveLessonFormData = {
+      title: googleMeetForm.title,
+      description: googleMeetForm.summary,
+      type: "google_meet",
+      startDateTime: googleMeetForm.startDate.toISOString(),
+      endDateTime: googleMeetForm.endDate.toISOString(),
+      settings: {
+        timezone: googleMeetForm.timezone,
+        duration: Math.ceil((googleMeetForm.endDate.getTime() - googleMeetForm.startDate.getTime()) / (1000 * 60)),
+        allowEarlyJoin: true,
+      },
+    };
+
+    try {
+      await saveLiveLesson(liveLessonData, courseId, topic.id);
+      createNotice("success", __("Google Meet lesson created successfully", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+      handleGoogleMeetModalClose();
+    } catch (error) {
+      createNotice("error", __("Failed to create Google Meet lesson", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+    }
   };
 
-  const handleZoomSubmit = () => {
+  const handleZoomSubmit = async () => {
     // Basic validation
     if (!zoomForm.title.trim()) {
       createNotice("error", __("Meeting name is required", "tutorpress"), {
@@ -338,13 +400,39 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       return;
     }
 
-    // TODO: Connect to WordPress Data Store for actual submission
-    // Form data ready for submission: zoomForm
-    createNotice("success", __("Zoom lesson created successfully", "tutorpress"), {
-      type: "snackbar",
-      isDismissible: true,
-    });
-    handleZoomModalClose();
+    // Calculate end date based on duration
+    const durationMs =
+      zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 * 60 * 1000 : zoomForm.duration * 60 * 1000;
+    const endDate = new Date(zoomForm.date.getTime() + durationMs);
+
+    // Convert form data to API format
+    const liveLessonData: LiveLessonFormData = {
+      title: zoomForm.title,
+      description: zoomForm.summary,
+      type: "zoom",
+      startDateTime: zoomForm.date.toISOString(),
+      endDateTime: endDate.toISOString(),
+      settings: {
+        timezone: zoomForm.timezone,
+        duration: zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 : zoomForm.duration,
+        allowEarlyJoin: true,
+        requirePassword: !!zoomForm.password,
+      },
+    };
+
+    try {
+      await saveLiveLesson(liveLessonData, courseId, topic.id);
+      createNotice("success", __("Zoom lesson created successfully", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+      handleZoomModalClose();
+    } catch (error) {
+      createNotice("error", __("Failed to create Zoom lesson", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+    }
   };
 
   // Handle double-click on title or summary
@@ -753,11 +841,16 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             />
           </div>
           <div className="tutorpress-modal-footer">
-            <Button variant="secondary" onClick={handleGoogleMeetModalClose}>
+            <Button variant="secondary" onClick={handleGoogleMeetModalClose} disabled={isLiveLessonSaving}>
               {__("Cancel", "tutorpress")}
             </Button>
-            <Button variant="primary" onClick={handleGoogleMeetSubmit}>
-              {__("Create Meeting", "tutorpress")}
+            <Button
+              variant="primary"
+              onClick={handleGoogleMeetSubmit}
+              isBusy={isLiveLessonSaving}
+              disabled={isLiveLessonSaving}
+            >
+              {isLiveLessonSaving ? __("Creating Meeting...", "tutorpress") : __("Create Meeting", "tutorpress")}
             </Button>
           </div>
         </Modal>
@@ -873,7 +966,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               onChange={(value) =>
                 setZoomForm({
                   ...zoomForm,
-                  autoRecording: value,
+                  autoRecording: value as "none" | "local" | "cloud",
                 })
               }
             />
@@ -898,15 +991,20 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   value: "alternative",
                 },
               ]}
-              onChange={(value) => setZoomForm({ ...zoomForm, host: value })}
+              onChange={(value) => setZoomForm({ ...zoomForm, host: value as "default" | "alternative" })}
             />
           </div>
           <div className="tutorpress-modal-footer">
-            <Button variant="secondary" onClick={handleZoomModalClose}>
+            <Button variant="secondary" onClick={handleZoomModalClose} disabled={isLiveLessonSaving}>
               {__("Cancel", "tutorpress")}
             </Button>
-            <Button variant="primary" onClick={handleZoomSubmit}>
-              {__("Create Meeting", "tutorpress")}
+            <Button
+              variant="primary"
+              onClick={handleZoomSubmit}
+              isBusy={isLiveLessonSaving}
+              disabled={isLiveLessonSaving}
+            >
+              {isLiveLessonSaving ? __("Creating Meeting...", "tutorpress") : __("Create Meeting", "tutorpress")}
             </Button>
           </div>
         </Modal>
