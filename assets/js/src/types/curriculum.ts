@@ -122,7 +122,7 @@ export interface TopicSectionProps {
 /**
  * Error codes for curriculum operations
  */
-export const enum CurriculumErrorCode {
+export enum CurriculumErrorCode {
   FETCH_FAILED = "fetch_failed",
   REORDER_FAILED = "reorder_failed",
   INVALID_RESPONSE = "invalid_response",
@@ -135,6 +135,8 @@ export const enum CurriculumErrorCode {
   DELETE_FAILED = "delete_failed",
   DUPLICATE_FAILED = "duplicate_failed",
   CREATE_FAILED = "create_failed",
+  SAVE_FAILED = "SAVE_FAILED",
+  UPDATE_FAILED = "UPDATE_FAILED",
 }
 
 /**
@@ -335,3 +337,43 @@ export const createOperationError = (
     },
   };
 };
+
+/**
+ * Live Lesson types
+ */
+export interface LiveLessonSettings {
+  timezone: string;
+  duration: number;
+  allowEarlyJoin?: boolean;
+  requirePassword?: boolean;
+}
+
+export interface LiveLessonFormData {
+  title: string;
+  description: string;
+  type: "google_meet" | "zoom";
+  startDateTime: string;
+  endDateTime: string;
+  settings: LiveLessonSettings;
+}
+
+export interface LiveLesson {
+  id: number;
+  title: string;
+  description: string;
+  type: "google_meet" | "zoom";
+  topicId: number;
+  courseId: number;
+  startDateTime: string;
+  endDateTime: string;
+  settings: LiveLessonSettings;
+  status: "scheduled" | "completed" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LiveLessonApiResponse {
+  success: boolean;
+  message: string;
+  data: LiveLesson;
+}

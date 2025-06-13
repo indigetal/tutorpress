@@ -10,6 +10,9 @@
 
 defined('ABSPATH') || exit;
 
+// Import DateTime class for date formatting
+use DateTime;
+
 class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller {
 
     /**
@@ -409,6 +412,25 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             );
         }
 
+        // Verify topic exists and belongs to the course
+        $topic = get_post($topic_id);
+        if (!$topic || $topic->post_type !== 'topics' || $topic->post_parent !== $course_id) {
+            return new WP_Error(
+                'invalid_topic',
+                __('Invalid topic ID or topic does not belong to the specified course.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Check if user has permission to edit the course
+        if (!current_user_can('edit_post', $course_id)) {
+            return new WP_Error(
+                'rest_cannot_create',
+                __('Sorry, you are not allowed to create live lessons in this course.', 'tutorpress'),
+                ['status' => rest_authorization_required_code()]
+            );
+        }
+
         // Default settings
         $default_settings = [
             'timezone' => 'UTC',
@@ -420,36 +442,151 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         ];
         $settings = array_merge($default_settings, $settings);
 
-        // Create mock lesson response
-        $new_lesson = [
-            'id' => rand(1000, 9999), // Mock ID
-            'title' => $title,
-            'description' => $description,
+        // Get next menu order
+        $existing_lessons = get_posts([
+            'post_type'      => $type === 'google_meet' ? 'tutor-google-meet' : 'tutor_zoom_meeting',
+            'post_parent'    => $topic_id,
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ]);
+        $menu_order = count($existing_lessons);
+
+        // Prepare post data
+        $post_data = [
+            'post_title'   => $title,
+            'post_content' => $description,
+            'post_status'  => 'publish',
+            'post_type'    => $type === 'google_meet' ? 'tutor-google-meet' : 'tutor_zoom_meeting',
+            'post_parent'  => $topic_id,
+            'menu_order'   => $menu_order,
+        ];
+
+        // Insert the post
+        $post_id = wp_insert_post($post_data);
+
+        if (is_wp_error($post_id)) {
+            return new WP_Error(
+                'live_lesson_creation_failed',
+                __('Failed to create live lesson.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        // Store meta data based on type
+        if ($type === 'google_meet') {
+            // Google Meet meta fields based on EventsModel::POST_META_KEYS
+            // Convert ISO datetime to the format Google Meet expects (Y-m-d H:i:s)
+            $start_datetime_obj = new DateTime($start_date_time);
+            $end_datetime_obj = new DateTime($end_date_time);
+            
+            // Format to match Google Meet addon expectations
+            $formatted_start_datetime = $start_datetime_obj->format('Y-m-d H:i:s');
+            $formatted_end_datetime = $end_datetime_obj->format('Y-m-d H:i:s');
+            
+            update_post_meta($post_id, 'tutor-google-meet-start-datetime', $formatted_start_datetime);
+            update_post_meta($post_id, 'tutor-google-meet-end-datetime', $formatted_end_datetime);
+            
+            // Create event details structure matching Google Meet addon
+            $event_details = [
+                'start_datetime' => $formatted_start_datetime,
+                'end_datetime' => $formatted_end_datetime,
+                'attendees' => $settings['add_enrolled_students'] ?? 'No',
+                'timezone' => $settings['timezone'],
+                // Mock data for development - in production this would come from Google Calendar API
+                'id' => 'mock_' . $post_id,
+                'kind' => 'calendar#event',
+                'event_type' => 'default',
+                'html_link' => 'https://calendar.google.com/calendar/event?eid=mock' . $post_id,
+                'meet_link' => 'https://meet.google.com/mock-' . $post_id,
+                'status' => 'confirmed',
+                'transparency' => 'transparent',
+                'visibility' => 'public',
+            ];
+            
+            update_post_meta($post_id, 'tutor-google-meet-event-details', json_encode($event_details));
+            
+            // Add meeting link meta
+            update_post_meta($post_id, 'tutor-google-meet-link', $event_details['meet_link']);
+        } else {
+            // Zoom meta fields based on the Zoom class implementation
+            // Convert ISO datetime to the format Zoom expects
+            $start_datetime_obj = new DateTime($start_date_time);
+            $formatted_start_date = $start_datetime_obj->format('Y-m-d');
+            $formatted_start_datetime = $start_datetime_obj->format('Y-m-d H:i:s');
+            
+            update_post_meta($post_id, '_tutor_zm_start_date', $formatted_start_date);
+            update_post_meta($post_id, '_tutor_zm_start_datetime', $formatted_start_datetime);
+            update_post_meta($post_id, '_tutor_zm_duration', $settings['duration']);
+            update_post_meta($post_id, '_tutor_zm_duration_unit', 'min');
+            update_post_meta($post_id, '_tutor_zm_for_course', $course_id);
+            update_post_meta($post_id, '_tutor_zm_for_topic', $topic_id);
+            
+            // Store the main zoom data in the format expected by the addon
+            $zoom_data = [
+                'topic' => $title,
+                'type' => 2, // Scheduled meeting
+                'start_time' => $start_datetime_obj->format('Y-m-d\TH:i:s'),
+                'timezone' => $settings['timezone'],
+                'duration' => $settings['duration'],
+                'password' => $settings['require_password'] && !empty($provider_config['password']) ? $provider_config['password'] : '',
+                'settings' => [
+                    'join_before_host' => $settings['allow_early_join'],
+                    'host_video' => false,
+                    'participant_video' => false,
+                    'mute_upon_entry' => false,
+                    'auto_recording' => $settings['auto_record'] ? 'local' : 'none',
+                    'enforce_login' => false,
+                    'waiting_room' => $settings['waiting_room'],
+                ],
+                // Mock data for development - in production this would come from Zoom API
+                'id' => 'mock_' . $post_id,
+                'host_id' => 'mock_host',
+                'join_url' => 'https://zoom.us/j/mock' . $post_id,
+                'status' => 'waiting',
+            ];
+            
+            update_post_meta($post_id, '_tutor_zm_data', json_encode($zoom_data));
+        }
+
+        // Get the created live lesson
+        $live_lesson = get_post($post_id);
+        
+        // Debug: Log the meta data that was saved
+        error_log('TutorPress Live Lesson Created - Post ID: ' . $post_id);
+        error_log('Type: ' . $type);
+        if ($type === 'google_meet') {
+            error_log('Google Meet Start DateTime: ' . get_post_meta($post_id, 'tutor-google-meet-start-datetime', true));
+            error_log('Google Meet End DateTime: ' . get_post_meta($post_id, 'tutor-google-meet-end-datetime', true));
+            error_log('Google Meet Event Details: ' . print_r(get_post_meta($post_id, 'tutor-google-meet-event-details', true), true));
+        } else {
+            error_log('Zoom Start Date: ' . get_post_meta($post_id, '_tutor_zm_start_date', true));
+            error_log('Zoom Start DateTime: ' . get_post_meta($post_id, '_tutor_zm_start_datetime', true));
+            error_log('Zoom Duration: ' . get_post_meta($post_id, '_tutor_zm_duration', true));
+            error_log('Zoom Data: ' . get_post_meta($post_id, '_tutor_zm_data', true));
+        }
+        
+        // Format response data
+        $response_data = [
+            'id' => $live_lesson->ID,
+            'title' => $live_lesson->post_title,
+            'description' => $live_lesson->post_content,
             'type' => $type,
-            'topicId' => $topic_id,
+            'topicId' => (int) $live_lesson->post_parent,
             'courseId' => $course_id,
             'startDateTime' => $start_date_time,
             'endDateTime' => $end_date_time,
-            'meetingUrl' => $this->generate_mock_meeting_url($type),
-            'meetingId' => $this->generate_mock_meeting_id($type),
-            'password' => $settings['require_password'] ? $this->generate_mock_password() : null,
             'settings' => $settings,
             'status' => 'scheduled',
-            'createdAt' => current_time('c', true),
-            'updatedAt' => current_time('c', true),
+            'createdAt' => $live_lesson->post_date_gmt,
+            'updatedAt' => $live_lesson->post_modified_gmt,
         ];
 
         // Add provider config if provided
         if (!empty($provider_config)) {
-            $new_lesson['providerConfig'] = $provider_config;
+            $response_data['providerConfig'] = $provider_config;
         }
 
-        // Store in session for testing (expires in 1 hour)
-        $session_lessons = get_transient('tutorpress_mock_live_lessons') ?: [];
-        $session_lessons[] = $new_lesson;
-        set_transient('tutorpress_mock_live_lessons', $session_lessons, HOUR_IN_SECONDS);
-
-        return rest_ensure_response($this->format_response($new_lesson, __('Live lesson created successfully.', 'tutorpress')));
+        return rest_ensure_response($this->format_response($response_data, __('Live lesson created successfully.', 'tutorpress')));
     }
 
     /**

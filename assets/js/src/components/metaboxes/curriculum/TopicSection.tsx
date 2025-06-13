@@ -400,10 +400,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
         timezone: googleMeetForm.timezone,
         duration: Math.ceil((googleMeetForm.endDate.getTime() - googleMeetForm.startDate.getTime()) / (1000 * 60)),
         allowEarlyJoin: true,
+        autoRecord: false,
+        requirePassword: false,
+        waitingRoom: false,
+        add_enrolled_students: googleMeetForm.addEnrolledStudents ? "Yes" : "No",
       },
     };
 
     try {
+      // Use WordPress Data store dispatch
       await saveLiveLesson(liveLessonData, courseId, topic.id);
       createNotice("success", __("Google Meet lesson created successfully", "tutorpress"), {
         type: "snackbar",
@@ -444,11 +449,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
         timezone: zoomForm.timezone,
         duration: zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 : zoomForm.duration,
         allowEarlyJoin: true,
+        autoRecord: zoomForm.autoRecording !== "none",
         requirePassword: !!zoomForm.password,
+        waitingRoom: true,
+      },
+      providerConfig: {
+        password: zoomForm.password,
+        host: zoomForm.host,
+        autoRecording: zoomForm.autoRecording,
       },
     };
 
     try {
+      // Use WordPress Data store dispatch
       await saveLiveLesson(liveLessonData, courseId, topic.id);
       createNotice("success", __("Zoom lesson created successfully", "tutorpress"), {
         type: "snackbar",

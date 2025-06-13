@@ -335,7 +335,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
      */
     private function get_topic_contents($topic_id) {
         $content_items = get_posts([
-            'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments'],
+            'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting'],
             'post_parent'    => $topic_id,
             'posts_per_page' => -1,
             'orderby'        => 'menu_order',
@@ -352,6 +352,13 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 if (is_array($quiz_option) && isset($quiz_option['quiz_type']) && $quiz_option['quiz_type'] === 'tutor_h5p_quiz') {
                     $content_type = 'interactive_quiz';
                 }
+            }
+            
+            // Map live lesson post types to their content types
+            if ($item->post_type === 'tutor-google-meet') {
+                $content_type = 'meet_lesson';
+            } elseif ($item->post_type === 'tutor_zoom_meeting') {
+                $content_type = 'zoom_lesson';
             }
             
             return [

@@ -23,6 +23,7 @@ export interface LiveLessonSettings {
   autoRecord?: boolean;
   requirePassword?: boolean;
   waitingRoom?: boolean;
+  add_enrolled_students?: string; // "Yes" or "No" for Google Meet compatibility
 }
 
 /**
@@ -57,6 +58,7 @@ export interface LiveLessonFormData {
   startDateTime: string;
   endDateTime: string;
   settings: Partial<LiveLessonSettings>;
+  providerConfig?: Record<string, any>; // Provider-specific configuration
 }
 
 /**
