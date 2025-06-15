@@ -50,10 +50,13 @@ import {
   CheckboxControl,
   Popover,
   __experimentalNumberControl as NumberControl,
+  DatePicker,
 } from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
+import { format, getSettings } from "@wordpress/date";
 import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../types/curriculum";
+import type { LiveLessonFormData } from "../../../types/liveLessons";
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
@@ -150,13 +153,19 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Date picker popover state
   const [datePickerOpen, setDatePickerOpen] = useState<string | null>(null);
 
+  // Get WordPress date settings for proper timezone handling
+  const dateSettings = getSettings();
+  const defaultTimezone = dateSettings.timezone?.string || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   // Google Meet form state
   const [googleMeetForm, setGoogleMeetForm] = useState({
     title: "",
     summary: "",
     startDate: new Date(),
-    endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    startTime: "09:00 AM",
+    endDate: new Date(),
+    endTime: "10:00 AM",
+    timezone: defaultTimezone,
     addEnrolledStudents: false,
   });
 
@@ -165,9 +174,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     title: "",
     summary: "",
     date: new Date(),
+    time: "09:00 AM",
     duration: 40,
     durationUnit: "minutes",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: defaultTimezone,
     autoRecording: "none",
     password: "",
     host: "default",
@@ -187,7 +197,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     []
   );
 
-  // Helper function to show H5P disabled notice
+  // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
     createNotice("warning", __("H5P integration is currently disabled. Contact the site admin.", "tutorpress"), {
       isDismissible: true,
@@ -298,8 +308,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       title: "",
       summary: "",
       startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      startTime: "09:00 AM",
+      endDate: new Date(),
+      endTime: "10:00 AM",
+      timezone: defaultTimezone,
       addEnrolledStudents: false,
     });
     setIsGoogleMeetModalOpen(true);
@@ -313,8 +325,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       title: "",
       summary: "",
       startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      startTime: "09:00 AM",
+      endDate: new Date(),
+      endTime: "10:00 AM",
+      timezone: defaultTimezone,
       addEnrolledStudents: false,
     });
   };
@@ -329,9 +343,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       title: "",
       summary: "",
       date: new Date(),
+      time: "09:00 AM",
       duration: 40,
       durationUnit: "minutes",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: defaultTimezone,
       autoRecording: "none",
       password: "",
       host: "default",
@@ -347,9 +362,10 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       title: "",
       summary: "",
       date: new Date(),
+      time: "09:00 AM",
       duration: 40,
       durationUnit: "minutes",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: defaultTimezone,
       autoRecording: "none",
       password: "",
       host: "default",
@@ -378,6 +394,89 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     { label: __("Hours", "tutorpress"), value: "hours" },
   ];
 
+  // Helper function to combine date and time in user's timezone
+  const combineDateTime = (date: Date, timeString: string): Date => {
+    const [time, period] = timeString.split(" ");
+    const [hours, minutes] = time.split(":").map(Number);
+
+    let hour24 = hours;
+    if (period === "PM" && hours !== 12) {
+      hour24 += 12;
+    } else if (period === "AM" && hours === 12) {
+      hour24 = 0;
+    }
+
+    // Create a new date object and set the time
+    // This will be in the user's local timezone
+    const combined = new Date(date);
+    combined.setHours(hour24, minutes, 0, 0);
+    return combined;
+  };
+
+  // Helper function to format datetime exactly as user selected it (no timezone conversion)
+  // This matches how Tutor LMS handles datetime - store exactly what user entered
+  const formatDateTimeForStorage = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  };
+
+  // Time options in 30-minute increments (12-hour format)
+  const timeOptions = [
+    { label: "12:00 AM", value: "12:00 AM" },
+    { label: "12:30 AM", value: "12:30 AM" },
+    { label: "01:00 AM", value: "01:00 AM" },
+    { label: "01:30 AM", value: "01:30 AM" },
+    { label: "02:00 AM", value: "02:00 AM" },
+    { label: "02:30 AM", value: "02:30 AM" },
+    { label: "03:00 AM", value: "03:00 AM" },
+    { label: "03:30 AM", value: "03:30 AM" },
+    { label: "04:00 AM", value: "04:00 AM" },
+    { label: "04:30 AM", value: "04:30 AM" },
+    { label: "05:00 AM", value: "05:00 AM" },
+    { label: "05:30 AM", value: "05:30 AM" },
+    { label: "06:00 AM", value: "06:00 AM" },
+    { label: "06:30 AM", value: "06:30 AM" },
+    { label: "07:00 AM", value: "07:00 AM" },
+    { label: "07:30 AM", value: "07:30 AM" },
+    { label: "08:00 AM", value: "08:00 AM" },
+    { label: "08:30 AM", value: "08:30 AM" },
+    { label: "09:00 AM", value: "09:00 AM" },
+    { label: "09:30 AM", value: "09:30 AM" },
+    { label: "10:00 AM", value: "10:00 AM" },
+    { label: "10:30 AM", value: "10:30 AM" },
+    { label: "11:00 AM", value: "11:00 AM" },
+    { label: "11:30 AM", value: "11:30 AM" },
+    { label: "12:00 PM", value: "12:00 PM" },
+    { label: "12:30 PM", value: "12:30 PM" },
+    { label: "01:00 PM", value: "01:00 PM" },
+    { label: "01:30 PM", value: "01:30 PM" },
+    { label: "02:00 PM", value: "02:00 PM" },
+    { label: "02:30 PM", value: "02:30 PM" },
+    { label: "03:00 PM", value: "03:00 PM" },
+    { label: "03:30 PM", value: "03:30 PM" },
+    { label: "04:00 PM", value: "04:00 PM" },
+    { label: "04:30 PM", value: "04:30 PM" },
+    { label: "05:00 PM", value: "05:00 PM" },
+    { label: "05:30 PM", value: "05:30 PM" },
+    { label: "06:00 PM", value: "06:00 PM" },
+    { label: "06:30 PM", value: "06:30 PM" },
+    { label: "07:00 PM", value: "07:00 PM" },
+    { label: "07:30 PM", value: "07:30 PM" },
+    { label: "08:00 PM", value: "08:00 PM" },
+    { label: "08:30 PM", value: "08:30 PM" },
+    { label: "09:00 PM", value: "09:00 PM" },
+    { label: "09:30 PM", value: "09:30 PM" },
+    { label: "10:00 PM", value: "10:00 PM" },
+    { label: "10:30 PM", value: "10:30 PM" },
+    { label: "11:00 PM", value: "11:00 PM" },
+    { label: "11:30 PM", value: "11:30 PM" },
+  ];
+
   // Form submission handlers
   const handleGoogleMeetSubmit = async () => {
     // Basic validation
@@ -389,16 +488,29 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       return;
     }
 
+    // Combine date and time fields
+    const startDateTime = combineDateTime(googleMeetForm.startDate, googleMeetForm.startTime);
+    const endDateTime = combineDateTime(googleMeetForm.endDate, googleMeetForm.endTime);
+
+    // Validate that end time is after start time
+    if (endDateTime <= startDateTime) {
+      createNotice("error", __("End time must be after start time", "tutorpress"), {
+        type: "snackbar",
+        isDismissible: true,
+      });
+      return;
+    }
+
     // Convert form data to API format
     const liveLessonData: LiveLessonFormData = {
       title: googleMeetForm.title,
       description: googleMeetForm.summary,
       type: "google_meet",
-      startDateTime: googleMeetForm.startDate.toISOString(),
-      endDateTime: googleMeetForm.endDate.toISOString(),
+      startDateTime: formatDateTimeForStorage(startDateTime),
+      endDateTime: formatDateTimeForStorage(endDateTime),
       settings: {
         timezone: googleMeetForm.timezone,
-        duration: Math.ceil((googleMeetForm.endDate.getTime() - googleMeetForm.startDate.getTime()) / (1000 * 60)),
+        duration: Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60)),
         allowEarlyJoin: true,
         autoRecord: false,
         requirePassword: false,
@@ -433,18 +545,21 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       return;
     }
 
+    // Combine date and time fields
+    const startDateTime = combineDateTime(zoomForm.date, zoomForm.time);
+
     // Calculate end date based on duration
     const durationMs =
       zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 * 60 * 1000 : zoomForm.duration * 60 * 1000;
-    const endDate = new Date(zoomForm.date.getTime() + durationMs);
+    const endDate = new Date(startDateTime.getTime() + durationMs);
 
     // Convert form data to API format
     const liveLessonData: LiveLessonFormData = {
       title: zoomForm.title,
       description: zoomForm.summary,
       type: "zoom",
-      startDateTime: zoomForm.date.toISOString(),
-      endDateTime: endDate.toISOString(),
+      startDateTime: formatDateTimeForStorage(startDateTime),
+      endDateTime: formatDateTimeForStorage(endDate),
       settings: {
         timezone: zoomForm.timezone,
         duration: zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 : zoomForm.duration,
@@ -804,57 +919,97 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
             <div className="tutorpress-form-row">
               <div className="tutorpress-form-col">
-                <TextControl
-                  label={__("Meeting Start Date", "tutorpress")}
-                  value={googleMeetForm.startDate.toLocaleString()}
-                  onChange={() => {}} // No-op since this is readonly
-                  onClick={() => setDatePickerOpen(datePickerOpen === "startDate" ? null : "startDate")}
-                  readOnly
-                  style={{ cursor: "pointer" }}
-                />
-                {datePickerOpen === "startDate" && (
-                  <Popover onClose={() => setDatePickerOpen(null)}>
-                    <DateTimePicker
-                      currentDate={googleMeetForm.startDate}
-                      onChange={(date) => {
-                        setGoogleMeetForm({
-                          ...googleMeetForm,
-                          startDate: date ? new Date(date) : new Date(),
-                        });
-                        setDatePickerOpen(null);
-                      }}
-                      is12Hour={true}
-                    />
-                  </Popover>
-                )}
-              </div>
-            </div>
+                <label className="tutorpress-form-label">{__("Meeting Time", "tutorpress")}</label>
 
-            <div className="tutorpress-form-row">
-              <div className="tutorpress-form-col">
-                <TextControl
-                  label={__("Meeting End Date", "tutorpress")}
-                  value={googleMeetForm.endDate.toLocaleString()}
-                  onChange={() => {}} // No-op since this is readonly
-                  onClick={() => setDatePickerOpen(datePickerOpen === "endDate" ? null : "endDate")}
-                  readOnly
-                  style={{ cursor: "pointer" }}
-                />
-                {datePickerOpen === "endDate" && (
-                  <Popover onClose={() => setDatePickerOpen(null)}>
-                    <DateTimePicker
-                      currentDate={googleMeetForm.endDate}
-                      onChange={(date) => {
-                        setGoogleMeetForm({
-                          ...googleMeetForm,
-                          endDate: date ? new Date(date) : new Date(),
-                        });
-                        setDatePickerOpen(null);
-                      }}
-                      is12Hour={true}
-                    />
-                  </Popover>
-                )}
+                {/* Start Date and Time */}
+                <div className="tutorpress-meeting-time-group">
+                  <div className="tutorpress-datetime-field">
+                    <label className="tutorpress-field-sublabel">{__("Start", "tutorpress")}</label>
+                    <div className="tutorpress-date-time-row">
+                      <div className="tutorpress-date-field">
+                        <TextControl
+                          value={googleMeetForm.startDate.toLocaleDateString()}
+                          onChange={() => {}} // No-op since this is readonly
+                          onClick={() => setDatePickerOpen(datePickerOpen === "startDate" ? null : "startDate")}
+                          readOnly
+                          style={{ cursor: "pointer" }}
+                          placeholder={__("Select date", "tutorpress")}
+                        />
+                        {datePickerOpen === "startDate" && (
+                          <Popover onClose={() => setDatePickerOpen(null)}>
+                            <DatePicker
+                              currentDate={googleMeetForm.startDate}
+                              onChange={(date) => {
+                                setGoogleMeetForm({
+                                  ...googleMeetForm,
+                                  startDate: date ? new Date(date) : new Date(),
+                                });
+                                setDatePickerOpen(null);
+                              }}
+                            />
+                          </Popover>
+                        )}
+                      </div>
+                      <div className="tutorpress-time-field">
+                        <SelectControl
+                          value={googleMeetForm.startTime}
+                          options={timeOptions}
+                          onChange={(value) =>
+                            setGoogleMeetForm({
+                              ...googleMeetForm,
+                              startTime: value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="tutorpress-time-separator">—</span>
+
+                  {/* End Date and Time */}
+                  <div className="tutorpress-datetime-field">
+                    <label className="tutorpress-field-sublabel">{__("End", "tutorpress")}</label>
+                    <div className="tutorpress-date-time-row">
+                      <div className="tutorpress-date-field">
+                        <TextControl
+                          value={googleMeetForm.endDate.toLocaleDateString()}
+                          onChange={() => {}} // No-op since this is readonly
+                          onClick={() => setDatePickerOpen(datePickerOpen === "endDate" ? null : "endDate")}
+                          readOnly
+                          style={{ cursor: "pointer" }}
+                          placeholder={__("Select date", "tutorpress")}
+                        />
+                        {datePickerOpen === "endDate" && (
+                          <Popover onClose={() => setDatePickerOpen(null)}>
+                            <DatePicker
+                              currentDate={googleMeetForm.endDate}
+                              onChange={(date) => {
+                                setGoogleMeetForm({
+                                  ...googleMeetForm,
+                                  endDate: date ? new Date(date) : new Date(),
+                                });
+                                setDatePickerOpen(null);
+                              }}
+                            />
+                          </Popover>
+                        )}
+                      </div>
+                      <div className="tutorpress-time-field">
+                        <SelectControl
+                          value={googleMeetForm.endTime}
+                          options={timeOptions}
+                          onChange={(value) =>
+                            setGoogleMeetForm({
+                              ...googleMeetForm,
+                              endTime: value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -926,7 +1081,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               <div className="tutorpress-form-col">
                 <TextControl
                   label={__("Meeting Date", "tutorpress")}
-                  value={zoomForm.date.toLocaleString()}
+                  value={format("Y-m-d", zoomForm.date)}
                   onChange={() => {}} // No-op since this is readonly
                   onClick={() => setDatePickerOpen(datePickerOpen === "zoomDate" ? null : "zoomDate")}
                   readOnly
@@ -934,7 +1089,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                 />
                 {datePickerOpen === "zoomDate" && (
                   <Popover onClose={() => setDatePickerOpen(null)}>
-                    <DateTimePicker
+                    <DatePicker
                       currentDate={zoomForm.date}
                       onChange={(date) => {
                         setZoomForm({
@@ -943,10 +1098,22 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                         });
                         setDatePickerOpen(null);
                       }}
-                      is12Hour={true}
                     />
                   </Popover>
                 )}
+              </div>
+              <div className="tutorpress-form-col">
+                <SelectControl
+                  label={__("Meeting Time", "tutorpress")}
+                  value={zoomForm.time}
+                  options={timeOptions}
+                  onChange={(value) =>
+                    setZoomForm({
+                      ...zoomForm,
+                      time: value,
+                    })
+                  }
+                />
               </div>
             </div>
 

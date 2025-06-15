@@ -208,7 +208,9 @@ export interface GoogleMeetFormData {
   title: string;
   summary: string;
   startDate: Date;
+  startTime: string; // 12-hour format like "09:00 AM"
   endDate: Date;
+  endTime: string; // 12-hour format like "10:00 AM"
   timezone: string;
   addEnrolledStudents: boolean;
 }
@@ -221,6 +223,7 @@ export interface ZoomFormData {
   title: string;
   summary: string;
   date: Date;
+  time: string; // 12-hour format like "09:00 AM"
   duration: number;
   durationUnit: "minutes" | "hours";
   timezone: string;

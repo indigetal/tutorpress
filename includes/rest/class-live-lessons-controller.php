@@ -475,13 +475,10 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         // Store meta data based on type
         if ($type === 'google_meet') {
             // Google Meet meta fields based on EventsModel::POST_META_KEYS
-            // Convert ISO datetime to the format Google Meet expects (Y-m-d H:i:s)
-            $start_datetime_obj = new DateTime($start_date_time);
-            $end_datetime_obj = new DateTime($end_date_time);
-            
-            // Format to match Google Meet addon expectations
-            $formatted_start_datetime = $start_datetime_obj->format('Y-m-d H:i:s');
-            $formatted_end_datetime = $end_datetime_obj->format('Y-m-d H:i:s');
+            // Frontend now sends datetime in Y-m-d H:i:s format exactly as user entered it
+            // No timezone conversion needed - store exactly what user selected
+            $formatted_start_datetime = $start_date_time;
+            $formatted_end_datetime = $end_date_time;
             
             update_post_meta($post_id, 'tutor-google-meet-start-datetime', $formatted_start_datetime);
             update_post_meta($post_id, 'tutor-google-meet-end-datetime', $formatted_end_datetime);
@@ -509,10 +506,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             update_post_meta($post_id, 'tutor-google-meet-link', $event_details['meet_link']);
         } else {
             // Zoom meta fields based on the Zoom class implementation
-            // Convert ISO datetime to the format Zoom expects
+            // Frontend now sends datetime in Y-m-d H:i:s format exactly as user entered it
+            // No timezone conversion needed - store exactly what user selected
+            $formatted_start_datetime = $start_date_time;
+            
+            // Extract date part for _tutor_zm_start_date field
             $start_datetime_obj = new DateTime($start_date_time);
             $formatted_start_date = $start_datetime_obj->format('Y-m-d');
-            $formatted_start_datetime = $start_datetime_obj->format('Y-m-d H:i:s');
             
             update_post_meta($post_id, '_tutor_zm_start_date', $formatted_start_date);
             update_post_meta($post_id, '_tutor_zm_start_datetime', $formatted_start_datetime);

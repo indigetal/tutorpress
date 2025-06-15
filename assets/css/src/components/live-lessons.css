@@ -1,8 +1,8 @@
 /**
- * Live Lessons Responsive Button Integration
+ * Live Lessons Component Styles
  * 
- * Handles responsive behavior for Live Lessons buttons in the Course Curriculum Metabox.
- * Follows established TutorPress breakpoint patterns for consistent behavior.
+ * Styles for Live Lessons modals and forms in the Course Curriculum Metabox.
+ * Follows WordPress admin design patterns and TutorPress conventions.
  */
 
 /* ========================================================================
@@ -53,54 +53,7 @@
 }
 
 .tutorpress-modal-content .components-text-control__input,
-.tutorpress-modal-content .components-textarea-control__input {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 14px;
-  line-height: 1.4;
-  width: 100%;
-}
-
-.tutorpress-modal-content .components-text-control__input:focus,
-.tutorpress-modal-content .components-textarea-control__input:focus {
-  border-color: #007cba;
-  box-shadow: 0 0 0 1px #007cba;
-  outline: none;
-}
-
-.tutorpress-modal-content .components-textarea-control__input {
-  resize: vertical;
-  min-height: 80px;
-}
-
-/* Form row layouts */
-.tutorpress-form-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.tutorpress-form-col {
-  flex: 1;
-}
-
-.tutorpress-form-col-half {
-  flex: 1;
-}
-
-/* DateTimePicker styling */
-.tutorpress-modal-content .components-datetime {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-}
-
-.tutorpress-modal-content .components-datetime__date {
-  padding: 8px;
-}
-
-/* SelectControl styling */
+.tutorpress-modal-content .components-textarea-control__input,
 .tutorpress-modal-content .components-select-control__input {
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -111,10 +64,39 @@
   background: white;
 }
 
+.tutorpress-modal-content .components-text-control__input:focus,
+.tutorpress-modal-content .components-textarea-control__input:focus,
 .tutorpress-modal-content .components-select-control__input:focus {
   border-color: #007cba;
   box-shadow: 0 0 0 1px #007cba;
   outline: none;
+}
+
+.tutorpress-modal-content .components-textarea-control__input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Form row layouts for date/time fields */
+.tutorpress-form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tutorpress-form-col {
+  flex: 1;
+}
+
+/* Date and Time picker styling */
+.tutorpress-modal-content .components-datetime {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+.tutorpress-modal-content .components-datetime__date {
+  padding: 8px;
 }
 
 /* NumberControl styling */
