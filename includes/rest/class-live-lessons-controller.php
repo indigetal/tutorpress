@@ -521,6 +521,11 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             update_post_meta($post_id, '_tutor_zm_for_course', $course_id);
             update_post_meta($post_id, '_tutor_zm_for_topic', $topic_id);
             
+            // Use auto recording setting from provider config
+            $auto_recording = !empty($provider_config['autoRecording']) 
+                ? $provider_config['autoRecording'] 
+                : 'none';
+            
             // Store the main zoom data in the format expected by the addon
             $zoom_data = [
                 'topic' => $title,
@@ -534,7 +539,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                     'host_video' => false,
                     'participant_video' => false,
                     'mute_upon_entry' => false,
-                    'auto_recording' => $settings['auto_record'] ? 'local' : 'none',
+                    'auto_recording' => $auto_recording,
                     'enforce_login' => false,
                     'waiting_room' => $settings['waiting_room'],
                 ],

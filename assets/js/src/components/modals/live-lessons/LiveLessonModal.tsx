@@ -127,6 +127,15 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           addEnrolledStudents: data.settings?.add_enrolled_students === "Yes",
         });
       } else if (data.type === "zoom") {
+        // Use autoRecording value from providerConfig
+        let autoRecording: "none" | "local" | "cloud" = "none";
+        if (
+          data.providerConfig?.autoRecording &&
+          ["none", "local", "cloud"].includes(data.providerConfig.autoRecording)
+        ) {
+          autoRecording = data.providerConfig.autoRecording as "none" | "local" | "cloud";
+        }
+
         setZoomForm({
           title: data.title || "",
           summary: data.description || "",
@@ -135,9 +144,9 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           duration: data.settings?.duration || 40,
           durationUnit: "minutes",
           timezone: data.settings?.timezone || defaultTimezone,
-          autoRecording: data.settings?.autoRecord ? "cloud" : "none",
-          password: data.password || "",
-          host: "default",
+          autoRecording: autoRecording,
+          password: data.providerConfig?.password || "",
+          host: data.providerConfig?.host || "default",
         });
       }
     } catch (error) {
