@@ -26,6 +26,7 @@ import {
 import { __ } from "@wordpress/i18n";
 import { calendar } from "@wordpress/icons";
 import type { GoogleMeetFormData } from "../../../types/liveLessons";
+import { generateTimezoneOptions } from "./index";
 
 interface GoogleMeetFormProps {
   formData: GoogleMeetFormData;
@@ -67,24 +68,6 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
       }
     }
     return options;
-  };
-
-  /**
-   * Generate timezone options
-   */
-  const generateTimezoneOptions = () => {
-    // Common timezones - in a real implementation, this would be more comprehensive
-    return [
-      { label: __("UTC", "tutorpress"), value: "UTC" },
-      { label: __("Eastern Time (ET)", "tutorpress"), value: "America/New_York" },
-      { label: __("Central Time (CT)", "tutorpress"), value: "America/Chicago" },
-      { label: __("Mountain Time (MT)", "tutorpress"), value: "America/Denver" },
-      { label: __("Pacific Time (PT)", "tutorpress"), value: "America/Los_Angeles" },
-      { label: __("London (GMT)", "tutorpress"), value: "Europe/London" },
-      { label: __("Paris (CET)", "tutorpress"), value: "Europe/Paris" },
-      { label: __("Tokyo (JST)", "tutorpress"), value: "Asia/Tokyo" },
-      { label: __("Sydney (AEST)", "tutorpress"), value: "Australia/Sydney" },
-    ];
   };
 
   const timeOptions = generateTimeOptions();
