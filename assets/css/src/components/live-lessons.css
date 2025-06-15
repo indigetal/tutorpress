@@ -88,6 +88,71 @@
   flex: 1;
 }
 
+/* ========================================================================
+   DATETIME SECTION STYLES (Google Meet & Zoom)
+   ======================================================================== */
+
+/* DateTime section container */
+.tutorpress-datetime-section {
+  margin-bottom: 20px;
+}
+
+.tutorpress-datetime-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e1e1e;
+}
+
+/* Google Meet: Side-by-side date/time fields with equal spacing */
+.tutorpress-google-meet-form .tutorpress-datetime-section .components-h-stack .components-flex-item {
+  flex: 1;
+}
+
+/* Google Meet: Full-width date picker buttons */
+.tutorpress-google-meet-form .tutorpress-date-picker-wrapper button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Zoom: Full-width date picker button */
+.tutorpress-zoom-form .tutorpress-date-picker-wrapper button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Zoom: Stacked date/time layout (no HStack) */
+.tutorpress-zoom-form .tutorpress-datetime-section .components-select-control {
+  margin-top: 12px;
+}
+
+/* ========================================================================
+   DURATION SECTION STYLES (Zoom)
+   ======================================================================== */
+
+/* Duration section container */
+.tutorpress-duration-section {
+  margin-bottom: 20px;
+}
+
+.tutorpress-duration-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e1e1e;
+}
+
+/* Zoom: Side-by-side duration fields with equal spacing */
+.tutorpress-zoom-form .tutorpress-duration-section .components-h-stack .components-flex-item {
+  flex: 1;
+}
+
+/* Remove individual field labels when section heading provides context */
+.tutorpress-google-meet-form .tutorpress-datetime-section .components-h-stack .components-base-control__label,
+.tutorpress-zoom-form .tutorpress-duration-section .components-h-stack .components-base-control__label {
+  display: none;
+}
+
 /* Date and Time picker styling */
 .tutorpress-modal-content .components-datetime {
   border: 1px solid #ddd;

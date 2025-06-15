@@ -141,46 +141,40 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
       {/* Date and Time */}
       <div className="tutorpress-datetime-section">
-        <h4>{__("Meeting Date & Time", "tutorpress")}</h4>
+        <h4>{__("Meeting Date", "tutorpress")}</h4>
 
-        <HStack spacing={3}>
-          {/* Date */}
-          <FlexItem>
-            <div className="tutorpress-date-picker-wrapper">
-              <Button
-                variant="secondary"
-                icon={calendar}
-                onClick={() => setDatePickerOpen(!datePickerOpen)}
-                disabled={disabled}
-              >
-                {formData.date.toLocaleDateString()}
-              </Button>
+        {/* Date - Full Width */}
+        <div className="tutorpress-date-picker-wrapper">
+          <Button
+            variant="secondary"
+            icon={calendar}
+            onClick={() => setDatePickerOpen(!datePickerOpen)}
+            disabled={disabled}
+          >
+            {formData.date.toLocaleDateString()}
+          </Button>
 
-              {datePickerOpen && (
-                <Popover position="bottom left" onClose={() => setDatePickerOpen(false)}>
-                  <DatePicker
-                    currentDate={formData.date.toISOString()}
-                    onChange={(date) => {
-                      updateField("date", new Date(date));
-                      setDatePickerOpen(false);
-                    }}
-                  />
-                </Popover>
-              )}
-            </div>
-          </FlexItem>
+          {datePickerOpen && (
+            <Popover position="bottom left" onClose={() => setDatePickerOpen(false)}>
+              <DatePicker
+                currentDate={formData.date.toISOString()}
+                onChange={(date) => {
+                  updateField("date", new Date(date));
+                  setDatePickerOpen(false);
+                }}
+              />
+            </Popover>
+          )}
+        </div>
 
-          {/* Time */}
-          <FlexItem>
-            <SelectControl
-              label={__("Start Time", "tutorpress")}
-              value={formData.time}
-              options={timeOptions}
-              onChange={(value) => updateField("time", value)}
-              disabled={disabled}
-            />
-          </FlexItem>
-        </HStack>
+        {/* Time - Full Width */}
+        <SelectControl
+          label={__("Start Time", "tutorpress")}
+          value={formData.time}
+          options={timeOptions}
+          onChange={(value) => updateField("time", value)}
+          disabled={disabled}
+        />
       </div>
 
       {/* Duration */}
@@ -190,7 +184,6 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         <HStack spacing={3}>
           <FlexItem>
             <NumberControl
-              label={__("Duration", "tutorpress")}
               value={formData.duration}
               onChange={(value) => updateField("duration", parseInt(value as string) || 40)}
               min={1}
@@ -201,7 +194,6 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
           <FlexItem>
             <SelectControl
-              label={__("Unit", "tutorpress")}
               value={formData.durationUnit}
               options={durationUnitOptions}
               onChange={(value) => updateField("durationUnit", value)}

@@ -113,9 +113,9 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
         required
       />
 
-      {/* Start Date and Time */}
+      {/* Meeting Start */}
       <div className="tutorpress-datetime-section">
-        <h4>{__("Start Date & Time", "tutorpress")}</h4>
+        <h4>{__("Meeting Start", "tutorpress")}</h4>
 
         <HStack spacing={3}>
           {/* Start Date */}
@@ -147,7 +147,6 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
           {/* Start Time */}
           <FlexItem>
             <SelectControl
-              label={__("Start Time", "tutorpress")}
               value={formData.startTime}
               options={timeOptions}
               onChange={(value) => updateField("startTime", value)}
@@ -157,9 +156,9 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
         </HStack>
       </div>
 
-      {/* End Date and Time */}
+      {/* Meeting End */}
       <div className="tutorpress-datetime-section">
-        <h4>{__("End Date & Time", "tutorpress")}</h4>
+        <h4>{__("Meeting End", "tutorpress")}</h4>
 
         <HStack spacing={3}>
           {/* End Date */}
@@ -191,7 +190,6 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
           {/* End Time */}
           <FlexItem>
             <SelectControl
-              label={__("End Time", "tutorpress")}
               value={formData.endTime}
               options={timeOptions}
               onChange={(value) => updateField("endTime", value)}
