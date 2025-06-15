@@ -147,7 +147,7 @@ export interface LiveLessonModalProps {
   isOpen: boolean;
   onClose: () => void;
   topicId: number;
-  courseId: number;
+  courseId?: number; // Make optional to match TopicSectionProps
   lessonId?: number; // For editing existing lessons
   lessonType: LiveLessonType;
 }

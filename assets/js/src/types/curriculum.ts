@@ -341,39 +341,5 @@ export const createOperationError = (
 /**
  * Live Lesson types
  */
-export interface LiveLessonSettings {
-  timezone: string;
-  duration: number;
-  allowEarlyJoin?: boolean;
-  requirePassword?: boolean;
-}
-
-export interface LiveLessonFormData {
-  title: string;
-  description: string;
-  type: "google_meet" | "zoom";
-  startDateTime: string;
-  endDateTime: string;
-  settings: LiveLessonSettings;
-}
-
-export interface LiveLesson {
-  id: number;
-  title: string;
-  description: string;
-  type: "google_meet" | "zoom";
-  topicId: number;
-  courseId: number;
-  startDateTime: string;
-  endDateTime: string;
-  settings: LiveLessonSettings;
-  status: "scheduled" | "completed" | "cancelled";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface LiveLessonApiResponse {
-  success: boolean;
-  message: string;
-  data: LiveLesson;
-}
+// Note: Live Lessons types moved to assets/js/src/types/liveLessons.ts
+// to avoid duplication and follow proper separation of concerns

@@ -39,33 +39,23 @@ import {
   Icon,
   Flex,
   FlexBlock,
-  Modal,
   Dropdown,
   MenuGroup,
   MenuItem,
-  TextControl,
-  TextareaControl,
-  DateTimePicker,
-  SelectControl,
-  CheckboxControl,
-  Popover,
-  __experimentalNumberControl as NumberControl,
-  DatePicker,
 } from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
-import { format, getSettings } from "@wordpress/date";
 import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../types/curriculum";
-import type { LiveLessonFormData } from "../../../types/liveLessons";
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { QuizModal } from "../../modals/QuizModal";
+import { LiveLessonModal } from "../../modals/live-lessons";
 import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
-import { useDispatch, useSelect } from "@wordpress/data";
+import { useDispatch } from "@wordpress/data";
 const CURRICULUM_STORE = "tutorpress/curriculum";
 
 // Conditionally import Interactive Quiz components only when H5P is enabled
@@ -150,52 +140,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const [isGoogleMeetModalOpen, setIsGoogleMeetModalOpen] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
 
-  // Date picker popover state
-  const [datePickerOpen, setDatePickerOpen] = useState<string | null>(null);
-
-  // Get WordPress date settings for proper timezone handling
-  const dateSettings = getSettings();
-  const defaultTimezone = dateSettings.timezone?.string || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  // Google Meet form state
-  const [googleMeetForm, setGoogleMeetForm] = useState({
-    title: "",
-    summary: "",
-    startDate: new Date(),
-    startTime: "09:00 AM",
-    endDate: new Date(),
-    endTime: "10:00 AM",
-    timezone: defaultTimezone,
-    addEnrolledStudents: false,
-  });
-
-  // Zoom form state
-  const [zoomForm, setZoomForm] = useState({
-    title: "",
-    summary: "",
-    date: new Date(),
-    time: "09:00 AM",
-    duration: 40,
-    durationUnit: "minutes",
-    timezone: defaultTimezone,
-    autoRecording: "none",
-    password: "",
-    host: "default",
-  });
-
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
-
-  // Get curriculum store selectors and actions
-  const { saveLiveLesson } = useDispatch(CURRICULUM_STORE);
-  const { isLiveLessonSaving, hasLiveLessonError, getLiveLessonError } = useSelect(
-    (select) => ({
-      isLiveLessonSaving: select(CURRICULUM_STORE).isLiveLessonSaving(),
-      hasLiveLessonError: select(CURRICULUM_STORE).hasLiveLessonError(),
-      getLiveLessonError: select(CURRICULUM_STORE).getLiveLessonError(),
-    }),
-    []
-  );
 
   // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
@@ -224,17 +170,6 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       type: "snackbar",
     });
   };
-
-  // Monitor for Live Lessons errors
-  useEffect(() => {
-    if (hasLiveLessonError && getLiveLessonError) {
-      const error = getLiveLessonError;
-      createNotice("error", error.message || __("An error occurred with the live lesson", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-    }
-  }, [hasLiveLessonError, getLiveLessonError, createNotice]);
 
   // Initialize lesson operations hook
   const { handleLessonDuplicate, handleLessonDelete, isLessonDuplicating } = useLessons({
@@ -303,34 +238,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       showGoogleMeetDisabledNotice();
       return;
     }
-    // Reset form state when opening
-    setGoogleMeetForm({
-      title: "",
-      summary: "",
-      startDate: new Date(),
-      startTime: "09:00 AM",
-      endDate: new Date(),
-      endTime: "10:00 AM",
-      timezone: defaultTimezone,
-      addEnrolledStudents: false,
-    });
     setIsGoogleMeetModalOpen(true);
   };
 
   const handleGoogleMeetModalClose = () => {
     setIsGoogleMeetModalOpen(false);
-    setDatePickerOpen(null);
-    // Reset form state
-    setGoogleMeetForm({
-      title: "",
-      summary: "",
-      startDate: new Date(),
-      startTime: "09:00 AM",
-      endDate: new Date(),
-      endTime: "10:00 AM",
-      timezone: defaultTimezone,
-      addEnrolledStudents: false,
-    });
   };
 
   const handleZoomModalOpen = () => {
@@ -338,257 +250,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       showZoomDisabledNotice();
       return;
     }
-    // Reset form state when opening
-    setZoomForm({
-      title: "",
-      summary: "",
-      date: new Date(),
-      time: "09:00 AM",
-      duration: 40,
-      durationUnit: "minutes",
-      timezone: defaultTimezone,
-      autoRecording: "none",
-      password: "",
-      host: "default",
-    });
     setIsZoomModalOpen(true);
   };
 
   const handleZoomModalClose = () => {
     setIsZoomModalOpen(false);
-    setDatePickerOpen(null);
-    // Reset form state
-    setZoomForm({
-      title: "",
-      summary: "",
-      date: new Date(),
-      time: "09:00 AM",
-      duration: 40,
-      durationUnit: "minutes",
-      timezone: defaultTimezone,
-      autoRecording: "none",
-      password: "",
-      host: "default",
-    });
-  };
-
-  // Common timezone options (simplified list)
-  const timezoneOptions = [
-    { label: "UTC", value: "UTC" },
-    { label: "America/New_York (EST/EDT)", value: "America/New_York" },
-    { label: "America/Chicago (CST/CDT)", value: "America/Chicago" },
-    { label: "America/Denver (MST/MDT)", value: "America/Denver" },
-    {
-      label: "America/Los_Angeles (PST/PDT)",
-      value: "America/Los_Angeles",
-    },
-    { label: "Europe/London (GMT/BST)", value: "Europe/London" },
-    { label: "Europe/Paris (CET/CEST)", value: "Europe/Paris" },
-    { label: "Asia/Tokyo (JST)", value: "Asia/Tokyo" },
-    { label: "Australia/Sydney (AEST/AEDT)", value: "Australia/Sydney" },
-  ];
-
-  // Duration unit options for Zoom
-  const durationUnitOptions = [
-    { label: __("Minutes", "tutorpress"), value: "minutes" },
-    { label: __("Hours", "tutorpress"), value: "hours" },
-  ];
-
-  // Helper function to combine date and time in user's timezone
-  const combineDateTime = (date: Date, timeString: string): Date => {
-    const [time, period] = timeString.split(" ");
-    const [hours, minutes] = time.split(":").map(Number);
-
-    let hour24 = hours;
-    if (period === "PM" && hours !== 12) {
-      hour24 += 12;
-    } else if (period === "AM" && hours === 12) {
-      hour24 = 0;
-    }
-
-    // Create a new date object and set the time
-    // This will be in the user's local timezone
-    const combined = new Date(date);
-    combined.setHours(hour24, minutes, 0, 0);
-    return combined;
-  };
-
-  // Helper function to format datetime exactly as user selected it (no timezone conversion)
-  // This matches how Tutor LMS handles datetime - store exactly what user entered
-  const formatDateTimeForStorage = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  };
-
-  // Time options in 30-minute increments (12-hour format)
-  const timeOptions = [
-    { label: "12:00 AM", value: "12:00 AM" },
-    { label: "12:30 AM", value: "12:30 AM" },
-    { label: "01:00 AM", value: "01:00 AM" },
-    { label: "01:30 AM", value: "01:30 AM" },
-    { label: "02:00 AM", value: "02:00 AM" },
-    { label: "02:30 AM", value: "02:30 AM" },
-    { label: "03:00 AM", value: "03:00 AM" },
-    { label: "03:30 AM", value: "03:30 AM" },
-    { label: "04:00 AM", value: "04:00 AM" },
-    { label: "04:30 AM", value: "04:30 AM" },
-    { label: "05:00 AM", value: "05:00 AM" },
-    { label: "05:30 AM", value: "05:30 AM" },
-    { label: "06:00 AM", value: "06:00 AM" },
-    { label: "06:30 AM", value: "06:30 AM" },
-    { label: "07:00 AM", value: "07:00 AM" },
-    { label: "07:30 AM", value: "07:30 AM" },
-    { label: "08:00 AM", value: "08:00 AM" },
-    { label: "08:30 AM", value: "08:30 AM" },
-    { label: "09:00 AM", value: "09:00 AM" },
-    { label: "09:30 AM", value: "09:30 AM" },
-    { label: "10:00 AM", value: "10:00 AM" },
-    { label: "10:30 AM", value: "10:30 AM" },
-    { label: "11:00 AM", value: "11:00 AM" },
-    { label: "11:30 AM", value: "11:30 AM" },
-    { label: "12:00 PM", value: "12:00 PM" },
-    { label: "12:30 PM", value: "12:30 PM" },
-    { label: "01:00 PM", value: "01:00 PM" },
-    { label: "01:30 PM", value: "01:30 PM" },
-    { label: "02:00 PM", value: "02:00 PM" },
-    { label: "02:30 PM", value: "02:30 PM" },
-    { label: "03:00 PM", value: "03:00 PM" },
-    { label: "03:30 PM", value: "03:30 PM" },
-    { label: "04:00 PM", value: "04:00 PM" },
-    { label: "04:30 PM", value: "04:30 PM" },
-    { label: "05:00 PM", value: "05:00 PM" },
-    { label: "05:30 PM", value: "05:30 PM" },
-    { label: "06:00 PM", value: "06:00 PM" },
-    { label: "06:30 PM", value: "06:30 PM" },
-    { label: "07:00 PM", value: "07:00 PM" },
-    { label: "07:30 PM", value: "07:30 PM" },
-    { label: "08:00 PM", value: "08:00 PM" },
-    { label: "08:30 PM", value: "08:30 PM" },
-    { label: "09:00 PM", value: "09:00 PM" },
-    { label: "09:30 PM", value: "09:30 PM" },
-    { label: "10:00 PM", value: "10:00 PM" },
-    { label: "10:30 PM", value: "10:30 PM" },
-    { label: "11:00 PM", value: "11:00 PM" },
-    { label: "11:30 PM", value: "11:30 PM" },
-  ];
-
-  // Form submission handlers
-  const handleGoogleMeetSubmit = async () => {
-    // Basic validation
-    if (!googleMeetForm.title.trim()) {
-      createNotice("error", __("Meeting name is required", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-      return;
-    }
-
-    // Combine date and time fields
-    const startDateTime = combineDateTime(googleMeetForm.startDate, googleMeetForm.startTime);
-    const endDateTime = combineDateTime(googleMeetForm.endDate, googleMeetForm.endTime);
-
-    // Validate that end time is after start time
-    if (endDateTime <= startDateTime) {
-      createNotice("error", __("End time must be after start time", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-      return;
-    }
-
-    // Convert form data to API format
-    const liveLessonData: LiveLessonFormData = {
-      title: googleMeetForm.title,
-      description: googleMeetForm.summary,
-      type: "google_meet",
-      startDateTime: formatDateTimeForStorage(startDateTime),
-      endDateTime: formatDateTimeForStorage(endDateTime),
-      settings: {
-        timezone: googleMeetForm.timezone,
-        duration: Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60)),
-        allowEarlyJoin: true,
-        autoRecord: false,
-        requirePassword: false,
-        waitingRoom: false,
-        add_enrolled_students: googleMeetForm.addEnrolledStudents ? "Yes" : "No",
-      },
-    };
-
-    try {
-      // Use WordPress Data store dispatch
-      await saveLiveLesson(liveLessonData, courseId, topic.id);
-      createNotice("success", __("Google Meet lesson created successfully", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-      handleGoogleMeetModalClose();
-    } catch (error) {
-      createNotice("error", __("Failed to create Google Meet lesson", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-    }
-  };
-
-  const handleZoomSubmit = async () => {
-    // Basic validation
-    if (!zoomForm.title.trim()) {
-      createNotice("error", __("Meeting name is required", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-      return;
-    }
-
-    // Combine date and time fields
-    const startDateTime = combineDateTime(zoomForm.date, zoomForm.time);
-
-    // Calculate end date based on duration
-    const durationMs =
-      zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 * 60 * 1000 : zoomForm.duration * 60 * 1000;
-    const endDate = new Date(startDateTime.getTime() + durationMs);
-
-    // Convert form data to API format
-    const liveLessonData: LiveLessonFormData = {
-      title: zoomForm.title,
-      description: zoomForm.summary,
-      type: "zoom",
-      startDateTime: formatDateTimeForStorage(startDateTime),
-      endDateTime: formatDateTimeForStorage(endDate),
-      settings: {
-        timezone: zoomForm.timezone,
-        duration: zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 : zoomForm.duration,
-        allowEarlyJoin: true,
-        autoRecord: zoomForm.autoRecording !== "none",
-        requirePassword: !!zoomForm.password,
-        waitingRoom: true,
-      },
-      providerConfig: {
-        password: zoomForm.password,
-        host: zoomForm.host,
-        autoRecording: zoomForm.autoRecording,
-      },
-    };
-
-    try {
-      // Use WordPress Data store dispatch
-      await saveLiveLesson(liveLessonData, courseId, topic.id);
-      createNotice("success", __("Zoom lesson created successfully", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-      handleZoomModalClose();
-    } catch (error) {
-      createNotice("error", __("Failed to create Zoom lesson", "tutorpress"), {
-        type: "snackbar",
-        isDismissible: true,
-      });
-    }
   };
 
   // Handle double-click on title or summary
@@ -665,53 +331,53 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   item.type === "lesson"
                     ? () => handleLessonEdit(item.id)
                     : item.type === "tutor_assignments"
-                    ? () => handleAssignmentEdit(item.id)
-                    : item.type === "tutor_quiz"
-                    ? () => handleQuizEditModal(item.id)
-                    : item.type === "interactive_quiz"
-                    ? () => {
-                        if (!isH5pEnabled()) {
-                          showH5pDisabledNotice();
-                          return;
-                        }
-                        setEditingInteractiveQuizId(item.id);
-                        setIsInteractiveQuizModalOpen(true);
-                      }
-                    : undefined
+                      ? () => handleAssignmentEdit(item.id)
+                      : item.type === "tutor_quiz"
+                        ? () => handleQuizEditModal(item.id)
+                        : item.type === "interactive_quiz"
+                          ? () => {
+                              if (!isH5pEnabled()) {
+                                showH5pDisabledNotice();
+                                return;
+                              }
+                              setEditingInteractiveQuizId(item.id);
+                              setIsInteractiveQuizModalOpen(true);
+                            }
+                          : undefined
                 }
                 onDuplicate={
                   item.type === "lesson"
                     ? () => handleLessonDuplicate(item.id, topic.id)
                     : item.type === "tutor_assignments"
-                    ? () => handleAssignmentDuplicate(item.id, topic.id)
-                    : item.type === "tutor_quiz"
-                    ? () => handleQuizDuplicate(item.id, topic.id)
-                    : item.type === "interactive_quiz"
-                    ? () => {
-                        if (!isH5pEnabled()) {
-                          showH5pDisabledNotice();
-                          return;
-                        }
-                        handleQuizDuplicate(item.id, topic.id);
-                      }
-                    : undefined
+                      ? () => handleAssignmentDuplicate(item.id, topic.id)
+                      : item.type === "tutor_quiz"
+                        ? () => handleQuizDuplicate(item.id, topic.id)
+                        : item.type === "interactive_quiz"
+                          ? () => {
+                              if (!isH5pEnabled()) {
+                                showH5pDisabledNotice();
+                                return;
+                              }
+                              handleQuizDuplicate(item.id, topic.id);
+                            }
+                          : undefined
                 }
                 onDelete={
                   item.type === "lesson"
                     ? () => handleLessonDelete(item.id)
                     : item.type === "tutor_assignments"
-                    ? () => handleAssignmentDelete(item.id)
-                    : item.type === "tutor_quiz"
-                    ? () => handleQuizDelete(item.id, topic.id)
-                    : item.type === "interactive_quiz"
-                    ? () => {
-                        if (!isH5pEnabled()) {
-                          showH5pDisabledNotice();
-                          return;
-                        }
-                        handleQuizDelete(item.id, topic.id);
-                      }
-                    : undefined
+                      ? () => handleAssignmentDelete(item.id)
+                      : item.type === "tutor_quiz"
+                        ? () => handleQuizDelete(item.id, topic.id)
+                        : item.type === "interactive_quiz"
+                          ? () => {
+                              if (!isH5pEnabled()) {
+                                showH5pDisabledNotice();
+                                return;
+                              }
+                              handleQuizDelete(item.id, topic.id);
+                            }
+                          : undefined
                 }
               />
             ))}
@@ -883,340 +549,22 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
       )}
 
       {/* Google Meet Live Lesson Modal */}
-      {isGoogleMeetModalOpen && (
-        <Modal
-          title={__("Create Google Meet Live Lesson", "tutorpress")}
-          onRequestClose={handleGoogleMeetModalClose}
-          className="tutorpress-live-lesson-modal tutorpress-google-meet-modal"
-          size="medium"
-        >
-          <div className="tutorpress-modal-content">
-            <TextControl
-              label={__("Meeting Name", "tutorpress")}
-              value={googleMeetForm.title}
-              onChange={(value) =>
-                setGoogleMeetForm({
-                  ...googleMeetForm,
-                  title: value,
-                })
-              }
-              placeholder={__("Enter meeting name", "tutorpress")}
-              required
-            />
-
-            <TextareaControl
-              label={__("Meeting Summary", "tutorpress")}
-              value={googleMeetForm.summary}
-              onChange={(value) =>
-                setGoogleMeetForm({
-                  ...googleMeetForm,
-                  summary: value,
-                })
-              }
-              placeholder={__("Enter meeting summary", "tutorpress")}
-              rows={4}
-            />
-
-            <div className="tutorpress-form-row">
-              <div className="tutorpress-form-col">
-                <label className="tutorpress-form-label">{__("Meeting Time", "tutorpress")}</label>
-
-                {/* Start Date and Time */}
-                <div className="tutorpress-meeting-time-group">
-                  <div className="tutorpress-datetime-field">
-                    <label className="tutorpress-field-sublabel">{__("Start", "tutorpress")}</label>
-                    <div className="tutorpress-date-time-row">
-                      <div className="tutorpress-date-field">
-                        <TextControl
-                          value={googleMeetForm.startDate.toLocaleDateString()}
-                          onChange={() => {}} // No-op since this is readonly
-                          onClick={() => setDatePickerOpen(datePickerOpen === "startDate" ? null : "startDate")}
-                          readOnly
-                          style={{ cursor: "pointer" }}
-                          placeholder={__("Select date", "tutorpress")}
-                        />
-                        {datePickerOpen === "startDate" && (
-                          <Popover onClose={() => setDatePickerOpen(null)}>
-                            <DatePicker
-                              currentDate={googleMeetForm.startDate}
-                              onChange={(date) => {
-                                setGoogleMeetForm({
-                                  ...googleMeetForm,
-                                  startDate: date ? new Date(date) : new Date(),
-                                });
-                                setDatePickerOpen(null);
-                              }}
-                            />
-                          </Popover>
-                        )}
-                      </div>
-                      <div className="tutorpress-time-field">
-                        <SelectControl
-                          value={googleMeetForm.startTime}
-                          options={timeOptions}
-                          onChange={(value) =>
-                            setGoogleMeetForm({
-                              ...googleMeetForm,
-                              startTime: value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className="tutorpress-time-separator">—</span>
-
-                  {/* End Date and Time */}
-                  <div className="tutorpress-datetime-field">
-                    <label className="tutorpress-field-sublabel">{__("End", "tutorpress")}</label>
-                    <div className="tutorpress-date-time-row">
-                      <div className="tutorpress-date-field">
-                        <TextControl
-                          value={googleMeetForm.endDate.toLocaleDateString()}
-                          onChange={() => {}} // No-op since this is readonly
-                          onClick={() => setDatePickerOpen(datePickerOpen === "endDate" ? null : "endDate")}
-                          readOnly
-                          style={{ cursor: "pointer" }}
-                          placeholder={__("Select date", "tutorpress")}
-                        />
-                        {datePickerOpen === "endDate" && (
-                          <Popover onClose={() => setDatePickerOpen(null)}>
-                            <DatePicker
-                              currentDate={googleMeetForm.endDate}
-                              onChange={(date) => {
-                                setGoogleMeetForm({
-                                  ...googleMeetForm,
-                                  endDate: date ? new Date(date) : new Date(),
-                                });
-                                setDatePickerOpen(null);
-                              }}
-                            />
-                          </Popover>
-                        )}
-                      </div>
-                      <div className="tutorpress-time-field">
-                        <SelectControl
-                          value={googleMeetForm.endTime}
-                          options={timeOptions}
-                          onChange={(value) =>
-                            setGoogleMeetForm({
-                              ...googleMeetForm,
-                              endTime: value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <SelectControl
-              label={__("Timezone", "tutorpress")}
-              value={googleMeetForm.timezone}
-              options={timezoneOptions}
-              onChange={(value) =>
-                setGoogleMeetForm({
-                  ...googleMeetForm,
-                  timezone: value,
-                })
-              }
-            />
-
-            <CheckboxControl
-              label={__("Add enrolled students as attendees", "tutorpress")}
-              checked={googleMeetForm.addEnrolledStudents}
-              onChange={(checked) =>
-                setGoogleMeetForm({
-                  ...googleMeetForm,
-                  addEnrolledStudents: checked,
-                })
-              }
-            />
-          </div>
-          <div className="tutorpress-modal-footer">
-            <Button variant="secondary" onClick={handleGoogleMeetModalClose} disabled={isLiveLessonSaving}>
-              {__("Cancel", "tutorpress")}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleGoogleMeetSubmit}
-              isBusy={isLiveLessonSaving}
-              disabled={isLiveLessonSaving}
-            >
-              {isLiveLessonSaving ? __("Creating Meeting...", "tutorpress") : __("Create Meeting", "tutorpress")}
-            </Button>
-          </div>
-        </Modal>
-      )}
+      <LiveLessonModal
+        isOpen={isGoogleMeetModalOpen}
+        onClose={handleGoogleMeetModalClose}
+        topicId={topic.id}
+        courseId={courseId}
+        lessonType="google_meet"
+      />
 
       {/* Zoom Live Lesson Modal */}
-      {isZoomModalOpen && (
-        <Modal
-          title={__("Create Zoom Live Lesson", "tutorpress")}
-          onRequestClose={handleZoomModalClose}
-          className="tutorpress-live-lesson-modal tutorpress-zoom-modal"
-          size="medium"
-        >
-          <div className="tutorpress-modal-content">
-            <TextControl
-              label={__("Meeting Name", "tutorpress")}
-              value={zoomForm.title}
-              onChange={(value) => setZoomForm({ ...zoomForm, title: value })}
-              placeholder={__("Enter meeting name", "tutorpress")}
-              required
-            />
-
-            <TextareaControl
-              label={__("Meeting Summary", "tutorpress")}
-              value={zoomForm.summary}
-              onChange={(value) => setZoomForm({ ...zoomForm, summary: value })}
-              placeholder={__("Enter meeting summary", "tutorpress")}
-              rows={4}
-            />
-
-            <div className="tutorpress-form-row">
-              <div className="tutorpress-form-col">
-                <TextControl
-                  label={__("Meeting Date", "tutorpress")}
-                  value={format("Y-m-d", zoomForm.date)}
-                  onChange={() => {}} // No-op since this is readonly
-                  onClick={() => setDatePickerOpen(datePickerOpen === "zoomDate" ? null : "zoomDate")}
-                  readOnly
-                  style={{ cursor: "pointer" }}
-                />
-                {datePickerOpen === "zoomDate" && (
-                  <Popover onClose={() => setDatePickerOpen(null)}>
-                    <DatePicker
-                      currentDate={zoomForm.date}
-                      onChange={(date) => {
-                        setZoomForm({
-                          ...zoomForm,
-                          date: date ? new Date(date) : new Date(),
-                        });
-                        setDatePickerOpen(null);
-                      }}
-                    />
-                  </Popover>
-                )}
-              </div>
-              <div className="tutorpress-form-col">
-                <SelectControl
-                  label={__("Meeting Time", "tutorpress")}
-                  value={zoomForm.time}
-                  options={timeOptions}
-                  onChange={(value) =>
-                    setZoomForm({
-                      ...zoomForm,
-                      time: value,
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="tutorpress-form-row">
-              <div className="tutorpress-form-col-half">
-                <NumberControl
-                  label={__("Meeting Duration", "tutorpress")}
-                  value={zoomForm.duration}
-                  onChange={(value) =>
-                    setZoomForm({
-                      ...zoomForm,
-                      duration: parseInt(value || "40") || 40,
-                    })
-                  }
-                  min={1}
-                  max={480}
-                />
-              </div>
-              <div className="tutorpress-form-col-half">
-                <SelectControl
-                  label={__("Duration Unit", "tutorpress")}
-                  value={zoomForm.durationUnit}
-                  options={durationUnitOptions}
-                  onChange={(value) =>
-                    setZoomForm({
-                      ...zoomForm,
-                      durationUnit: value,
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            <SelectControl
-              label={__("Timezone", "tutorpress")}
-              value={zoomForm.timezone}
-              options={timezoneOptions}
-              onChange={(value) => setZoomForm({ ...zoomForm, timezone: value })}
-            />
-
-            <SelectControl
-              label={__("Auto Recording", "tutorpress")}
-              value={zoomForm.autoRecording}
-              options={[
-                {
-                  label: __("None", "tutorpress"),
-                  value: "none",
-                },
-                {
-                  label: __("Local", "tutorpress"),
-                  value: "local",
-                },
-                {
-                  label: __("Cloud", "tutorpress"),
-                  value: "cloud",
-                },
-              ]}
-              onChange={(value) =>
-                setZoomForm({
-                  ...zoomForm,
-                  autoRecording: value as "none" | "local" | "cloud",
-                })
-              }
-            />
-
-            <TextControl
-              label={__("Meeting Password", "tutorpress")}
-              value={zoomForm.password}
-              onChange={(value) => setZoomForm({ ...zoomForm, password: value })}
-              placeholder={__("Enter meeting password (optional)", "tutorpress")}
-            />
-
-            <SelectControl
-              label={__("Meeting Host", "tutorpress")}
-              value={zoomForm.host}
-              options={[
-                {
-                  label: __("Default Host", "tutorpress"),
-                  value: "default",
-                },
-                {
-                  label: __("Alternative Host", "tutorpress"),
-                  value: "alternative",
-                },
-              ]}
-              onChange={(value) => setZoomForm({ ...zoomForm, host: value as "default" | "alternative" })}
-            />
-          </div>
-          <div className="tutorpress-modal-footer">
-            <Button variant="secondary" onClick={handleZoomModalClose} disabled={isLiveLessonSaving}>
-              {__("Cancel", "tutorpress")}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleZoomSubmit}
-              isBusy={isLiveLessonSaving}
-              disabled={isLiveLessonSaving}
-            >
-              {isLiveLessonSaving ? __("Creating Meeting...", "tutorpress") : __("Create Meeting", "tutorpress")}
-            </Button>
-          </div>
-        </Modal>
-      )}
+      <LiveLessonModal
+        isOpen={isZoomModalOpen}
+        onClose={handleZoomModalClose}
+        topicId={topic.id}
+        courseId={courseId}
+        lessonType="zoom"
+      />
     </Card>
   );
 };
