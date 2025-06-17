@@ -70,7 +70,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
     timezone: defaultTimezone,
     autoRecording: "none",
     password: "",
-    host: "default",
+    host: "", // Will be populated by ZoomForm when Zoom users load
   });
 
   // Store dispatch and selectors
@@ -146,7 +146,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           timezone: data.settings?.timezone || defaultTimezone,
           autoRecording: autoRecording,
           password: data.providerConfig?.password || "",
-          host: data.providerConfig?.host || "default",
+          host: data.providerConfig?.host || "", // Will be populated by ZoomForm when Zoom users load
         });
       }
     } catch (error) {
@@ -185,7 +185,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       timezone: defaultTimezone,
       autoRecording: "none",
       password: "",
-      host: "default",
+      host: "", // Will be populated by ZoomForm when Zoom users load
     });
 
     setSaveError(null);
@@ -264,6 +264,9 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       }
       if (zoomForm.duration <= 0) {
         errors.push(__("Duration must be greater than 0", "tutorpress"));
+      }
+      if (!zoomForm.host.trim()) {
+        errors.push(__("Meeting host is required", "tutorpress"));
       }
     }
 

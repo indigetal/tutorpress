@@ -172,6 +172,19 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             ]
         );
 
+        // Zoom users endpoint for Meeting Host dropdown
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/zoom/users',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_zoom_users'],
+                    'permission_callback' => [$this, 'check_permission'],
+                ],
+            ]
+        );
+
         // Single live lesson operations
         register_rest_route(
             $this->namespace,
@@ -330,6 +343,98 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     }
 
     /**
+     * Get Zoom users for Meeting Host dropdown.
+     * 
+     * Integrates with Tutor LMS Zoom addon to fetch available Zoom users
+     * using the same API credentials and methods that Tutor LMS uses.
+     *
+     * @since 1.5.6
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function get_zoom_users($request) {
+        // Check if Tutor LMS Zoom addon is available
+        if (!class_exists('TUTOR_ZOOM\Zoom')) {
+            return new WP_Error(
+                'zoom_addon_not_available',
+                __('Zoom addon is not available. Please ensure Tutor LMS Pro with Zoom addon is installed and activated.', 'tutorpress'),
+                ['status' => 503]
+            );
+        }
+
+        try {
+            // Initialize Tutor LMS Zoom class (without hooks to avoid conflicts)
+            $zoom_instance = new \TUTOR_ZOOM\Zoom(false);
+            
+            // Get current user's Zoom API credentials (same as Tutor LMS)
+            $user_id = get_current_user_id();
+            $api_data = json_decode(get_user_meta($user_id, 'tutor_zoom_api', true), true);
+            
+            // Check if user has configured Zoom API credentials
+            if (empty($api_data) || empty($api_data['api_key']) || empty($api_data['api_secret'])) {
+                return new WP_Error(
+                    'zoom_api_not_configured',
+                    __('Zoom API credentials are not configured. Please configure your Zoom API settings in Tutor LMS.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+
+            // Get Zoom users using Tutor LMS method (includes caching)
+            $zoom_users = $zoom_instance->tutor_zoom_get_users();
+            
+            if (empty($zoom_users)) {
+                return new WP_Error(
+                    'no_zoom_users',
+                    __('No Zoom users found. Please check your Zoom API credentials and account.', 'tutorpress'),
+                    ['status' => 404]
+                );
+            }
+
+            // Format users for frontend dropdown (matches Tutor LMS format exactly)
+            $formatted_users = [];
+            foreach ($zoom_users as $user) {
+                $first_name = $user['first_name'] ?? '';
+                $last_name = $user['last_name'] ?? '';
+                $email = $user['email'] ?? '';
+                $id = $user['id'] ?? '';
+                
+                // Skip users with missing essential data
+                if (empty($id) || empty($email)) {
+                    continue;
+                }
+                
+                $formatted_users[] = [
+                    'id' => $id,
+                    'first_name' => $first_name,
+                    'last_name' => $last_name,
+                    'email' => $email,
+                    'display_name' => trim($first_name . ' ' . $last_name),
+                ];
+            }
+
+            $response_data = [
+                'users' => $formatted_users,
+                'total' => count($formatted_users),
+                'api_configured' => true,
+            ];
+
+            return rest_ensure_response($this->format_response($response_data, __('Zoom users retrieved successfully.', 'tutorpress')));
+
+        } catch (Exception $e) {
+            error_log('TutorPress: Zoom API Error: ' . $e->getMessage());
+            
+            return new WP_Error(
+                'zoom_api_error',
+                sprintf(
+                    __('Failed to retrieve Zoom users: %s', 'tutorpress'),
+                    $e->getMessage()
+                ),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
      * Get a single live lesson.
      *
      * @since 1.5.0
@@ -483,27 +588,32 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             update_post_meta($post_id, 'tutor-google-meet-start-datetime', $formatted_start_datetime);
             update_post_meta($post_id, 'tutor-google-meet-end-datetime', $formatted_end_datetime);
             
-            // Create event details structure matching Google Meet addon
+            // For Google Meet, we store basic event data without API integration
+            // Full Google Calendar API integration requires OAuth setup and is beyond scope
+            // Users should configure Google Meet via Tutor LMS addon for full functionality
             $event_details = [
                 'start_datetime' => $formatted_start_datetime,
                 'end_datetime' => $formatted_end_datetime,
                 'attendees' => $settings['add_enrolled_students'] ?? 'No',
                 'timezone' => $settings['timezone'],
-                // Mock data for development - in production this would come from Google Calendar API
-                'id' => 'mock_' . $post_id,
+                // Basic placeholder data - requires Google Calendar API for real meeting links
+                'id' => '',
                 'kind' => 'calendar#event',
                 'event_type' => 'default',
-                'html_link' => 'https://calendar.google.com/calendar/event?eid=mock' . $post_id,
-                'meet_link' => 'https://meet.google.com/mock-' . $post_id,
-                'status' => 'confirmed',
+                'html_link' => '',
+                'meet_link' => '',
+                'status' => 'tentative', // Not confirmed until created via Google Calendar API
                 'transparency' => 'transparent',
                 'visibility' => 'public',
             ];
             
+            // Note: For production Google Meet integration, implement Google Calendar API
+            // following the pattern in tutor-pro/addons/google-meet/includes/GoogleEvent/Events.php
+            
             update_post_meta($post_id, 'tutor-google-meet-event-details', json_encode($event_details));
             
-            // Add meeting link meta
-            update_post_meta($post_id, 'tutor-google-meet-link', $event_details['meet_link']);
+            // Store empty link until Google Calendar API integration is implemented
+            update_post_meta($post_id, 'tutor-google-meet-link', '');
         } else {
             // Zoom meta fields based on the Zoom class implementation
             // Frontend now sends datetime in Y-m-d H:i:s format exactly as user entered it
@@ -521,19 +631,52 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             update_post_meta($post_id, '_tutor_zm_for_course', $course_id);
             update_post_meta($post_id, '_tutor_zm_for_topic', $topic_id);
             
-            // Use auto recording setting from provider config
+            // Integrate with Zoom API exactly like Tutor LMS does
+            // Get current user's Zoom API credentials (same as Tutor LMS)
+            $user_id = get_current_user_id();
+            if (current_user_can('administrator')) {
+                $course = get_post($course_id);
+                $user_id = $course->post_author;
+            }
+            
+            $zoom_settings = json_decode(get_user_meta($user_id, 'tutor_zoom_api', true), true);
+            $api_key = (!empty($zoom_settings['api_key'])) ? $zoom_settings['api_key'] : '';
+            $api_secret = (!empty($zoom_settings['api_secret'])) ? $zoom_settings['api_secret'] : '';
+            
+            // Check if API credentials are configured
+            if (empty($api_key) || empty($api_secret)) {
+                return new WP_Error(
+                    'zoom_api_not_configured',
+                    __('Zoom API credentials are not configured. Please configure your Zoom API settings in Tutor LMS.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+            
+            // Validate required Zoom fields (same as Tutor LMS)
+            if (empty($provider_config['host'])) {
+                return new WP_Error(
+                    'zoom_host_required',
+                    __('Meeting host is required for Zoom meetings.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+            
+            $host_id = sanitize_text_field($provider_config['host']);
             $auto_recording = !empty($provider_config['autoRecording']) 
                 ? $provider_config['autoRecording'] 
                 : 'none';
+            $password = ($settings['require_password'] && !empty($provider_config['password'])) 
+                ? sanitize_text_field($provider_config['password']) 
+                : '';
             
-            // Store the main zoom data in the format expected by the addon
-            $zoom_data = [
+            // Prepare Zoom meeting data (same structure as Tutor LMS)
+            $zoom_meeting_data = [
                 'topic' => $title,
                 'type' => 2, // Scheduled meeting
                 'start_time' => $start_datetime_obj->format('Y-m-d\TH:i:s'),
                 'timezone' => $settings['timezone'],
                 'duration' => $settings['duration'],
-                'password' => $settings['require_password'] && !empty($provider_config['password']) ? $provider_config['password'] : '',
+                'password' => $password,
                 'settings' => [
                     'join_before_host' => $settings['allow_early_join'],
                     'host_video' => false,
@@ -543,14 +686,32 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                     'enforce_login' => false,
                     'waiting_room' => $settings['waiting_room'],
                 ],
-                // Mock data for development - in production this would come from Zoom API
-                'id' => 'mock_' . $post_id,
-                'host_id' => 'mock_host',
-                'join_url' => 'https://zoom.us/j/mock' . $post_id,
-                'status' => 'waiting',
             ];
             
-            update_post_meta($post_id, '_tutor_zm_data', json_encode($zoom_data));
+            try {
+                // Create Zoom meeting using Tutor LMS Zoom endpoint (exactly like Tutor LMS)
+                $zoom_endpoint = tutor_utils()->get_package_object(true, '\Zoom\Endpoint\Meetings', $api_key, $api_secret);
+                $saved_meeting = $zoom_endpoint->create($host_id, $zoom_meeting_data);
+                
+                // Store the real Zoom meeting data returned from API (same as Tutor LMS)
+                update_post_meta($post_id, '_tutor_zm_data', json_encode($saved_meeting));
+                
+                // Fire the same action as Tutor LMS
+                do_action('tutor_zoom_after_save_meeting', $post_id);
+                
+            } catch (Exception $e) {
+                // If Zoom API fails, delete the post and return error
+                wp_delete_post($post_id, true);
+                
+                return new WP_Error(
+                    'zoom_api_error',
+                    sprintf(
+                        __('Failed to create Zoom meeting: %s', 'tutorpress'),
+                        $e->getMessage()
+                    ),
+                    ['status' => 500]
+                );
+            }
         }
 
         // Get the created live lesson

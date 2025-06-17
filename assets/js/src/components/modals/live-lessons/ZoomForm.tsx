@@ -10,7 +10,7 @@
  * @since 1.5.2
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextControl,
   TextareaControl,
@@ -24,8 +24,16 @@ import {
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { calendar } from "@wordpress/icons";
+import { useSelect } from "@wordpress/data";
 import type { ZoomFormData } from "../../../types/liveLessons";
 import { generateTimezoneOptions } from "./index";
+
+interface ZoomUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
 
 interface ZoomFormProps {
   formData: ZoomFormData;
@@ -36,6 +44,79 @@ interface ZoomFormProps {
 export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled = false }) => {
   // Date picker popover state
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  // Zoom users state
+  const [zoomUsers, setZoomUsers] = useState<ZoomUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  // Get course ID from curriculum store
+  const courseId = useSelect((select: any) => {
+    return select("tutorpress/curriculum").getCourseId();
+  }, []);
+
+  /**
+   * Fetch Zoom users on component mount
+   */
+  useEffect(() => {
+    const fetchZoomUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        setUsersError(null);
+
+        // Call TutorPress REST API endpoint that integrates with Tutor LMS Zoom
+        const response = await (window as any).wp.apiFetch({
+          path: `/tutorpress/v1/live-lessons/zoom/users`,
+          method: "GET",
+        });
+
+        if (!response.success) {
+          throw new Error(response.message || __("Failed to load Zoom users", "tutorpress"));
+        }
+
+        const zoomUsers = response.data?.users || [];
+        setZoomUsers(zoomUsers);
+
+        // Set default host to first user if no host selected and users available
+        if (!formData.host && zoomUsers.length > 0) {
+          updateField("host", zoomUsers[0].id);
+        }
+
+        // Show helpful message if no users found
+        if (zoomUsers.length === 0) {
+          setUsersError(
+            __("No Zoom users found. Please configure your Zoom API credentials in Tutor LMS settings.", "tutorpress")
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching Zoom users:", error);
+
+        // Handle different error types with specific messages
+        if (error instanceof Error) {
+          if (error.message.includes("zoom_api_not_configured")) {
+            setUsersError(
+              __(
+                "Zoom API credentials not configured. Please set up your Zoom API in Tutor LMS settings.",
+                "tutorpress"
+              )
+            );
+          } else if (error.message.includes("zoom_addon_not_available")) {
+            setUsersError(
+              __("Tutor LMS Zoom addon not available. Please ensure Tutor LMS Pro is installed.", "tutorpress")
+            );
+          } else {
+            setUsersError(error.message);
+          }
+        } else {
+          setUsersError(__("Failed to load Zoom users. Please check your Zoom API configuration.", "tutorpress"));
+        }
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchZoomUsers();
+  }, []);
 
   /**
    * Handle form field updates
@@ -86,12 +167,28 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
   ];
 
   /**
-   * Generate host options
+   * Generate host options from Zoom users (matches Tutor LMS format exactly)
    */
-  const getHostOptions = () => [
-    { label: __("Default Host", "tutorpress"), value: "default" },
-    { label: __("Alternative Host", "tutorpress"), value: "alternative" },
-  ];
+  const getHostOptions = () => {
+    if (loadingUsers) {
+      return [{ label: __("Loading Zoom users...", "tutorpress"), value: "" }];
+    }
+
+    if (usersError || zoomUsers.length === 0) {
+      return [{ label: __("No Zoom users available", "tutorpress"), value: "" }];
+    }
+
+    // Format exactly like Tutor LMS: "FirstName LastName (email@example.com)"
+    return zoomUsers.map((user) => {
+      const fullName = `${user.first_name} ${user.last_name}`.trim();
+      const label = `${fullName} (${user.email})`;
+
+      return {
+        label: label,
+        value: user.id, // Zoom user ID (not WordPress user ID)
+      };
+    });
+  };
 
   const timeOptions = generateTimeOptions();
   const timezoneOptions = generateTimezoneOptions();
@@ -222,9 +319,30 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         value={formData.host}
         options={hostOptions}
         onChange={(value) => updateField("host", value)}
-        disabled={disabled}
-        help={__("Select who will host this meeting", "tutorpress")}
+        disabled={disabled || loadingUsers}
+        help={
+          usersError
+            ? usersError
+            : loadingUsers
+              ? __("Loading available Zoom hosts...", "tutorpress")
+              : __(
+                  "Select the Zoom user who will host this meeting. This must be a valid Zoom user from your Zoom account.",
+                  "tutorpress"
+                )
+        }
       />
+
+      {/* Show error state if Zoom users failed to load */}
+      {usersError && (
+        <div className="tutorpress-form-error">
+          <p style={{ color: "#d63638", fontSize: "13px", margin: "8px 0 0 0" }}>
+            <strong>{__("Zoom Configuration Error:", "tutorpress")}</strong> {usersError}
+          </p>
+          <p style={{ color: "#646970", fontSize: "12px", margin: "4px 0 0 0" }}>
+            {__("Please ensure your Zoom API credentials are configured in Tutor LMS settings.", "tutorpress")}
+          </p>
+        </div>
+      )}
 
       {/* Meeting Instructions */}
       <div className="tutorpress-form-notice">

@@ -229,5 +229,5 @@ export interface ZoomFormData {
   timezone: string;
   autoRecording: "none" | "local" | "cloud";
   password: string;
-  host: "default" | "alternative";
+  host: string; // Zoom user ID from Zoom API
 }
