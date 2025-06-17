@@ -861,7 +861,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                 // Create Google Calendar Event (exactly like Tutor LMS)
                 $event = new \Google_Service_Calendar_Event([
                     'summary' => $title,
-                    'description' => $description,
+            'description' => $description,
                     'start' => [
                         'dateTime' => $start_datetime_obj->format('c'),
                         'timeZone' => $settings['timezone'],
@@ -1020,7 +1020,28 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                 $zoom_endpoint = tutor_utils()->get_package_object(true, '\Zoom\Endpoint\Meetings', $api_key, $api_secret);
                 $saved_meeting = $zoom_endpoint->create($host_id, $zoom_meeting_data);
                 
-                // Store the real Zoom meeting data returned from API (same as Tutor LMS)
+                // Normalize the Zoom API response to ensure consistent data structure
+                // The Zoom API response might not match exactly what we sent
+                if (is_array($saved_meeting)) {
+                    // Ensure settings array exists and contains our values
+                    if (!isset($saved_meeting['settings'])) {
+                        $saved_meeting['settings'] = [];
+                    }
+                    
+                    // Ensure auto_recording is set correctly from our input
+                    $saved_meeting['settings']['auto_recording'] = $auto_recording;
+                    
+                    // Ensure other settings match our input
+                    $saved_meeting['settings']['join_before_host'] = $settings['allow_early_join'];
+                    $saved_meeting['settings']['waiting_room'] = $settings['waiting_room'];
+                    
+                    // Ensure password is set if provided
+                    if (!empty($password)) {
+                        $saved_meeting['password'] = $password;
+                    }
+                }
+                
+                // Store the normalized Zoom meeting data
                 update_post_meta($post_id, '_tutor_zm_data', json_encode($saved_meeting));
                 
                 // Fire the same action as Tutor LMS
@@ -1044,19 +1065,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         // Get the created live lesson
         $live_lesson = get_post($post_id);
         
-        // Debug: Log the meta data that was saved
-        error_log('TutorPress Live Lesson Created - Post ID: ' . $post_id);
-        error_log('Type: ' . $type);
-        if ($type === 'google_meet') {
-            error_log('Google Meet Start DateTime: ' . get_post_meta($post_id, 'tutor-google-meet-start-datetime', true));
-            error_log('Google Meet End DateTime: ' . get_post_meta($post_id, 'tutor-google-meet-end-datetime', true));
-            error_log('Google Meet Event Details: ' . print_r(get_post_meta($post_id, 'tutor-google-meet-event-details', true), true));
-        } else {
-            error_log('Zoom Start Date: ' . get_post_meta($post_id, '_tutor_zm_start_date', true));
-            error_log('Zoom Start DateTime: ' . get_post_meta($post_id, '_tutor_zm_start_datetime', true));
-            error_log('Zoom Duration: ' . get_post_meta($post_id, '_tutor_zm_duration', true));
-            error_log('Zoom Data: ' . get_post_meta($post_id, '_tutor_zm_data', true));
-        }
+
         
         // Format response data
         $response_data = [
@@ -1098,40 +1107,90 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
 
         $lesson_id = (int) $request->get_param('id');
         
-        // Find mock lesson by ID
-        $mock_lessons = $this->get_mock_live_lessons();
-        $lesson = null;
-        
-        foreach ($mock_lessons as $mock_lesson) {
-            if ($mock_lesson['id'] === $lesson_id) {
-                $lesson = $mock_lesson;
-                break;
-            }
-        }
-
-        if (!$lesson) {
+        // Verify lesson exists
+        $post = get_post($lesson_id);
+        if (!$post || !in_array($post->post_type, ['tutor-google-meet', 'tutor_zoom_meeting'])) {
             return new WP_Error(
-                'live_lesson_not_found',
-                __('Live lesson not found.', 'tutorpress'),
+                'invalid_live_lesson',
+                __('Invalid live lesson ID.', 'tutorpress'),
                 ['status' => 404]
             );
         }
 
-        // Update fields if provided
-        $updatable_fields = ['title', 'description', 'start_date_time', 'end_date_time', 'status', 'settings', 'provider_config'];
-        foreach ($updatable_fields as $field) {
-            $value = $request->get_param($field);
-            if ($value !== null) {
-                // Convert snake_case to camelCase for response
-                $camel_field = str_replace('_', '', lcfirst(ucwords($field, '_')));
-                $lesson[$camel_field] = $value;
-            }
+        // Check permissions - user must be able to edit this specific post
+        if (!current_user_can('edit_post', $lesson_id)) {
+            return new WP_Error(
+                'cannot_edit_live_lesson',
+                __('You do not have permission to edit this live lesson.', 'tutorpress'),
+                ['status' => 403]
+            );
         }
 
-        // Update timestamp
-        $lesson['updatedAt'] = current_time('c', true);
+        try {
+            // Prepare update data for core fields
+            $update_data = ['ID' => $lesson_id];
 
-        return rest_ensure_response($this->format_response($lesson, __('Live lesson updated successfully.', 'tutorpress')));
+            // Update post title if provided
+            $title = $request->get_param('title');
+            if ($title !== null) {
+                $update_data['post_title'] = sanitize_text_field($title);
+            }
+
+            // Update post content/description if provided
+            $description = $request->get_param('description');
+            if ($description !== null) {
+                $update_data['post_content'] = wp_kses_post($description);
+            }
+
+            // Update core post fields if any were provided
+            if (count($update_data) > 1) {
+                $result = wp_update_post($update_data, true);
+                if (is_wp_error($result)) {
+            return new WP_Error(
+                        'live_lesson_update_failed',
+                        __('Failed to update live lesson.', 'tutorpress'),
+                        ['status' => 500]
+                    );
+                }
+            }
+
+            // Handle provider-specific updates
+            // The frontend sends camelCase field names, so we need to check both camelCase and snake_case
+            $provider_config = $request->get_param('providerConfig') ?: $request->get_param('provider_config');
+            $start_date_time = $request->get_param('startDateTime') ?: $request->get_param('start_date_time');
+            $end_date_time = $request->get_param('endDateTime') ?: $request->get_param('end_date_time');
+            $settings = $request->get_param('settings');
+            
+
+
+            if ($post->post_type === 'tutor-google-meet') {
+                $this->update_google_meet_lesson($lesson_id, $provider_config, $start_date_time, $end_date_time, $settings);
+            } elseif ($post->post_type === 'tutor_zoom_meeting') {
+                $this->update_zoom_lesson($lesson_id, $provider_config, $start_date_time, $end_date_time, $settings);
+            }
+
+            // Get updated lesson data for response
+            $updated_lesson_response = $this->get_item($request);
+            
+            // Ensure the response includes success status and proper formatting
+            if ($updated_lesson_response instanceof WP_REST_Response) {
+                $response_data = $updated_lesson_response->get_data();
+                if (isset($response_data['data'])) {
+                    // Add updated timestamp
+                    $response_data['data']['updatedAt'] = current_time('mysql', true);
+                    $updated_lesson_response->set_data($response_data);
+                }
+            }
+            
+            return $updated_lesson_response;
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'live_lesson_update_error',
+                $e->getMessage(),
+                ['status' => 500]
+            );
+        }
     }
 
     /**
@@ -1215,137 +1274,151 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     }
 
     /**
-     * Get mock live lessons data for testing.
+     * Update Google Meet lesson with database updates only.
+     * 
+     * For compatibility and simplicity, this method only updates the database fields.
+     * Provider API updates can be handled separately if needed.
      *
-     * @since 1.5.0
-     * @return array Mock live lessons data.
+     * @since 1.5.7
+     * @param int $lesson_id The lesson post ID.
+     * @param array|null $provider_config Provider-specific configuration.
+     * @param string|null $start_date_time Start date/time in MySQL format.
+     * @param string|null $end_date_time End date/time in MySQL format.
+     * @param array|null $settings Lesson settings.
      */
-    private function get_mock_live_lessons() {
-        // Get any lessons created during this session
-        $session_lessons = get_transient('tutorpress_mock_live_lessons') ?: [];
-        
-        $default_lessons = [
-            [
-                'id' => 1,
-                'title' => 'Weekly Team Standup',
-                'description' => 'Weekly team sync and planning session',
-                'type' => 'google_meet',
-                'topicId' => 5,
-                'courseId' => 10,
-                'startDateTime' => '2024-01-22T09:00:00Z',
-                'endDateTime' => '2024-01-22T10:00:00Z',
-                'meetingUrl' => 'https://meet.google.com/abc-defg-hij',
-                'meetingId' => 'abc-defg-hij',
-                'password' => null,
-                'settings' => [
-                    'timezone' => 'America/New_York',
-                    'duration' => 60,
-                    'allow_early_join' => true,
-                    'auto_record' => false,
-                    'require_password' => false,
-                    'waiting_room' => false,
-                ],
-                'status' => 'scheduled',
-                'createdAt' => '2024-01-01T00:00:00Z',
-                'updatedAt' => '2024-01-01T00:00:00Z',
-            ],
-            [
-                'id' => 2,
-                'title' => 'Product Demo Session',
-                'description' => 'Demonstrate new features to the team',
-                'type' => 'zoom',
-                'topicId' => 7,
-                'courseId' => 10,
-                'startDateTime' => '2024-01-25T15:00:00Z',
-                'endDateTime' => '2024-01-25T16:30:00Z',
-                'meetingUrl' => 'https://zoom.us/j/123456789',
-                'meetingId' => '123456789',
-                'password' => 'demo123',
-                'settings' => [
-                    'timezone' => 'UTC',
-                    'duration' => 90,
-                    'allow_early_join' => true,
-                    'auto_record' => true,
-                    'require_password' => true,
-                    'waiting_room' => true,
-                ],
-                'status' => 'scheduled',
-                'createdAt' => '2024-01-02T00:00:00Z',
-                'updatedAt' => '2024-01-02T00:00:00Z',
-            ],
-            [
-                'id' => 3,
-                'title' => 'Client Presentation',
-                'description' => 'Final project presentation to client',
-                'type' => 'google_meet',
-                'topicId' => 8,
-                'courseId' => 12,
-                'startDateTime' => '2024-01-30T14:00:00Z',
-                'endDateTime' => '2024-01-30T15:00:00Z',
-                'meetingUrl' => 'https://meet.google.com/xyz-uvwx-yz',
-                'meetingId' => 'xyz-uvwx-yz',
-                'password' => null,
-                'settings' => [
-                    'timezone' => 'Europe/London',
-                    'duration' => 60,
-                    'allow_early_join' => false,
-                    'auto_record' => true,
-                    'require_password' => false,
-                    'waiting_room' => false,
-                ],
-                'status' => 'ended',
-                'createdAt' => '2024-01-03T00:00:00Z',
-                'updatedAt' => '2024-01-30T15:05:00Z',
-            ],
-        ];
-        
-        // Merge session lessons with default lessons
-        return array_merge($default_lessons, $session_lessons);
-    }
+    private function update_google_meet_lesson($lesson_id, $provider_config, $start_date_time, $end_date_time, $settings) {
+        // Update start datetime meta if provided
+        if ($start_date_time) {
+            update_post_meta($lesson_id, 'tutor-google-meet-start-datetime', $start_date_time);
+        }
 
-    /**
-     * Generate mock meeting URL for testing.
-     *
-     * @since 1.5.0
-     * @param string $type The meeting type (google_meet or zoom).
-     * @return string Mock meeting URL.
-     */
-    private function generate_mock_meeting_url($type) {
-        if ($type === 'google_meet') {
-            $id = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 3) . '-' . 
-                  substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 4) . '-' . 
-                  substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 3);
-            return "https://meet.google.com/{$id}";
-        } else {
-            $id = rand(100000000, 999999999);
-            return "https://zoom.us/j/{$id}";
+        // Update end datetime meta if provided  
+        if ($end_date_time) {
+            update_post_meta($lesson_id, 'tutor-google-meet-end-datetime', $end_date_time);
+        }
+
+        // Get existing Google Meet event details and update them
+        $existing_event_details = get_post_meta($lesson_id, 'tutor-google-meet-event-details', true);
+        if ($existing_event_details) {
+            $event_details = json_decode($existing_event_details, true);
+            
+            if ($start_date_time && $event_details) {
+                $event_details['start_datetime'] = $start_date_time;
+            }
+            
+            if ($end_date_time && $event_details) {
+                $event_details['end_datetime'] = $end_date_time;
+            }
+            
+            if ($settings && isset($settings['timezone']) && $event_details) {
+                $event_details['timezone'] = sanitize_text_field($settings['timezone']);
+            }
+            
+            // Update add_enrolled_students setting if provided
+            if ($settings && isset($settings['add_enrolled_students']) && $event_details) {
+                $event_details['attendees'] = sanitize_text_field($settings['add_enrolled_students']);
+            }
+            
+            // Update the stored event details
+            update_post_meta($lesson_id, 'tutor-google-meet-event-details', json_encode($event_details));
         }
     }
 
     /**
-     * Generate mock meeting ID for testing.
+     * Update Zoom lesson with database updates only.
+     * 
+     * For compatibility and simplicity, this method only updates the database fields.
+     * Provider API updates can be handled separately if needed.
      *
-     * @since 1.5.0
-     * @param string $type The meeting type (google_meet or zoom).
-     * @return string Mock meeting ID.
+     * @since 1.5.7
+     * @param int $lesson_id The lesson post ID.
+     * @param array|null $provider_config Provider-specific configuration.
+     * @param string|null $start_date_time Start date/time in MySQL format.
+     * @param string|null $end_date_time End date/time in MySQL format.
+     * @param array|null $settings Lesson settings.
      */
-    private function generate_mock_meeting_id($type) {
-        if ($type === 'google_meet') {
-            return substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 3) . '-' . 
-                   substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 4) . '-' . 
-                   substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 3);
-        } else {
-            return (string) rand(100000000, 999999999);
+    private function update_zoom_lesson($lesson_id, $provider_config, $start_date_time, $end_date_time, $settings) {
+        // Update start datetime meta if provided
+        if ($start_date_time) {
+            $start_datetime_obj = new DateTime($start_date_time);
+            $formatted_start_date = $start_datetime_obj->format('Y-m-d');
+            
+            update_post_meta($lesson_id, '_tutor_zm_start_date', $formatted_start_date);
+            update_post_meta($lesson_id, '_tutor_zm_start_datetime', $start_date_time);
         }
-    }
 
-    /**
-     * Generate mock password for testing.
-     *
-     * @since 1.5.0
-     * @return string Mock password.
-     */
-    private function generate_mock_password() {
-        return substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8);
+        // Update duration if provided
+        if ($start_date_time && $end_date_time) {
+            $start_datetime_obj = new DateTime($start_date_time);
+            $end_datetime_obj = new DateTime($end_date_time);
+            $duration = ($end_datetime_obj->getTimestamp() - $start_datetime_obj->getTimestamp()) / 60;
+            
+            update_post_meta($lesson_id, '_tutor_zm_duration', (int) $duration);
+            update_post_meta($lesson_id, '_tutor_zm_duration_unit', 'min');
+        } elseif ($settings && isset($settings['duration'])) {
+            update_post_meta($lesson_id, '_tutor_zm_duration', (int) $settings['duration']);
+            update_post_meta($lesson_id, '_tutor_zm_duration_unit', 'min');
+        }
+
+        // Get existing Zoom data and update it
+        $existing_data = get_post_meta($lesson_id, '_tutor_zm_data', true);
+        if ($existing_data) {
+            // Decode JSON string to array if needed
+            if (is_string($existing_data)) {
+                $updated_data = json_decode($existing_data, true);
+                if (!$updated_data) {
+                    return; // Exit if we can't decode the data
+                }
+            } else {
+                $updated_data = $existing_data;
+            }
+            
+            // Update basic fields
+            if ($start_date_time) {
+                $updated_data['start_time'] = $start_date_time;
+            }
+            
+            if ($settings && isset($settings['timezone'])) {
+                $updated_data['timezone'] = sanitize_text_field($settings['timezone']);
+            }
+            
+            if ($start_date_time && $end_date_time) {
+                $start_datetime_obj = new DateTime($start_date_time);
+                $end_datetime_obj = new DateTime($end_date_time);
+                $duration = ($end_datetime_obj->getTimestamp() - $start_datetime_obj->getTimestamp()) / 60;
+                $updated_data['duration'] = (int) $duration;
+            }
+            
+            // Update provider-specific config
+            if ($provider_config) {
+                // Update password
+                if (isset($provider_config['password'])) {
+                    $updated_data['password'] = sanitize_text_field($provider_config['password']);
+                }
+
+                // Update auto recording setting - store in settings array to match read operation
+                if (isset($provider_config['autoRecording'])) {
+                    $auto_recording = sanitize_text_field($provider_config['autoRecording']);
+                    
+                    if (in_array($auto_recording, ['local', 'cloud', 'none'])) {
+                        if (!isset($updated_data['settings'])) {
+                            $updated_data['settings'] = [];
+                        }
+                        $updated_data['settings']['auto_recording'] = $auto_recording;
+                    }
+                }
+
+                // Update waiting room
+                if (isset($provider_config['waitingRoom'])) {
+                    if (!isset($updated_data['settings'])) {
+                        $updated_data['settings'] = [];
+                    }
+                    $updated_data['settings']['waiting_room'] = (bool) $provider_config['waitingRoom'];
+                }
+            }
+            
+            // Update local meta data - store as JSON to match create operation
+            update_post_meta($lesson_id, '_tutor_zm_data', json_encode($updated_data));
+        }
     }
 } 

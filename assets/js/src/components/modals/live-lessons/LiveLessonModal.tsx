@@ -75,7 +75,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
   // Store dispatch and selectors
   const { createNotice } = useDispatch(noticesStore);
-  const { saveLiveLesson } = useDispatch(CURRICULUM_STORE);
+  const { saveLiveLesson, updateLiveLesson } = useDispatch(CURRICULUM_STORE);
 
   // Load existing lesson data if editing
   useEffect(() => {
@@ -242,31 +242,96 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   };
 
   /**
-   * Validate form data
+   * Validate form data - Enhanced validation to match Tutor LMS requirements
    */
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
     if (lessonType === "google_meet") {
+      // Required fields for Google Meet
       if (!googleMeetForm.title.trim()) {
         errors.push(__("Meeting name is required", "tutorpress"));
       }
 
+      if (!googleMeetForm.summary.trim()) {
+        errors.push(__("Meeting summary is required", "tutorpress"));
+      }
+
+      if (!googleMeetForm.timezone) {
+        errors.push(__("Timezone is required", "tutorpress"));
+      }
+
+      if (!googleMeetForm.startTime) {
+        errors.push(__("Start time is required", "tutorpress"));
+      }
+
+      if (!googleMeetForm.endTime) {
+        errors.push(__("End time is required", "tutorpress"));
+      }
+
+      // Validate date/time logic
       const startDateTime = combineDateTime(googleMeetForm.startDate, googleMeetForm.startTime);
       const endDateTime = combineDateTime(googleMeetForm.endDate, googleMeetForm.endTime);
+
+      if (isNaN(startDateTime.getTime())) {
+        errors.push(__("Invalid start date/time", "tutorpress"));
+      }
+
+      if (isNaN(endDateTime.getTime())) {
+        errors.push(__("Invalid end date/time", "tutorpress"));
+      }
 
       if (endDateTime <= startDateTime) {
         errors.push(__("End time must be after start time", "tutorpress"));
       }
+
+      // Check if start time is in the past (optional, but good UX)
+      if (startDateTime < new Date()) {
+        errors.push(__("Start time cannot be in the past", "tutorpress"));
+      }
     } else if (lessonType === "zoom") {
+      // Required fields for Zoom
       if (!zoomForm.title.trim()) {
         errors.push(__("Meeting name is required", "tutorpress"));
       }
+
+      if (!zoomForm.summary.trim()) {
+        errors.push(__("Meeting summary is required", "tutorpress"));
+      }
+
+      if (!zoomForm.timezone) {
+        errors.push(__("Timezone is required", "tutorpress"));
+      }
+
+      if (!zoomForm.time) {
+        errors.push(__("Start time is required", "tutorpress"));
+      }
+
       if (zoomForm.duration <= 0) {
         errors.push(__("Duration must be greater than 0", "tutorpress"));
       }
+
       if (!zoomForm.host.trim()) {
         errors.push(__("Meeting host is required", "tutorpress"));
+      }
+
+      // Validate date/time logic
+      const startDateTime = combineDateTime(zoomForm.date, zoomForm.time);
+
+      if (isNaN(startDateTime.getTime())) {
+        errors.push(__("Invalid start date/time", "tutorpress"));
+      }
+
+      // Check if start time is in the past (optional, but good UX)
+      if (startDateTime < new Date()) {
+        errors.push(__("Start time cannot be in the past", "tutorpress"));
+      }
+
+      // Validate duration based on unit
+      const maxDuration = zoomForm.durationUnit === "hours" ? 8 : 480; // 8 hours max
+      if (zoomForm.duration > maxDuration) {
+        const unitLabel = zoomForm.durationUnit === "hours" ? __("hours", "tutorpress") : __("minutes", "tutorpress");
+        errors.push(__(`Duration cannot exceed ${maxDuration} ${unitLabel}`, "tutorpress"));
       }
     }
 
@@ -345,29 +410,49 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
       console.log("TutorPress: Saving Live Lesson with data:", liveLessonData);
 
-      // Use WordPress Data Store dispatch (matches previous implementation)
-      await saveLiveLesson(liveLessonData, courseId || 0, topicId);
+      // Use WordPress Data Store dispatch - different action for create vs update
+      if (lessonId) {
+        // Update existing lesson
+        await updateLiveLesson(lessonId, liveLessonData);
 
-      createNotice(
-        "success",
-        lessonType === "google_meet"
-          ? __("Google Meet lesson created successfully", "tutorpress")
-          : __("Zoom lesson created successfully", "tutorpress"),
-        {
-          type: "snackbar",
-          isDismissible: true,
-        }
-      );
+        createNotice(
+          "success",
+          lessonType === "google_meet"
+            ? __("Google Meet lesson updated successfully", "tutorpress")
+            : __("Zoom lesson updated successfully", "tutorpress"),
+          {
+            type: "snackbar",
+            isDismissible: true,
+          }
+        );
+      } else {
+        // Create new lesson
+        await saveLiveLesson(liveLessonData, courseId || 0, topicId);
+
+        createNotice(
+          "success",
+          lessonType === "google_meet"
+            ? __("Google Meet lesson created successfully", "tutorpress")
+            : __("Zoom lesson created successfully", "tutorpress"),
+          {
+            type: "snackbar",
+            isDismissible: true,
+          }
+        );
+      }
 
       // Close modal
       handleClose();
     } catch (error) {
       console.error("TutorPress: Failed to save Live Lesson:", error);
+      const isUpdating = !!lessonId;
+      const providerName = lessonType === "google_meet" ? "Google Meet" : "Zoom";
+
       createNotice(
         "error",
-        lessonType === "google_meet"
-          ? __("Failed to create Google Meet lesson", "tutorpress")
-          : __("Failed to create Zoom lesson", "tutorpress"),
+        isUpdating
+          ? __(`Failed to update ${providerName} lesson`, "tutorpress")
+          : __(`Failed to create ${providerName} lesson`, "tutorpress"),
         {
           type: "snackbar",
           isDismissible: true,

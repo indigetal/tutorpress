@@ -77,7 +77,7 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
     <div className="tutorpress-google-meet-form">
       {/* Title Field */}
       <TextControl
-        label={__("Meeting Title", "tutorpress")}
+        label={__("Meeting Title", "tutorpress") + " *"}
         value={formData.title}
         onChange={(value) => updateField("title", value)}
         placeholder={__("Enter meeting title", "tutorpress")}
@@ -87,7 +87,7 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
 
       {/* Summary Field */}
       <TextareaControl
-        label={__("Meeting Summary", "tutorpress")}
+        label={__("Meeting Summary", "tutorpress") + " *"}
         value={formData.summary}
         onChange={(value) => updateField("summary", value)}
         placeholder={__("Enter meeting description or agenda", "tutorpress")}
@@ -184,12 +184,13 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
 
       {/* Timezone */}
       <SelectControl
-        label={__("Timezone", "tutorpress")}
+        label={__("Timezone", "tutorpress") + " *"}
         value={formData.timezone}
         options={timezoneOptions}
         onChange={(value) => updateField("timezone", value)}
         disabled={disabled}
         help={__("Select the timezone for this meeting", "tutorpress")}
+        required
       />
 
       {/* Add Enrolled Students */}

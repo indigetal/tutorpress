@@ -203,7 +203,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
     <div className="tutorpress-zoom-form">
       {/* Title Field */}
       <TextControl
-        label={__("Meeting Title", "tutorpress")}
+        label={__("Meeting Title", "tutorpress") + " *"}
         value={formData.title}
         onChange={(value) => updateField("title", value)}
         placeholder={__("Enter meeting title", "tutorpress")}
@@ -213,7 +213,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
       {/* Summary Field */}
       <TextareaControl
-        label={__("Meeting Summary", "tutorpress")}
+        label={__("Meeting Summary", "tutorpress") + " *"}
         value={formData.summary}
         onChange={(value) => updateField("summary", value)}
         placeholder={__("Enter meeting description or agenda", "tutorpress")}
@@ -252,11 +252,12 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
         {/* Time - Full Width */}
         <SelectControl
-          label={__("Start Time", "tutorpress")}
+          label={__("Start Time", "tutorpress") + " *"}
           value={formData.time}
           options={timeOptions}
           onChange={(value) => updateField("time", value)}
           disabled={disabled}
+          required
         />
       </div>
 
@@ -288,12 +289,13 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
       {/* Timezone */}
       <SelectControl
-        label={__("Timezone", "tutorpress")}
+        label={__("Timezone", "tutorpress") + " *"}
         value={formData.timezone}
         options={timezoneOptions}
         onChange={(value) => updateField("timezone", value)}
         disabled={disabled}
         help={__("Select the timezone for this meeting", "tutorpress")}
+        required
       />
 
       {/* Auto Recording */}
@@ -336,7 +338,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
       {/* Host Selection */}
       <SelectControl
-        label={__("Meeting Host", "tutorpress")}
+        label={__("Meeting Host", "tutorpress") + " *"}
         value={formData.host}
         options={hostOptions}
         onChange={(value) => updateField("host", value)}
@@ -351,6 +353,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
                   "tutorpress"
                 )
         }
+        required
       />
 
       {/* Show error state if Zoom users failed to load */}
