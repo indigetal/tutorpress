@@ -1209,20 +1209,148 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
 
         $lesson_id = (int) $request->get_param('id');
         
-        // Remove from session lessons if it exists
-        $session_lessons = get_transient('tutorpress_mock_live_lessons') ?: [];
-        $session_lessons = array_filter($session_lessons, function($lesson) use ($lesson_id) {
-            return $lesson['id'] !== $lesson_id;
-        });
-        set_transient('tutorpress_mock_live_lessons', array_values($session_lessons), HOUR_IN_SECONDS);
-        
-        // For mock implementation, just return success
-        $deleted_lesson = [
-            'id' => $lesson_id,
-            'deleted' => true,
-        ];
+        // Verify lesson exists
+        $post = get_post($lesson_id);
+        if (!$post || !in_array($post->post_type, ['tutor-google-meet', 'tutor_zoom_meeting'])) {
+            return new WP_Error(
+                'invalid_live_lesson',
+                __('Invalid live lesson ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
 
-        return rest_ensure_response($this->format_response($deleted_lesson, __('Live lesson deleted successfully.', 'tutorpress')));
+        // Check permissions - user must be able to delete this specific post
+        if (!current_user_can('delete_post', $lesson_id)) {
+            return new WP_Error(
+                'cannot_delete_live_lesson',
+                __('You do not have permission to delete this live lesson.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        try {
+            // Get lesson data before deletion for cleanup and response
+            $lesson_data = [
+                'id' => $lesson_id,
+                'title' => $post->post_title,
+                'type' => $post->post_type === 'tutor-google-meet' ? 'google_meet' : 'zoom',
+                'topicId' => (int) $post->post_parent,
+            ];
+
+            // Perform provider-specific cleanup before deletion
+            if ($post->post_type === 'tutor-google-meet') {
+                $this->cleanup_google_meet_lesson($lesson_id);
+            } elseif ($post->post_type === 'tutor_zoom_meeting') {
+                $this->cleanup_zoom_lesson($lesson_id);
+            }
+
+            // Delete the WordPress post and all associated meta data
+            $deleted = wp_delete_post($lesson_id, true); // true = force delete (bypass trash)
+
+            if (!$deleted) {
+                return new WP_Error(
+                    'live_lesson_delete_failed',
+                    __('Failed to delete live lesson.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Fire action for other plugins to hook into
+            do_action('tutorpress_live_lesson_deleted', $lesson_id, $lesson_data);
+
+            // Return success response
+            $response_data = [
+                'id' => $lesson_id,
+                'deleted' => true,
+                'type' => $lesson_data['type'],
+                'title' => $lesson_data['title'],
+            ];
+
+            return rest_ensure_response($this->format_response($response_data, __('Live lesson deleted successfully.', 'tutorpress')));
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'live_lesson_delete_error',
+                $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Clean up Google Meet lesson data before deletion.
+     * 
+     * This method handles provider-specific cleanup for Google Meet lessons.
+     * Note: For now, this only cleans up local data. Future versions could
+     * integrate with Google Calendar API to delete events if needed.
+     *
+     * @since 1.5.7
+     * @param int $lesson_id The lesson post ID.
+     */
+    private function cleanup_google_meet_lesson($lesson_id) {
+        // Get existing Google Meet data for logging/cleanup
+        $event_details = get_post_meta($lesson_id, 'tutor-google-meet-event-details', true);
+        $start_datetime = get_post_meta($lesson_id, 'tutor-google-meet-start-datetime', true);
+        $end_datetime = get_post_meta($lesson_id, 'tutor-google-meet-end-datetime', true);
+
+        // Log deletion for debugging (optional)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("TutorPress: Deleting Google Meet lesson {$lesson_id}");
+            if ($event_details) {
+                error_log("TutorPress: Google Meet event details: " . $event_details);
+            }
+        }
+
+        // Note: All post meta will be automatically deleted by wp_delete_post()
+        // This method is reserved for future provider API cleanup if needed
+        
+        // Future enhancement: Delete Google Calendar event
+        // if (class_exists('TutorPress_Google_Meet_API') && $event_details) {
+        //     $event_data = json_decode($event_details, true);
+        //     if ($event_data && isset($event_data['event_id'])) {
+        //         // Delete from Google Calendar
+        //     }
+        // }
+    }
+
+    /**
+     * Clean up Zoom lesson data before deletion.
+     * 
+     * This method handles provider-specific cleanup for Zoom lessons.
+     * Note: For now, this only cleans up local data. Future versions could
+     * integrate with Zoom API to delete meetings if needed.
+     *
+     * @since 1.5.7
+     * @param int $lesson_id The lesson post ID.
+     */
+    private function cleanup_zoom_lesson($lesson_id) {
+        // Get existing Zoom data for logging/cleanup
+        $zoom_data = get_post_meta($lesson_id, '_tutor_zm_data', true);
+        $start_date = get_post_meta($lesson_id, '_tutor_zm_start_date', true);
+        $start_datetime = get_post_meta($lesson_id, '_tutor_zm_start_datetime', true);
+        $duration = get_post_meta($lesson_id, '_tutor_zm_duration', true);
+
+        // Log deletion for debugging (optional)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("TutorPress: Deleting Zoom lesson {$lesson_id}");
+            if ($zoom_data) {
+                $zoom_info = is_string($zoom_data) ? json_decode($zoom_data, true) : $zoom_data;
+                if ($zoom_info && isset($zoom_info['meeting_id'])) {
+                    error_log("TutorPress: Zoom meeting ID: " . $zoom_info['meeting_id']);
+                }
+            }
+        }
+
+        // Note: All post meta will be automatically deleted by wp_delete_post()
+        // This method is reserved for future provider API cleanup if needed
+        
+        // Future enhancement: Delete Zoom meeting
+        // if (class_exists('TutorPress_Zoom_API') && $zoom_data) {
+        //     $zoom_info = is_string($zoom_data) ? json_decode($zoom_data, true) : $zoom_data;
+        //     if ($zoom_info && isset($zoom_info['meeting_id'])) {
+        //         // Delete from Zoom via API
+        //     }
+        // }
     }
 
     /**

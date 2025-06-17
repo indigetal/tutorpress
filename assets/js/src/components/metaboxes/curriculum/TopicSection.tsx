@@ -145,6 +145,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
 
+  // Get curriculum store actions for live lessons
+  const { deleteLiveLesson } = useDispatch(CURRICULUM_STORE);
+
   // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
     createNotice("warning", __("H5P integration is currently disabled. Contact the site admin.", "tutorpress"), {
@@ -259,6 +262,13 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const handleZoomModalClose = () => {
     setIsZoomModalOpen(false);
     setEditingZoomId(undefined);
+  };
+
+  // Live lesson delete handlers
+  const handleLiveLessonDelete = (liveLessonId: number) => {
+    if (window.confirm(__("Are you sure you want to delete this live lesson?", "tutorpress"))) {
+      deleteLiveLesson(liveLessonId);
+    }
   };
 
   // Handle double-click on title or summary
@@ -399,7 +409,23 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                               }
                               handleQuizDelete(item.id, topic.id);
                             }
-                          : undefined
+                          : item.type === "meet_lesson"
+                            ? () => {
+                                if (!isGoogleMeetEnabled()) {
+                                  showGoogleMeetDisabledNotice();
+                                  return;
+                                }
+                                handleLiveLessonDelete(item.id);
+                              }
+                            : item.type === "zoom_lesson"
+                              ? () => {
+                                  if (!isZoomEnabled()) {
+                                    showZoomDisabledNotice();
+                                    return;
+                                  }
+                                  handleLiveLessonDelete(item.id);
+                                }
+                              : undefined
                 }
               />
             ))}
