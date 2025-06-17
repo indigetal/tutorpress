@@ -404,7 +404,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal title={getModalTitle()} onRequestClose={handleClose} className="tutorpress-live-lesson-modal" size="large">
+    <Modal title={getModalTitle()} onRequestClose={handleClose} className="tutorpress-live-lesson-modal" size="medium">
       <div className="tutorpress-modal-content">
         {/* Loading State */}
         {isLoading && (

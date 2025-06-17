@@ -530,20 +530,17 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function get_item($request) {
-        $lesson_id = (int) $request->get_param('id');
-        
-        // Find mock lesson by ID
-        $mock_lessons = $this->get_mock_live_lessons();
-        $lesson = null;
-        
-        foreach ($mock_lessons as $mock_lesson) {
-            if ($mock_lesson['id'] === $lesson_id) {
-                $lesson = $mock_lesson;
-                break;
-            }
+        // Check Tutor LMS availability
+        $tutor_check = $this->ensure_tutor_lms();
+        if (is_wp_error($tutor_check)) {
+            return $tutor_check;
         }
 
-        if (!$lesson) {
+        $lesson_id = (int) $request->get_param('id');
+        
+        // Get the post
+        $post = get_post($lesson_id);
+        if (!$post) {
             return new WP_Error(
                 'live_lesson_not_found',
                 __('Live lesson not found.', 'tutorpress'),
@@ -551,7 +548,145 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             );
         }
 
-        return rest_ensure_response($this->format_response($lesson, __('Live lesson retrieved successfully.', 'tutorpress')));
+        // Verify this is a live lesson post type
+        if (!in_array($post->post_type, ['tutor-google-meet', 'tutor_zoom_meeting'])) {
+            return new WP_Error(
+                'invalid_post_type',
+                __('Invalid post type. Must be a live lesson.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Check permissions - user must be able to edit the course
+        $topic_id = $post->post_parent;
+        $topic = get_post($topic_id);
+        if (!$topic || $topic->post_type !== 'topics') {
+            return new WP_Error(
+                'invalid_topic',
+                __('Invalid topic for this live lesson.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        $course_id = $topic->post_parent;
+        if (!current_user_can('edit_post', $course_id)) {
+            return new WP_Error(
+                'rest_cannot_read',
+                __('Sorry, you are not allowed to view this live lesson.', 'tutorpress'),
+                ['status' => rest_authorization_required_code()]
+            );
+        }
+
+        // Determine live lesson type
+        $type = $post->post_type === 'tutor-google-meet' ? 'google_meet' : 'zoom';
+
+        // Prepare base response data
+        $response_data = [
+            'id' => $post->ID,
+            'title' => $post->post_title,
+            'description' => $post->post_content,
+            'type' => $type,
+            'topicId' => $topic_id,
+            'courseId' => $course_id,
+            'status' => 'scheduled', // Default status
+            'createdAt' => $post->post_date_gmt,
+            'updatedAt' => $post->post_modified_gmt,
+        ];
+
+        // Get provider-specific data
+        if ($type === 'google_meet') {
+            // Get Google Meet meta fields
+            $start_datetime = get_post_meta($post->ID, 'tutor-google-meet-start-datetime', true);
+            $end_datetime = get_post_meta($post->ID, 'tutor-google-meet-end-datetime', true);
+            $event_details_json = get_post_meta($post->ID, 'tutor-google-meet-event-details', true);
+            $meet_link = get_post_meta($post->ID, 'tutor-google-meet-link', true);
+
+            // Parse event details
+            $event_details = [];
+            if ($event_details_json) {
+                $event_details = json_decode($event_details_json, true) ?: [];
+            }
+
+            // Set datetime fields
+            $response_data['startDateTime'] = $start_datetime ?: '';
+            $response_data['endDateTime'] = $end_datetime ?: '';
+
+            // Extract settings from event details
+            $response_data['settings'] = [
+                'timezone' => $event_details['timezone'] ?? 'UTC',
+                'add_enrolled_students' => $event_details['attendees'] ?? 'No',
+            ];
+
+            // Add provider config
+            $response_data['providerConfig'] = [
+                'meetingUrl' => $meet_link ?: '',
+                'eventId' => $event_details['id'] ?? '',
+            ];
+
+            // Add meet link if available
+            if ($meet_link) {
+                $response_data['meetingUrl'] = $meet_link;
+            }
+
+        } else {
+            // Get Zoom meta fields
+            $start_date = get_post_meta($post->ID, '_tutor_zm_start_date', true);
+            $start_datetime = get_post_meta($post->ID, '_tutor_zm_start_datetime', true);
+            $duration = get_post_meta($post->ID, '_tutor_zm_duration', true);
+            $duration_unit = get_post_meta($post->ID, '_tutor_zm_duration_unit', true);
+            $zoom_data_json = get_post_meta($post->ID, '_tutor_zm_data', true);
+            $course_id_meta = get_post_meta($post->ID, '_tutor_zm_for_course', true);
+            $topic_id_meta = get_post_meta($post->ID, '_tutor_zm_for_topic', true);
+
+            // Parse Zoom meeting data
+            $zoom_data = [];
+            if ($zoom_data_json) {
+                $zoom_data = json_decode($zoom_data_json, true) ?: [];
+            }
+
+            // Calculate end datetime from start + duration
+            $end_datetime = '';
+            if ($start_datetime && $duration) {
+                try {
+                    $start_obj = new DateTime($start_datetime);
+                    $duration_minutes = $duration_unit === 'hr' ? $duration * 60 : $duration;
+                    $start_obj->add(new DateInterval('PT' . $duration_minutes . 'M'));
+                    $end_datetime = $start_obj->format('Y-m-d H:i:s');
+                } catch (Exception $e) {
+                    error_log('TutorPress: Error calculating end datetime: ' . $e->getMessage());
+                }
+            }
+
+            // Set datetime fields
+            $response_data['startDateTime'] = $start_datetime ?: '';
+            $response_data['endDateTime'] = $end_datetime;
+
+            // Extract settings from Zoom data
+            $zoom_settings = $zoom_data['settings'] ?? [];
+            $response_data['settings'] = [
+                'timezone' => $zoom_data['timezone'] ?? 'UTC',
+                'duration' => (int) $duration ?: 60,
+                'allow_early_join' => $zoom_settings['join_before_host'] ?? false,
+                'waiting_room' => $zoom_settings['waiting_room'] ?? false,
+                'require_password' => !empty($zoom_data['password']),
+            ];
+
+            // Add provider config
+            $response_data['providerConfig'] = [
+                'host' => $zoom_data['host_id'] ?? '',
+                'password' => $zoom_data['password'] ?? '',
+                'autoRecording' => $zoom_settings['auto_recording'] ?? 'none',
+                'meetingId' => $zoom_data['id'] ?? '',
+                'joinUrl' => $zoom_data['join_url'] ?? '',
+            ];
+
+            // Add meeting URL if available
+            if (!empty($zoom_data['join_url'])) {
+                $response_data['meetingUrl'] = $zoom_data['join_url'];
+            }
+        }
+
+        return rest_ensure_response($this->format_response($response_data, __('Live lesson retrieved successfully.', 'tutorpress')));
     }
 
     /**

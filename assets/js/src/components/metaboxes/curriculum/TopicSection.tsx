@@ -139,6 +139,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Live Lessons modal state
   const [isGoogleMeetModalOpen, setIsGoogleMeetModalOpen] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  const [editingGoogleMeetId, setEditingGoogleMeetId] = useState<number | undefined>(undefined);
+  const [editingZoomId, setEditingZoomId] = useState<number | undefined>(undefined);
 
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
@@ -243,6 +245,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   const handleGoogleMeetModalClose = () => {
     setIsGoogleMeetModalOpen(false);
+    setEditingGoogleMeetId(undefined);
   };
 
   const handleZoomModalOpen = () => {
@@ -255,6 +258,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   const handleZoomModalClose = () => {
     setIsZoomModalOpen(false);
+    setEditingZoomId(undefined);
   };
 
   // Handle double-click on title or summary
@@ -343,7 +347,25 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                               setEditingInteractiveQuizId(item.id);
                               setIsInteractiveQuizModalOpen(true);
                             }
-                          : undefined
+                          : item.type === "meet_lesson"
+                            ? () => {
+                                if (!isGoogleMeetEnabled()) {
+                                  showGoogleMeetDisabledNotice();
+                                  return;
+                                }
+                                setEditingGoogleMeetId(item.id);
+                                setIsGoogleMeetModalOpen(true);
+                              }
+                            : item.type === "zoom_lesson"
+                              ? () => {
+                                  if (!isZoomEnabled()) {
+                                    showZoomDisabledNotice();
+                                    return;
+                                  }
+                                  setEditingZoomId(item.id);
+                                  setIsZoomModalOpen(true);
+                                }
+                              : undefined
                 }
                 onDuplicate={
                   item.type === "lesson"
@@ -555,6 +577,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
         topicId={topic.id}
         courseId={courseId}
         lessonType="google_meet"
+        lessonId={editingGoogleMeetId}
       />
 
       {/* Zoom Live Lesson Modal */}
@@ -564,6 +587,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
         topicId={topic.id}
         courseId={courseId}
         lessonType="zoom"
+        lessonId={editingZoomId}
       />
     </Card>
   );
