@@ -23,7 +23,7 @@ import {
   FlexItem,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
-import { calendar } from "@wordpress/icons";
+import { calendar, seen, unseen } from "@wordpress/icons";
 import { useSelect } from "@wordpress/data";
 import type { ZoomFormData } from "../../../types/liveLessons";
 import { generateTimezoneOptions } from "./index";
@@ -44,6 +44,9 @@ interface ZoomFormProps {
 export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled = false }) => {
   // Date picker popover state
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  // Password visibility toggle state
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   // Zoom users state
   const [zoomUsers, setZoomUsers] = useState<ZoomUser[]>([]);
@@ -303,15 +306,33 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         help={__("Choose whether to automatically record this meeting", "tutorpress")}
       />
 
-      {/* Meeting Password */}
-      <TextControl
-        label={__("Meeting Password", "tutorpress")}
-        value={formData.password}
-        onChange={(value) => updateField("password", value)}
-        placeholder={__("Optional meeting password", "tutorpress")}
-        disabled={disabled}
-        help={__("Leave empty for no password protection", "tutorpress")}
-      />
+      {/* Meeting Password with Eye Toggle */}
+      <div className="tutorpress-password-field">
+        <label className="components-base-control__label" htmlFor="zoom-password-input">
+          {__("Meeting Password", "tutorpress")}
+        </label>
+        <div className="tutorpress-password-input-wrapper">
+          <input
+            id="zoom-password-input"
+            type={passwordVisible ? "text" : "password"}
+            value={formData.password}
+            onChange={(e) => updateField("password", e.target.value)}
+            placeholder={__("Optional meeting password", "tutorpress")}
+            disabled={disabled}
+            className="components-text-control__input"
+            autoComplete="new-password"
+          />
+          <Button
+            icon={passwordVisible ? unseen : seen}
+            onClick={() => setPasswordVisible(!passwordVisible)}
+            disabled={disabled}
+            className="tutorpress-password-toggle"
+            isSmall
+            aria-label={passwordVisible ? __("Hide password", "tutorpress") : __("Show password", "tutorpress")}
+          />
+        </div>
+        <p className="components-base-control__help">{__("Leave empty for no password protection", "tutorpress")}</p>
+      </div>
 
       {/* Host Selection */}
       <SelectControl

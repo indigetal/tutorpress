@@ -13,13 +13,28 @@
   max-width: 600px;
 }
 
+/* Ensure popovers can render outside the modal bounds */
+.tutorpress-live-lesson-modal .components-modal__frame {
+  overflow: visible;
+}
+
 .tutorpress-live-lesson-modal .components-modal__content {
   padding: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tutorpress-live-lesson-modal .components-modal__header-heading {
+  font-size: 1.3em;
+  font-weight: 600;
 }
 
 .tutorpress-modal-content {
   padding: 24px;
   border-bottom: 1px solid #e0e0e0;
+  flex: 1;
+  min-height: 0; /* Allow flex shrinking */
 }
 
 .tutorpress-modal-content p {
@@ -94,11 +109,11 @@
 
 /* DateTime section container */
 .tutorpress-datetime-section {
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .tutorpress-datetime-section h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 0.5rem 0;
   font-size: 14px;
   font-weight: 600;
   color: #1e1e1e;
@@ -132,11 +147,11 @@
 
 /* Duration section container */
 .tutorpress-duration-section {
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .tutorpress-duration-section h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 0.5rem 0;
   font-size: 14px;
   font-weight: 600;
   color: #1e1e1e;
@@ -158,6 +173,16 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
+}
+
+/* Date picker popover positioning */
+.tutorpress-date-picker-wrapper {
+  position: relative;
+  z-index: 1000;
+}
+
+.tutorpress-date-picker-wrapper .components-popover {
+  z-index: 1001;
 }
 
 .tutorpress-modal-content .components-datetime__date {
@@ -372,4 +397,149 @@
 
 .tutorpress-live-lesson-modal .components-popover[data-placement*="top"] {
   margin-bottom: 8px;
+}
+
+/* Form Layout */
+.tutorpress-google-meet-form,
+.tutorpress-zoom-form {
+  max-width: 600px;
+}
+
+.tutorpress-google-meet-form .components-base-control,
+.tutorpress-zoom-form .components-base-control {
+  margin-bottom: 1rem;
+}
+
+/* Google Meet Date/Time: Side by side */
+.tutorpress-datetime-fields {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tutorpress-datetime-fields > div {
+  flex: 1;
+}
+
+/* Zoom Date/Time: Stacked full width */
+.tutorpress-date-picker-wrapper {
+  margin-bottom: 1rem;
+}
+
+.tutorpress-date-picker-wrapper .components-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Form Notices and Errors */
+.tutorpress-form-notice {
+  background: #f0f6fc;
+  border: 1px solid #c3dcf7;
+  padding: 12px;
+  border-radius: 4px;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tutorpress-form-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: #1e1e1e;
+}
+
+.tutorpress-form-error {
+  background: #fcf0f1;
+  border: 1px solid #f1aeb5;
+  padding: 12px;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.tutorpress-form-error p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Password Field with Eye Toggle */
+.tutorpress-password-field {
+  margin-bottom: 1rem;
+}
+
+.tutorpress-password-field .components-base-control__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #1e1e1e;
+}
+
+.tutorpress-password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tutorpress-password-input-wrapper .components-text-control__input {
+  flex: 1;
+  padding-right: 40px; /* Make room for the eye toggle button */
+  border: 1px solid #949494;
+  border-radius: 2px;
+  font-size: 13px;
+  line-height: 16px;
+  padding: 8px 12px;
+  min-height: 40px;
+  box-shadow: 0 0 0 transparent;
+  transition: box-shadow 0.1s linear;
+  background-color: #fff;
+  color: #1e1e1e;
+}
+
+.tutorpress-password-input-wrapper .components-text-control__input:focus {
+  border-color: #007cba;
+  box-shadow: 0 0 0 1px #007cba;
+  outline: 2px solid transparent;
+}
+
+.tutorpress-password-input-wrapper .components-text-control__input:disabled {
+  background-color: #ddd;
+  border-color: #ddd;
+  color: #a0a5aa;
+}
+
+.tutorpress-password-toggle {
+  position: absolute;
+  right: 8px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  color: #757575;
+  cursor: pointer;
+}
+
+.tutorpress-password-toggle:hover {
+  color: #1e1e1e;
+}
+
+.tutorpress-password-toggle:disabled {
+  color: #a0a5aa;
+  cursor: not-allowed;
+}
+
+.tutorpress-password-toggle .components-button__contents {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorpress-password-field .components-base-control__help {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 12px;
+  font-style: normal;
+  color: #757575;
 }
