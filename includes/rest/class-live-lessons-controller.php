@@ -185,6 +185,19 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             ]
         );
 
+        // Google Meet settings endpoint
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/google-meet/settings',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_google_meet_settings'],
+                    'permission_callback' => [$this, 'check_permission'],
+                ],
+            ]
+        );
+
         // Single live lesson operations
         register_rest_route(
             $this->namespace,
@@ -435,6 +448,81 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     }
 
     /**
+     * Get Google Meet settings and authorization status.
+     * 
+     * Checks if user has configured Google Meet and returns relevant settings
+     * for the frontend Live Lessons form.
+     *
+     * @since 1.5.6
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function get_google_meet_settings($request) {
+        // Check if Google Meet addon is available
+        if (!class_exists('TutorPro\GoogleMeet\GoogleEvent\GoogleEvent')) {
+            return new WP_Error(
+                'google_meet_addon_not_available',
+                __('Google Meet addon is not available. Please ensure Tutor LMS Pro with Google Meet addon is installed and activated.', 'tutorpress'),
+                ['status' => 503]
+            );
+        }
+
+        try {
+            // Initialize Google Meet client (same as Tutor LMS)
+            $google_client = new \TutorPro\GoogleMeet\GoogleEvent\GoogleEvent();
+            
+            // Check authorization status
+            $is_authorized = $google_client->is_app_permitted();
+            $has_credentials = $google_client->is_credential_loaded();
+            
+            // Get user settings
+            $user_settings = maybe_unserialize(get_user_meta(get_current_user_id(), \TutorPro\GoogleMeet\Settings\Settings::META_KEY, true));
+            if (!$user_settings) {
+                $user_settings = [];
+            }
+            
+            // Get default settings structure
+            $default_settings = \TutorPro\GoogleMeet\Settings\Settings::default_settings();
+            
+            // Merge user settings with defaults
+            $formatted_settings = [];
+            foreach ($default_settings as $setting) {
+                $key = $setting['name'];
+                $value = $user_settings[$key] ?? $setting['default_value'];
+                
+                $formatted_settings[$key] = [
+                    'value' => $value,
+                    'label' => $setting['label'],
+                    'type' => $setting['type'],
+                    'options' => $setting['options'] ?? null,
+                ];
+            }
+
+            $response_data = [
+                'is_authorized' => $is_authorized,
+                'has_credentials' => $has_credentials,
+                'settings' => $formatted_settings,
+                'authorization_url' => $is_authorized ? null : ($has_credentials ? $google_client->get_consent_screen_url() : null),
+                'setup_url' => admin_url('admin.php?page=google-meet&tab=set-api'),
+            ];
+
+            return rest_ensure_response($this->format_response($response_data, __('Google Meet settings retrieved successfully.', 'tutorpress')));
+
+        } catch (Exception $e) {
+            error_log('TutorPress: Google Meet Settings Error: ' . $e->getMessage());
+            
+            return new WP_Error(
+                'google_meet_settings_error',
+                sprintf(
+                    __('Failed to retrieve Google Meet settings: %s', 'tutorpress'),
+                    $e->getMessage()
+                ),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
      * Get a single live lesson.
      *
      * @since 1.5.0
@@ -588,32 +676,136 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             update_post_meta($post_id, 'tutor-google-meet-start-datetime', $formatted_start_datetime);
             update_post_meta($post_id, 'tutor-google-meet-end-datetime', $formatted_end_datetime);
             
-            // For Google Meet, we store basic event data without API integration
-            // Full Google Calendar API integration requires OAuth setup and is beyond scope
-            // Users should configure Google Meet via Tutor LMS addon for full functionality
-            $event_details = [
-                'start_datetime' => $formatted_start_datetime,
-                'end_datetime' => $formatted_end_datetime,
-                'attendees' => $settings['add_enrolled_students'] ?? 'No',
-                'timezone' => $settings['timezone'],
-                // Basic placeholder data - requires Google Calendar API for real meeting links
-                'id' => '',
-                'kind' => 'calendar#event',
-                'event_type' => 'default',
-                'html_link' => '',
-                'meet_link' => '',
-                'status' => 'tentative', // Not confirmed until created via Google Calendar API
-                'transparency' => 'transparent',
-                'visibility' => 'public',
-            ];
+            // Integrate with Google Calendar API exactly like Tutor LMS does
+            // Check if user has Google Meet configured in Tutor LMS
+            if (!class_exists('TutorPro\GoogleMeet\GoogleEvent\GoogleEvent')) {
+                return new WP_Error(
+                    'google_meet_addon_not_available',
+                    __('Google Meet addon is not available. Please ensure Tutor LMS Pro with Google Meet addon is installed and activated.', 'tutorpress'),
+                    ['status' => 503]
+                );
+            }
             
-            // Note: For production Google Meet integration, implement Google Calendar API
-            // following the pattern in tutor-pro/addons/google-meet/includes/GoogleEvent/Events.php
-            
-            update_post_meta($post_id, 'tutor-google-meet-event-details', json_encode($event_details));
-            
-            // Store empty link until Google Calendar API integration is implemented
-            update_post_meta($post_id, 'tutor-google-meet-link', '');
+            try {
+                // Initialize Google Meet client (same as Tutor LMS)
+                $google_client = new \TutorPro\GoogleMeet\GoogleEvent\GoogleEvent();
+                
+                // Check if user has authorized Google Meet
+                if (!$google_client->is_app_permitted()) {
+                    return new WP_Error(
+                        'google_meet_not_authorized',
+                        __('Google Meet is not authorized. Please configure Google Meet API credentials in Tutor LMS.', 'tutorpress'),
+                        ['status' => 400]
+                    );
+                }
+                
+                // Get user's Google Meet settings (same as Tutor LMS)
+                $user_settings = maybe_unserialize(get_user_meta(get_current_user_id(), \TutorPro\GoogleMeet\Settings\Settings::META_KEY, true));
+                if (!$user_settings) {
+                    $user_settings = [];
+                }
+                
+                // Prepare attendees if requested
+                $attendees = [];
+                if (!empty($settings['add_enrolled_students']) && $settings['add_enrolled_students'] === 'Yes') {
+                    $students = tutor_utils()->get_students_data_by_course_id($course_id, 'ID', true);
+                    foreach ($students as $student) {
+                        $attendees[] = [
+                            'displayName' => $student->display_name ?: $student->user_login,
+                            'email' => $student->user_email,
+                            'responseStatus' => 'needsAction',
+                        ];
+                    }
+                }
+                
+                // Create timezone object
+                $timezone = new \DateTimeZone($settings['timezone']);
+                $start_datetime_obj = new \DateTime($start_date_time, $timezone);
+                $end_datetime_obj = new \DateTime($end_date_time, $timezone);
+                
+                // Create Google Calendar Event (exactly like Tutor LMS)
+                $event = new \Google_Service_Calendar_Event([
+                    'summary' => $title,
+                    'description' => $description,
+                    'start' => [
+                        'dateTime' => $start_datetime_obj->format('c'),
+                        'timeZone' => $settings['timezone'],
+                    ],
+                    'end' => [
+                        'dateTime' => $end_datetime_obj->format('c'),
+                        'timeZone' => $settings['timezone'],
+                    ],
+                    'attendees' => $attendees,
+                    'reminders' => [
+                        'useDefault' => false,
+                        'overrides' => [
+                            [
+                                'method' => 'email',
+                                'minutes' => $user_settings['reminder_time'] ?? 30,
+                            ],
+                            [
+                                'method' => 'popup',
+                                'minutes' => $user_settings['reminder_time'] ?? 30,
+                            ],
+                        ],
+                    ],
+                    'sendUpdates' => $user_settings['send_updates'] ?? 'all',
+                    'transparency' => $user_settings['transparency'] ?? 'transparent',
+                    'visibility' => $user_settings['event_visibility'] ?? 'public',
+                    'status' => $user_settings['event_status'] ?? 'confirmed',
+                    'conferenceData' => [
+                        'createRequest' => [
+                            'requestId' => 'tutorpress_meet_' . microtime(true),
+                        ],
+                    ],
+                ]);
+                
+                // Create the event via Google Calendar API
+                $created_event = $google_client->service->events->insert(
+                    $google_client->current_calendar, 
+                    $event, 
+                    ['conferenceDataVersion' => 1]
+                );
+                
+                // Store event details (same structure as Tutor LMS)
+                $event_details = [
+                    'id' => $created_event->id,
+                    'kind' => $created_event->kind,
+                    'event_type' => $created_event->eventType,
+                    'html_link' => $created_event->htmlLink,
+                    'organizer' => $created_event->organizer,
+                    'recurrence' => $created_event->recurrence,
+                    'reminders' => $created_event->reminders,
+                    'status' => $created_event->status,
+                    'transparency' => $created_event->transparency,
+                    'visibility' => $created_event->visibility,
+                    'meet_link' => $created_event->hangoutLink,
+                    'start_datetime' => $start_datetime_obj->format('Y-m-d H:i:s'),
+                    'end_datetime' => $end_datetime_obj->format('Y-m-d H:i:s'),
+                    'attendees' => !empty($settings['add_enrolled_students']) ? $settings['add_enrolled_students'] : 'No',
+                    'timezone' => $settings['timezone'],
+                ];
+                
+                // Store meta data using Tutor LMS structure
+                update_post_meta($post_id, 'tutor-google-meet-event-details', json_encode($event_details));
+                update_post_meta($post_id, 'tutor-google-meet-link', $created_event->hangoutLink);
+                
+                // Fire the same action as Tutor LMS (if it exists)
+                do_action('tutor_google_meet_after_save_meeting', $post_id);
+                
+            } catch (Exception $e) {
+                // If Google Calendar API fails, delete the post and return error
+                wp_delete_post($post_id, true);
+                
+                return new WP_Error(
+                    'google_meet_api_error',
+                    sprintf(
+                        __('Failed to create Google Meet event: %s', 'tutorpress'),
+                        $e->getMessage()
+                    ),
+                    ['status' => 500]
+                );
+            }
         } else {
             // Zoom meta fields based on the Zoom class implementation
             // Frontend now sends datetime in Y-m-d H:i:s format exactly as user entered it
