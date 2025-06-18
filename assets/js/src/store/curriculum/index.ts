@@ -2552,30 +2552,33 @@ const resolvers = {
         payload: { liveLesson, courseId },
       };
 
-      // Refresh topics to show the new live lesson
-      try {
-        yield actions.setOperationState({ status: "loading" });
-
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
-
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after live lesson save:", refreshError);
-      }
+      // Update topics directly to add the new live lesson - preserves toggle states
+      yield {
+        type: "SET_TOPICS",
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            if (topic.id === topicId) {
+              // Add the new live lesson to the correct topic
+              return {
+                ...topic,
+                contents: [
+                  ...(topic.contents || []),
+                  {
+                    id: liveLesson.id,
+                    title: liveLesson.title,
+                    type: liveLesson.type === "google_meet" ? "meet_lesson" : "zoom_lesson",
+                    topic_id: topicId,
+                    order: (topic.contents?.length || 0) + 1,
+                    menu_order: (topic.contents?.length || 0) + 1,
+                    status: "publish",
+                  },
+                ],
+              };
+            }
+            return topic;
+          });
+        },
+      };
     } catch (error) {
       yield {
         type: "SAVE_LIVE_LESSON_ERROR",
