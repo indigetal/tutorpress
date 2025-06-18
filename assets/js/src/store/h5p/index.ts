@@ -201,10 +201,7 @@ const reducer = (state = DEFAULT_STATE, action: H5PAction): H5PState => {
         ...state,
         validation: {
           ...state.validation,
-          validationResults: {
-            ...state.validation.validationResults,
-            ...action.payload.results,
-          },
+          validationResults: action.payload.results,
           operationState: { status: "success" },
         },
       };
