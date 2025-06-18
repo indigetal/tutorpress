@@ -2374,29 +2374,26 @@ const resolvers = {
         payload: { quizId, courseId: parentInfo.data.course_id },
       };
 
-      // Refresh topics to remove the deleted quiz
-      try {
-        yield actions.setOperationState({ status: "loading" });
+      // Update topics directly to remove the deleted quiz (preserves toggle states)
+      const currentTopics = yield {
+        type: "GET_TOPICS",
+      };
 
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
+      if (currentTopics && Array.isArray(currentTopics)) {
+        const updatedTopics = currentTopics.map((topic: Topic) => ({
+          ...topic,
+          contents:
+            topic.contents?.filter(
+              (content) =>
+                !(content.id === quizId && (content.type === "tutor_quiz" || content.type === "interactive_quiz"))
+            ) || [],
+        }));
 
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after quiz delete:", refreshError);
+        // Update topics in store using direct SET_TOPICS action
+        yield {
+          type: "SET_TOPICS",
+          payload: updatedTopics,
+        };
       }
     } catch (error) {
       yield {
