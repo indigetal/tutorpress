@@ -2439,37 +2439,33 @@ const resolvers = {
         payload: { quiz, sourceQuizId: quizId, courseId },
       };
 
-      // Refresh topics to show the duplicated quiz - using same pattern as lesson duplication
-      try {
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
-
-        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-          throw new Error("Invalid topics response");
-        }
-
-        const topics = topicsResponse as { data: Topic[] };
-
-        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-        const transformedTopics = topics.data.map((topic) => ({
-          ...topic,
-          isCollapsed: true,
-          contents: topic.contents || [],
-        }));
-
-        // Update topics in store using direct SET_TOPICS action (same as lesson duplication)
-        yield {
-          type: "SET_TOPICS",
-          payload: transformedTopics,
-        };
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after quiz duplicate:", refreshError);
-      }
+      // Update topics directly to add the duplicated quiz (preserves toggle states)
+      yield {
+        type: "SET_TOPICS",
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            if (topic.id === topicId) {
+              // Add the duplicated quiz to the correct topic
+              return {
+                ...topic,
+                contents: [
+                  ...(topic.contents || []),
+                  {
+                    id: quiz.id,
+                    title: quiz.title,
+                    type: "tutor_quiz", // Default to regular quiz type
+                    topic_id: topicId,
+                    order: (topic.contents?.length || 0) + 1,
+                    menu_order: (topic.contents?.length || 0) + 1,
+                    status: "publish",
+                  },
+                ],
+              };
+            }
+            return topic;
+          });
+        },
+      };
     } catch (error) {
       yield {
         type: "DUPLICATE_QUIZ_ERROR",
