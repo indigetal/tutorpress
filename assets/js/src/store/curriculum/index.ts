@@ -168,8 +168,6 @@ export type CurriculumAction =
   | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
-  | { type: "REFRESH_TOPICS_AFTER_LESSON_SAVE"; payload: { courseId: number } }
-  | { type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE"; payload: { courseId: number } }
   | { type: "SAVE_QUIZ_START"; payload: { quizData: any; courseId: number; topicId: number } }
   | { type: "SAVE_QUIZ_SUCCESS"; payload: { quiz: any; courseId: number } }
   | { type: "SAVE_QUIZ_ERROR"; payload: { error: CurriculumError } }
@@ -183,7 +181,6 @@ export type CurriculumAction =
   | { type: "DUPLICATE_QUIZ_SUCCESS"; payload: { quiz: any; sourceQuizId: number; courseId: number } }
   | { type: "DUPLICATE_QUIZ_ERROR"; payload: { error: CurriculumError; quizId: number } }
   | { type: "SET_QUIZ_STATE"; payload: CurriculumState["quizState"] }
-  | { type: "REFRESH_TOPICS_AFTER_QUIZ_SAVE"; payload: { courseId: number } }
   // Live Lessons Actions
   | {
       type: "SAVE_LIVE_LESSON_START";
@@ -207,8 +204,7 @@ export type CurriculumAction =
     }
   | { type: "DUPLICATE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError; liveLessonId: number } }
   | { type: "SET_LIVE_LESSON_STATE"; payload: CurriculumState["liveLessonState"] }
-  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] }
-  | { type: "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE"; payload: { courseId: number } };
+  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] };
 
 // Action creators
 export const actions = {
@@ -385,18 +381,6 @@ export const actions = {
       payload: state,
     };
   },
-  refreshTopicsAfterLessonSave(courseId: number) {
-    return {
-      type: "REFRESH_TOPICS_AFTER_LESSON_SAVE",
-      payload: { courseId },
-    };
-  },
-  refreshTopicsAfterAssignmentSave(courseId: number) {
-    return {
-      type: "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE",
-      payload: { courseId },
-    };
-  },
   saveQuiz(quizData: QuizForm, courseId: number, topicId: number) {
     return {
       type: "SAVE_QUIZ",
@@ -425,12 +409,6 @@ export const actions = {
     return {
       type: "SET_QUIZ_STATE",
       payload: state,
-    };
-  },
-  refreshTopicsAfterQuizSave(courseId: number) {
-    return {
-      type: "REFRESH_TOPICS_AFTER_QUIZ_SAVE",
-      payload: { courseId },
     };
   },
 
@@ -481,13 +459,6 @@ export const actions = {
     return {
       type: "SET_LIVE_LESSON_DUPLICATION_STATE",
       payload: state,
-    };
-  },
-
-  refreshTopicsAfterLiveLessonSave(courseId: number) {
-    return {
-      type: "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE",
-      payload: { courseId },
     };
   },
   *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
@@ -1080,16 +1051,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         ...state,
         lessonState: action.payload,
       };
-    case "REFRESH_TOPICS_AFTER_LESSON_SAVE":
-      return {
-        ...state,
-        operationState: { status: "loading" },
-      };
-    case "REFRESH_TOPICS_AFTER_ASSIGNMENT_SAVE":
-      return {
-        ...state,
-        operationState: { status: "loading" },
-      };
+
     case "SAVE_QUIZ_START":
       return {
         ...state,
@@ -1187,11 +1149,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         ...state,
         quizState: action.payload,
       };
-    case "REFRESH_TOPICS_AFTER_QUIZ_SAVE":
-      return {
-        ...state,
-        operationState: { status: "loading" },
-      };
+
     // Live Lessons Reducer Cases
     case "SAVE_LIVE_LESSON_START":
       return {
@@ -1316,11 +1274,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         ...state,
         liveLessonDuplicationState: action.payload,
       };
-    case "REFRESH_TOPICS_AFTER_LIVE_LESSON_SAVE":
-      return {
-        ...state,
-        operationState: { status: "loading" },
-      };
+
     default:
       return state;
   }
@@ -2062,76 +2016,6 @@ const resolvers = {
     }
   },
 
-  *refreshTopicsAfterLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    try {
-      yield actions.setOperationState({ status: "loading" });
-
-      const response = (yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      }) as { data: Topic[] };
-
-      if (!response || !response.data) {
-        throw new Error("Invalid response format");
-      }
-
-      const topics = response.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }));
-
-      yield actions.setTopics(topics);
-      yield actions.setOperationState({ status: "success", data: topics });
-    } catch (error) {
-      yield actions.setOperationState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.FETCH_FAILED,
-          message: error instanceof Error ? error.message : "Failed to refresh topics after lesson save",
-          context: { action: "refreshTopicsAfterLessonSave" },
-        },
-      });
-    }
-  },
-
-  *refreshTopicsAfterAssignmentSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    try {
-      yield actions.setOperationState({ status: "loading" });
-
-      const response = (yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      }) as { data: Topic[] };
-
-      if (!response || !response.data) {
-        throw new Error("Invalid response format");
-      }
-
-      const topics = response.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }));
-
-      yield actions.setTopics(topics);
-      yield actions.setOperationState({ status: "success", data: topics });
-    } catch (error) {
-      yield actions.setOperationState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.FETCH_FAILED,
-          message: error instanceof Error ? error.message : "Failed to refresh topics after assignment save",
-          context: { action: "refreshTopicsAfterAssignmentSave" },
-        },
-      });
-    }
-  },
-
   *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {
     try {
       yield {
@@ -2481,41 +2365,6 @@ const resolvers = {
           quizId,
         },
       };
-    }
-  },
-
-  *refreshTopicsAfterQuizSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    try {
-      yield actions.setOperationState({ status: "loading" });
-
-      const response = (yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      }) as { data: Topic[] };
-
-      if (!response || !response.data) {
-        throw new Error("Invalid response format");
-      }
-
-      const topics = response.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }));
-
-      yield actions.setTopics(topics);
-      yield actions.setOperationState({ status: "success", data: topics });
-    } catch (error) {
-      yield actions.setOperationState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.FETCH_FAILED,
-          message: error instanceof Error ? error.message : "Failed to refresh topics after quiz save",
-          context: { action: "refreshTopicsAfterQuizSave" },
-        },
-      });
     }
   },
 
@@ -2880,41 +2729,6 @@ const resolvers = {
       };
     }
   },
-
-  *refreshTopicsAfterLiveLessonSave({ courseId }: { courseId: number }): Generator<unknown, void, unknown> {
-    try {
-      yield actions.setOperationState({ status: "loading" });
-
-      const response = (yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      }) as { data: Topic[] };
-
-      if (!response || !response.data) {
-        throw new Error("Invalid response format");
-      }
-
-      const topics = response.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-      }));
-
-      yield actions.setTopics(topics);
-      yield actions.setOperationState({ status: "success", data: topics });
-    } catch (error) {
-      yield actions.setOperationState({
-        status: "error",
-        error: {
-          code: CurriculumErrorCode.FETCH_FAILED,
-          message: error instanceof Error ? error.message : "Failed to refresh topics after live lesson save",
-          context: { action: "refreshTopicsAfterLiveLessonSave" },
-        },
-      });
-    }
-  },
 };
 
 // Create and register the store
@@ -2946,14 +2760,11 @@ export const {
   setIsAddingTopic,
   setActiveOperation,
   deleteTopic,
-  refreshTopicsAfterLessonSave,
-  refreshTopicsAfterAssignmentSave,
   saveQuiz,
   getQuizDetails,
   deleteQuiz,
   duplicateQuiz,
   setQuizState,
-  refreshTopicsAfterQuizSave,
 } = actions;
 
 // Export selectors

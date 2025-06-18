@@ -42,8 +42,6 @@ import {
   setIsAddingTopic,
   setActiveOperation,
   deleteTopic,
-  refreshTopicsAfterLessonSave,
-  refreshTopicsAfterAssignmentSave,
 } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
@@ -234,8 +232,6 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     setIsAddingTopic,
     setActiveOperation,
     deleteTopic,
-    refreshTopicsAfterLessonSave,
-    refreshTopicsAfterAssignmentSave,
   } = useDispatch(curriculumStore);
 
   // Use the error handling hook
@@ -296,13 +292,6 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     };
   }, [clearSnapshot, setActiveOperation]);
 
-  // Fetch topics on mount and when courseId changes
-  useEffect(() => {
-    if (courseId && courseId > 0 && operationState.status !== "loading" && (!topics || topics.length === 0)) {
-      refreshTopicsAfterLessonSave({ courseId });
-    }
-  }, [courseId, operationState.status, topics, refreshTopicsAfterLessonSave]);
-
   // Add a useEffect to track topics changes
   useEffect(() => {
     // Topics updated
@@ -353,6 +342,13 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     }
   }, [courseId, setTopics, setOperationState, createNotice, validateApiResponse, createCurriculumError]);
 
+  // Fetch topics on mount and when courseId changes
+  useEffect(() => {
+    if (courseId && courseId > 0 && operationState.status !== "loading" && (!topics || topics.length === 0)) {
+      refreshTopics();
+    }
+  }, [courseId, operationState.status, topics, refreshTopics]);
+
   // Monitor post status changes for automatic refresh
   useEffect(() => {
     if ((!isLesson && !isAssignment) || !currentPostId) {
@@ -369,26 +365,14 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       currentPostId === prevPostId;
 
     if (isInitialPublish && courseId) {
-      // Trigger curriculum refresh using store action
-      if (isLesson) {
-        refreshTopicsAfterLessonSave({ courseId });
-      } else if (isAssignment) {
-        refreshTopicsAfterAssignmentSave({ courseId });
-      }
+      // Trigger curriculum refresh
+      refreshTopics();
     }
 
     // Update refs for next check
     prevPostIdRef.current = currentPostId;
     prevPostStatusRef.current = currentPostStatus;
-  }, [
-    isLesson,
-    isAssignment,
-    currentPostId,
-    currentPostStatus,
-    courseId,
-    refreshTopicsAfterLessonSave,
-    refreshTopicsAfterAssignmentSave,
-  ]);
+  }, [isLesson, isAssignment, currentPostId, currentPostStatus, courseId, refreshTopics]);
 
   // Add editor.didPostSaving filter for existing lesson and assignment updates
   useEffect(() => {
@@ -408,12 +392,8 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         return;
       }
 
-      // Dispatch the appropriate refresh action
-      if (isLesson) {
-        refreshTopicsAfterLessonSave({ courseId: currentCourseId });
-      } else if (isAssignment) {
-        refreshTopicsAfterAssignmentSave({ courseId: currentCourseId });
-      }
+      // Refresh topics
+      refreshTopics();
     };
 
     // Add the filter
@@ -423,7 +403,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     return () => {
       removeFilter("editor.didPostSaving", "tutorpress/curriculum-refresh");
     };
-  }, [isLesson, isAssignment, courseId, refreshTopicsAfterLessonSave, refreshTopicsAfterAssignmentSave]);
+  }, [isLesson, isAssignment, courseId, refreshTopics]);
 
   /** Handle topic toggle (collapse/expand) */
   const handleTopicToggle = useCallback((topicId: number) => {
