@@ -10,6 +10,9 @@ import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import { AddonChecker, isH5pEnabled } from "./utils/addonChecker";
 import "./api"; // Import API module to expose it to window
 
+// Import stores to ensure they are registered
+import "./store/h5p"; // H5P store registration
+
 // Import CSS for bundling
 import "../../css/src/index.css";
 
