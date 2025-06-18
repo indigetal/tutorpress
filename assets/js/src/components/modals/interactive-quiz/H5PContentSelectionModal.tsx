@@ -66,7 +66,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
 
   // Get H5P data from store
   const { contents, pagination, searchParams, isLoading, hasError, error } = useSelect((select) => {
-    const store = select("tutorpress/curriculum") as any;
+    const store = select("tutorpress/h5p") as any;
     return {
       contents: store.getH5PContents(),
       pagination: store.getH5PPagination(),
@@ -78,7 +78,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   }, []);
 
   // Get dispatch functions
-  const { fetchH5PContents, setH5PSearchParams, setH5PSelectedContent } = useDispatch("tutorpress/curriculum") as any;
+  const { fetchH5PContents, setH5PSearchParams, setH5PSelectedContent } = useDispatch("tutorpress/h5p") as any;
 
   // Reset selection state and fetch content when modal opens
   useEffect(() => {
