@@ -2689,30 +2689,32 @@ const resolvers = {
         payload: { liveLesson, courseId: liveLesson.courseId },
       };
 
-      // Refresh topics to show the updated live lesson
-      try {
-        yield actions.setOperationState({ status: "loading" });
+      // Update topics directly to reflect the updated live lesson - preserves toggle states
+      yield {
+        type: "SET_TOPICS",
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            // Find the topic containing this live lesson
+            const liveLessonIndex = topic.contents?.findIndex((item) => item.id === liveLessonId) ?? -1;
 
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
+            if (liveLessonIndex >= 0) {
+              // Update the existing live lesson in this topic
+              const updatedContents = [...(topic.contents || [])];
+              updatedContents[liveLessonIndex] = {
+                ...updatedContents[liveLessonIndex],
+                title: liveLesson.title,
+                // Keep existing properties (type, menu_order, status, etc.)
+              };
 
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after live lesson update:", refreshError);
-      }
+              return {
+                ...topic,
+                contents: updatedContents,
+              };
+            }
+            return topic;
+          });
+        },
+      };
     } catch (error) {
       yield {
         type: "UPDATE_LIVE_LESSON_ERROR",
