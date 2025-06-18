@@ -2224,36 +2224,60 @@ const resolvers = {
         throw new Error(parsedResponse?.message || "Failed to save quiz");
       }
 
+      const savedQuiz = parsedResponse.data || parsedResponse;
+
       yield {
         type: "SAVE_QUIZ_SUCCESS",
-        payload: { quiz: parsedResponse.data || parsedResponse, courseId },
+        payload: { quiz: savedQuiz, courseId },
       };
 
-      // Refresh topics to show the new/updated quiz
-      try {
-        yield actions.setOperationState({ status: "loading" });
+      // Update topics directly to add/update the quiz - preserves toggle states
+      yield {
+        type: "SET_TOPICS",
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            if (topic.id === topicId) {
+              // Default to regular quiz type - API will determine correct type on next load if needed
+              const contentType = "tutor_quiz";
 
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
+              // Check if quiz already exists (editing) or is new
+              const existingQuizIndex = topic.contents?.findIndex((item) => item.id === savedQuiz.ID) ?? -1;
 
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
+              if (existingQuizIndex >= 0) {
+                // Update existing quiz
+                const updatedContents = [...(topic.contents || [])];
+                updatedContents[existingQuizIndex] = {
+                  ...updatedContents[existingQuizIndex],
+                  title: savedQuiz.post_title || sanitizedQuizData.post_title,
+                };
 
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after quiz save:", refreshError);
-        // Don't throw here as the quiz was saved successfully
-      }
+                return {
+                  ...topic,
+                  contents: updatedContents,
+                };
+              } else {
+                // Add new quiz
+                return {
+                  ...topic,
+                  contents: [
+                    ...(topic.contents || []),
+                    {
+                      id: savedQuiz.ID,
+                      title: savedQuiz.post_title || sanitizedQuizData.post_title,
+                      type: contentType,
+                      topic_id: topicId,
+                      order: (topic.contents?.length || 0) + 1,
+                      menu_order: (topic.contents?.length || 0) + 1,
+                      status: "publish",
+                    },
+                  ],
+                };
+              }
+            }
+            return topic;
+          });
+        },
+      };
     } catch (error) {
       console.error("Quiz save error:", error);
       yield {
