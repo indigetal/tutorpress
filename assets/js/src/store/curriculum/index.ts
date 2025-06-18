@@ -1777,21 +1777,6 @@ const resolvers = {
         payload: { lessonId },
       };
 
-      // Get parent info before deleting to ensure we can refresh topics after
-      const parentInfoResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/lessons/${lessonId}/parent-info`,
-          method: "GET",
-        },
-      };
-
-      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
-        throw new Error("Invalid parent info response");
-      }
-
-      const parentInfo = parentInfoResponse as { data: { course_id: number } };
-
       // Delete the lesson
       yield {
         type: "API_FETCH",
@@ -1806,31 +1791,16 @@ const resolvers = {
         payload: { lessonId },
       };
 
-      // Fetch updated topics
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: Topic[] };
-
-      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
+      // Update topics directly to remove the deleted lesson (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: transformedTopics,
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => ({
+            ...topic,
+            contents:
+              topic.contents?.filter((content) => !(content.id === lessonId && content.type === "lesson")) || [],
+          }));
+        },
       };
     } catch (error) {
       yield {
