@@ -2739,30 +2739,33 @@ const resolvers = {
         payload: { liveLessonId, courseId: liveLesson.courseId },
       };
 
-      // Refresh topics to remove the deleted live lesson
-      try {
-        yield actions.setOperationState({ status: "loading" });
+      // Fetch updated topics (using direct pattern like lesson/assignment delete)
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
+          method: "GET",
+        },
+      };
 
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
-
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after live lesson delete:", refreshError);
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
       }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      // Update topics in store using direct SET_TOPICS action (same as lesson/assignment delete)
+      yield {
+        type: "SET_TOPICS",
+        payload: transformedTopics,
+      };
     } catch (error) {
       yield {
         type: "DELETE_LIVE_LESSON_ERROR",
