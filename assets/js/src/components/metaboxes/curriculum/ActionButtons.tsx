@@ -16,9 +16,9 @@ export interface ActionButtonsProps {
  */
 export const ActionButtons: React.FC<ActionButtonsProps> = ({ onEdit, onDuplicate, onDelete }): JSX.Element => (
   <Flex gap={1} justify="flex-end" style={{ width: "auto" }}>
-    <Button icon={edit} label="Edit" isSmall onClick={onEdit} />
-    <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />
-    <Button icon={trash} label="Delete" isSmall onClick={onDelete} />
+    {onEdit && <Button icon={edit} label="Edit" isSmall onClick={onEdit} />}
+    {onDuplicate && <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />}
+    {onDelete && <Button icon={trash} label="Delete" isSmall onClick={onDelete} />}
   </Flex>
 );
 

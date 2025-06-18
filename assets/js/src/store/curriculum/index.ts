@@ -2714,10 +2714,8 @@ const resolvers = {
         payload: { quiz, sourceQuizId: quizId, courseId },
       };
 
-      // Refresh topics to show the duplicated quiz
+      // Refresh topics to show the duplicated quiz - using same pattern as lesson duplication
       try {
-        yield actions.setOperationState({ status: "loading" });
-
         const topicsResponse = (yield {
           type: "API_FETCH",
           request: {
@@ -2726,15 +2724,24 @@ const resolvers = {
           },
         }) as { data: Topic[] };
 
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
+        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+          throw new Error("Invalid topics response");
         }
+
+        const topics = topicsResponse as { data: Topic[] };
+
+        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+        const transformedTopics = topics.data.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+          contents: topic.contents || [],
+        }));
+
+        // Update topics in store using direct SET_TOPICS action (same as lesson duplication)
+        yield {
+          type: "SET_TOPICS",
+          payload: transformedTopics,
+        };
       } catch (refreshError) {
         console.warn("Failed to refresh topics after quiz duplicate:", refreshError);
       }
@@ -3096,10 +3103,8 @@ const resolvers = {
         payload: { liveLesson, sourceLiveLessonId: liveLessonId, courseId },
       };
 
-      // Refresh topics to show the duplicated live lesson
+      // Refresh topics to show the duplicated live lesson - using same pattern as lesson duplication
       try {
-        yield actions.setOperationState({ status: "loading" });
-
         const topicsResponse = (yield {
           type: "API_FETCH",
           request: {
@@ -3108,15 +3113,24 @@ const resolvers = {
           },
         }) as { data: Topic[] };
 
-        if (topicsResponse && topicsResponse.data) {
-          const topics = topicsResponse.data.map((topic) => ({
-            ...topic,
-            isCollapsed: true,
-          }));
-
-          yield actions.setTopics(topics);
-          yield actions.setOperationState({ status: "success", data: topics });
+        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+          throw new Error("Invalid topics response");
         }
+
+        const topics = topicsResponse as { data: Topic[] };
+
+        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+        const transformedTopics = topics.data.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+          contents: topic.contents || [],
+        }));
+
+        // Update topics in store using direct SET_TOPICS action (same as lesson duplication)
+        yield {
+          type: "SET_TOPICS",
+          payload: transformedTopics,
+        };
       } catch (refreshError) {
         console.warn("Failed to refresh topics after live lesson duplicate:", refreshError);
       }

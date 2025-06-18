@@ -146,7 +146,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const { createNotice } = useDispatch(noticesStore);
 
   // Get curriculum store actions for live lessons
-  const { deleteLiveLesson } = useDispatch(CURRICULUM_STORE);
+  const { deleteLiveLesson, duplicateLiveLesson } = useDispatch(CURRICULUM_STORE);
 
   // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
@@ -271,6 +271,15 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     }
   };
 
+  // Live lesson duplicate handler (Google Meet only)
+  const handleGoogleMeetDuplicate = (liveLessonId: number, topicId: number) => {
+    if (!isGoogleMeetEnabled()) {
+      showGoogleMeetDisabledNotice();
+      return;
+    }
+    duplicateLiveLesson(liveLessonId, topicId, courseId || 0);
+  };
+
   // Handle double-click on title or summary
   const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -392,7 +401,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                               }
                               handleQuizDuplicate(item.id, topic.id);
                             }
-                          : undefined
+                          : item.type === "meet_lesson"
+                            ? () => handleGoogleMeetDuplicate(item.id, topic.id)
+                            : undefined // Zoom lessons don't support duplication
                 }
                 onDelete={
                   item.type === "lesson"

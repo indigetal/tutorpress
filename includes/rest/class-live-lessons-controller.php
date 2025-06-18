@@ -1356,49 +1356,291 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     /**
      * Duplicate a live lesson.
      *
+     * Currently only supports Google Meet lessons as Zoom lessons don't have 
+     * duplicate functionality in Tutor LMS frontend course builder.
+     *
      * @since 1.5.0
      * @param WP_REST_Request $request The request object.
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function duplicate_item($request) {
+        // Check Tutor LMS availability
+        $tutor_check = $this->ensure_tutor_lms();
+        if (is_wp_error($tutor_check)) {
+            return $tutor_check;
+        }
+
         $lesson_id = (int) $request->get_param('id');
         $target_topic_id = $request->get_param('topic_id');
         
-        // Find mock lesson by ID
-        $mock_lessons = $this->get_mock_live_lessons();
-        $original_lesson = null;
-        
-        foreach ($mock_lessons as $mock_lesson) {
-            if ($mock_lesson['id'] === $lesson_id) {
-                $original_lesson = $mock_lesson;
-                break;
-            }
-        }
-
-        if (!$original_lesson) {
+        // Verify lesson exists
+        $original_post = get_post($lesson_id);
+        if (!$original_post || !in_array($original_post->post_type, ['tutor-google-meet', 'tutor_zoom_meeting'])) {
             return new WP_Error(
-                'live_lesson_not_found',
-                __('Live lesson not found.', 'tutorpress'),
+                'invalid_live_lesson',
+                __('Invalid live lesson ID.', 'tutorpress'),
                 ['status' => 404]
             );
         }
 
-        // Create duplicate with new ID and modified title
-        $duplicated_lesson = $original_lesson;
-        $duplicated_lesson['id'] = rand(1000, 9999); // Mock new ID
-        $duplicated_lesson['title'] = $original_lesson['title'] . ' (Copy)';
-        $duplicated_lesson['meetingUrl'] = $this->generate_mock_meeting_url($original_lesson['type']);
-        $duplicated_lesson['meetingId'] = $this->generate_mock_meeting_id($original_lesson['type']);
-        $duplicated_lesson['status'] = 'scheduled';
-        $duplicated_lesson['createdAt'] = current_time('c', true);
-        $duplicated_lesson['updatedAt'] = current_time('c', true);
-
-        // Update topic ID if provided
-        if ($target_topic_id) {
-            $duplicated_lesson['topicId'] = (int) $target_topic_id;
+        // Only allow duplication of Google Meet lessons
+        if ($original_post->post_type !== 'tutor-google-meet') {
+            return new WP_Error(
+                'duplication_not_supported',
+                __('Duplication is only supported for Google Meet lessons.', 'tutorpress'),
+                ['status' => 400]
+            );
         }
 
-        return rest_ensure_response($this->format_response($duplicated_lesson, __('Live lesson duplicated successfully.', 'tutorpress')));
+        // Check permissions - user must be able to create posts in the target topic
+        if (!current_user_can('edit_post', $target_topic_id ?: $original_post->post_parent)) {
+            return new WP_Error(
+                'cannot_duplicate_live_lesson',
+                __('You do not have permission to duplicate this live lesson.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        try {
+            // Create duplicate post
+            $duplicate_post_data = [
+                'post_title' => $original_post->post_title . ' (Copy)',
+                'post_content' => $original_post->post_content,
+                'post_status' => 'publish',
+                'post_type' => $original_post->post_type,
+                'post_parent' => $target_topic_id ?: $original_post->post_parent,
+                'menu_order' => $original_post->menu_order,
+            ];
+
+            $duplicate_id = wp_insert_post($duplicate_post_data);
+
+            if (is_wp_error($duplicate_id)) {
+                return new WP_Error(
+                    'duplicate_creation_failed',
+                    __('Failed to create duplicate live lesson.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Copy Google Meet specific meta data
+            $this->duplicate_google_meet_meta($lesson_id, $duplicate_id);
+
+            // Get the duplicated lesson data for response
+            $duplicate_lesson_data = $this->get_live_lesson_data_for_response($duplicate_id);
+
+            if (!$duplicate_lesson_data) {
+                return new WP_Error(
+                    'duplicate_data_error',
+                    __('Duplicate created but failed to retrieve data.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Fire action for other plugins to hook into
+            do_action('tutorpress_live_lesson_duplicated', $duplicate_id, $lesson_id, $duplicate_lesson_data);
+
+            return rest_ensure_response($this->format_response($duplicate_lesson_data, __('Google Meet lesson duplicated successfully.', 'tutorpress')));
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'live_lesson_duplicate_error',
+                $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Get live lesson data formatted for API response.
+     * 
+     * Extracts and formats live lesson data from the database for API responses.
+     * This is used by duplicate_item() to return the newly created lesson data.
+     *
+     * @since 1.5.7
+     * @param int $lesson_id The lesson post ID.
+     * @return array|null Formatted lesson data or null if not found.
+     */
+    private function get_live_lesson_data_for_response($lesson_id) {
+        $post = get_post($lesson_id);
+        if (!$post) {
+            return null;
+        }
+
+        // Verify this is a live lesson post type
+        if (!in_array($post->post_type, ['tutor-google-meet', 'tutor_zoom_meeting'])) {
+            return null;
+        }
+
+        $topic_id = $post->post_parent;
+        $topic = get_post($topic_id);
+        if (!$topic || $topic->post_type !== 'topics') {
+            return null;
+        }
+
+        $course_id = $topic->post_parent;
+
+        // Determine live lesson type
+        $type = $post->post_type === 'tutor-google-meet' ? 'google_meet' : 'zoom';
+
+        // Prepare base response data
+        $response_data = [
+            'id' => $post->ID,
+            'title' => $post->post_title,
+            'description' => $post->post_content,
+            'type' => $type,
+            'topicId' => $topic_id,
+            'courseId' => $course_id,
+            'status' => 'scheduled',
+            'createdAt' => $post->post_date_gmt,
+            'updatedAt' => $post->post_modified_gmt,
+        ];
+
+        // Get provider-specific data
+        if ($type === 'google_meet') {
+            // Get Google Meet meta fields
+            $start_datetime = get_post_meta($post->ID, 'tutor-google-meet-start-datetime', true);
+            $end_datetime = get_post_meta($post->ID, 'tutor-google-meet-end-datetime', true);
+            $event_details_json = get_post_meta($post->ID, 'tutor-google-meet-event-details', true);
+            $meet_link = get_post_meta($post->ID, 'tutor-google-meet-link', true);
+
+            // Parse event details
+            $event_details = [];
+            if ($event_details_json) {
+                $event_details = json_decode($event_details_json, true) ?: [];
+            }
+
+            // Set datetime fields
+            $response_data['startDateTime'] = $start_datetime ?: '';
+            $response_data['endDateTime'] = $end_datetime ?: '';
+
+            // Extract settings from event details
+            $response_data['settings'] = [
+                'timezone' => $event_details['timezone'] ?? 'UTC',
+                'add_enrolled_students' => $event_details['attendees'] ?? 'No',
+            ];
+
+            // Add provider config
+            $response_data['providerConfig'] = [
+                'meetingUrl' => $meet_link ?: '',
+                'eventId' => $event_details['id'] ?? '',
+            ];
+
+            // Add meet link if available
+            if ($meet_link) {
+                $response_data['meetingUrl'] = $meet_link;
+            }
+
+        } else {
+            // Get Zoom meta fields
+            $start_date = get_post_meta($post->ID, '_tutor_zm_start_date', true);
+            $start_datetime = get_post_meta($post->ID, '_tutor_zm_start_datetime', true);
+            $duration = get_post_meta($post->ID, '_tutor_zm_duration', true);
+            $duration_unit = get_post_meta($post->ID, '_tutor_zm_duration_unit', true);
+            $zoom_data_json = get_post_meta($post->ID, '_tutor_zm_data', true);
+
+            // Parse Zoom meeting data
+            $zoom_data = [];
+            if ($zoom_data_json) {
+                $zoom_data = json_decode($zoom_data_json, true) ?: [];
+            }
+
+            // Calculate end datetime from start + duration
+            $end_datetime = '';
+            if ($start_datetime && $duration) {
+                try {
+                    $start_obj = new DateTime($start_datetime);
+                    $duration_minutes = $duration_unit === 'hr' ? $duration * 60 : $duration;
+                    $start_obj->add(new DateInterval('PT' . $duration_minutes . 'M'));
+                    $end_datetime = $start_obj->format('Y-m-d H:i:s');
+                } catch (Exception $e) {
+                    error_log('TutorPress: Error calculating end datetime: ' . $e->getMessage());
+                }
+            }
+
+            // Set datetime fields
+            $response_data['startDateTime'] = $start_datetime ?: '';
+            $response_data['endDateTime'] = $end_datetime;
+
+            // Extract settings from Zoom data
+            $zoom_settings = $zoom_data['settings'] ?? [];
+            $response_data['settings'] = [
+                'timezone' => $zoom_data['timezone'] ?? 'UTC',
+                'duration' => (int) $duration ?: 60,
+                'allow_early_join' => $zoom_settings['join_before_host'] ?? false,
+                'waiting_room' => $zoom_settings['waiting_room'] ?? false,
+                'require_password' => !empty($zoom_data['password']),
+            ];
+
+            // Add provider config
+            $response_data['providerConfig'] = [
+                'host' => $zoom_data['host_id'] ?? '',
+                'password' => $zoom_data['password'] ?? '',
+                'autoRecording' => $zoom_settings['auto_recording'] ?? 'none',
+                'meetingId' => $zoom_data['id'] ?? '',
+                'joinUrl' => $zoom_data['join_url'] ?? '',
+            ];
+
+            // Add meeting URL if available
+            if (!empty($zoom_data['join_url'])) {
+                $response_data['meetingUrl'] = $zoom_data['join_url'];
+            }
+        }
+
+        return $response_data;
+    }
+
+    /**
+     * Duplicate Google Meet lesson meta data.
+     * 
+     * Copies all Google Meet specific meta fields from source to duplicate lesson.
+     *
+     * @since 1.5.7
+     * @param int $source_id The source lesson post ID.
+     * @param int $duplicate_id The duplicate lesson post ID.
+     */
+    private function duplicate_google_meet_meta($source_id, $duplicate_id) {
+        // Copy Google Meet specific meta fields
+        $meta_fields = [
+            'tutor-google-meet-start-datetime',
+            'tutor-google-meet-end-datetime',
+            'tutor-google-meet-event-details',
+        ];
+
+        foreach ($meta_fields as $meta_key) {
+            $meta_value = get_post_meta($source_id, $meta_key, true);
+            if ($meta_value) {
+                // For event details, we need to decode, modify, and re-encode
+                if ($meta_key === 'tutor-google-meet-event-details') {
+                    $event_details = json_decode($meta_value, true);
+                    if ($event_details) {
+                        // Clear any existing event IDs since this is a new lesson
+                        unset($event_details['event_id']);
+                        unset($event_details['calendar_id']);
+                        
+                        // Update the event title to indicate it's a copy
+                        if (isset($event_details['title'])) {
+                            $event_details['title'] = $event_details['title'] . ' (Copy)';
+                        }
+                        
+                        $meta_value = json_encode($event_details);
+                    }
+                }
+                
+                update_post_meta($duplicate_id, $meta_key, $meta_value);
+            }
+        }
+
+        // Copy any additional meta that might be relevant
+        $additional_meta = [
+            '_tutor_gmt_data', // If using this pattern
+        ];
+
+        foreach ($additional_meta as $meta_key) {
+            $meta_value = get_post_meta($source_id, $meta_key, true);
+            if ($meta_value) {
+                update_post_meta($duplicate_id, $meta_key, $meta_value);
+            }
+        }
     }
 
     /**
