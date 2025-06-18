@@ -79,20 +79,24 @@ const DEFAULT_STATE: H5PState = {
 
 export type H5PAction =
   // Content Actions
+  | { type: "FETCH_H5P_CONTENTS"; payload: { searchParams: H5PContentSearchParams } }
   | { type: "FETCH_H5P_CONTENTS_START"; payload: { searchParams: H5PContentSearchParams } }
   | { type: "FETCH_H5P_CONTENTS_SUCCESS"; payload: { contents: H5PContent[]; pagination?: any } }
   | { type: "FETCH_H5P_CONTENTS_ERROR"; payload: { error: H5PError } }
   | { type: "SET_H5P_SELECTED_CONTENT"; payload: { content: H5PContent | null } }
   | { type: "SET_H5P_SEARCH_PARAMS"; payload: { searchParams: H5PContentSearchParams } }
   // Statement Actions
+  | { type: "SAVE_H5P_STATEMENT"; payload: { statement: H5PQuestionStatement } }
   | { type: "SAVE_H5P_STATEMENT_START"; payload: { statement: H5PQuestionStatement } }
   | { type: "SAVE_H5P_STATEMENT_SUCCESS"; payload: { statement: any; statementId: number } }
   | { type: "SAVE_H5P_STATEMENT_ERROR"; payload: { error: H5PError } }
   // Validation Actions
+  | { type: "VALIDATE_H5P_ANSWERS"; payload: { validation: H5PQuestionValidation } }
   | { type: "VALIDATE_H5P_ANSWERS_START"; payload: { validation: H5PQuestionValidation } }
   | { type: "VALIDATE_H5P_ANSWERS_SUCCESS"; payload: { results: Record<number, boolean> } }
   | { type: "VALIDATE_H5P_ANSWERS_ERROR"; payload: { error: H5PError } }
   // Results Actions
+  | { type: "FETCH_H5P_RESULTS"; payload: { resultParams: H5PQuizResult } }
   | { type: "FETCH_H5P_RESULTS_START"; payload: { resultParams: H5PQuizResult } }
   | { type: "FETCH_H5P_RESULTS_SUCCESS"; payload: { results: H5PQuizResultResponse; resultKey: string } }
   | { type: "FETCH_H5P_RESULTS_ERROR"; payload: { error: H5PError } };
