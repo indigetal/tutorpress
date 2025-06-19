@@ -5,15 +5,15 @@
 
 /* TinyMCE Editor Styling - WordPress Classic Editor */
 .quiz-modal-tinymce-editor {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .quiz-modal-tinymce-editor textarea {
   width: 100%;
   min-height: 200px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
@@ -27,7 +27,7 @@
 
 .quiz-modal-tinymce-editor .mce-tinymce {
   border: 1px solid #ddd !important;
-  border-radius: 4px !important;
+  border-radius: var(--radius-sm) !important;
 }
 
 .quiz-modal-tinymce-editor .mce-toolbar-grp {
@@ -46,7 +46,7 @@
 /* WordPress Visual/Code Tab Styling for TinyMCE in Quiz Modal */
 .quiz-modal-wp-editor .wp-editor-wrap {
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -61,7 +61,7 @@
 .quiz-modal-wp-editor .wp-switch-editor {
   background: transparent;
   border: none;
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-lg);
   margin: 0;
   cursor: pointer;
   font-size: 13px;
@@ -170,17 +170,17 @@
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   border-top: 1px solid #e0e0e0;
   background: #f9f9f9;
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button {
   min-height: 28px;
-  padding: 4px 12px;
+  padding: var(--space-xs) var(--space-md);
   font-size: 12px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-secondary {
@@ -205,66 +205,65 @@
   border-color: #004a6b;
 }
 
-/* Fix saved content display - ensure proper list styling and formatting */
+/* Saved Content Styling */
 .quiz-modal-saved-content {
-  padding: 8px 0;
-  line-height: 1.5;
-  color: #1e1e1e;
+  padding: var(--space-lg);
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius-sm);
+  background: #fafafa;
 }
 
 .quiz-modal-saved-content ul {
-  list-style-type: disc !important;
-  margin-left: 20px !important;
-  padding-left: 0 !important;
+  margin: var(--space-sm) 0;
+  padding-left: var(--space-xl);
 }
 
 .quiz-modal-saved-content ol {
-  list-style-type: decimal !important;
-  margin-left: 20px !important;
-  padding-left: 0 !important;
+  margin: var(--space-sm) 0;
+  padding-left: var(--space-xl);
 }
 
 .quiz-modal-saved-content li {
-  margin-bottom: 4px !important;
-  display: list-item !important;
+  margin-bottom: var(--space-xs);
 }
 
 .quiz-modal-saved-content p {
-  margin-bottom: 8px !important;
+  margin: var(--space-sm) 0;
 }
 
 .quiz-modal-saved-content p:last-child {
-  margin-bottom: 0 !important;
+  margin-bottom: 0;
 }
 
 .quiz-modal-saved-content strong {
-  font-weight: bold !important;
+  font-weight: 600;
 }
 
 .quiz-modal-saved-content em {
-  font-style: italic !important;
+  font-style: italic;
 }
 
 .quiz-modal-saved-content a {
-  color: #0073aa !important;
-  text-decoration: underline !important;
+  color: #0073aa;
+  text-decoration: none;
 }
 
-/* Ensure Visual/Code tabs are clickable with proper hover effects */
+.quiz-modal-saved-content a:hover {
+  text-decoration: underline;
+}
+
+/* Override WordPress editor tab styles in quiz modal */
 .quiz-modal-wp-editor .wp-switch-editor {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 10 !important;
+  padding: var(--space-sm) var(--space-lg);
+  margin: 0;
+  font-size: 13px;
 }
 
 .quiz-modal-wp-editor .wp-switch-editor:hover {
-  background: #e0e0e0 !important;
-  color: #333 !important;
+  background: #e0e0e0;
 }
 
-/* Make sure tabs have proper click areas */
 .quiz-modal-wp-editor .wp-editor-tabs {
-  position: relative !important;
-  z-index: 5 !important;
+  padding: 0;
+  margin: 0;
 }
