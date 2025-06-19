@@ -38,6 +38,14 @@ import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
 import { TopicRequest } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
+import {
+  createRemoveContentPayload,
+  createRemoveMultiTypeContentPayload,
+  createDuplicateContentPayload,
+  createSaveContentPayload,
+  createUpdateContentPayload,
+  resolveContentType,
+} from "./utils";
 
 // Define the store's state interface
 interface CurriculumState {
@@ -1794,13 +1802,7 @@ const resolvers = {
       // Update topics directly to remove the deleted lesson (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => ({
-            ...topic,
-            contents:
-              topic.contents?.filter((content) => !(content.id === lessonId && content.type === "lesson")) || [],
-          }));
-        },
+        payload: createRemoveContentPayload(lessonId, "lesson"),
       };
     } catch (error) {
       yield {
@@ -1843,15 +1845,7 @@ const resolvers = {
       // Update topics directly to remove the deleted assignment (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => ({
-            ...topic,
-            contents:
-              topic.contents?.filter(
-                (content) => !(content.id === assignmentId && content.type === "tutor_assignments")
-              ) || [],
-          }));
-        },
+        payload: createRemoveContentPayload(assignmentId, "tutor_assignments"),
       };
     } catch (error) {
       yield {
@@ -1901,29 +1895,7 @@ const resolvers = {
       // Update topics directly to add the duplicated lesson (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => {
-            if (topic.id === topicId) {
-              // Add the duplicated lesson to the correct topic
-              return {
-                ...topic,
-                contents: [
-                  ...(topic.contents || []),
-                  {
-                    id: lesson.id,
-                    title: lesson.title,
-                    type: "lesson",
-                    topic_id: topicId,
-                    order: (topic.contents?.length || 0) + 1,
-                    menu_order: (topic.contents?.length || 0) + 1,
-                    status: "publish",
-                  },
-                ],
-              };
-            }
-            return topic;
-          });
-        },
+        payload: createDuplicateContentPayload(topicId, lesson.id, lesson.title, "lesson"),
       };
     } catch (error) {
       yield {
@@ -2186,26 +2158,10 @@ const resolvers = {
       };
 
       // Update topics directly to remove the deleted quiz (preserves toggle states)
-      const currentTopics = yield {
-        type: "GET_TOPICS",
+      yield {
+        type: "SET_TOPICS",
+        payload: createRemoveMultiTypeContentPayload(quizId, ["tutor_quiz", "interactive_quiz"]),
       };
-
-      if (currentTopics && Array.isArray(currentTopics)) {
-        const updatedTopics = currentTopics.map((topic: Topic) => ({
-          ...topic,
-          contents:
-            topic.contents?.filter(
-              (content) =>
-                !(content.id === quizId && (content.type === "tutor_quiz" || content.type === "interactive_quiz"))
-            ) || [],
-        }));
-
-        // Update topics in store using direct SET_TOPICS action
-        yield {
-          type: "SET_TOPICS",
-          payload: updatedTopics,
-        };
-      }
     } catch (error) {
       yield {
         type: "DELETE_QUIZ_ERROR",
@@ -2253,29 +2209,7 @@ const resolvers = {
       // Update topics directly to add the duplicated quiz (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => {
-            if (topic.id === topicId) {
-              // Add the duplicated quiz to the correct topic
-              return {
-                ...topic,
-                contents: [
-                  ...(topic.contents || []),
-                  {
-                    id: quiz.id,
-                    title: quiz.title,
-                    type: "tutor_quiz", // Default to regular quiz type
-                    topic_id: topicId,
-                    order: (topic.contents?.length || 0) + 1,
-                    menu_order: (topic.contents?.length || 0) + 1,
-                    status: "publish",
-                  },
-                ],
-              };
-            }
-            return topic;
-          });
-        },
+        payload: createDuplicateContentPayload(topicId, quiz.id, quiz.title, "tutor_quiz"),
       };
     } catch (error) {
       yield {
@@ -2348,29 +2282,12 @@ const resolvers = {
       // Update topics directly to add the new live lesson - preserves toggle states
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => {
-            if (topic.id === topicId) {
-              // Add the new live lesson to the correct topic
-              return {
-                ...topic,
-                contents: [
-                  ...(topic.contents || []),
-                  {
-                    id: liveLesson.id,
-                    title: liveLesson.title,
-                    type: liveLesson.type === "google_meet" ? "meet_lesson" : "zoom_lesson",
-                    topic_id: topicId,
-                    order: (topic.contents?.length || 0) + 1,
-                    menu_order: (topic.contents?.length || 0) + 1,
-                    status: "publish",
-                  },
-                ],
-              };
-            }
-            return topic;
-          });
-        },
+        payload: createSaveContentPayload(
+          topicId,
+          liveLesson.id,
+          liveLesson.title,
+          resolveContentType(liveLesson.type)
+        ),
       };
     } catch (error) {
       yield {
@@ -2461,28 +2378,7 @@ const resolvers = {
       // Update topics directly to reflect the updated live lesson - preserves toggle states
       yield {
         type: "SET_TOPICS",
-        payload: (currentTopics: Topic[]) => {
-          return currentTopics.map((topic) => {
-            // Find the topic containing this live lesson
-            const liveLessonIndex = topic.contents?.findIndex((item) => item.id === liveLessonId) ?? -1;
-
-            if (liveLessonIndex >= 0) {
-              // Update the existing live lesson in this topic
-              const updatedContents = [...(topic.contents || [])];
-              updatedContents[liveLessonIndex] = {
-                ...updatedContents[liveLessonIndex],
-                title: liveLesson.title,
-                // Keep existing properties (type, menu_order, status, etc.)
-              };
-
-              return {
-                ...topic,
-                contents: updatedContents,
-              };
-            }
-            return topic;
-          });
-        },
+        payload: createUpdateContentPayload(liveLessonId, { title: liveLesson.title }),
       };
     } catch (error) {
       yield {
@@ -2537,32 +2433,10 @@ const resolvers = {
         payload: { liveLessonId, courseId: liveLesson.courseId },
       };
 
-      // Fetch updated topics (using direct pattern like lesson/assignment delete)
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${liveLesson.courseId}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: Topic[] };
-
-      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
-      // Update topics in store using direct SET_TOPICS action (same as lesson/assignment delete)
+      // Update topics directly to remove the deleted live lesson (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: transformedTopics,
+        payload: createRemoveMultiTypeContentPayload(liveLessonId, ["meet_lesson", "zoom_lesson"]),
       };
     } catch (error) {
       yield {
@@ -2608,37 +2482,16 @@ const resolvers = {
         payload: { liveLesson, sourceLiveLessonId: liveLessonId, courseId },
       };
 
-      // Refresh topics to show the duplicated live lesson - using same pattern as lesson duplication
-      try {
-        const topicsResponse = (yield {
-          type: "API_FETCH",
-          request: {
-            path: `/tutorpress/v1/topics?course_id=${courseId}`,
-            method: "GET",
-          },
-        }) as { data: Topic[] };
-
-        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-          throw new Error("Invalid topics response");
-        }
-
-        const topics = topicsResponse as { data: Topic[] };
-
-        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-        const transformedTopics = topics.data.map((topic) => ({
-          ...topic,
-          isCollapsed: true,
-          contents: topic.contents || [],
-        }));
-
-        // Update topics in store using direct SET_TOPICS action (same as lesson duplication)
-        yield {
-          type: "SET_TOPICS",
-          payload: transformedTopics,
-        };
-      } catch (refreshError) {
-        console.warn("Failed to refresh topics after live lesson duplicate:", refreshError);
-      }
+      // Update topics directly to add the duplicated live lesson (preserves toggle states)
+      yield {
+        type: "SET_TOPICS",
+        payload: createDuplicateContentPayload(
+          topicId,
+          liveLesson.id,
+          liveLesson.title,
+          resolveContentType(liveLesson.type)
+        ),
+      };
     } catch (error) {
       yield {
         type: "DUPLICATE_LIVE_LESSON_ERROR",
