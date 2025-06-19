@@ -51,6 +51,7 @@ import {
   createOperationWrapper,
   OPERATION_CONFIGS,
 } from "./utils";
+import { createCurriculumError } from "../../utils/errors";
 
 // Define the store's state interface
 interface CurriculumState {
@@ -1363,14 +1364,13 @@ const resolvers = {
       actions.setTopics(updatedTopics);
       actions.setReorderState({ status: "success" });
     } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.REORDER_FAILED,
-        message: error instanceof Error ? error.message : "Failed to reorder topics",
-        context: {
-          action: "reorderTopics",
-          details: error instanceof Error ? error.stack : undefined,
-        },
-      };
+      const curriculumError = createCurriculumError(
+        error,
+        CurriculumErrorCode.REORDER_FAILED,
+        "reorderTopics",
+        "Failed to reorder topics",
+        { courseId }
+      );
 
       actions.setReorderState({
         status: "error",
@@ -1397,15 +1397,13 @@ const resolvers = {
         duplicatedTopicId: newTopic.id,
       });
     } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.CREATION_FAILED,
-        message: error instanceof Error ? error.message : "Failed to duplicate topic",
-        context: {
-          action: "duplicateTopic",
-          topicId,
-          details: error instanceof Error ? error.stack : undefined,
-        },
-      };
+      const curriculumError = createCurriculumError(
+        error,
+        CurriculumErrorCode.CREATION_FAILED,
+        "duplicateTopic",
+        "Failed to duplicate topic",
+        { topicId, courseId }
+      );
 
       actions.setDuplicationState({
         status: "error",
@@ -1459,16 +1457,17 @@ const resolvers = {
 
       return newTopic;
     } catch (error) {
+      const curriculumError = createCurriculumError(
+        error,
+        CurriculumErrorCode.CREATION_FAILED,
+        "createTopic",
+        "Failed to create topic",
+        { courseId: data.course_id }
+      );
+
       yield actions.setTopicCreationState({
         status: "error",
-        error: {
-          code: CurriculumErrorCode.CREATION_FAILED,
-          message: error instanceof Error ? error.message : "Failed to create topic",
-          context: {
-            action: "createTopic",
-            details: error instanceof Error ? error.stack : JSON.stringify(error),
-          },
-        },
+        error: curriculumError,
       });
 
       throw error;
@@ -1520,15 +1519,13 @@ const resolvers = {
         topicId: null,
       });
     } catch (error) {
-      const curriculumError: CurriculumError = {
-        code: CurriculumErrorCode.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : "Failed to update topic",
-        context: {
-          action: "updateTopic",
-          topicId,
-          details: error instanceof Error ? error.stack : undefined,
-        },
-      };
+      const curriculumError = createCurriculumError(
+        error,
+        CurriculumErrorCode.VALIDATION_ERROR,
+        "updateTopic",
+        "Failed to update topic",
+        { topicId, courseId: data.course_id }
+      );
 
       yield actions.setEditState({
         isEditing: false,

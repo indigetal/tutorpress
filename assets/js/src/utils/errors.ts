@@ -41,3 +41,29 @@ export function isNetworkError(error: Error): boolean {
 export function isWpRestResponse(response: unknown): response is { success: boolean; message: string; data: unknown } {
   return typeof response === "object" && response !== null && "success" in response && "data" in response;
 }
+
+/**
+ * Create a standardized curriculum error from an operation
+ */
+export function createCurriculumError(
+  error: unknown,
+  code: CurriculumErrorCode,
+  action: string,
+  fallbackMessage: string,
+  context?: Record<string, unknown>
+): CurriculumError {
+  // Filter out undefined values from context
+  const filteredContext = context
+    ? Object.fromEntries(Object.entries(context).filter(([_, value]) => value !== undefined))
+    : {};
+
+  return {
+    code,
+    message: error instanceof Error ? error.message : fallbackMessage,
+    context: {
+      action,
+      details: error instanceof Error ? error.stack : JSON.stringify(error),
+      ...filteredContext,
+    },
+  };
+}
