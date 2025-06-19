@@ -10,3 +10,6 @@ export * from "./topicsUpdate";
 
 // Content Delete Utilities
 export * from "./contentDelete";
+
+// Content Duplicate Utilities
+export * from "./contentDuplicate";

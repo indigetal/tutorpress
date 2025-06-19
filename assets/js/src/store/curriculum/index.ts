@@ -46,6 +46,7 @@ import {
   createUpdateContentPayload,
   resolveContentType,
   deleteResolvers,
+  duplicateResolvers,
 } from "./utils";
 
 // Define the store's state interface
@@ -1721,56 +1722,7 @@ const resolvers = {
 
   deleteAssignment: deleteResolvers.assignment,
 
-  *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DUPLICATE_LESSON_START",
-        payload: { lessonId },
-      };
-
-      // Duplicate the lesson
-      const lessonResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/lessons/${lessonId}/duplicate`,
-          method: "POST",
-          data: { topic_id: topicId },
-        },
-      };
-
-      if (!lessonResponse || typeof lessonResponse !== "object" || !("data" in lessonResponse)) {
-        throw new Error("Invalid lesson response");
-      }
-
-      const lesson = (lessonResponse as { data: Lesson }).data;
-
-      yield {
-        type: "DUPLICATE_LESSON_SUCCESS",
-        payload: { lesson, sourceLessonId: lessonId },
-      };
-
-      // Update topics directly to add the duplicated lesson (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createDuplicateContentPayload(topicId, lesson.id, lesson.title, "lesson"),
-      };
-    } catch (error) {
-      yield {
-        type: "DUPLICATE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DUPLICATE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to duplicate lesson", "tutorpress"),
-            context: {
-              action: "duplicateLesson",
-              details: `Failed to duplicate lesson ${lessonId}`,
-            },
-          },
-          lessonId,
-        },
-      };
-    }
-  },
+  duplicateLesson: duplicateResolvers.lesson,
 
   *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {
     try {
@@ -1980,55 +1932,7 @@ const resolvers = {
 
   deleteQuiz: deleteResolvers.quiz,
 
-  *duplicateQuiz(quizId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DUPLICATE_QUIZ_START",
-        payload: { quizId, topicId, courseId },
-      };
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/quizzes/${quizId}/duplicate`,
-          method: "POST",
-          data: { topic_id: topicId, course_id: courseId },
-        },
-      };
-
-      if (!response || typeof response !== "object" || !("data" in response)) {
-        throw new Error("Invalid quiz duplication response");
-      }
-
-      const quiz = (response as { data: any }).data;
-
-      yield {
-        type: "DUPLICATE_QUIZ_SUCCESS",
-        payload: { quiz, sourceQuizId: quizId, courseId },
-      };
-
-      // Update topics directly to add the duplicated quiz (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createDuplicateContentPayload(topicId, quiz.id, quiz.title, "tutor_quiz"),
-      };
-    } catch (error) {
-      yield {
-        type: "DUPLICATE_QUIZ_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DUPLICATE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to duplicate quiz", "tutorpress"),
-            context: {
-              action: "duplicateQuiz",
-              details: `Failed to duplicate quiz ${quizId}`,
-            },
-          },
-          quizId,
-        },
-      };
-    }
-  },
+  duplicateQuiz: duplicateResolvers.quiz,
 
   // Live Lessons Resolvers using API_FETCH control pattern
   *saveLiveLesson(
@@ -2200,60 +2104,7 @@ const resolvers = {
 
   deleteLiveLesson: deleteResolvers.liveLesson,
 
-  *duplicateLiveLesson(liveLessonId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DUPLICATE_LIVE_LESSON_START",
-        payload: { liveLessonId, topicId, courseId },
-      };
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/live-lessons/${liveLessonId}/duplicate`,
-          method: "POST",
-          data: { topic_id: topicId, course_id: courseId },
-        },
-      };
-
-      if (!response || typeof response !== "object" || !("data" in response)) {
-        throw new Error("Invalid live lesson duplication response");
-      }
-
-      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
-
-      yield {
-        type: "DUPLICATE_LIVE_LESSON_SUCCESS",
-        payload: { liveLesson, sourceLiveLessonId: liveLessonId, courseId },
-      };
-
-      // Update topics directly to add the duplicated live lesson (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createDuplicateContentPayload(
-          topicId,
-          liveLesson.id,
-          liveLesson.title,
-          resolveContentType(liveLesson.type)
-        ),
-      };
-    } catch (error) {
-      yield {
-        type: "DUPLICATE_LIVE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DUPLICATE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to duplicate live lesson", "tutorpress"),
-            context: {
-              action: "duplicateLiveLesson",
-              details: `Failed to duplicate live lesson ${liveLessonId}`,
-            },
-          },
-          liveLessonId,
-        },
-      };
-    }
-  },
+  duplicateLiveLesson: duplicateResolvers.liveLesson,
 };
 
 // Create and register the store
