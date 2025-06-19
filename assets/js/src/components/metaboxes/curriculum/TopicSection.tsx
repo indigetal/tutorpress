@@ -45,12 +45,16 @@ import {
 } from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ContentItem, DragHandleProps, TopicSectionProps } from "../../../types/curriculum";
 import ActionButtons from "./ActionButtons";
 import TopicForm from "./TopicForm";
 import { useLessons } from "../../../hooks/curriculum/useLessons";
 import { useAssignments } from "../../../hooks/curriculum/useAssignments";
 import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
+import { useSortableList } from "../../../hooks/common/useSortableList";
 import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
 import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
@@ -74,6 +78,9 @@ interface ContentItemRowProps {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  dragHandleProps?: any;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 /**
@@ -96,14 +103,25 @@ const contentTypeIcons = {
  * @param {Function} [props.onEdit] - Optional edit handler
  * @param {Function} [props.onDuplicate] - Optional duplicate handler
  * @param {Function} [props.onDelete] - Optional delete handler
+ * @param {Object} [props.dragHandleProps] - Props for drag handle
+ * @param {string} [props.className] - Additional CSS classes
+ * @param {Object} [props.style] - Additional inline styles
  * @return {JSX.Element} Content item row component
  */
-const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplicate, onDelete }): JSX.Element => (
-  <div className="tutorpress-content-item">
+const ContentItemRow: React.FC<ContentItemRowProps> = ({
+  item,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  dragHandleProps,
+  className,
+  style,
+}): JSX.Element => (
+  <div className={`tutorpress-content-item ${className || ""}`} style={style}>
     <Flex align="center" gap={2}>
       <div className="tutorpress-content-item-icon">
         <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
-        <Icon icon={dragHandle} className="drag-icon" />
+        <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
       </div>
       <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
       <div className="tutorpress-content-item-actions">
@@ -112,6 +130,36 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({ item, onEdit, onDuplica
     </Flex>
   </div>
 );
+
+/**
+ * Sortable wrapper for content items
+ */
+const SortableContentItem: React.FC<ContentItemRowProps> = (props): JSX.Element => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.item.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    ...props.style,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <ContentItemRow
+        {...props}
+        dragHandleProps={{
+          ...attributes,
+          ...listeners,
+          ref: setActivatorNodeRef,
+        }}
+        className={isDragging ? "tutorpress-content-item--dragging" : ""}
+      />
+    </div>
+  );
+};
 
 /**
  * Renders a topic section with its content items and accepts drag handle props
@@ -145,8 +193,8 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Get notice actions
   const { createNotice } = useDispatch(noticesStore);
 
-  // Get curriculum store actions for live lessons
-  const { deleteLiveLesson, duplicateLiveLesson } = useDispatch(CURRICULUM_STORE);
+  // Get curriculum store actions for live lessons and content reordering
+  const { deleteLiveLesson, duplicateLiveLesson, reorderTopicContent } = useDispatch(CURRICULUM_STORE);
 
   // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
@@ -192,6 +240,50 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const { handleQuizEdit, handleQuizDuplicate, handleQuizDelete, isQuizDuplicating } = useQuizzes({
     courseId,
     topicId: topic.id,
+  });
+
+  // Local state for optimistic content reordering
+  const [localContentOrder, setLocalContentOrder] = useState<ContentItem[]>(topic.contents);
+
+  // Update local content order when topic contents change (from API updates)
+  useEffect(() => {
+    setLocalContentOrder(topic.contents);
+  }, [topic.contents]);
+
+  // Initialize content reordering hook
+  const {
+    dragHandlers: contentDragHandlers,
+    dragState: contentDragState,
+    sensors: contentSensors,
+    itemIds: contentItemIds,
+  } = useSortableList({
+    items: localContentOrder,
+    onReorder: async (reorderedItems) => {
+      // Immediately update local state for smooth UI
+      setLocalContentOrder(reorderedItems);
+
+      const contentOrders = reorderedItems.map((item, index) => ({
+        id: item.id,
+        order: index,
+      }));
+
+      try {
+        await reorderTopicContent(topic.id, contentOrders);
+        return { success: true };
+      } catch (error) {
+        // Revert local state on API failure
+        setLocalContentOrder(topic.contents);
+        return {
+          success: false,
+          error: {
+            code: "CONTENT_REORDER_FAILED",
+            message: error instanceof Error ? error.message : __("Failed to reorder content items", "tutorpress"),
+          },
+        };
+      }
+    },
+    persistenceMode: "api",
+    context: "options", // Use options context for content items styling
   });
 
   // Handle lesson edit - redirect to lesson editor
@@ -346,100 +438,110 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             </div>
           )}
           <div className="tutorpress-content-items">
-            {topic.contents.map((item) => (
-              <ContentItemRow
-                key={item.id}
-                item={item}
-                onEdit={
-                  item.type === "lesson"
-                    ? () => handleLessonEdit(item.id)
-                    : item.type === "tutor_assignments"
-                      ? () => handleAssignmentEdit(item.id)
-                      : item.type === "tutor_quiz"
-                        ? () => handleQuizEditModal(item.id)
-                        : item.type === "interactive_quiz"
-                          ? () => {
-                              if (!isH5pEnabled()) {
-                                showH5pDisabledNotice();
-                                return;
-                              }
-                              setEditingInteractiveQuizId(item.id);
-                              setIsInteractiveQuizModalOpen(true);
-                            }
-                          : item.type === "meet_lesson"
-                            ? () => {
-                                if (!isGoogleMeetEnabled()) {
-                                  showGoogleMeetDisabledNotice();
-                                  return;
-                                }
-                                setEditingGoogleMeetId(item.id);
-                                setIsGoogleMeetModalOpen(true);
-                              }
-                            : item.type === "zoom_lesson"
+            <DndContext
+              sensors={contentSensors}
+              onDragStart={contentDragHandlers.handleDragStart}
+              onDragOver={contentDragHandlers.handleDragOver}
+              onDragEnd={contentDragHandlers.handleDragEnd}
+              onDragCancel={contentDragHandlers.handleDragCancel}
+            >
+              <SortableContext items={contentItemIds} strategy={verticalListSortingStrategy}>
+                {localContentOrder.map((item) => (
+                  <SortableContentItem
+                    key={item.id}
+                    item={item}
+                    onEdit={
+                      item.type === "lesson"
+                        ? () => handleLessonEdit(item.id)
+                        : item.type === "tutor_assignments"
+                          ? () => handleAssignmentEdit(item.id)
+                          : item.type === "tutor_quiz"
+                            ? () => handleQuizEditModal(item.id)
+                            : item.type === "interactive_quiz"
                               ? () => {
-                                  if (!isZoomEnabled()) {
-                                    showZoomDisabledNotice();
+                                  if (!isH5pEnabled()) {
+                                    showH5pDisabledNotice();
                                     return;
                                   }
-                                  setEditingZoomId(item.id);
-                                  setIsZoomModalOpen(true);
+                                  setEditingInteractiveQuizId(item.id);
+                                  setIsInteractiveQuizModalOpen(true);
                                 }
-                              : undefined
-                }
-                onDuplicate={
-                  item.type === "lesson"
-                    ? () => handleLessonDuplicate(item.id, topic.id)
-                    : item.type === "tutor_assignments"
-                      ? () => handleAssignmentDuplicate(item.id, topic.id)
-                      : item.type === "tutor_quiz"
-                        ? () => handleQuizDuplicate(item.id, topic.id)
-                        : item.type === "interactive_quiz"
-                          ? () => {
-                              if (!isH5pEnabled()) {
-                                showH5pDisabledNotice();
-                                return;
-                              }
-                              handleQuizDuplicate(item.id, topic.id);
-                            }
-                          : item.type === "meet_lesson"
-                            ? () => handleGoogleMeetDuplicate(item.id, topic.id)
-                            : undefined // Zoom lessons don't support duplication
-                }
-                onDelete={
-                  item.type === "lesson"
-                    ? () => handleLessonDelete(item.id)
-                    : item.type === "tutor_assignments"
-                      ? () => handleAssignmentDelete(item.id)
-                      : item.type === "tutor_quiz"
-                        ? () => handleQuizDelete(item.id, topic.id)
-                        : item.type === "interactive_quiz"
-                          ? () => {
-                              if (!isH5pEnabled()) {
-                                showH5pDisabledNotice();
-                                return;
-                              }
-                              handleQuizDelete(item.id, topic.id);
-                            }
-                          : item.type === "meet_lesson"
-                            ? () => {
-                                if (!isGoogleMeetEnabled()) {
-                                  showGoogleMeetDisabledNotice();
-                                  return;
-                                }
-                                handleLiveLessonDelete(item.id);
-                              }
-                            : item.type === "zoom_lesson"
+                              : item.type === "meet_lesson"
+                                ? () => {
+                                    if (!isGoogleMeetEnabled()) {
+                                      showGoogleMeetDisabledNotice();
+                                      return;
+                                    }
+                                    setEditingGoogleMeetId(item.id);
+                                    setIsGoogleMeetModalOpen(true);
+                                  }
+                                : item.type === "zoom_lesson"
+                                  ? () => {
+                                      if (!isZoomEnabled()) {
+                                        showZoomDisabledNotice();
+                                        return;
+                                      }
+                                      setEditingZoomId(item.id);
+                                      setIsZoomModalOpen(true);
+                                    }
+                                  : undefined
+                    }
+                    onDuplicate={
+                      item.type === "lesson"
+                        ? () => handleLessonDuplicate(item.id, topic.id)
+                        : item.type === "tutor_assignments"
+                          ? () => handleAssignmentDuplicate(item.id, topic.id)
+                          : item.type === "tutor_quiz"
+                            ? () => handleQuizDuplicate(item.id, topic.id)
+                            : item.type === "interactive_quiz"
                               ? () => {
-                                  if (!isZoomEnabled()) {
-                                    showZoomDisabledNotice();
+                                  if (!isH5pEnabled()) {
+                                    showH5pDisabledNotice();
                                     return;
                                   }
-                                  handleLiveLessonDelete(item.id);
+                                  handleQuizDuplicate(item.id, topic.id);
                                 }
-                              : undefined
-                }
-              />
-            ))}
+                              : item.type === "meet_lesson"
+                                ? () => handleGoogleMeetDuplicate(item.id, topic.id)
+                                : undefined // Zoom lessons don't support duplication
+                    }
+                    onDelete={
+                      item.type === "lesson"
+                        ? () => handleLessonDelete(item.id)
+                        : item.type === "tutor_assignments"
+                          ? () => handleAssignmentDelete(item.id)
+                          : item.type === "tutor_quiz"
+                            ? () => handleQuizDelete(item.id, topic.id)
+                            : item.type === "interactive_quiz"
+                              ? () => {
+                                  if (!isH5pEnabled()) {
+                                    showH5pDisabledNotice();
+                                    return;
+                                  }
+                                  handleQuizDelete(item.id, topic.id);
+                                }
+                              : item.type === "meet_lesson"
+                                ? () => {
+                                    if (!isGoogleMeetEnabled()) {
+                                      showGoogleMeetDisabledNotice();
+                                      return;
+                                    }
+                                    handleLiveLessonDelete(item.id);
+                                  }
+                                : item.type === "zoom_lesson"
+                                  ? () => {
+                                      if (!isZoomEnabled()) {
+                                        showZoomDisabledNotice();
+                                        return;
+                                      }
+                                      handleLiveLessonDelete(item.id);
+                                    }
+                                  : undefined
+                    }
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
           <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
             <Flex gap={2} style={{ width: "auto" }} className="tutorpress-content-buttons">
