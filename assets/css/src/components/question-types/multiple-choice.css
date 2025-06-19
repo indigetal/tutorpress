@@ -13,13 +13,13 @@
 }
 
 .quiz-modal-placeholder-text {
-  color: #666;
+  color: var(--gray-500);
   font-size: 13px;
   font-style: italic;
   margin: 0;
   padding: var(--space-md);
-  background: #f0f6fc;
-  border: 1px solid #c3dcf3;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
   border-radius: var(--radius-sm);
 }
 
@@ -32,10 +32,10 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  background: #f6f7f7;
-  border: 1px solid #ddd;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  color: #2c3338;
+  color: var(--color-text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
@@ -44,21 +44,21 @@
 }
 
 .quiz-modal-add-option-btn:hover {
-  background: #e0e0e0;
-  border-color: #999;
-  color: #1e1e1e;
+  background: var(--gray-300);
+  border-color: var(--gray-500);
+  color: var(--color-text-primary);
 }
 
 .quiz-modal-add-option-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #0073aa;
-  border-color: #0073aa;
+  box-shadow: 0 0 0 2px var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .quiz-modal-add-option-icon {
   font-size: 16px;
   font-weight: bold;
-  color: #0073aa;
+  color: var(--color-primary);
 }
 
 .quiz-modal-add-option-text {
@@ -68,8 +68,8 @@
 /* Option Editor Frame */
 .quiz-modal-option-editor {
   margin-bottom: var(--space-xl);
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--white);
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   box-shadow: 0 calc(var(--space-xs) / 2) var(--space-sm) rgba(0, 0, 0, 0.1);
@@ -85,24 +85,24 @@
 .quiz-modal-option-label {
   font-weight: 600;
   font-size: 16px;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 .quiz-modal-add-image-btn {
   padding: var(--space-xs) var(--space-md);
-  background: #f6f7f7;
-  border: 1px solid #ddd;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  color: #2c3338;
+  color: var(--color-text-secondary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
 }
 
 .quiz-modal-add-image-btn:hover {
-  background: #e0e0e0;
-  border-color: #999;
-  color: #1e1e1e;
+  background: var(--gray-300);
+  border-color: var(--gray-500);
+  color: var(--color-text-primary);
 }
 
 .quiz-modal-add-image-btn:disabled {
@@ -114,13 +114,13 @@
   width: 100%;
   min-height: 80px;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
   font-size: 14px;
   line-height: 1.4;
-  color: #1e1e1e;
-  background: #fff;
+  color: var(--color-text-primary);
+  background: var(--white);
   resize: vertical;
   transition:
     border-color 0.15s ease-in-out,
@@ -129,18 +129,18 @@
 }
 
 .quiz-modal-option-textarea:focus {
-  border-color: #0073aa;
-  box-shadow: 0 0 0 1px #0073aa;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
   outline: none;
 }
 
 .quiz-modal-option-textarea::placeholder {
-  color: #757575;
+  color: var(--gray-500);
 }
 
 .quiz-modal-option-textarea:disabled {
-  background: #f5f5f5;
-  color: #999;
+  background: var(--gray-100);
+  color: var(--gray-500);
   cursor: not-allowed;
 }
 
@@ -161,25 +161,25 @@
 }
 
 .quiz-modal-option-cancel-btn {
-  background: #f6f7f7;
-  border-color: #ddd;
-  color: #555;
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+  color: var(--gray-500);
 }
 
 .quiz-modal-option-cancel-btn:hover {
-  background: #e0e0e0;
-  border-color: #999;
+  background: var(--gray-300);
+  border-color: var(--gray-500);
 }
 
 .quiz-modal-option-ok-btn {
-  background: #0073aa;
-  border-color: #005a87;
+  background: var(--color-primary);
+  border-color: var(--color-primary-hover);
   color: white;
 }
 
 .quiz-modal-option-ok-btn:hover:not(:disabled) {
-  background: #005a87;
-  border-color: #004a6b;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-active);
 }
 
 .quiz-modal-option-ok-btn:disabled {

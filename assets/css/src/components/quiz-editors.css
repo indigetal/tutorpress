@@ -11,7 +11,7 @@
 .quiz-modal-tinymce-editor textarea {
   width: 100%;
   min-height: 200px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
   font-family: inherit;
@@ -26,13 +26,13 @@
 }
 
 .quiz-modal-tinymce-editor .mce-tinymce {
-  border: 1px solid #ddd !important;
+  border: 1px solid var(--gray-300) !important;
   border-radius: var(--radius-sm) !important;
 }
 
 .quiz-modal-tinymce-editor .mce-toolbar-grp {
-  border-bottom: 1px solid #e0e0e0 !important;
-  background: #f9f9f9 !important;
+  border-bottom: 1px solid var(--gray-300) !important;
+  background: var(--gray-100) !important;
 }
 
 .quiz-modal-tinymce-editor .mce-edit-area {
@@ -45,14 +45,14 @@
 
 /* WordPress Visual/Code Tab Styling for TinyMCE in Quiz Modal */
 .quiz-modal-wp-editor .wp-editor-wrap {
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .quiz-modal-wp-editor .wp-editor-tabs {
-  background: #f9f9f9;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--gray-300);
   padding: 0;
   margin: 0;
   display: flex;
@@ -65,27 +65,27 @@
   margin: 0;
   cursor: pointer;
   font-size: 13px;
-  color: #555;
+  color: var(--gray-500);
   text-decoration: none;
   border-radius: 0;
   transition: background-color 0.15s ease-in-out;
 }
 
 .quiz-modal-wp-editor .wp-switch-editor:hover {
-  background: #e0e0e0;
-  color: #333;
+  background: var(--gray-300);
+  color: var(--gray-700);
 }
 
 .quiz-modal-wp-editor .wp-switch-editor.active {
-  background: white;
-  color: #333;
+  background: var(--white);
+  color: var(--gray-700);
   font-weight: 600;
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--white);
   margin-bottom: -1px;
 }
 
 .quiz-modal-wp-editor .wp-editor-container {
-  background: white;
+  background: var(--white);
 }
 
 /* FORCE Visual mode by hiding text editor when in tmce-active mode - STRONGER RULES */
@@ -144,16 +144,16 @@
 
 /* Force Visual tab to always appear active */
 .quiz-modal-wp-editor .wp-switch-editor[id$="-tmce"] {
-  background: white !important;
-  color: #333 !important;
+  background: var(--white) !important;
+  color: var(--gray-700) !important;
   font-weight: 600 !important;
-  border-bottom: 1px solid white !important;
+  border-bottom: 1px solid var(--white) !important;
   margin-bottom: -1px !important;
 }
 
 .quiz-modal-wp-editor .wp-switch-editor[id$="-html"] {
   background: transparent !important;
-  color: #555 !important;
+  color: var(--gray-500) !important;
   font-weight: normal !important;
 }
 
@@ -172,8 +172,8 @@
   justify-content: flex-end;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  border-top: 1px solid #e0e0e0;
-  background: #f9f9f9;
+  border-top: 1px solid var(--gray-300);
+  background: var(--gray-100);
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button {
@@ -184,33 +184,33 @@
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-secondary {
-  background: #f6f7f7;
-  border: 1px solid #ddd;
-  color: #555;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  color: var(--gray-500);
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-secondary:hover {
-  background: #e0e0e0;
-  border-color: #999;
+  background: var(--gray-300);
+  border-color: var(--gray-500);
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-primary {
-  background: #0073aa;
-  border: 1px solid #005a87;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary-hover);
   color: white;
 }
 
 .quiz-modal-tinymce-editor .quiz-modal-editor-actions .components-button.is-primary:hover {
-  background: #005a87;
-  border-color: #004a6b;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-active);
 }
 
 /* Saved Content Styling */
 .quiz-modal-saved-content {
   padding: var(--space-lg);
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  background: #fafafa;
+  background: var(--gray-100);
 }
 
 .quiz-modal-saved-content ul {
@@ -244,7 +244,7 @@
 }
 
 .quiz-modal-saved-content a {
-  color: #0073aa;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -260,7 +260,7 @@
 }
 
 .quiz-modal-wp-editor .wp-switch-editor:hover {
-  background: #e0e0e0;
+  background: var(--gray-300);
 }
 
 .quiz-modal-wp-editor .wp-editor-tabs {

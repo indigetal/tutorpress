@@ -120,8 +120,8 @@
 
   /* Theme colors with fallbacks */
   --color-primary: var(--wp-admin-theme-color, #0073aa);
-  --color-primary-dark: var(--wp-admin-theme-color-darker-10, #005177);
-  --color-primary-light: var(--wp-admin-theme-color-lighter-10, #0085ba);
+  --color-primary-hover: var(--wp-admin-theme-color-darker-10, #005a87);
+  --color-primary-active: #004a6b;
 
   /* ========================================================================
      UNIFIED COLOR SYSTEM
@@ -129,14 +129,19 @@
      Consolidates 15+ similar colors into purposeful, consistent scales
      ======================================================================== */
 
-  /* Gray Scale (4 shades) - Replaces all background/border/text grays */
+  /* Gray Scale (5 shades) - Complete gray system */
   --gray-100: #f9f9f9; /* Lightest - backgrounds, panels, alt sections */
   --gray-300: #e0e0e0; /* Light - borders, dividers, separators */
   --gray-500: #999; /* Medium - muted text, disabled states, secondary elements */
-  --gray-700: #333; /* Dark - primary text, headings, strong elements */
+  --gray-700: #333; /* Dark - primary text, strong elements */
+  --gray-900: #1e1e1e; /* Very dark text, headings */
 
   /* White (for completeness) */
   --white: #fff; /* Primary backgrounds, content areas */
+
+  /* Info/Notice Colors */
+  --info-bg: #f0f6fc; /* Light blue background */
+  --info-border: #c3dcf3; /* Light blue border */
 
   /* ========================================================================
      SEMANTIC COLOR ALIASES
@@ -154,9 +159,10 @@
   --color-border-strong: var(--gray-700);
 
   /* Text Colors */
-  --color-text-primary: var(--gray-700);
-  --color-text-muted: var(--gray-500);
-  --color-text-secondary: var(--gray-500); /* Same as muted for 4-shade system */
+  --color-text-primary: var(--gray-900); /* Very dark for primary text */
+  --color-text-secondary: var(--gray-700); /* Dark gray for secondary text */
+  --color-text-muted: var(--gray-500); /* Medium gray for muted text */
+  --color-text-disabled: var(--gray-500); /* Same as muted for disabled states */
 
   /* Legacy WordPress integration aliases */
   --color-border: var(--color-border-light);
@@ -167,14 +173,18 @@
   --color-text-inverse: var(--white);
 
   /* State colors (consolidated and standardized) */
-  --color-success: #00a32a;
+  --color-success: #4caf50; /* Updated to match existing usage */
   --color-warning: #ffb900;
-  --color-info: #0073aa;
+  --color-error: #dc2626; /* Consolidated error color */
+  --color-info: var(--color-primary); /* Use primary color for info */
+
+  /* Success system (minimal) */
+  --success-bg: #e8f5e8; /* Light green background */
 
   /* Error State Color System */
   --error-bg: #fef2f2; /* Light red background */
   --error-border: #fecaca; /* Light red border */
-  --color-error: #dc2626; /* Consolidated to match error-text */
+  --error-text: var(--color-error); /* Use consolidated error color */
 }
 
 /* ========================================================================
