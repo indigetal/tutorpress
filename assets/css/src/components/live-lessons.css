@@ -31,14 +31,14 @@
 }
 
 .tutorpress-modal-content {
-  padding: 24px;
+  padding: var(--space-2xl);
   border-bottom: 1px solid #e0e0e0;
   flex: 1;
   min-height: 0; /* Allow flex shrinking */
 }
 
 .tutorpress-modal-content p {
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--space-md) 0;
   color: #666;
 }
 
@@ -47,12 +47,12 @@
 }
 
 .tutorpress-modal-footer {
-  padding: 16px 24px;
+  padding: var(--space-lg) var(--space-2xl);
   background: #f9f9f9;
   border-top: 1px solid #e0e0e0;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 /* ========================================================================
@@ -71,8 +71,8 @@
 .tutorpress-modal-content .components-textarea-control__input,
 .tutorpress-modal-content .components-select-control__input {
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
   font-size: 14px;
   line-height: 1.4;
   width: 100%;
@@ -95,8 +95,8 @@
 /* Form row layouts for date/time fields */
 .tutorpress-form-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--space-lg);
+  margin-bottom: 20px; /* Keep 20px for larger form spacing */
 }
 
 .tutorpress-form-col {
@@ -138,7 +138,7 @@
 
 /* Zoom: Stacked date/time layout (no HStack) */
 .tutorpress-zoom-form .tutorpress-datetime-section .components-select-control {
-  margin-top: 12px;
+  margin-top: var(--space-md);
 }
 
 /* ========================================================================
@@ -171,7 +171,7 @@
 /* Date and Time picker styling */
 .tutorpress-modal-content .components-datetime {
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: white;
 }
 
@@ -186,7 +186,7 @@
 }
 
 .tutorpress-modal-content .components-datetime__date {
-  padding: 8px;
+  padding: var(--space-sm);
 }
 
 /* NumberControl styling */
@@ -196,8 +196,8 @@
 
 .tutorpress-modal-content .components-number-control input {
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
   font-size: 14px;
   line-height: 1.4;
   width: 100%;
@@ -227,15 +227,15 @@
 @media (max-width: 600px) {
   .tutorpress-form-row {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-md);
   }
 
   .tutorpress-modal-content {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 
   .tutorpress-modal-footer {
-    padding: 12px 16px;
+    padding: var(--space-md) var(--space-lg);
     flex-direction: column-reverse;
   }
 
@@ -258,17 +258,17 @@
   font-weight: 600;
   text-transform: uppercase;
   color: #666;
-  padding: 8px 12px 4px;
+  padding: var(--space-sm) var(--space-md) var(--space-xs);
   margin: 0;
 }
 
 .tutorpress-content-overflow-content .components-menu-item__button {
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   font-size: 13px;
   color: #1e1e1e;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   width: 100%;
   border: none;
   background: none;
@@ -328,7 +328,7 @@
 .tutorpress-live-lesson-modal .components-popover__content {
   min-width: 380px !important;
   max-width: 420px !important;
-  padding: 16px;
+  padding: var(--space-lg);
 }
 
 /* Ensure the DateTime component has enough space */
@@ -340,18 +340,18 @@
 /* Style the calendar portion for better spacing */
 .tutorpress-live-lesson-modal .components-datetime__calendar {
   min-width: 320px;
-  padding: 12px;
+  padding: var(--space-md);
 }
 
 /* Style the time selection area */
 .tutorpress-live-lesson-modal .components-datetime__time {
-  padding: 12px 16px;
+  padding: var(--space-md) var(--space-lg);
 }
 
 /* Improve spacing for date/time inputs */
 .tutorpress-live-lesson-modal .components-datetime__date input,
 .tutorpress-live-lesson-modal .components-datetime__time input {
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   font-size: 14px;
 }
 
@@ -380,23 +380,23 @@
 .tutorpress-live-lesson-modal .components-datetime .components-v-stack,
 .tutorpress-live-lesson-modal .components-datetime .components-h-stack {
   width: 400px !important;
-  padding: 16px !important;
+  padding: var(--space-lg) !important;
 }
 
 /* Target the specific VStack classes that contain the datetime UI */
 .tutorpress-live-lesson-modal .components-datetime .e1p5onf00,
 .tutorpress-live-lesson-modal .components-datetime .e19lxcc00 {
   width: 400px !important;
-  padding: 16px !important;
+  padding: var(--space-lg) !important;
 }
 
 /* Style the popover positioning to ensure it doesn't get cut off */
 .tutorpress-live-lesson-modal .components-popover[data-placement*="bottom"] {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
 }
 
 .tutorpress-live-lesson-modal .components-popover[data-placement*="top"] {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 /* Form Layout */
@@ -435,8 +435,8 @@
 .tutorpress-form-notice {
   background: #f0f6fc;
   border: 1px solid #c3dcf7;
-  padding: 12px;
-  border-radius: 4px;
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
   margin-top: 1rem;
   margin-bottom: 2rem;
 }
@@ -450,8 +450,8 @@
 .tutorpress-form-error {
   background: #fcf0f1;
   border: 1px solid #f1aeb5;
-  padding: 12px;
-  border-radius: 4px;
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
   margin-top: 1rem;
 }
 
