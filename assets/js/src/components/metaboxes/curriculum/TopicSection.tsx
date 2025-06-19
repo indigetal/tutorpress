@@ -42,6 +42,7 @@ import {
   Dropdown,
   MenuGroup,
   MenuItem,
+  Spinner,
 } from "@wordpress/components";
 import { moreVertical, plus, dragHandle, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
@@ -59,7 +60,8 @@ import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
 import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
-import { useDispatch } from "@wordpress/data";
+import { useDispatch, useSelect } from "@wordpress/data";
+import { useError } from "../../../hooks/useError";
 const CURRICULUM_STORE = "tutorpress/curriculum";
 
 // Conditionally import Interactive Quiz components only when H5P is enabled
@@ -196,6 +198,28 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   // Get curriculum store actions for live lessons and content reordering
   const { deleteLiveLesson, duplicateLiveLesson, reorderTopicContent } = useDispatch(CURRICULUM_STORE);
 
+  // Get content reorder state for loading and error handling
+  const contentReorderState = useSelect((select) => (select(CURRICULUM_STORE) as any).getContentReorderState(), []);
+
+  const isContentReordering = useSelect((select) => (select(CURRICULUM_STORE) as any).isContentReordering(), []);
+
+  // Error handling for content reordering
+  const { showError: showContentReorderError, handleDismissError: handleDismissContentReorderError } = useError({
+    states: [contentReorderState],
+    isError: (state) => state.status === "error",
+  });
+
+  // Show content reorder errors as notices
+  useEffect(() => {
+    if (showContentReorderError && contentReorderState.error) {
+      createNotice("error", contentReorderState.error.message, {
+        isDismissible: true,
+        type: "snackbar",
+        onDismiss: handleDismissContentReorderError,
+      });
+    }
+  }, [showContentReorderError, contentReorderState.error, createNotice, handleDismissContentReorderError]);
+
   // Helper function to show H5p disabled notice
   const showH5pDisabledNotice = () => {
     createNotice("warning", __("H5P integration is currently disabled. Contact the site admin.", "tutorpress"), {
@@ -284,6 +308,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     },
     persistenceMode: "api",
     context: "options", // Use options context for content items styling
+    disabled: isContentReordering, // Disable drag while reordering is in progress
   });
 
   // Handle lesson edit - redirect to lesson editor
