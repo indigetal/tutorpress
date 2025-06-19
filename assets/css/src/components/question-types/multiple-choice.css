@@ -5,11 +5,11 @@
 
 /* Multiple Choice Question Type Styles */
 .quiz-modal-multiple-choice-content {
-  padding: 16px 0;
+  padding: var(--space-lg) 0;
 }
 
 .quiz-modal-multiple-choice-options {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-xl);
 }
 
 .quiz-modal-placeholder-text {
@@ -17,24 +17,24 @@
   font-size: 13px;
   font-style: italic;
   margin: 0;
-  padding: 12px;
+  padding: var(--space-md);
   background: #f0f6fc;
   border: 1px solid #c3dcf3;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .quiz-modal-add-option-container {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-xl);
 }
 
 .quiz-modal-add-option-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
   background: #f6f7f7;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: #2c3338;
   font-size: 14px;
   cursor: pointer;
@@ -67,19 +67,19 @@
 
 /* Option Editor Frame */
 .quiz-modal-option-editor {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-xl);
   background: #fff;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  box-shadow: 0 calc(var(--space-xs) / 2) var(--space-sm) rgba(0, 0, 0, 0.1);
 }
 
 .quiz-modal-option-editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
 }
 
 .quiz-modal-option-label {
@@ -89,10 +89,10 @@
 }
 
 .quiz-modal-add-image-btn {
-  padding: 6px 12px;
+  padding: var(--space-xs) var(--space-md);
   background: #f6f7f7;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: #2c3338;
   font-size: 13px;
   cursor: pointer;
@@ -113,9 +113,9 @@
 .quiz-modal-option-textarea {
   width: 100%;
   min-height: 80px;
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
   font-size: 14px;
   line-height: 1.4;
@@ -125,7 +125,7 @@
   transition:
     border-color 0.15s ease-in-out,
     box-shadow 0.15s ease-in-out;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
 }
 
 .quiz-modal-option-textarea:focus {
@@ -147,13 +147,13 @@
 .quiz-modal-option-editor-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .quiz-modal-option-cancel-btn,
 .quiz-modal-option-ok-btn {
-  padding: 6px 16px;
-  border-radius: 4px;
+  padding: var(--space-xs) var(--space-lg);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease-in-out;

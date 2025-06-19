@@ -4,22 +4,22 @@
  */
 
 .quiz-modal-true-false-content {
-  padding: 16px;
+  padding: var(--space-lg);
 }
 
 .quiz-modal-true-false-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 
 .quiz-modal-true-false-option {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: var(--space-md) var(--space-lg);
   border: 2px solid #e0e0e0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
@@ -38,14 +38,14 @@
 
 .quiz-modal-correct-indicator {
   position: absolute;
-  left: 12px;
+  left: var(--space-md);
   color: #4caf50;
   font-weight: bold;
   font-size: 16px;
 }
 
 .quiz-modal-answer-text {
-  margin-left: 24px;
+  margin-left: var(--space-2xl);
   font-weight: 500;
   color: #1e1e1e;
   font-size: 14px;
@@ -56,11 +56,11 @@
 }
 
 .quiz-modal-validation-error {
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   background: #ffebee;
   border: 1px solid #f44336;
-  border-radius: 4px;
-  margin-top: 8px;
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-sm);
 }
 
 .quiz-modal-validation-error p {

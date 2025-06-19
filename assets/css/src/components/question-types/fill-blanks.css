@@ -11,11 +11,11 @@
 .quiz-modal-fill-blanks-preview {
   position: relative;
   border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
   background: #ffffff;
   cursor: pointer;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
   transition: all 0.15s ease;
 }
 
@@ -25,13 +25,13 @@
 
 .quiz-modal-fill-blanks-edit-btn {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: var(--space-md);
+  right: var(--space-md);
   background: #007cba;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -43,7 +43,7 @@
 }
 
 .quiz-modal-fill-blanks-student-preview {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .quiz-modal-fill-blanks-question-text {
@@ -54,7 +54,7 @@
 }
 
 .quiz-modal-fill-blanks-answers {
-  margin-top: 16px;
+  margin-top: var(--space-lg);
 }
 
 .quiz-modal-fill-blanks-answers-text {
@@ -66,14 +66,14 @@
 
 .quiz-modal-fill-blanks-editor {
   border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
   background: #ffffff;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .quiz-modal-fill-blanks-field {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-xl);
 }
 
 .quiz-modal-fill-blanks-field:last-of-type {
@@ -85,11 +85,11 @@
   min-height: 100px;
   resize: vertical;
   border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
   font-size: 14px;
   line-height: 1.5;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .quiz-modal-fill-blanks-field .quiz-modal-option-textarea[rows="3"] {
@@ -106,6 +106,6 @@
 .quiz-modal-fill-blanks-actions {
   display: flex;
   justify-content: flex-end;
-  padding-top: 12px;
+  padding-top: var(--space-md);
   border-top: 1px solid #e5e7eb;
 }
