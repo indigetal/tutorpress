@@ -41,14 +41,14 @@
   left: var(--space-md);
   color: var(--color-success);
   font-weight: bold;
-  font-size: 16px;
+  font-size: var(--text-lg);
 }
 
 .quiz-modal-answer-text {
   margin-left: var(--space-2xl);
   font-weight: 500;
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .quiz-modal-true-false-option.is-correct .quiz-modal-answer-text {
@@ -66,6 +66,6 @@
 .quiz-modal-validation-error p {
   margin: 0;
   color: var(--error-text);
-  font-size: 13px;
+  font-size: var(--text-xs);
   font-weight: 500;
 }
