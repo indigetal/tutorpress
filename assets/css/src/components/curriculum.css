@@ -5,7 +5,7 @@
  */
 .tutorpress-curriculum-metabox {
   /* Box model */
-  padding: 16px;
+  padding: var(--space-lg);
   margin: -6px -12px -12px -12px; /* Adjust for WP metabox padding */
 
   /* Colors - using WP admin variables */
@@ -21,7 +21,7 @@
 .tutorpress-curriculum-content {
   /* Box model */
   min-height: 100px;
-  padding: 16px;
+  padding: var(--space-lg);
 
   /* Colors */
   background: #fff;
@@ -41,7 +41,7 @@
 #tutorpress-curriculum-root:empty::before {
   content: attr(data-loading);
   display: block;
-  padding: 20px;
+  padding: var(--space-xl);
   color: var(--wp-admin-theme-color-darker-10, #50575e);
   font-style: italic;
 }
@@ -51,7 +51,7 @@
  */
 
 .tutorpress-curriculum {
-  padding: 16px;
+  padding: var(--space-lg);
 }
 
 /* ========================================================================
@@ -66,7 +66,7 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 /* Core buttons (Lesson, Quiz, Assignment) - always visible */
@@ -112,7 +112,7 @@
 /* Medium-large screens (1024px-1199px) - All buttons visible, slightly compressed */
 @media (min-width: 1024px) and (max-width: 1199px) {
   .tutorpress-content-buttons {
-    gap: 6px;
+    gap: 6px; /* Slightly tighter than --space-sm for space constraints */
   }
 
   .tutorpress-btn-extended {
@@ -145,7 +145,7 @@
 /* Small screens (≤767px) - Only core buttons visible, extended in overflow */
 @media (max-width: 767px) {
   .tutorpress-content-buttons {
-    gap: 4px;
+    gap: var(--space-xs);
   }
 
   .tutorpress-btn-extended {
@@ -166,14 +166,14 @@
 @media (max-width: 600px) {
   .tutorpress-content-actions {
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-sm);
     align-items: stretch;
   }
 
   .tutorpress-content-buttons {
     justify-content: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 6px; /* Slightly tighter for mobile space constraints */
   }
 
   .tutorpress-content-overflow {

@@ -4,16 +4,16 @@
  */
 
 .tutorpress-content-items {
-  margin-bottom: 16px;
-  margin-top: 8px;
+  margin-bottom: var(--space-lg);
+  margin-top: var(--space-sm);
   display: flex;
   flex-direction: column;
-  gap: 8px; /* Use gap instead of margins for spacing */
+  gap: var(--space-sm); /* Use gap instead of margins for spacing */
 }
 
 .tutorpress-content-item {
   position: relative;
-  padding: 8px;
+  padding: var(--space-sm);
   transition: all 0.2s ease;
   background-color: transparent;
   border: 1px solid transparent;
@@ -67,7 +67,7 @@
 
 /* Content action buttons */
 .tutorpress-content-actions {
-  padding-top: 16px;
+  padding-top: var(--space-lg);
 }
 
 .tutorpress-content-actions button.components-button.is-secondary {
