@@ -10,24 +10,24 @@
 
 .quiz-modal-fill-blanks-preview {
   position: relative;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
-  background: #ffffff;
+  background: var(--white);
   cursor: pointer;
   margin-bottom: var(--space-lg);
   transition: all 0.15s ease;
 }
 
 .quiz-modal-fill-blanks-preview:hover {
-  border-color: #8c8f94;
+  border-color: var(--gray-500);
 }
 
 .quiz-modal-fill-blanks-edit-btn {
   position: absolute;
   top: var(--space-md);
   right: var(--space-md);
-  background: #007cba;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: var(--radius-sm);
@@ -39,7 +39,7 @@
 }
 
 .quiz-modal-fill-blanks-edit-btn:hover {
-  background: #005a87;
+  background: var(--color-primary-hover);
 }
 
 .quiz-modal-fill-blanks-student-preview {
@@ -48,7 +48,7 @@
 
 .quiz-modal-fill-blanks-question-text {
   font-size: 16px;
-  color: #374151;
+  color: var(--gray-700);
   line-height: 1.6;
   font-weight: 500;
 }
@@ -59,16 +59,16 @@
 
 .quiz-modal-fill-blanks-answers-text {
   font-size: 14px;
-  color: #16a34a;
+  color: var(--color-success);
   line-height: 1.5;
   font-weight: 500;
 }
 
 .quiz-modal-fill-blanks-editor {
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
-  background: #ffffff;
+  background: var(--white);
   margin-bottom: var(--space-lg);
 }
 
@@ -84,7 +84,7 @@
   width: 100%;
   min-height: 100px;
   resize: vertical;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   font-size: 14px;
@@ -98,7 +98,7 @@
 
 .quiz-modal-fill-blanks-help-text {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--gray-500);
   line-height: 1.4;
   font-style: italic;
 }
@@ -107,5 +107,5 @@
   display: flex;
   justify-content: flex-end;
   padding-top: var(--space-md);
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--gray-300);
 }
