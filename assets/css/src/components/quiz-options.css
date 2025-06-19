@@ -59,7 +59,7 @@
 
 .quiz-modal-option-label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--color-text-primary);
   min-width: var(--space-2xl);
   text-align: center;
@@ -147,7 +147,7 @@
 .quiz-modal-option-card-content {
   padding: var(--space-md) var(--space-lg);
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.4;
   word-wrap: break-word;
   display: flex;
@@ -271,7 +271,7 @@
 .quiz-modal-validation-error p {
   margin: 0;
   color: var(--color-error);
-  font-size: 13px;
+  font-size: var(--text-xs);
   font-weight: 500;
 }
 
@@ -358,7 +358,7 @@
 
 .quiz-modal-notification__content {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--color-text-primary);
 }
