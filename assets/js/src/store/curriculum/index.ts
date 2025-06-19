@@ -47,6 +47,7 @@ import {
   resolveContentType,
   deleteResolvers,
   duplicateResolvers,
+  saveUpdateResolvers,
 } from "./utils";
 
 // Define the store's state interface
@@ -1935,81 +1936,7 @@ const resolvers = {
   duplicateQuiz: duplicateResolvers.quiz,
 
   // Live Lessons Resolvers using API_FETCH control pattern
-  *saveLiveLesson(
-    liveLessonData: LiveLessonFormData,
-    courseId: number,
-    topicId: number
-  ): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "SAVE_LIVE_LESSON_START",
-        payload: { liveLessonData, courseId, topicId },
-      };
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: "/tutorpress/v1/live-lessons",
-          method: "POST",
-          data: {
-            title: liveLessonData.title,
-            description: liveLessonData.description,
-            type: liveLessonData.type,
-            start_date_time: liveLessonData.startDateTime,
-            end_date_time: liveLessonData.endDateTime,
-            settings: {
-              timezone: liveLessonData.settings.timezone,
-              duration: liveLessonData.settings.duration,
-              allow_early_join: liveLessonData.settings.allowEarlyJoin,
-              auto_record: liveLessonData.settings.autoRecord,
-              require_password: liveLessonData.settings.requirePassword,
-              waiting_room: liveLessonData.settings.waitingRoom,
-              add_enrolled_students: liveLessonData.settings.add_enrolled_students,
-            },
-            provider_config: liveLessonData.providerConfig || {},
-            topic_id: topicId,
-            course_id: courseId,
-          },
-        },
-      };
-
-      if (!response || typeof response !== "object" || !("data" in response)) {
-        throw new Error("Invalid live lesson save response");
-      }
-
-      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
-
-      yield {
-        type: "SAVE_LIVE_LESSON_SUCCESS",
-        payload: { liveLesson, courseId },
-      };
-
-      // Update topics directly to add the new live lesson - preserves toggle states
-      yield {
-        type: "SET_TOPICS",
-        payload: createSaveContentPayload(
-          topicId,
-          liveLesson.id,
-          liveLesson.title,
-          resolveContentType(liveLesson.type)
-        ),
-      };
-    } catch (error) {
-      yield {
-        type: "SAVE_LIVE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.SAVE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to save live lesson", "tutorpress"),
-            context: {
-              action: "saveLiveLesson",
-              details: `Failed to save live lesson for topic ${topicId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  // saveLiveLesson: Uses factory-generated resolver (see end of resolvers object)
 
   *getLiveLessonDetails(liveLessonId: number): Generator<unknown, void, unknown> {
     try {
@@ -2053,58 +1980,15 @@ const resolvers = {
     }
   },
 
-  *updateLiveLesson(liveLessonId: number, data: Partial<LiveLessonFormData>): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "UPDATE_LIVE_LESSON_START",
-        payload: { liveLessonId, data },
-      };
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
-          method: "PATCH",
-          data,
-        },
-      };
-
-      if (!response || typeof response !== "object" || !("data" in response)) {
-        throw new Error("Invalid live lesson update response");
-      }
-
-      const liveLesson = (response as LiveLessonApiResponse).data as LiveLesson;
-
-      yield {
-        type: "UPDATE_LIVE_LESSON_SUCCESS",
-        payload: { liveLesson, courseId: liveLesson.courseId },
-      };
-
-      // Update topics directly to reflect the updated live lesson - preserves toggle states
-      yield {
-        type: "SET_TOPICS",
-        payload: createUpdateContentPayload(liveLessonId, { title: liveLesson.title }),
-      };
-    } catch (error) {
-      yield {
-        type: "UPDATE_LIVE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.UPDATE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to update live lesson", "tutorpress"),
-            context: {
-              action: "updateLiveLesson",
-              details: `Failed to update live lesson ${liveLessonId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  // updateLiveLesson: Uses factory-generated resolver (see end of resolvers object)
 
   deleteLiveLesson: deleteResolvers.liveLesson,
 
   duplicateLiveLesson: duplicateResolvers.liveLesson,
+
+  saveLiveLesson: saveUpdateResolvers.saveLiveLesson,
+
+  updateLiveLesson: saveUpdateResolvers.updateLiveLesson,
 };
 
 // Create and register the store

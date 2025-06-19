@@ -13,3 +13,6 @@ export * from "./contentDelete";
 
 // Content Duplicate Utilities
 export * from "./contentDuplicate";
+
+// Content Save/Update Utilities
+export * from "./contentSaveUpdate";
