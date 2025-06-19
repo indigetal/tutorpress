@@ -5,14 +5,14 @@
 
 .tutorpress-error-notification {
   position: fixed;
-  bottom: 32px;
-  right: 32px;
+  bottom: var(--space-2xl); /* 24px */
+  right: var(--space-2xl); /* 24px */
   z-index: 100000;
   max-width: 400px;
   min-width: 320px;
   background: #f8d7da;
   border: 1px solid #f5c2c7;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-sm); /* 3px */
+  box-shadow: 0 calc(var(--space-xs) / 2) var(--space-sm) rgba(0, 0, 0, 0.15); /* 0 2px 8px */
   animation: tutorpress-slide-in 0.2s ease-out;
 }

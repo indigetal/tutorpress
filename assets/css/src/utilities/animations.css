@@ -14,7 +14,7 @@
 
 @keyframes tutorpress-slide-in {
   from {
-    transform: translateY(-10px);
+    transform: translateY(calc(-1 * var(--space-sm))); /* -8px */
     opacity: 0;
   }
   to {
