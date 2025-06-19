@@ -53,6 +53,10 @@ import {
   namedQuizSelectors,
   namedLessonSelectors,
   namedLiveLessonSelectors,
+  reorderTopicContent,
+  contentReorderSelectors,
+  ContentReorderOperationState,
+  ContentOrder,
 } from "./utils";
 import { createCurriculumError } from "../../utils/errors";
 
@@ -100,6 +104,7 @@ export interface CurriculumState {
     sourceLiveLessonId?: number;
     duplicatedLiveLessonId?: number;
   };
+  contentReorderState: ContentReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: { type: string; topicId?: number };
   fetchState: {
@@ -125,6 +130,7 @@ const DEFAULT_STATE: CurriculumState = {
   lessonState: { status: "idle" },
   liveLessonState: { status: "idle" },
   liveLessonDuplicationState: { status: "idle" },
+  contentReorderState: { status: "idle" },
   isAddingTopic: false,
   activeOperation: { type: "none" },
   fetchState: {
@@ -221,7 +227,9 @@ export type CurriculumAction =
     }
   | { type: "DUPLICATE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError; liveLessonId: number } }
   | { type: "SET_LIVE_LESSON_STATE"; payload: CurriculumState["liveLessonState"] }
-  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] };
+  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] }
+  | { type: "SET_CONTENT_REORDER_STATE"; payload: ContentReorderOperationState }
+  | { type: "REORDER_TOPIC_CONTENT"; payload: { topicId: number; contentOrders: ContentOrder[] } };
 
 // Action creators
 export const actions = {
@@ -478,6 +486,18 @@ export const actions = {
       payload: state,
     };
   },
+  setContentReorderState(state: ContentReorderOperationState) {
+    return {
+      type: "SET_CONTENT_REORDER_STATE",
+      payload: state,
+    };
+  },
+  reorderTopicContent(topicId: number, contentOrders: ContentOrder[]) {
+    return {
+      type: "REORDER_TOPIC_CONTENT",
+      payload: { topicId, contentOrders },
+    };
+  },
   *updateTopic(topicId: number, data: Partial<TopicRequest>): Generator<unknown, void, unknown> {
     try {
       yield actions.setEditState({
@@ -641,6 +661,18 @@ const selectors = {
   // Custom live lesson selector not covered by factory
   getLiveLessonDuplicationState(state: CurriculumState) {
     return state.liveLessonDuplicationState;
+  },
+  getContentReorderState(state: CurriculumState) {
+    return state.contentReorderState;
+  },
+  isContentReordering(state: CurriculumState) {
+    return state.contentReorderState.status === "reordering";
+  },
+  hasContentReorderError(state: CurriculumState) {
+    return state.contentReorderState.status === "error" && !!state.contentReorderState.error;
+  },
+  getContentReorderError(state: CurriculumState) {
+    return state.contentReorderState.status === "error" ? state.contentReorderState.error : null;
   },
 };
 
@@ -1241,6 +1273,12 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
       return {
         ...state,
         liveLessonDuplicationState: action.payload,
+      };
+
+    case "SET_CONTENT_REORDER_STATE":
+      return {
+        ...state,
+        contentReorderState: action.payload,
       };
 
     default:
@@ -1904,6 +1942,8 @@ const resolvers = {
   saveLiveLesson: saveUpdateResolvers.saveLiveLesson,
 
   updateLiveLesson: saveUpdateResolvers.updateLiveLesson,
+
+  reorderTopicContent,
 };
 
 // Create and register the store
@@ -1984,4 +2024,9 @@ export const {
   getLiveLessonError,
   // Custom selectors not covered by factory
   getLiveLessonDuplicationState,
+  // Content reorder selectors
+  getContentReorderState,
+  isContentReordering,
+  hasContentReorderError,
+  getContentReorderError,
 } = selectors;

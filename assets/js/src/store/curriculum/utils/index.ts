@@ -22,3 +22,6 @@ export * from "./operationStateManagement";
 
 // Selector Factory Utilities
 export * from "./selectorFactories";
+
+// Content Reorder Utilities
+export * from "./contentReorder";
