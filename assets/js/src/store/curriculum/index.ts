@@ -48,6 +48,8 @@ import {
   deleteResolvers,
   duplicateResolvers,
   saveUpdateResolvers,
+  createOperationWrapper,
+  OPERATION_CONFIGS,
 } from "./utils";
 
 // Define the store's state interface
@@ -1538,14 +1540,14 @@ const resolvers = {
 
   deleteTopic: deleteResolvers.topic,
 
-  *createLesson(data: { title: string; content: string; topic_id: number }): Generator<unknown, void, unknown> {
-    try {
-      // Start lesson creation
-      yield {
-        type: "CREATE_LESSON_START",
-        payload: { topicId: data.topic_id },
-      };
-
+  // Wrapped createLesson with automatic START/SUCCESS/ERROR dispatching
+  createLesson: createOperationWrapper(
+    OPERATION_CONFIGS.createLesson,
+    function* (data: {
+      title: string;
+      content: string;
+      topic_id: number;
+    }): Generator<unknown, { lesson: Lesson }, unknown> {
       // Create the lesson
       const lessonResponse = yield {
         type: "API_FETCH",
@@ -1577,12 +1579,6 @@ const resolvers = {
 
       const parentInfo = parentInfoResponse as { data: { course_id: number } };
 
-      // Update store with new lesson
-      yield {
-        type: "CREATE_LESSON_SUCCESS",
-        payload: { lesson },
-      };
-
       // Fetch updated topics
       const topicsResponse = yield {
         type: "API_FETCH",
@@ -1610,33 +1606,18 @@ const resolvers = {
         type: "SET_TOPICS",
         payload: transformedTopics,
       };
-    } catch (error) {
-      yield {
-        type: "CREATE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.CREATION_FAILED,
-            message: error instanceof Error ? error.message : "Failed to create lesson",
-            context: {
-              action: "createLesson",
-              topicId: data.topic_id,
-            },
-          },
-        },
-      };
+
+      return { lesson };
     }
-  },
+  ),
 
-  *updateLesson(
-    lessonId: number,
-    data: Partial<{ title: string; content: string; topic_id: number }>
-  ): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "UPDATE_LESSON_START",
-        payload: { lessonId },
-      };
-
+  // Wrapped updateLesson with automatic START/SUCCESS/ERROR dispatching
+  updateLesson: createOperationWrapper(
+    OPERATION_CONFIGS.updateLesson,
+    function* (
+      lessonId: number,
+      data: Partial<{ title: string; content: string; topic_id: number }>
+    ): Generator<unknown, { lesson: Lesson }, unknown> {
       // Update the lesson
       const lessonResponse = yield {
         type: "API_FETCH",
@@ -1652,11 +1633,6 @@ const resolvers = {
       }
 
       const lesson = lessonResponse as Lesson;
-
-      yield {
-        type: "UPDATE_LESSON_SUCCESS",
-        payload: { lesson },
-      };
 
       // If topic_id changed, we need to refresh topics
       if (data.topic_id) {
@@ -1702,22 +1678,10 @@ const resolvers = {
           payload: transformedTopics,
         };
       }
-    } catch (error) {
-      yield {
-        type: "UPDATE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.EDIT_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to update lesson", "tutorpress"),
-            context: {
-              action: "updateLesson",
-              details: `Failed to update lesson ${lessonId}`,
-            },
-          },
-        },
-      };
+
+      return { lesson };
     }
-  },
+  ),
 
   deleteLesson: deleteResolvers.lesson,
 
