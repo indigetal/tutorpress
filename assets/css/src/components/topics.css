@@ -28,7 +28,7 @@
 .tutorpress-topic-summary {
   margin-top: var(--space-xs);
   color: var(--gray-500);
-  font-size: 13px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -89,7 +89,7 @@
   left: 0;
   width: var(--space-xs);
   height: var(--space-lg);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background-color: var(--wp-admin-theme-color);
 }
 

@@ -158,7 +158,7 @@
 
   /* Compress core button text on very small screens */
   .tutorpress-btn-core .components-button__text {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 }
 

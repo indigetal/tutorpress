@@ -52,7 +52,7 @@
   left: 0;
   width: var(--space-xs);
   height: var(--space-lg);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background-color: var(--wp-admin-theme-color);
   z-index: 10;
 }
@@ -82,7 +82,7 @@
  */
 .quiz-modal-option-card.tutorpress-dragging {
   /* Inherit base dragging styles with quiz-specific enhancements */
-  border-radius: 8px !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 .quiz-modal-option-wrapper.tutorpress-drop-indicator {
@@ -92,7 +92,7 @@
 .quiz-modal-option-wrapper.tutorpress-drop-indicator::before {
   /* Quiz option specific drop line styling */
   margin: 0 var(--space-sm);
-  border-radius: 1px;
+  border-radius: var(--radius-sm);
 }
 
 /**
@@ -101,7 +101,7 @@
  */
 .quiz-modal-question-item.tutorpress-dragging {
   /* Inherit base dragging styles with question-specific enhancements */
-  border-radius: 6px !important;
+  border-radius: var(--radius-md) !important;
 }
 
 .quiz-modal-question-wrapper.tutorpress-drop-indicator {
@@ -254,9 +254,9 @@
   background: var(--wp-admin-theme-color);
   color: white;
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 .sortable-list-retry-btn:hover {
@@ -273,8 +273,8 @@
   background: rgba(0, 0, 0, 0.8);
   color: white;
   padding: var(--space-xs) var(--space-sm);
-  border-radius: 3px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   z-index: 1001;
 }
 
@@ -308,7 +308,7 @@
   margin: var(--space-sm) 0;
   background: var(--gray-100);
   color: var(--gray-500);
-  font-size: 14px;
+  font-size: var(--text-sm);
   border: 1px solid var(--gray-300);
 }
 

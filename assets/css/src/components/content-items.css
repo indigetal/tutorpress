@@ -17,7 +17,7 @@
   transition: all 0.2s ease;
   background-color: transparent;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   z-index: 1; /* Ensure proper stacking */
 }
 

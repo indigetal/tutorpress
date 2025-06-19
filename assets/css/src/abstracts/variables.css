@@ -56,6 +56,7 @@
   --text-sm: 0.875rem; /* 14px - Small text (WordPress admin standard, body text) */
   --text-lg: 1rem; /* 16px - Large text (headings, emphasis, user content) */
   --text-xl: 1.125rem; /* 18px - Extra large text (major headings) */
+  --text-display: 3rem; /* 48px - Display text (large UI elements, hero text) */
 
   /* Line heights - unitless values for better scaling */
   --leading-tight: 1.25; /* Tight line height for headings */
