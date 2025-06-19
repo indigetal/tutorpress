@@ -50,11 +50,14 @@ import {
   saveUpdateResolvers,
   createOperationWrapper,
   OPERATION_CONFIGS,
+  namedQuizSelectors,
+  namedLessonSelectors,
+  namedLiveLessonSelectors,
 } from "./utils";
 import { createCurriculumError } from "../../utils/errors";
 
 // Define the store's state interface
-interface CurriculumState {
+export interface CurriculumState {
   topics: Topic[];
   operationState: TopicOperationState;
   editState: TopicEditState;
@@ -605,86 +608,37 @@ const selectors = {
   getCourseId(state: CurriculumState) {
     return state.courseId;
   },
-  getLessonState(state: CurriculumState) {
-    return state.lessonState;
-  },
-  getActiveLessonId(state: CurriculumState) {
-    return state.lessonState.activeLessonId;
-  },
-  isLessonLoading(state: CurriculumState) {
-    return state.lessonState.status === "loading";
-  },
-  hasLessonError(state: CurriculumState) {
-    return state.lessonState.status === "error";
-  },
-  getLessonError(state: CurriculumState) {
-    return state.lessonState.error;
-  },
-  getQuizState(state: CurriculumState) {
-    return state.quizState;
-  },
-  getActiveQuizId(state: CurriculumState) {
-    return state.quizState.activeQuizId;
-  },
-  getLastSavedQuizId(state: CurriculumState) {
-    return state.quizState.lastSavedQuizId;
-  },
-  isQuizLoading(state: CurriculumState) {
-    return state.quizState.status === "loading";
-  },
-  isQuizSaving(state: CurriculumState) {
-    return state.quizState.status === "saving";
-  },
-  isQuizDeleting(state: CurriculumState) {
-    return state.quizState.status === "deleting";
-  },
-  isQuizDuplicating(state: CurriculumState) {
-    return state.quizState.status === "duplicating";
-  },
-  hasQuizError(state: CurriculumState) {
-    return state.quizState.status === "error";
-  },
-  getQuizError(state: CurriculumState) {
-    return state.quizState.error;
-  },
 
-  // Live Lessons Selectors
-  getLiveLessonState(state: CurriculumState) {
-    return state.liveLessonState;
-  },
+  // Lesson selectors - Factory-generated
+  getLessonState: namedLessonSelectors.getLessonState,
+  getActiveLessonId: namedLessonSelectors.getActiveLessonId,
+  isLessonLoading: namedLessonSelectors.isLessonLoading,
+  hasLessonError: namedLessonSelectors.hasLessonError,
+  getLessonError: namedLessonSelectors.getLessonError,
 
-  getActiveLiveLessonId(state: CurriculumState) {
-    return state.liveLessonState.activeLiveLessonId;
-  },
+  // Quiz selectors - Factory-generated
+  getQuizState: namedQuizSelectors.getQuizState,
+  getActiveQuizId: namedQuizSelectors.getActiveQuizId,
+  getLastSavedQuizId: namedQuizSelectors.getLastSavedQuizId,
+  isQuizLoading: namedQuizSelectors.isQuizLoading,
+  isQuizSaving: namedQuizSelectors.isQuizSaving,
+  isQuizDeleting: namedQuizSelectors.isQuizDeleting,
+  isQuizDuplicating: namedQuizSelectors.isQuizDuplicating,
+  hasQuizError: namedQuizSelectors.hasQuizError,
+  getQuizError: namedQuizSelectors.getQuizError,
 
-  getLastSavedLiveLessonId(state: CurriculumState) {
-    return state.liveLessonState.lastSavedLiveLessonId;
-  },
+  // Live Lesson selectors - Factory-generated
+  getLiveLessonState: namedLiveLessonSelectors.getLiveLessonState,
+  getActiveLiveLessonId: namedLiveLessonSelectors.getActiveLiveLessonId,
+  getLastSavedLiveLessonId: namedLiveLessonSelectors.getLastSavedLiveLessonId,
+  isLiveLessonLoading: namedLiveLessonSelectors.isLiveLessonLoading,
+  isLiveLessonSaving: namedLiveLessonSelectors.isLiveLessonSaving,
+  isLiveLessonDeleting: namedLiveLessonSelectors.isLiveLessonDeleting,
+  isLiveLessonDuplicating: namedLiveLessonSelectors.isLiveLessonDuplicating,
+  hasLiveLessonError: namedLiveLessonSelectors.hasLiveLessonError,
+  getLiveLessonError: namedLiveLessonSelectors.getLiveLessonError,
 
-  isLiveLessonLoading(state: CurriculumState) {
-    return state.liveLessonState.status === "loading";
-  },
-
-  isLiveLessonSaving(state: CurriculumState) {
-    return state.liveLessonState.status === "saving";
-  },
-
-  isLiveLessonDeleting(state: CurriculumState) {
-    return state.liveLessonState.status === "deleting";
-  },
-
-  isLiveLessonDuplicating(state: CurriculumState) {
-    return state.liveLessonState.status === "duplicating";
-  },
-
-  hasLiveLessonError(state: CurriculumState) {
-    return Boolean(state.liveLessonState.error);
-  },
-
-  getLiveLessonError(state: CurriculumState) {
-    return state.liveLessonState.error;
-  },
-
+  // Custom live lesson selector not covered by factory
   getLiveLessonDuplicationState(state: CurriculumState) {
     return state.liveLessonDuplicationState;
   },
@@ -1988,7 +1942,7 @@ export const {
   setQuizState,
 } = actions;
 
-// Export selectors
+// Export selectors - Updated to use factory-generated names
 export const {
   getTopics,
   getOperationState,
@@ -2002,11 +1956,13 @@ export const {
   getQuizDuplicationState,
   getIsAddingTopic,
   getActiveOperation,
+  // Factory-generated lesson selectors
   getLessonState,
   getActiveLessonId,
   isLessonLoading,
   hasLessonError,
   getLessonError,
+  // Factory-generated quiz selectors
   getQuizState,
   getActiveQuizId,
   getLastSavedQuizId,
@@ -2016,4 +1972,16 @@ export const {
   isQuizDuplicating,
   hasQuizError,
   getQuizError,
+  // Factory-generated live lesson selectors
+  getLiveLessonState,
+  getActiveLiveLessonId,
+  getLastSavedLiveLessonId,
+  isLiveLessonLoading,
+  isLiveLessonSaving,
+  isLiveLessonDeleting,
+  isLiveLessonDuplicating,
+  hasLiveLessonError,
+  getLiveLessonError,
+  // Custom selectors not covered by factory
+  getLiveLessonDuplicationState,
 } = selectors;

@@ -19,3 +19,6 @@ export * from "./contentSaveUpdate";
 
 // Operation State Management Utilities
 export * from "./operationStateManagement";
+
+// Selector Factory Utilities
+export * from "./selectorFactories";
