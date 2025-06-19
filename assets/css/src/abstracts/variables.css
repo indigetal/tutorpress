@@ -1,0 +1,210 @@
+/**
+ * TutorPress Design Tokens
+ * CSS Custom Properties for consistent styling across the plugin
+ * 
+ * @description Foundation variables extracted from existing TutorPress styles.
+ *              Values are based on analysis of current CSS patterns and standardized
+ *              where similar values existed (e.g., 6px and 8px → --space-sm: 8px)
+ * 
+ * @package TutorPress
+ * @subpackage CSS/Abstracts
+ * @since 1.0.0
+ */
+
+:root {
+  /* ========================================================================
+     SPACING SYSTEM
+     Minimum 4px differences for meaningful spacing distinction
+     Using rem for scalability with px fallbacks for precise control
+     ======================================================================== */
+
+  /* Core spacing scale - powers of 2 and logical progressions */
+  --space-xs: 0.25rem; /* 4px - Fine adjustments, tight spacing */
+  --space-sm: 0.5rem; /* 8px - Button gaps, small padding */
+  --space-md: 0.75rem; /* 12px - Medium padding, form spacing */
+  --space-lg: 1rem; /* 16px - Large padding, section spacing */
+  --space-xl: 1.5rem; /* 24px - Extra large padding, major sections */
+  --space-2xl: 2rem; /* 32px - Hero sections, major layout spacing */
+
+  /* Semantic spacing - for specific use cases */
+  --space-metabox: var(--space-lg); /* Standard metabox padding */
+  --space-modal: var(--space-2xl); /* Modal content padding */
+  --space-button-gap: var(--space-sm); /* Gap between buttons */
+  --space-section: var(--space-xl); /* Space between major sections */
+
+  /* ========================================================================
+     BORDER RADIUS SYSTEM
+     Minimum 2px differences between values for meaningful visual distinction
+     ======================================================================== */
+
+  --radius-sm: 3px; /* Small radius - subtle rounding (buttons, inputs) */
+  --radius-md: 6px; /* Medium radius - standard UI elements (cards, panels) */
+  --radius-lg: 8px; /* Large radius - prominent elements (modals, major sections) */
+
+  /* Semantic radius */
+  --radius-button: var(--radius-sm); /* Standard button radius */
+  --radius-card: var(--radius-md); /* Card/panel radius */
+  --radius-modal: var(--radius-lg); /* Modal radius */
+
+  /* ========================================================================
+     TYPOGRAPHY SYSTEM
+     Minimum 2px differences, using appropriate CSS units for typography
+     ======================================================================== */
+
+  /* Font sizes - using rem for scalability with px fallbacks */
+  --text-xs: 0.75rem; /* 12px - Extra small text (compressed UI, fine print) */
+  --text-sm: 0.875rem; /* 14px - Small text (WordPress admin standard, body text) */
+  --text-lg: 1rem; /* 16px - Large text (headings, emphasis, user content) */
+  --text-xl: 1.125rem; /* 18px - Extra large text (major headings) */
+
+  /* Line heights - unitless values for better scaling */
+  --leading-tight: 1.25; /* Tight line height for headings */
+  --leading-normal: 1.5; /* Normal line height for body text */
+  --leading-relaxed: 1.75; /* Relaxed line height for long content */
+
+  /* ========================================================================
+     SHADOWS SYSTEM
+     Extracted from existing box-shadow patterns
+     ======================================================================== */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1); /* Standard shadow */
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15); /* Prominent shadow */
+  --shadow-focus: 0 0 2px 1px var(--wp-admin-theme-color); /* Focus states */
+
+  /* ========================================================================
+     TIMING SYSTEM
+     Animation and transition durations
+     ======================================================================== */
+
+  --duration-fast: 0.15s; /* Fast transitions - hover states */
+  --duration-normal: 0.2s; /* Normal transitions - UI changes */
+  --duration-slow: 0.3s; /* Slow transitions - page changes */
+
+  /* Easing functions */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ========================================================================
+     Z-INDEX SYSTEM
+     Layering system for consistent stacking
+     ======================================================================== */
+
+  --z-base: 1; /* Base content layer */
+  --z-dropdown: 10; /* Dropdown menus */
+  --z-overlay: 100; /* Overlays, tooltips */
+  --z-modal: 1000; /* Modal dialogs */
+  --z-toast: 2000; /* Toast notifications */
+
+  /* ========================================================================
+     LAYOUT SYSTEM
+     Common layout values and constraints
+     ======================================================================== */
+
+  /* Container widths - using ch/rem for content-based scaling where appropriate */
+  --container-sm: 37.5rem; /* 600px - Small containers, narrow content */
+  --container-md: 48rem; /* 768px - Medium containers, tablet width */
+  --container-lg: 64rem; /* 1024px - Large containers, desktop width */
+  --container-xl: 75rem; /* 1200px - Extra large containers, wide desktop */
+
+  /* Common heights - using rem for scalable UI elements */
+  --height-button: 2rem; /* 32px - Standard button height */
+  --height-input: 2.25rem; /* 36px - Form input height */
+  --height-header: 3.75rem; /* 60px - Modal header height */
+
+  /* ========================================================================
+     WORDPRESS INTEGRATION
+     Extending WordPress admin variables with fallbacks
+     ======================================================================== */
+
+  /* Theme colors with fallbacks */
+  --color-primary: var(--wp-admin-theme-color, #0073aa);
+  --color-primary-dark: var(--wp-admin-theme-color-darker-10, #005177);
+  --color-primary-light: var(--wp-admin-theme-color-lighter-10, #0085ba);
+
+  /* Border colors */
+  --color-border: var(--wp-admin-border-color, #c3c4c7);
+  --color-border-light: #e0e0e0;
+  --color-border-medium: #d0d0d0;
+
+  /* Background colors */
+  --color-background: #fff;
+  --color-background-alt: #f9f9f9;
+  --color-background-muted: #f6f7f7;
+
+  /* Text colors */
+  --color-text: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+  --color-text-muted: #666;
+  --color-text-secondary: #999;
+  --color-text-inverse: #fff;
+
+  /* State colors */
+  --color-success: #00a32a;
+  --color-warning: #ffb900;
+  --color-error: #d63638;
+  --color-info: #0073aa;
+}
+
+/* ========================================================================
+   SEMANTIC COMBINATIONS
+   Pre-composed values for common use cases
+   ======================================================================== */
+
+:root {
+  /* Button styling combinations */
+  --button-padding: var(--space-sm) var(--space-md);
+  --button-padding-sm: var(--space-xs) var(--space-sm);
+  --button-padding-lg: var(--space-md) var(--space-lg);
+
+  /* Card styling combinations */
+  --card-padding: var(--space-lg);
+  --card-border: 1px solid var(--color-border-light);
+  --card-radius: var(--radius-card);
+  --card-shadow: var(--shadow-sm);
+
+  /* Modal styling combinations */
+  --modal-padding: var(--space-modal);
+  --modal-header-padding: var(--space-lg) var(--space-modal);
+  --modal-radius: var(--radius-modal);
+  --modal-shadow: var(--shadow-lg);
+
+  /* Form styling combinations */
+  --form-spacing: var(--space-md);
+  --form-padding: var(--space-sm) var(--space-md);
+  --form-border: 1px solid var(--color-border);
+  --form-radius: var(--radius-md);
+
+  /* Focus styling combinations */
+  --focus-outline: 2px solid var(--color-primary);
+  --focus-outline-offset: 2px;
+  --focus-shadow: var(--shadow-focus);
+}
+
+/* ========================================================================
+   UTILITY CUSTOM PROPERTIES
+   For advanced CSS features and calculations
+   ======================================================================== */
+
+:root {
+  /* Responsive breakpoints - using em for better accessibility */
+  --bp-sm: 37.5em; /* 600px - Small devices */
+  --bp-md: 48em; /* 768px - Medium devices (tablets) */
+  --bp-lg: 64em; /* 1024px - Large devices (desktop) */
+  --bp-xl: 75em; /* 1200px - Extra large devices (wide desktop) */
+
+  /* Fluid spacing using clamp() for responsive design */
+  --space-fluid-sm: clamp(var(--space-xs), 2vw, var(--space-sm));
+  --space-fluid-md: clamp(var(--space-sm), 3vw, var(--space-md));
+  --space-fluid-lg: clamp(var(--space-md), 4vw, var(--space-lg));
+
+  /* Aspect ratios for modern layout */
+  --aspect-square: 1/1;
+  --aspect-video: 16/9;
+  --aspect-photo: 4/3;
+
+  /* Grid gaps */
+  --gap-sm: var(--space-sm);
+  --gap-md: var(--space-lg);
+  --gap-lg: var(--space-xl);
+}

@@ -3,6 +3,9 @@
  * Main entry point for all CSS imports
  */
 
+/* Design Tokens */
+@import "./abstracts/variables.css";
+
 /* Core Components */
 @import "./components/curriculum.css";
 @import "./components/topics.css";
