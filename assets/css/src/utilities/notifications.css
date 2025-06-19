@@ -10,8 +10,8 @@
   z-index: 100000;
   max-width: 400px;
   min-width: 320px;
-  background: #f8d7da;
-  border: 1px solid #f5c2c7;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   border-radius: var(--radius-sm); /* 3px */
   box-shadow: 0 calc(var(--space-xs) / 2) var(--space-sm) rgba(0, 0, 0, 0.15); /* 0 2px 8px */
   animation: tutorpress-slide-in 0.2s ease-out;

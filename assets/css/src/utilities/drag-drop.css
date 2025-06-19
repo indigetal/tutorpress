@@ -129,7 +129,7 @@
   border: none !important;
   background: transparent !important;
   cursor: grab !important;
-  color: #666 !important;
+  color: var(--gray-500) !important;
   border-radius: var(--radius-sm) !important;
   display: flex !important;
   align-items: center !important;
@@ -140,13 +140,13 @@
 }
 
 .tutorpress-drag-handle:hover {
-  background: #f0f0f0 !important;
-  color: #333 !important;
+  background: var(--gray-100) !important;
+  color: var(--gray-700) !important;
 }
 
 .tutorpress-drag-handle:active {
   cursor: grabbing !important;
-  background: #e0e0e0 !important;
+  background: var(--gray-300) !important;
 }
 
 .tutorpress-drag-handle svg {
@@ -177,7 +177,7 @@
 
 .tutorpress-drag-handle:disabled:hover {
   background: transparent !important;
-  color: #666 !important;
+  color: var(--gray-500) !important;
 }
 
 /**
@@ -238,14 +238,14 @@
 }
 
 .sortable-list-loading {
-  background: #f9f9f9;
-  color: #666;
+  background: var(--gray-100);
+  color: var(--gray-500);
 }
 
 .sortable-list-error {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: var(--error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--error-border);
 }
 
 .sortable-list-retry-btn {
@@ -306,10 +306,10 @@
   text-align: center;
   border-radius: var(--radius-md);
   margin: var(--space-sm) 0;
-  background: #f8f9fa;
-  color: #6c757d;
+  background: var(--gray-100);
+  color: var(--gray-500);
   font-size: 14px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--gray-300);
 }
 
 /**
