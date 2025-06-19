@@ -1826,21 +1826,6 @@ const resolvers = {
         payload: { assignmentId },
       };
 
-      // Get parent info before deleting to ensure we can refresh topics after
-      const parentInfoResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/assignments/${assignmentId}/parent-info`,
-          method: "GET",
-        },
-      };
-
-      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
-        throw new Error("Invalid parent info response");
-      }
-
-      const parentInfo = parentInfoResponse as { data: { course_id: number } };
-
       // Delete the assignment
       yield {
         type: "API_FETCH",
@@ -1855,31 +1840,18 @@ const resolvers = {
         payload: { assignmentId },
       };
 
-      // Fetch updated topics
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: Topic[] };
-
-      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
+      // Update topics directly to remove the deleted assignment (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: transformedTopics,
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => ({
+            ...topic,
+            contents:
+              topic.contents?.filter(
+                (content) => !(content.id === assignmentId && content.type === "tutor_assignments")
+              ) || [],
+          }));
+        },
       };
     } catch (error) {
       yield {
