@@ -41,7 +41,7 @@
 
 .quiz-modal-title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -127,14 +127,14 @@
 /* Left Column Styles */
 .quiz-modal-quiz-info h3 {
   margin: 0 0 var(--space-sm) 0;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
 }
 
 .quiz-modal-topic-context {
   color: var(--gray-500);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin: 0 0 var(--space-lg) 0;
 }
 
@@ -147,7 +147,7 @@
 
 .quiz-modal-questions-header h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
 }
@@ -157,7 +157,7 @@
   height: 32px !important;
   padding: 0 !important;
   border-radius: var(--radius-sm) !important;
-  font-size: 16px !important;
+  font-size: var(--text-lg) !important;
   font-weight: bold !important;
   display: flex !important;
   align-items: center !important;
@@ -175,7 +175,7 @@
 .quiz-modal-no-questions p {
   color: var(--gray-500);
   font-style: italic;
-  font-size: 14px;
+  font-size: var(--text-sm);
   margin: 0;
 }
 
@@ -225,7 +225,7 @@
 }
 
 .quiz-modal-settings-content h3 {
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 600;
   margin: 0 0 var(--space-lg) 0;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -242,7 +242,7 @@
 
 .quiz-modal-basic-settings h4,
 .quiz-modal-advanced-settings h4 {
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 600;
   margin: 0 0 var(--space-lg) 0;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
@@ -296,7 +296,7 @@
 }
 
 .quiz-modal-setting-help {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--gray-500);
   margin-top: var(--space-xs);
   line-height: 1.4;
@@ -382,7 +382,7 @@
 
 .quiz-modal-question-type-section .components-base-control__label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
   margin-bottom: var(--space-xs);
 }
@@ -392,7 +392,7 @@
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
-  font-size: 14px;
+  font-size: var(--text-sm);
   min-height: 40px;
 }
 
@@ -411,7 +411,7 @@
   background: var(--gray-100);
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: var(--text-xs);
   color: var(--gray-500);
 }
 
@@ -450,7 +450,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--gray-700);
   flex-shrink: 0;
 }
@@ -467,11 +467,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .quiz-modal-question-type-badge {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--gray-500);
   text-transform: capitalize;
   margin: 0;
@@ -495,7 +495,7 @@
   background: transparent !important;
   border: 1px solid transparent !important;
   color: var(--gray-500) !important;
-  font-size: 16px !important;
+  font-size: var(--text-lg) !important;
   line-height: 1 !important;
 }
 
@@ -517,7 +517,7 @@
 /* Question Form Content */
 .quiz-modal-question-form-content h4 {
   margin: 0 0 var(--space-lg) 0;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
   padding-bottom: var(--space-sm);
@@ -555,7 +555,7 @@
   color: var(--gray-500);
   margin-bottom: var(--space-xs);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--text-sm);
   padding: var(--space-sm) 0;
 }
 
@@ -596,7 +596,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--gray-700);
-  font-size: 16px;
+  font-size: var(--text-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -620,7 +620,7 @@
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   resize: vertical;
 }
@@ -650,7 +650,7 @@
 .quiz-modal-editor-actions .components-button {
   min-height: 32px;
   padding: 0 var(--space-md);
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 .quiz-modal-editor-actions .components-button.is-secondary {
@@ -696,7 +696,7 @@
 
 .quiz-modal-question-type-value {
   color: var(--gray-500);
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .quiz-modal-question-settings-content .components-toggle-control,
@@ -718,7 +718,7 @@
 
 .quiz-modal .components-base-control__help {
   color: var(--gray-500);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-top: var(--space-xs);
 }
 
@@ -893,7 +893,7 @@
 
 .quiz-modal-h5p-content-title {
   margin: 0 0 var(--space-sm) 0;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -901,7 +901,7 @@
 .quiz-modal-h5p-preview-description {
   margin: 0 0 var(--space-xl) 0;
   color: var(--gray-500);
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-style: italic;
 }
 
@@ -918,13 +918,13 @@
 
 .quiz-modal-h5p-content .h5p-preview-title {
   margin: 0 0 calc(var(--space-xs) * 1.25) 0;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .quiz-modal-h5p-content .h5p-preview-type {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--gray-500);
   background: var(--gray-100);
   padding: calc(var(--space-xs) / 2) var(--space-sm);
@@ -961,7 +961,7 @@
 
 .quiz-modal-h5p-content .h5p-preview-error-details {
   color: var(--color-warning);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin: 0;
 }
 
@@ -1064,7 +1064,7 @@
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-sm);
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 500;
   border: 1px solid;
   cursor: pointer;
@@ -1094,7 +1094,7 @@
 }
 
 .tutor-empty-state-icon {
-  font-size: 48px;
+  font-size: var(--text-display);
   color: var(--gray-300);
   margin-bottom: var(--space-xl);
 }
@@ -1102,7 +1102,7 @@
 .tutor-empty-state h3 {
   margin: 0 0 var(--space-sm);
   color: var(--color-text-primary);
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 600;
 }
 
