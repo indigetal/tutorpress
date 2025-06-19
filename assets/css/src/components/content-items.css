@@ -82,3 +82,8 @@
 .tutorpress-content-item:not(:last-child) {
   border-bottom: none;
 }
+
+/* Icon size adjustments for visual consistency */
+.tutorpress-content-item-icon .item-icon.dashicon-media-interactive {
+  transform: scale(1.15);
+}

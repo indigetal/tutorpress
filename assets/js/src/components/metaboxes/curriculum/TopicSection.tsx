@@ -90,12 +90,12 @@ interface ContentItemRowProps {
  */
 const contentTypeIcons = {
   lesson: "text-page",
-  tutor_quiz: "star-filled",
-  interactive_quiz: "chart-bar",
+  tutor_quiz: "list-view",
+  interactive_quiz: "media-interactive",
   assignment: "clipboard",
   tutor_assignments: "clipboard",
-  meet_lesson: "video-alt2",
-  zoom_lesson: "video-alt3",
+  meet_lesson: "google",
+  zoom_lesson: "video-alt2",
 } as const;
 
 /**
