@@ -1898,47 +1898,32 @@ const resolvers = {
         payload: { lesson, sourceLessonId: lessonId },
       };
 
-      // Get parent info to refresh topics
-      const parentInfoResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/lessons/${lesson.id}/parent-info`,
-          method: "GET",
-        },
-      };
-
-      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
-        throw new Error("Invalid parent info response");
-      }
-
-      const parentInfo = parentInfoResponse as { data: { course_id: number } };
-
-      // Fetch updated topics
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: Topic[] };
-
-      // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
-      // Update topics in store
+      // Update topics directly to add the duplicated lesson (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: transformedTopics,
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            if (topic.id === topicId) {
+              // Add the duplicated lesson to the correct topic
+              return {
+                ...topic,
+                contents: [
+                  ...(topic.contents || []),
+                  {
+                    id: lesson.id,
+                    title: lesson.title,
+                    type: "lesson",
+                    topic_id: topicId,
+                    order: (topic.contents?.length || 0) + 1,
+                    menu_order: (topic.contents?.length || 0) + 1,
+                    status: "publish",
+                  },
+                ],
+              };
+            }
+            return topic;
+          });
+        },
       };
     } catch (error) {
       yield {
