@@ -22,8 +22,8 @@
 }
 
 .tutorpress-content-item:hover {
-  background-color: #fff;
-  border-color: #e0e0e0;
+  background-color: var(--white);
+  border-color: var(--gray-300);
   z-index: 2; /* Raise above siblings when hovered */
 }
 
@@ -75,7 +75,7 @@
 }
 
 .tutorpress-content-actions button.components-button.is-secondary:hover {
-  background-color: #fff;
+  background-color: var(--white);
 }
 
 /* Remove bottom borders from content items */

@@ -24,7 +24,7 @@
   padding: var(--space-lg);
 
   /* Colors */
-  background: #fff;
+  background: var(--white);
 }
 
 #tutorpress-curriculum-root {
