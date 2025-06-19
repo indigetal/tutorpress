@@ -32,14 +32,14 @@
 
 .tutorpress-modal-content {
   padding: var(--space-2xl);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--gray-300);
   flex: 1;
   min-height: 0; /* Allow flex shrinking */
 }
 
 .tutorpress-modal-content p {
   margin: 0 0 var(--space-md) 0;
-  color: #666;
+  color: var(--gray-500);
 }
 
 .tutorpress-modal-content p:last-child {
@@ -48,8 +48,8 @@
 
 .tutorpress-modal-footer {
   padding: var(--space-lg) var(--space-2xl);
-  background: #f9f9f9;
-  border-top: 1px solid #e0e0e0;
+  background: var(--gray-100);
+  border-top: 1px solid var(--gray-300);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-sm);
@@ -70,20 +70,20 @@
 .tutorpress-modal-content .components-text-control__input,
 .tutorpress-modal-content .components-textarea-control__input,
 .tutorpress-modal-content .components-select-control__input {
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
   font-size: 14px;
   line-height: 1.4;
   width: 100%;
-  background: white;
+  background: var(--white);
 }
 
 .tutorpress-modal-content .components-text-control__input:focus,
 .tutorpress-modal-content .components-textarea-control__input:focus,
 .tutorpress-modal-content .components-select-control__input:focus {
-  border-color: #007cba;
-  box-shadow: 0 0 0 1px #007cba;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
   outline: none;
 }
 
@@ -116,7 +116,7 @@
   margin: 0 0 0.5rem 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 /* Google Meet: Side-by-side date/time fields with equal spacing */
@@ -154,7 +154,7 @@
   margin: 0 0 0.5rem 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 /* Zoom: Side-by-side duration fields with equal spacing */
@@ -170,9 +170,9 @@
 
 /* Date and Time picker styling */
 .tutorpress-modal-content .components-datetime {
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  background: white;
+  background: var(--white);
 }
 
 /* Date picker popover positioning */
@@ -195,7 +195,7 @@
 }
 
 .tutorpress-modal-content .components-number-control input {
-  border: 1px solid #ddd;
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
   font-size: 14px;
@@ -204,8 +204,8 @@
 }
 
 .tutorpress-modal-content .components-number-control input:focus {
-  border-color: #007cba;
-  box-shadow: 0 0 0 1px #007cba;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
   outline: none;
 }
 
@@ -214,13 +214,13 @@
   font-weight: 600;
   margin-bottom: 8px;
   display: block;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
   font-size: 14px;
 }
 
 /* Required field indicator */
 .tutorpress-modal-content .components-text-control__input[required] {
-  border-left: 3px solid #007cba;
+  border-left: 3px solid var(--color-primary);
 }
 
 /* Responsive form layout */
@@ -257,7 +257,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #666;
+  color: var(--gray-500);
   padding: var(--space-sm) var(--space-md) var(--space-xs);
   margin: 0;
 }
@@ -265,7 +265,7 @@
 .tutorpress-content-overflow-content .components-menu-item__button {
   padding: var(--space-sm) var(--space-md);
   font-size: 13px;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -277,12 +277,12 @@
 }
 
 .tutorpress-content-overflow-content .components-menu-item__button:hover {
-  background-color: #f0f0f0;
+  background-color: var(--gray-100);
 }
 
 .tutorpress-content-overflow-content .components-menu-item__button:focus {
-  background-color: #e0e0e0;
-  outline: 2px solid #007cba;
+  background-color: var(--gray-300);
+  outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
 
@@ -292,13 +292,13 @@
 
 /* Ensure proper focus management */
 .tutorpress-content-overflow-toggle:focus {
-  outline: 2px solid #007cba;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 /* Screen reader improvements */
 .tutorpress-content-overflow[aria-expanded="true"] .tutorpress-content-overflow-toggle {
-  background-color: #f0f0f0;
+  background-color: var(--gray-100);
 }
 
 /* High contrast mode support */
@@ -357,22 +357,22 @@
 
 /* Style readonly date inputs to look clickable */
 .tutorpress-modal-content .components-text-control__input[readonly] {
-  background-color: #f9f9f9;
-  border: 1px solid #ddd;
+  background-color: var(--gray-100);
+  border: 1px solid var(--gray-300);
   cursor: pointer;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
   transition: all 0.15s ease-in-out;
 }
 
 .tutorpress-modal-content .components-text-control__input[readonly]:hover {
-  border-color: #007cba;
-  background-color: #f0f8ff;
+  border-color: var(--color-primary);
+  background-color: var(--info-bg);
 }
 
 .tutorpress-modal-content .components-text-control__input[readonly]:focus {
-  border-color: #007cba;
-  box-shadow: 0 0 0 1px #007cba;
-  background-color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  background-color: var(--white);
   outline: none;
 }
 
@@ -433,8 +433,8 @@
 
 /* Form Notices and Errors */
 .tutorpress-form-notice {
-  background: #f0f6fc;
-  border: 1px solid #c3dcf7;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
   padding: var(--space-md);
   border-radius: var(--radius-sm);
   margin-top: 1rem;
@@ -444,12 +444,12 @@
 .tutorpress-form-notice p {
   margin: 0;
   font-size: 13px;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 .tutorpress-form-error {
-  background: #fcf0f1;
-  border: 1px solid #f1aeb5;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   padding: var(--space-md);
   border-radius: var(--radius-sm);
   margin-top: 1rem;
@@ -472,7 +472,7 @@
   font-weight: 500;
   line-height: 1.4;
   text-transform: uppercase;
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 .tutorpress-password-input-wrapper {
@@ -484,7 +484,7 @@
 .tutorpress-password-input-wrapper .components-text-control__input {
   flex: 1;
   padding-right: 40px; /* Make room for the eye toggle button */
-  border: 1px solid #949494;
+  border: 1px solid var(--gray-500);
   border-radius: 2px;
   font-size: 13px;
   line-height: 16px;
@@ -492,20 +492,20 @@
   min-height: 40px;
   box-shadow: 0 0 0 transparent;
   transition: box-shadow 0.1s linear;
-  background-color: #fff;
-  color: #1e1e1e;
+  background-color: var(--white);
+  color: var(--color-text-primary);
 }
 
 .tutorpress-password-input-wrapper .components-text-control__input:focus {
-  border-color: #007cba;
-  box-shadow: 0 0 0 1px #007cba;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
   outline: 2px solid transparent;
 }
 
 .tutorpress-password-input-wrapper .components-text-control__input:disabled {
-  background-color: #ddd;
-  border-color: #ddd;
-  color: #a0a5aa;
+  background-color: var(--gray-300);
+  border-color: var(--gray-300);
+  color: var(--gray-500);
 }
 
 .tutorpress-password-toggle {
@@ -517,16 +517,16 @@
   padding: 4px !important;
   min-width: 24px !important;
   height: 24px !important;
-  color: #757575;
+  color: var(--gray-500);
   cursor: pointer;
 }
 
 .tutorpress-password-toggle:hover {
-  color: #1e1e1e;
+  color: var(--color-text-primary);
 }
 
 .tutorpress-password-toggle:disabled {
-  color: #a0a5aa;
+  color: var(--gray-500);
   cursor: not-allowed;
 }
 
@@ -541,5 +541,5 @@
   margin-bottom: 0;
   font-size: 12px;
   font-style: normal;
-  color: #757575;
+  color: var(--gray-500);
 }
