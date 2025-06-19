@@ -45,6 +45,7 @@ import {
   createSaveContentPayload,
   createUpdateContentPayload,
   resolveContentType,
+  deleteResolvers,
 } from "./utils";
 
 // Define the store's state interface
@@ -1533,69 +1534,7 @@ const resolvers = {
     }
   },
 
-  *deleteTopic(topicId: number, courseId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DELETE_TOPIC_START",
-        payload: { topicId },
-      };
-
-      // Delete the topic
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics/${topicId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: "DELETE_TOPIC_SUCCESS",
-        payload: { topicId },
-      };
-
-      // Fetch updated topics
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: Topic[] };
-
-      // Transform topics to set all to collapsed after deletion (user preference)
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
-      yield {
-        type: "SET_TOPICS",
-        payload: transformedTopics,
-      };
-    } catch (error) {
-      yield {
-        type: "DELETE_TOPIC_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to delete topic", "tutorpress"),
-            context: {
-              action: "deleteTopic",
-              details: `Failed to delete topic ${topicId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  deleteTopic: deleteResolvers.topic,
 
   *createLesson(data: { title: string; content: string; topic_id: number }): Generator<unknown, void, unknown> {
     try {
@@ -1778,91 +1717,9 @@ const resolvers = {
     }
   },
 
-  *deleteLesson(lessonId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DELETE_LESSON_START",
-        payload: { lessonId },
-      };
+  deleteLesson: deleteResolvers.lesson,
 
-      // Delete the lesson
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/lessons/${lessonId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: "DELETE_LESSON_SUCCESS",
-        payload: { lessonId },
-      };
-
-      // Update topics directly to remove the deleted lesson (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createRemoveContentPayload(lessonId, "lesson"),
-      };
-    } catch (error) {
-      yield {
-        type: "DELETE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to delete lesson", "tutorpress"),
-            context: {
-              action: "deleteLesson",
-              details: `Failed to delete lesson ${lessonId}`,
-            },
-          },
-        },
-      };
-    }
-  },
-
-  *deleteAssignment(assignmentId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DELETE_ASSIGNMENT_START",
-        payload: { assignmentId },
-      };
-
-      // Delete the assignment
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/assignments/${assignmentId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: "DELETE_ASSIGNMENT_SUCCESS",
-        payload: { assignmentId },
-      };
-
-      // Update topics directly to remove the deleted assignment (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createRemoveContentPayload(assignmentId, "tutor_assignments"),
-      };
-    } catch (error) {
-      yield {
-        type: "DELETE_ASSIGNMENT_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to delete assignment", "tutorpress"),
-            context: {
-              action: "deleteAssignment",
-              details: `Failed to delete assignment ${assignmentId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  deleteAssignment: deleteResolvers.assignment,
 
   *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, void, unknown> {
     try {
@@ -2121,63 +1978,7 @@ const resolvers = {
     }
   },
 
-  *deleteQuiz(quizId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DELETE_QUIZ_START",
-        payload: { quizId },
-      };
-
-      // Get parent info first to refresh topics later
-      const parentInfoResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/quizzes/${quizId}/parent-info`,
-          method: "GET",
-        },
-      };
-
-      if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
-        throw new Error("Invalid parent info response");
-      }
-
-      const parentInfo = parentInfoResponse as { data: { course_id: number } };
-
-      // Delete the quiz
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/quizzes/${quizId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: "DELETE_QUIZ_SUCCESS",
-        payload: { quizId, courseId: parentInfo.data.course_id },
-      };
-
-      // Update topics directly to remove the deleted quiz (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createRemoveMultiTypeContentPayload(quizId, ["tutor_quiz", "interactive_quiz"]),
-      };
-    } catch (error) {
-      yield {
-        type: "DELETE_QUIZ_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to delete quiz", "tutorpress"),
-            context: {
-              action: "deleteQuiz",
-              details: `Failed to delete quiz ${quizId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  deleteQuiz: deleteResolvers.quiz,
 
   *duplicateQuiz(quizId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
     try {
@@ -2397,63 +2198,7 @@ const resolvers = {
     }
   },
 
-  *deleteLiveLesson(liveLessonId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: "DELETE_LIVE_LESSON_START",
-        payload: { liveLessonId },
-      };
-
-      // First get the live lesson details to get the course ID for refresh
-      const liveLessonResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
-          method: "GET",
-        },
-      };
-
-      if (!liveLessonResponse || typeof liveLessonResponse !== "object" || !("data" in liveLessonResponse)) {
-        throw new Error("Invalid live lesson details response");
-      }
-
-      const liveLesson = (liveLessonResponse as LiveLessonApiResponse).data as LiveLesson;
-
-      // Delete the live lesson
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/live-lessons/${liveLessonId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: "DELETE_LIVE_LESSON_SUCCESS",
-        payload: { liveLessonId, courseId: liveLesson.courseId },
-      };
-
-      // Update topics directly to remove the deleted live lesson (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: createRemoveMultiTypeContentPayload(liveLessonId, ["meet_lesson", "zoom_lesson"]),
-      };
-    } catch (error) {
-      yield {
-        type: "DELETE_LIVE_LESSON_ERROR",
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to delete live lesson", "tutorpress"),
-            context: {
-              action: "deleteLiveLesson",
-              details: `Failed to delete live lesson ${liveLessonId}`,
-            },
-          },
-        },
-      };
-    }
-  },
+  deleteLiveLesson: deleteResolvers.liveLesson,
 
   *duplicateLiveLesson(liveLessonId: number, topicId: number, courseId: number): Generator<unknown, void, unknown> {
     try {

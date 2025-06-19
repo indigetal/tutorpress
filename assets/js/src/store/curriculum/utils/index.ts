@@ -7,3 +7,6 @@
 
 // Topics Update Utilities
 export * from "./topicsUpdate";
+
+// Content Delete Utilities
+export * from "./contentDelete";
