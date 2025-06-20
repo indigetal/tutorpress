@@ -57,6 +57,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_H5P_VERSION',
             'class' => 'TutorPro\H5P\H5P',
         ],
+        'certificate' => [
+            'file' => 'tutor-pro/addons/tutor-certificate/tutor-certificate.php',
+            'basename' => 'tutor-pro/addons/tutor-certificate/tutor-certificate.php',
+            'constant' => 'TUTOR_CERT_VERSION',
+            'class' => 'TUTOR_CERT\Init',
+        ],
     ];
 
     /**
@@ -120,6 +126,15 @@ class TutorPress_Addon_Checker {
      */
     public static function is_h5p_enabled() {
         return self::is_addon_enabled('h5p');
+    }
+
+    /**
+     * Check if Certificate addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_certificate_enabled() {
+        return self::is_addon_enabled('certificate');
     }
 
     /**
