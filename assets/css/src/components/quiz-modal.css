@@ -179,19 +179,11 @@
 
 /* Center and Right Column Empty States */
 .quiz-modal-empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 150px;
-  background: var(--gray-100);
-  border: 2px dashed var(--gray-300);
-  border-radius: var(--radius-sm);
+  /* Using tpress-empty-state-container utility class */
 }
 
 .quiz-modal-empty-state p {
-  color: var(--gray-500);
-  font-style: italic;
-  margin: 0;
+  /* Using tpress-empty-state-container p utility class */
 }
 
 /* Settings Tab - Single Column Layout */
@@ -1082,32 +1074,23 @@
 
 /* Empty State */
 .tutorpress-h5p-empty-state {
-  padding: calc(var(--space-3xl) * 2) var(--space-xl);
+  /* Using tpress-empty-state-page utility class */
 }
 
 .tutor-empty-state {
-  text-align: center;
-  max-width: 400px;
-  margin: 0 auto;
+  /* Using tpress-empty-state-page utility class */
 }
 
 .tutor-empty-state-icon {
-  font-size: var(--text-display);
-  color: var(--gray-300);
-  margin-bottom: var(--space-xl);
+  /* Using tpress-empty-state-icon utility class */
 }
 
 .tutor-empty-state h3 {
-  margin: 0 0 var(--space-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-xl);
-  font-weight: 600;
+  /* Using tpress-empty-state-page h3 utility class */
 }
 
 .tutor-empty-state p {
-  margin: 0;
-  color: var(--gray-500);
-  line-height: 1.5;
+  /* Using tpress-empty-state-page p utility class */
 }
 
 /* Responsive design for H5P Selection Modal */

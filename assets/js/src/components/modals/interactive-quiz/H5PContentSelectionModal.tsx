@@ -215,9 +215,9 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
 
           {/* Empty State */}
           {!hasError && !isLoading && contents.length === 0 && (
-            <div className="tutorpress-h5p-empty-state">
+            <div className="tutorpress-h5p-empty-state tpress-empty-state-page">
               <div className="tutor-empty-state">
-                <div className="tutor-empty-state-icon">
+                <div className="tutor-empty-state-icon tpress-empty-state-icon">
                   <i className="tutor-icon-h5p"></i>
                 </div>
                 <h3>{__("No H5P Content Found", "tutorpress")}</h3>

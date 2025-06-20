@@ -243,6 +243,71 @@
 }
 
 /* ========================================================================
+   EMPTY STATE UTILITIES
+   ======================================================================== */
+
+/* 
+ * Container Empty State - Dashed border container for fillable content areas
+ * USE WHEN: Content areas that can be filled (quiz center/right columns, drag zones)
+ * STRUCTURE: Simple container with centered text
+ * EXAMPLE: <div class="tpress-empty-state-container"><p>Drop questions here</p></div>
+ * CURRENT USE: quiz-modal-empty-state
+ */
+.tpress-empty-state-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  background: var(--gray-100);
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+}
+
+.tpress-empty-state-container p {
+  color: var(--gray-500);
+  font-style: italic;
+  margin: 0;
+}
+
+/* 
+ * Page Empty State - Icon + title + description for complete empty experiences
+ * USE WHEN: Complete empty sections or modals (no content available)
+ * STRUCTURE: Centered content with icon, heading, and description
+ * EXAMPLE: 
+ * <div class="tpress-empty-state-page">
+ *   <div class="tpress-empty-state-icon">📄</div>
+ *   <h3>No Content</h3>
+ *   <p>Description here</p>
+ * </div>
+ * CURRENT USE: tutor-empty-state, tutorpress-h5p-empty-state
+ */
+.tpress-empty-state-page {
+  text-align: center;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: calc(var(--space-3xl) * 2) var(--space-xl);
+}
+
+.tpress-empty-state-icon {
+  font-size: var(--text-display);
+  color: var(--gray-300);
+  margin-bottom: var(--space-xl);
+}
+
+.tpress-empty-state-page h3 {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.tpress-empty-state-page p {
+  margin: 0;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* ========================================================================
    POSITIONING UTILITIES
    ======================================================================== */
 

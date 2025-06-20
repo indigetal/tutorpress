@@ -346,7 +346,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     // If no question is selected, show instructions
     if (selectedQuestionIndex === null || questions.length === 0) {
       return (
-        <div className="quiz-modal-empty-state">
+        <div className="quiz-modal-empty-state tpress-empty-state-container">
           <div className="quiz-modal-empty-content">
             <h4>{__("No Interactive Content Selected", "tutorpress")}</h4>
             <p>{__("Click 'Add Question' to select H5P content for this Interactive Quiz.", "tutorpress")}</p>
@@ -378,7 +378,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     // If no question is selected, show instructions
     if (selectedQuestionIndex === null || questions.length === 0) {
       return (
-        <div className="quiz-modal-empty-state">
+        <div className="quiz-modal-empty-state tpress-empty-state-container">
           <p>{__("Select H5P content to view settings.", "tutorpress")}</p>
         </div>
       );

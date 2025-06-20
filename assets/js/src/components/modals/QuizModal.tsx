@@ -684,7 +684,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       );
     } else {
       return (
-        <div className="quiz-modal-empty-state">
+        <div className="quiz-modal-empty-state tpress-empty-state-container">
           <p>{__("Create or select a question to view details", "tutorpress")}</p>
         </div>
       );
@@ -744,7 +744,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       );
     } else {
       return (
-        <div className="quiz-modal-empty-state">
+        <div className="quiz-modal-empty-state tpress-empty-state-container">
           <p>{__("Select a question to view settings", "tutorpress")}</p>
         </div>
       );
