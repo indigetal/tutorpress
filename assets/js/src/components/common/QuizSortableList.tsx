@@ -305,7 +305,7 @@ export function QuizSortableList<T extends SortableItem>({
   if (isLoading) {
     return (
       <div className={`quiz-sortable-list-container ${className}`}>
-        <div className="quiz-sortable-list-loading">{loadingMessage}</div>
+        <div className="quiz-sortable-list-loading tpress-loading-state-inline">{loadingMessage}</div>
       </div>
     );
   }

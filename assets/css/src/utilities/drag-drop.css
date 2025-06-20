@@ -238,8 +238,7 @@
 }
 
 .sortable-list-loading {
-  background: var(--gray-100);
-  color: var(--gray-500);
+  /* Using tpress-loading-state-inline utility class */
 }
 
 .sortable-list-error {
@@ -301,15 +300,7 @@
  * Quiz loading and error states - reuse base patterns
  */
 .quiz-sortable-list-loading {
-  /* Based on .sortable-list-loading with quiz-specific styling */
-  padding: var(--space-lg);
-  text-align: center;
-  border-radius: var(--radius-md);
-  margin: var(--space-sm) 0;
-  background: var(--gray-100);
-  color: var(--gray-500);
-  font-size: var(--text-sm);
-  border: 1px solid var(--gray-300);
+  /* Using tpress-loading-state-inline utility class */
 }
 
 /**

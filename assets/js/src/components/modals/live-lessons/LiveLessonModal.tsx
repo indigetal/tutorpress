@@ -493,7 +493,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       <div className="tutorpress-modal-content">
         {/* Loading State */}
         {isLoading && (
-          <div className="tutorpress-modal-loading">
+          <div className="tutorpress-modal-loading tpress-loading-state-centered">
             <Spinner />
             <p>{__("Loading lesson data...", "tutorpress")}</p>
           </div>

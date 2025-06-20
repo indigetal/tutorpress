@@ -393,16 +393,7 @@
 }
 
 .quiz-modal-loading-question-types {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--gray-100);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  color: var(--gray-500);
+  /* Using tpress-loading-state-inline utility class */
 }
 
 .quiz-modal-question-type-actions {
@@ -927,12 +918,7 @@
 }
 
 .quiz-modal-h5p-content .h5p-preview-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  color: var(--gray-500);
+  /* Using tpress-loading-state-centered utility class */
 }
 
 .quiz-modal-h5p-content .h5p-preview-error-content {
@@ -1010,21 +996,15 @@
 
 /* Loading State */
 .tutorpress-h5p-loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: calc(var(--space-3xl) * 2) var(--space-xl);
-  text-align: center;
+  /* Using tpress-loading-state-centered utility class */
 }
 
 .tutorpress-h5p-loading-state .components-spinner {
-  margin-bottom: var(--space-lg);
+  /* Using tpress-loading-state-centered .components-spinner utility class */
 }
 
 .tutorpress-h5p-loading-state p {
-  color: var(--gray-500);
-  margin: 0;
+  /* Using tpress-loading-state-centered p utility class */
 }
 
 /* Error State */

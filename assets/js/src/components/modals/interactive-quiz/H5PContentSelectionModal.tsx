@@ -183,7 +183,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
 
           {/* Loading State */}
           {isLoading && (
-            <div className="tutorpress-h5p-loading-state">
+            <div className="tutorpress-h5p-loading-state tpress-loading-state-centered">
               <Spinner />
               <p>{__("Loading H5P content...", "tutorpress")}</p>
             </div>

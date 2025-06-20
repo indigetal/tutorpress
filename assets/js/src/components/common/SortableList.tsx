@@ -312,7 +312,7 @@ export function SortableList<T extends SortableItem>({
 
   if (isLoading) {
     return (
-      <div className={`sortable-list-loading ${className}`}>
+      <div className={`sortable-list-loading tpress-loading-state-inline ${className}`}>
         <p>{loadingMessage}</p>
       </div>
     );

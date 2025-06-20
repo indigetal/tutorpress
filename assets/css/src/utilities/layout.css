@@ -243,6 +243,59 @@
 }
 
 /* ========================================================================
+   LOADING STATE UTILITIES
+   ======================================================================== */
+
+/* 
+ * Inline Loading State - Horizontal loading with text for content flows
+ * USE WHEN: Loading within content areas, form fields, or inline contexts
+ * STRUCTURE: Horizontal flex layout with spinner and text
+ * EXAMPLE: <div class="tpress-loading-state-inline"><Spinner/><p>Loading...</p></div>
+ * CURRENT USE: quiz-modal-loading-question-types, sortable-list-loading
+ */
+.tpress-loading-state-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  margin: var(--space-sm) 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+/* 
+ * Centered Loading State - Vertical centered loading for sections/modals
+ * USE WHEN: Loading entire sections, modals, or page areas
+ * STRUCTURE: Centered vertical layout with spinner above text
+ * EXAMPLE: 
+ * <div class="tpress-loading-state-centered">
+ *   <Spinner/>
+ *   <p>Loading content...</p>
+ * </div>
+ * CURRENT USE: tutorpress-h5p-loading-state, tutorpress-modal-loading
+ */
+.tpress-loading-state-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--space-3xl) * 2) var(--space-xl);
+  text-align: center;
+}
+
+.tpress-loading-state-centered .components-spinner {
+  margin-bottom: var(--space-lg);
+}
+
+.tpress-loading-state-centered p {
+  color: var(--gray-500);
+  margin: 0;
+}
+
+/* ========================================================================
    EMPTY STATE UTILITIES
    ======================================================================== */
 
