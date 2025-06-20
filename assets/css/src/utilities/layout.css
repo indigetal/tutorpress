@@ -1,0 +1,145 @@
+/**
+ * Layout Utilities
+ * Reusable layout patterns and utilities for TutorPress components
+ * 
+ * Naming Convention: tpress-{pattern-name}
+ * Groups: button-groups, flex-alignment, item-layouts, empty-states
+ */
+
+/* ========================================================================
+   GROUP 1: BUTTON GROUPS & BASIC FLEX ALIGNMENT
+   ======================================================================== */
+
+/* Button Groups - Common flex layouts for action buttons */
+.tpress-button-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.tpress-button-group-xs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tpress-button-group-md {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Button Group Justification Variants */
+.tpress-button-group-start {
+  justify-content: flex-start;
+}
+
+.tpress-button-group-end {
+  justify-content: flex-end;
+}
+
+.tpress-button-group-center {
+  justify-content: center;
+}
+
+.tpress-button-group-between {
+  justify-content: space-between;
+}
+
+/* Button Group Responsive Behavior */
+.tpress-button-group-wrap {
+  flex-wrap: wrap;
+}
+
+.tpress-button-group-nowrap {
+  flex-wrap: nowrap;
+}
+
+/* Basic Flex Alignment Utilities */
+.tpress-flex {
+  display: flex;
+}
+
+.tpress-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tpress-flex-center-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.tpress-flex-center-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tpress-flex-center-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Flex Direction Utilities */
+.tpress-flex-col {
+  flex-direction: column;
+}
+
+.tpress-flex-row {
+  flex-direction: row;
+}
+
+/* Flex Item Utilities */
+.tpress-flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+.tpress-flex-grow {
+  flex-grow: 1;
+}
+
+.tpress-flex-auto {
+  flex: 1 1 auto;
+}
+
+/* Margin Auto for Positioning */
+.tpress-ml-auto {
+  margin-left: auto;
+}
+
+.tpress-mr-auto {
+  margin-right: auto;
+}
+
+/* ========================================================================
+   RESPONSIVE BEHAVIOR
+   ======================================================================== */
+
+/* Mobile-first responsive button groups */
+@media (max-width: 767px) {
+  .tpress-button-group-responsive {
+    gap: var(--space-xs);
+  }
+
+  .tpress-button-group-responsive.tpress-button-group-wrap {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .tpress-button-group-mobile-stack {
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: stretch;
+  }
+
+  .tpress-button-group-mobile-center {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px; /* Tighter for mobile space constraints */
+  }
+}

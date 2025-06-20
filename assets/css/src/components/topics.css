@@ -38,9 +38,6 @@
 }
 
 .tutorpress-topic-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
   margin-left: auto; /* Push to right */
   white-space: nowrap; /* Prevent wrapping */
 }

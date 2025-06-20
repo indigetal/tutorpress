@@ -6,8 +6,6 @@
 .tutorpress-content-items {
   margin-bottom: var(--space-lg);
   margin-top: var(--space-sm);
-  display: flex;
-  flex-direction: column;
   gap: var(--space-sm); /* Use gap instead of margins for spacing */
 }
 
@@ -31,7 +29,7 @@
   position: relative;
   width: 20px;
   height: 20px;
-  flex-shrink: 0; /* Prevent icon from shrinking */
+  /* Prevent icon from shrinking - using utility class */
 }
 
 .tutorpress-content-item-icon .item-icon,
@@ -57,7 +55,7 @@
 .tutorpress-content-item-actions {
   opacity: 0;
   transition: opacity 0.2s ease;
-  margin-left: auto; /* Push to right */
+  /* Push to right - using utility class */
   white-space: nowrap; /* Prevent wrapping */
 }
 

@@ -26,6 +26,7 @@
 @import "./components/question-types/fill-blanks.css";
 
 /* Utilities */
+@import "./utilities/layout.css";
 @import "./utilities/animations.css";
 @import "./utilities/notifications.css";
 @import "./utilities/drag-drop.css";

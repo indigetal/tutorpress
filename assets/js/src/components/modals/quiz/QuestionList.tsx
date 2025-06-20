@@ -96,7 +96,7 @@ const SortableQuestionItem: React.FC<SortableQuestionItemProps> = ({
       className={`tutorpress-content-item quiz-modal-question-item ${isSelected ? "is-selected" : ""}`}
       onClick={() => onQuestionSelect(index)}
     >
-      <div className="tutorpress-content-item-icon">
+      <div className="tutorpress-content-item-icon tpress-flex-shrink-0">
         <span className="quiz-modal-question-number item-icon">{index + 1}</span>
         <div {...attributes} {...listeners} className="drag-icon" style={{ cursor: isDragging ? "grabbing" : "grab" }}>
           <Icon icon="menu" />
@@ -108,7 +108,7 @@ const SortableQuestionItem: React.FC<SortableQuestionItemProps> = ({
         </div>
         <div className="quiz-modal-question-type-badge">{getQuestionTypeDisplayName(question.question_type)}</div>
       </div>
-      <div className="tutorpress-content-item-actions">
+      <div className="tutorpress-content-item-actions tpress-ml-auto">
         <Button
           icon="admin-page"
           label={__("Duplicate Question", "tutorpress")}

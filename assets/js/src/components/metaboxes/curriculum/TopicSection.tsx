@@ -121,12 +121,12 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
 }): JSX.Element => (
   <div className={`tutorpress-content-item ${className || ""}`} style={style}>
     <Flex align="center" gap={2}>
-      <div className="tutorpress-content-item-icon">
+      <div className="tutorpress-content-item-icon tpress-flex-shrink-0">
         <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
         <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
       </div>
       <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
-      <div className="tutorpress-content-item-actions">
+      <div className="tutorpress-content-item-actions tpress-ml-auto">
         <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
       </div>
     </Flex>
@@ -427,7 +427,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               </div>
             )}
           </FlexBlock>
-          <div className="tutorpress-topic-actions">
+          <div className="tutorpress-topic-actions tpress-button-group tpress-button-group-xs tpress-ml-auto">
             <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
             <Button
               icon={topic.isCollapsed ? chevronRight : chevronDown}
@@ -462,7 +462,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               {topic.content}
             </div>
           )}
-          <div className="tutorpress-content-items">
+          <div className="tutorpress-content-items tpress-flex-column">
             <DndContext
               sensors={contentSensors}
               onDragStart={contentDragHandlers.handleDragStart}
@@ -569,7 +569,11 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             </DndContext>
           </div>
           <Flex className="tutorpress-content-actions" justify="space-between" gap={2}>
-            <Flex gap={2} style={{ width: "auto" }} className="tutorpress-content-buttons">
+            <Flex
+              gap={2}
+              style={{ width: "auto" }}
+              className="tutorpress-content-buttons tpress-button-group tpress-button-group-sm"
+            >
               {/* Core content buttons - always visible */}
               <Button
                 variant="secondary"
@@ -583,7 +587,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   url.searchParams.append("topic_id", topic.id.toString());
                   window.location.href = url.toString();
                 }}
-                className="tutorpress-btn-core"
+                className="tutorpress-btn-core tpress-flex-shrink-0"
               >
                 {__("Lesson", "tutorpress")}
               </Button>
@@ -592,7 +596,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                 isSmall
                 icon={plus}
                 onClick={handleQuizModalOpen}
-                className="tutorpress-btn-core"
+                className="tutorpress-btn-core tpress-flex-shrink-0"
               >
                 {__("Quiz", "tutorpress")}
               </Button>
@@ -608,7 +612,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   url.searchParams.append("topic_id", topic.id.toString());
                   window.location.href = url.toString();
                 }}
-                className="tutorpress-btn-core"
+                className="tutorpress-btn-core tpress-flex-shrink-0"
               >
                 {__("Assignment", "tutorpress")}
               </Button>
@@ -620,7 +624,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   isSmall
                   icon={plus}
                   onClick={handleInteractiveQuizModalOpen}
-                  className="tutorpress-btn-extended"
+                  className="tutorpress-btn-extended tpress-flex-shrink-0"
                 >
                   {__("Interactive Quiz", "tutorpress")}
                 </Button>
@@ -631,7 +635,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   isSmall
                   icon={plus}
                   onClick={handleGoogleMeetModalOpen}
-                  className="tutorpress-btn-extended"
+                  className="tutorpress-btn-extended tpress-flex-shrink-0"
                 >
                   {__("Google Meet", "tutorpress")}
                 </Button>
@@ -642,7 +646,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   isSmall
                   icon={plus}
                   onClick={handleZoomModalOpen}
-                  className="tutorpress-btn-extended"
+                  className="tutorpress-btn-extended tpress-flex-shrink-0"
                 >
                   {__("Zoom", "tutorpress")}
                 </Button>

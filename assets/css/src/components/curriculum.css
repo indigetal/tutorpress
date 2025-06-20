@@ -63,26 +63,23 @@
 }
 
 .tutorpress-content-buttons {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: var(--space-sm);
+  /* Using tpress-button-group tpress-button-group-nowrap utility classes */
 }
 
 /* Core buttons (Lesson, Quiz, Assignment) - always visible */
 .tutorpress-btn-core {
-  flex-shrink: 0;
+  /* Using tpress-flex-shrink-0 utility class */
 }
 
 /* Extended buttons (Interactive Quiz, Google Meet, Zoom) - responsive visibility */
 .tutorpress-btn-extended {
-  flex-shrink: 0;
+  /* Using tpress-flex-shrink-0 utility class */
   transition: opacity 0.2s ease;
 }
 
 /* Overflow menu - hidden by default, shown at smaller breakpoints */
 .tutorpress-content-overflow {
-  flex-shrink: 0;
+  /* Using tpress-flex-shrink-0 utility class */
 }
 
 .tutorpress-content-overflow-toggle {
@@ -145,7 +142,7 @@
 /* Small screens (≤767px) - Only core buttons visible, extended in overflow */
 @media (max-width: 767px) {
   .tutorpress-content-buttons {
-    gap: var(--space-xs);
+    /* Using tpress-button-group-xs utility class for smaller gap */
   }
 
   .tutorpress-btn-extended {
@@ -165,15 +162,11 @@
 /* Extra small screens (≤600px) - Further compression */
 @media (max-width: 600px) {
   .tutorpress-content-actions {
-    flex-direction: column;
-    gap: var(--space-sm);
-    align-items: stretch;
+    /* Using tpress-button-group-mobile-stack utility class */
   }
 
   .tutorpress-content-buttons {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 6px; /* Slightly tighter for mobile space constraints */
+    /* Using tpress-button-group-mobile-center utility class */
   }
 
   .tutorpress-content-overflow {
