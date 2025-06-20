@@ -46,6 +46,12 @@ class TutorPress_REST {
                 'quizzes'     => new TutorPress_REST_Quizzes_Controller(),
             ];
 
+            // Conditionally load Certificate controller only if Certificate addon is available
+            if (TutorPress_Addon_Checker::is_certificate_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-certificate-controller.php';
+                $controllers['certificate'] = new TutorPress_Certificate_Controller();
+            }
+
             // Conditionally load H5P controller only if H5P addon is available
             if (TutorPress_Addon_Checker::is_h5p_enabled()) {
                 require_once TUTORPRESS_PATH . 'includes/rest/class-h5p-controller.php';
