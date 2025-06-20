@@ -6,24 +6,24 @@
 /* Design Tokens */
 @import "./abstracts/variables.css";
 
-/* Core Components */
-@import "./components/curriculum.css";
-@import "./components/topics.css";
-@import "./components/content-items.css";
+/* Curriculum Feature */
+@import "./components/curriculum/curriculum.css";
+@import "./components/curriculum/topics.css";
+@import "./components/curriculum/content-items.css";
+
+/* Live Lessons Feature */
 @import "./components/live-lessons.css";
 
-/* Quiz Modal Core */
-@import "./components/quiz-modal.css";
-@import "./components/quiz-options.css";
+/* Quiz Feature */
+@import "./components/quiz/quiz-modal.css";
+@import "./components/quiz/quiz-options.css";
+@import "./components/quiz/quiz-editors.css";
 
-/* Quiz Editors */
-@import "./components/quiz-editors.css";
-
-/* Question Types */
-@import "./components/question-types/true-false.css";
-@import "./components/question-types/multiple-choice.css";
-@import "./components/question-types/open-ended.css";
-@import "./components/question-types/fill-blanks.css";
+/* Quiz Question Types */
+@import "./components/quiz/question-types/true-false.css";
+@import "./components/quiz/question-types/multiple-choice.css";
+@import "./components/quiz/question-types/open-ended.css";
+@import "./components/quiz/question-types/fill-blanks.css";
 
 /* Utilities */
 @import "./utilities/layout.css";
