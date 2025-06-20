@@ -108,7 +108,7 @@ const SortableQuestionItem: React.FC<SortableQuestionItemProps> = ({
         </div>
         <div className="quiz-modal-question-type-badge">{getQuestionTypeDisplayName(question.question_type)}</div>
       </div>
-      <div className="tutorpress-content-item-actions tpress-ml-auto">
+      <div className="quiz-modal-question-actions tpress-item-actions">
         <Button
           icon="admin-page"
           label={__("Duplicate Question", "tutorpress")}

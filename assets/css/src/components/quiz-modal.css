@@ -458,13 +458,12 @@
   margin: 0;
 }
 
+/* Quiz question actions - using utility pattern with custom spacing */
 .quiz-modal-question-actions {
-  opacity: 0;
   margin-left: var(--space-sm);
-  transition: opacity 0.2s ease;
 }
 
-.quiz-modal-question-item:hover .quiz-modal-question-actions {
+.quiz-modal-question-item:hover .tpress-item-actions {
   opacity: 1;
 }
 

@@ -37,18 +37,33 @@
   min-height: 36px;
 }
 
-.tutorpress-topic-actions {
-  margin-left: auto; /* Push to right */
-  white-space: nowrap; /* Prevent wrapping */
-}
-
-.tutorpress-topic-header:not(.is-open) .tutorpress-topic-actions {
+/* Topic actions - using utility pattern with conditional visibility */
+/* When topic is closed, hide actions and show on hover */
+.tutorpress-topic-header:not(.is-open) .tpress-item-actions-right {
   opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
-.tutorpress-topic-header:not(.is-open):hover .tutorpress-topic-actions {
+.tutorpress-topic-header:not(.is-open):hover .tpress-item-actions-right {
   opacity: 1;
+}
+
+/* When topic is open, always show actions */
+.tutorpress-topic-header.is-open .tpress-item-actions-right {
+  opacity: 1;
+}
+
+/* Ensure topic action buttons are properly styled and visible */
+.tutorpress-topic-header .tpress-item-actions-right .components-button {
+  color: var(--gray-700);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tutorpress-topic-header .tpress-item-actions-right .components-button:hover {
+  color: var(--wp-admin-theme-color, #0073aa);
+  background: var(--gray-100);
+  border-color: var(--gray-300);
 }
 
 /* Form styles */

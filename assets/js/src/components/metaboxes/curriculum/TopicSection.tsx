@@ -126,7 +126,7 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
         <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
       </div>
       <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
-      <div className="tutorpress-content-item-actions tpress-ml-auto">
+      <div className="tpress-item-actions-right">
         <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
       </div>
     </Flex>
@@ -427,7 +427,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               </div>
             )}
           </FlexBlock>
-          <div className="tutorpress-topic-actions tpress-button-group tpress-button-group-xs tpress-ml-auto">
+          <div className="tpress-item-actions-right tpress-button-group tpress-button-group-xs">
             <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
             <Button
               icon={topic.isCollapsed ? chevronRight : chevronDown}

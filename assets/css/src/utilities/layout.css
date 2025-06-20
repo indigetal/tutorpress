@@ -361,6 +361,44 @@
 }
 
 /* ========================================================================
+   ITEM ACTIONS PATTERN UTILITIES
+   ======================================================================== */
+
+/* 
+ * Hidden Item Actions - Actions that appear on hover
+ * USE WHEN: Action buttons that should be hidden until user hovers over item
+ * STRUCTURE: Apply to action container, requires hover parent selector
+ * EXAMPLE: 
+ * <div class="item-container">
+ *   <span>Content</span>
+ *   <div class="tpress-item-actions">...</div>
+ * </div>
+ * 
+ * CSS: .item-container:hover .tpress-item-actions { opacity: 1; }
+ * 
+ * CURRENT USE: TopicSection content items, quiz questions, topic headers
+ */
+.tpress-item-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+/* 
+ * Item Actions with Auto Margin - Combines actions with right push
+ * USE WHEN: Actions should be hidden on hover AND pushed to the right
+ * STRUCTURE: Same as tpress-item-actions but includes margin-left: auto
+ * EXAMPLE: Same as above but automatically positions to the right
+ * CURRENT USE: Most action button scenarios where right alignment is needed
+ */
+.tpress-item-actions-right {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap; /* Prevent wrapping */
+  margin-left: auto; /* Push to right */
+}
+
+/* ========================================================================
    POSITIONING UTILITIES
    ======================================================================== */
 
