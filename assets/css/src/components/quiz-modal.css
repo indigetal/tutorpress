@@ -922,23 +922,15 @@
 }
 
 .quiz-modal-h5p-content .h5p-preview-error-content {
-  background: var(--error-bg);
-  border: 1px solid var(--error-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-lg);
-  text-align: center;
+  /* Using tpress-error-state-section utility class */
 }
 
 .quiz-modal-h5p-content .h5p-preview-error-message {
-  color: var(--color-error);
-  font-weight: 600;
-  margin: 0 0 calc(var(--space-xs) * 1.25) 0;
+  /* Using tpress-error-message utility class */
 }
 
 .quiz-modal-h5p-content .h5p-preview-error-details {
-  color: var(--color-warning);
-  font-size: var(--text-xs);
-  margin: 0;
+  /* Using tpress-error-details utility class */
 }
 
 /* Ensure H5P content renders properly */
@@ -1009,23 +1001,19 @@
 
 /* Error State */
 .tutorpress-h5p-error-state {
-  margin: var(--space-xl) 0;
+  /* Using tpress-error-state-alert utility class */
 }
 
 .tutor-alert {
-  padding: var(--space-lg);
-  border-radius: var(--radius-sm);
-  border-left: var(--space-xs) solid var(--color-warning);
-  background: #fff8e1;
+  /* Using tpress-error-state-alert utility class */
 }
 
 .tutor-alert-warning {
-  border-left-color: var(--color-warning);
+  /* Border color handled by tpress-error-state-alert */
 }
 
 .tutor-alert p {
-  margin: 0 0 var(--space-sm);
-  color: var(--color-text-primary);
+  /* Using tpress-error-state-alert p utility class */
 }
 
 .tutor-btn {

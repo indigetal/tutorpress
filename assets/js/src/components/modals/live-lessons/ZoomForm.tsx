@@ -358,8 +358,8 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
 
       {/* Show error state if Zoom users failed to load */}
       {usersError && (
-        <div className="tutorpress-form-error">
-          <p style={{ color: "#d63638", fontSize: "13px", margin: "8px 0 0 0" }}>
+        <div className="tutorpress-form-error tpress-error-state-inline">
+          <p>
             <strong>{__("Zoom Configuration Error:", "tutorpress")}</strong> {usersError}
           </p>
           <p style={{ color: "#646970", fontSize: "12px", margin: "4px 0 0 0" }}>

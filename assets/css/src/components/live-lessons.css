@@ -446,16 +446,11 @@
 }
 
 .tutorpress-form-error {
-  background: var(--error-bg);
-  border: 1px solid var(--error-border);
-  padding: var(--space-md);
-  border-radius: var(--radius-sm);
-  margin-top: 1rem;
+  /* Using tpress-error-state-inline utility class */
 }
 
 .tutorpress-form-error p {
-  margin: 0;
-  font-size: var(--text-sm);
+  /* Using tpress-error-state-inline p utility class */
 }
 
 /* Password Field with Eye Toggle */

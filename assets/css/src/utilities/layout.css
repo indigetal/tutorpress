@@ -445,3 +445,102 @@
     padding: var(--space-xs) var(--space-sm);
   }
 }
+
+/* ========================================================================
+   ERROR STATE UTILITIES
+   ======================================================================== */
+
+/* 
+ * Inline Error State - Form validation and inline errors
+ * USE WHEN: Form fields, inline validation messages, small error notifications
+ * STRUCTURE: Simple background with border and padding
+ * EXAMPLE: <div class="tpress-error-state-inline"><p>Field is required</p></div>
+ * CURRENT USE: tutorpress-form-error
+ */
+.tpress-error-state-inline {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-sm);
+}
+
+.tpress-error-state-inline p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-error);
+}
+
+/* 
+ * Section Error State - Content section errors with styled backgrounds
+ * USE WHEN: Content areas, preview sections, or content loading errors
+ * STRUCTURE: Centered content with background, padding, and structured text
+ * EXAMPLE: 
+ * <div class="tpress-error-state-section">
+ *   <strong class="tpress-error-message">Error:</strong>
+ *   <span class="tpress-error-details">Details here</span>
+ * </div>
+ * CURRENT USE: h5p-preview-error-content, sortable-list-error
+ */
+.tpress-error-state-section {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-lg);
+  text-align: center;
+  margin: var(--space-sm) 0;
+}
+
+.tpress-error-message {
+  color: var(--color-error);
+  font-weight: 600;
+  margin: 0 0 calc(var(--space-xs) * 1.25) 0;
+  display: block;
+}
+
+.tpress-error-details {
+  color: var(--color-warning);
+  font-size: var(--text-xs);
+  margin: 0;
+  display: block;
+}
+
+/* 
+ * Alert Error State - System alerts and warnings
+ * USE WHEN: System notifications, warnings, or important alerts
+ * STRUCTURE: Left border accent with background and action buttons
+ * EXAMPLE: 
+ * <div class="tpress-error-state-alert">
+ *   <p>Alert message</p>
+ *   <button class="tpress-error-retry-btn">Retry</button>
+ * </div>
+ * CURRENT USE: tutor-alert, tutor-alert-warning
+ */
+.tpress-error-state-alert {
+  padding: var(--space-lg);
+  border-radius: var(--radius-sm);
+  border-left: var(--space-xs) solid var(--color-warning);
+  background: #fff8e1;
+  margin: var(--space-xl) 0;
+}
+
+.tpress-error-state-alert p {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-primary);
+}
+
+.tpress-error-retry-btn {
+  margin-top: var(--space-sm);
+  padding: 6px var(--space-md);
+  background: var(--wp-admin-theme-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  transition: all 0.2s ease;
+}
+
+.tpress-error-retry-btn:hover {
+  background: var(--wp-admin-theme-color-darker-10);
+}

@@ -191,10 +191,14 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
 
           {/* Error State */}
           {hasError && !isLoading && (
-            <div className="tutorpress-h5p-error-state">
-              <div className="tutor-alert tutor-alert-warning">
+            <div className="tutorpress-h5p-error-state tpress-error-state-alert">
+              <div className="tutor-alert">
                 <p>{error?.message || __("Failed to load H5P content.", "tutorpress")}</p>
-                <Button variant="secondary" onClick={handleRetry} className="tutor-btn tutor-btn-outline-primary">
+                <Button
+                  variant="secondary"
+                  onClick={handleRetry}
+                  className="tutor-btn tutor-btn-outline-primary tpress-error-retry-btn"
+                >
                   {__("Retry", "tutorpress")}
                 </Button>
               </div>

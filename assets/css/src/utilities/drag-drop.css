@@ -242,24 +242,15 @@
 }
 
 .sortable-list-error {
-  background: var(--error-bg);
-  color: var(--color-error);
-  border: 1px solid var(--error-border);
+  /* Using tpress-error-state-section utility class */
 }
 
 .sortable-list-retry-btn {
-  margin-top: var(--space-sm);
-  padding: 6px var(--space-md);
-  background: var(--wp-admin-theme-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--text-xs);
+  /* Using tpress-error-retry-btn utility class */
 }
 
 .sortable-list-retry-btn:hover {
-  background: var(--wp-admin-theme-color-darker-10);
+  /* Using tpress-error-retry-btn:hover utility class */
 }
 
 /**

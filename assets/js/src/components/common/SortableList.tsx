@@ -299,10 +299,10 @@ export function SortableList<T extends SortableItem>({
 
   if (hasError) {
     return (
-      <div className={`sortable-list-error ${className}`}>
+      <div className={`sortable-list-error tpress-error-state-section ${className}`}>
         <p>{errorMessage}</p>
         {onRetry && (
-          <button onClick={onRetry} className="sortable-list-retry-btn">
+          <button onClick={onRetry} className="sortable-list-retry-btn tpress-error-retry-btn">
             Retry
           </button>
         )}
@@ -365,10 +365,10 @@ export function SortableList<T extends SortableItem>({
       )}
 
       {dragState.operationState.status === "error" && dragState.operationState.error && (
-        <div className="sortable-list-error">
+        <div className="sortable-list-error tpress-error-state-section">
           <p>Error: {dragState.operationState.error.message}</p>
           {onRetry && (
-            <button onClick={onRetry} className="sortable-list-retry-btn">
+            <button onClick={onRetry} className="sortable-list-retry-btn tpress-error-retry-btn">
               Retry
             </button>
           )}
