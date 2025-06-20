@@ -19,10 +19,7 @@
 }
 
 .quiz-modal-option-card-header {
-  display: flex;
-  align-items: center;
-  padding: var(--space-sm) var(--space-md);
-  gap: var(--space-sm);
+  /* Using tpress-header-actions-sm utility class */
 }
 
 .quiz-modal-option-card-icon {
@@ -122,11 +119,9 @@
 }
 
 .quiz-modal-option-card-actions {
-  display: flex;
-  gap: var(--space-xs);
+  /* Using tpress-header-actions-group-xs and tpress-ml-auto utility classes */
   opacity: 0;
   transition: opacity 0.15s ease-in-out;
-  margin-left: auto;
 }
 
 .quiz-modal-option-card:hover .quiz-modal-option-card-actions {

@@ -180,7 +180,7 @@ export const QuestionList: React.FC<QuestionListProps> = ({
   });
   return (
     <div className="quiz-modal-questions-section">
-      <div className="quiz-modal-questions-header">
+      <div className="quiz-modal-questions-header tpress-section-header">
         <h4>{__("Questions", "tutorpress")}</h4>
         <Button
           variant="primary"

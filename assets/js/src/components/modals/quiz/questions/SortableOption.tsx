@@ -200,7 +200,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   // Render display mode
   return (
     <div ref={setNodeRef} style={style} className={classNames}>
-      <div className="quiz-modal-option-card-header">
+      <div className="quiz-modal-option-card-header tpress-header-actions-sm">
         <div className="quiz-modal-option-card-icon">
           <span className="quiz-modal-option-label">{displayLabel}.</span>
           <Button
@@ -214,7 +214,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
             {...listeners}
           />
         </div>
-        <div className="quiz-modal-option-card-actions">
+        <div className="quiz-modal-option-card-actions tpress-header-actions-group-xs tpress-ml-auto">
           <Button
             icon={edit}
             label={__("Edit option", "tutorpress")}

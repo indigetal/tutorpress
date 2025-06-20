@@ -47,6 +47,7 @@
 }
 
 .quiz-modal-header-actions {
+  /* Using tpress-header-actions-group utility class */
   display: flex;
   gap: var(--space-sm);
   align-items: center;
@@ -139,10 +140,7 @@
 }
 
 .quiz-modal-questions-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-md);
+  /* Using tpress-section-header utility class */
 }
 
 .quiz-modal-questions-header h4 {

@@ -3,33 +3,57 @@
  * Reusable layout patterns and utilities for TutorPress components
  * 
  * Naming Convention: tpress-{pattern-name}
- * Groups: button-groups, flex-alignment, item-layouts, empty-states
+ * Groups: button-groups, flex-alignment, header-actions, positioning
  */
 
 /* ========================================================================
-   GROUP 1: BUTTON GROUPS & BASIC FLEX ALIGNMENT
+   BUTTON GROUP UTILITIES
    ======================================================================== */
 
-/* Button Groups - Common flex layouts for action buttons */
+/* 
+ * Base button group pattern - standard spacing
+ * 
+ * USE WHEN: You have multiple buttons that need consistent horizontal spacing
+ * STRUCTURE: <div class="tpress-button-group"><button>A</button><button>B</button></div>
+ * 
+ * EXAMPLE: Content action buttons, form button groups, toolbar buttons
+ * CURRENT USE: TopicSection.tsx for content buttons, LiveLessonModal.tsx for modal actions
+ */
 .tpress-button-group {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
+/* 
+ * Tight spacing variant for compact layouts
+ * 
+ * USE WHEN: You need buttons closer together for space-constrained areas
+ * CURRENT USE: TopicSection.tsx for topic actions, responsive mobile layouts
+ */
 .tpress-button-group-xs {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
+/* 
+ * Loose spacing variant for prominent button groups
+ * 
+ * USE WHEN: You want more visual separation between important actions
+ * CURRENT USE: TopicSection.tsx for main content buttons
+ */
 .tpress-button-group-md {
   display: flex;
   align-items: center;
   gap: var(--space-md);
 }
 
-/* Button Group Justification Variants */
+/* 
+ * Justification variants - combine with base button-group classes
+ * USAGE: class="tpress-button-group tpress-button-group-end"
+ */
+
 .tpress-button-group-start {
   justify-content: flex-start;
 }
@@ -46,7 +70,11 @@
   justify-content: space-between;
 }
 
-/* Button Group Responsive Behavior */
+/* 
+ * Flex wrap variants for responsive behavior
+ * USAGE: class="tpress-button-group tpress-button-group-wrap"
+ */
+
 .tpress-button-group-wrap {
   flex-wrap: wrap;
 }
@@ -55,68 +83,215 @@
   flex-wrap: nowrap;
 }
 
-/* Basic Flex Alignment Utilities */
+/* ========================================================================
+   FLEX UTILITIES
+   ======================================================================== */
+
+/* 
+ * Basic flex container
+ * USE WHEN: You just need display: flex without specific alignment
+ */
 .tpress-flex {
   display: flex;
 }
 
+/* 
+ * Centered content (both axes)
+ * USE WHEN: You want to center content both horizontally and vertically
+ * EXAMPLE: Empty states, loading spinners, icon containers
+ */
 .tpress-flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.tpress-flex-center-start {
+/* 
+ * Left-aligned with vertical centering
+ * USE WHEN: You want content aligned to start but vertically centered
+ */
+.tpress-flex-start {
   display: flex;
   align-items: center;
   justify-content: flex-start;
 }
 
-.tpress-flex-center-end {
+/* 
+ * Right-aligned with vertical centering
+ * USE WHEN: You want content aligned to end but vertically centered
+ * EXAMPLE: Modal footer actions, right-aligned button groups
+ */
+.tpress-flex-end {
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
-.tpress-flex-center-between {
+/* 
+ * Space-between with vertical centering
+ * USE WHEN: You want content spread apart (title left, actions right)
+ * EXAMPLE: Alternative to header-actions for simple layouts
+ */
+.tpress-flex-between {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-/* Flex Direction Utilities */
-.tpress-flex-col {
+/* 
+ * Vertical layout
+ * USE WHEN: You need to stack elements vertically
+ * EXAMPLE: Form layouts, content lists
+ * CURRENT USE: TopicSection.tsx for content items
+ */
+.tpress-flex-column {
+  display: flex;
   flex-direction: column;
 }
 
+/* 
+ * Horizontal layout (explicit)
+ * USE WHEN: You want to be explicit about horizontal direction
+ */
 .tpress-flex-row {
+  display: flex;
   flex-direction: row;
 }
 
-/* Flex Item Utilities */
+/* ========================================================================
+   HEADER-ACTIONS PATTERN UTILITIES
+   ======================================================================== */
+
+/* 
+ * Base header with actions pattern - space-between with padding and border
+ * 
+ * USE WHEN: You have a simple header with direct title/action siblings
+ * STRUCTURE: <div class="tpress-header-actions"><span>Title</span><span>Action</span></div>
+ * 
+ * DO NOT USE: For nested structures like quiz modals where actions are in a separate container
+ * EXAMPLE: Modal headers, page headers, card headers with single-level content
+ */
+.tpress-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg) var(--space-2xl);
+  border-bottom: 1px solid var(--gray-300);
+}
+
+/* 
+ * Smaller header variant with reduced padding
+ * 
+ * USE WHEN: You need a compact header for cards, option items, or nested components
+ * STRUCTURE: Same as tpress-header-actions but with smaller padding
+ * 
+ * EXAMPLE: Quiz option card headers, accordion headers, list item headers
+ * CURRENT USE: SortableOption.tsx for option card headers
+ */
+.tpress-header-actions-sm {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  /* border-bottom: 1px solid var(--gray-300); */
+}
+
+/* 
+ * Section header pattern with margin bottom
+ * 
+ * USE WHEN: You have a section title with actions that needs spacing below
+ * STRUCTURE: <div class="tpress-section-header"><h4>Title</h4><button>Action</button></div>
+ * 
+ * EXAMPLE: Questions section header, settings section headers
+ * CURRENT USE: QuestionList.tsx for questions header
+ */
+.tpress-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+/* 
+ * Actions group for header patterns - standard spacing
+ * 
+ * USE WHEN: You have multiple action buttons that need consistent spacing
+ * STRUCTURE: <div class="tpress-header-actions-group"><button>Save</button><button>Cancel</button></div>
+ * 
+ * EXAMPLE: Modal action buttons, toolbar buttons, form actions
+ * CURRENT USE: QuizHeader.tsx for save/cancel buttons
+ */
+.tpress-header-actions-group {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* 
+ * Small actions group with tighter spacing
+ * 
+ * USE WHEN: You have compact action buttons that need minimal spacing
+ * STRUCTURE: Same as tpress-header-actions-group but with smaller gap
+ * 
+ * EXAMPLE: Card action buttons, inline edit controls, compact toolbars
+ * CURRENT USE: SortableOption.tsx for edit/delete buttons
+ */
+.tpress-header-actions-group-xs {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+/* ========================================================================
+   POSITIONING UTILITIES
+   ======================================================================== */
+
+/* 
+ * Prevent flex item from shrinking
+ * USE WHEN: You want an element to maintain its size in a flex container
+ * EXAMPLE: Icons, buttons, fixed-width elements
+ * CURRENT USE: TopicSection.tsx for content item icons and buttons
+ */
 .tpress-flex-shrink-0 {
   flex-shrink: 0;
 }
 
+/* 
+ * Allow flex item to grow and fill available space
+ * USE WHEN: You want an element to expand to fill remaining space
+ */
 .tpress-flex-grow {
   flex-grow: 1;
 }
 
+/* 
+ * Auto flex sizing (grow and shrink as needed)
+ * USE WHEN: You want flexible sizing based on content and container
+ */
 .tpress-flex-auto {
   flex: 1 1 auto;
 }
 
-/* Margin Auto for Positioning */
+/* 
+ * Push element to the right using auto margin
+ * USE WHEN: You want to push an element to the right edge of its container
+ * EXAMPLE: Action buttons, status indicators
+ * CURRENT USE: TopicSection.tsx for topic actions, SortableOption.tsx for card actions
+ */
 .tpress-ml-auto {
   margin-left: auto;
 }
 
+/* 
+ * Push element to the left using auto margin
+ * USE WHEN: You want to push an element to the left edge of its container
+ */
 .tpress-mr-auto {
   margin-right: auto;
 }
 
 /* ========================================================================
-   RESPONSIVE BEHAVIOR
+   RESPONSIVE UTILITIES
    ======================================================================== */
 
 /* Mobile-first responsive button groups */
@@ -141,5 +316,14 @@
     justify-content: center;
     flex-wrap: wrap;
     gap: 6px; /* Tighter for mobile space constraints */
+  }
+
+  /* Reduce header padding on mobile */
+  .tpress-header-actions {
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .tpress-header-actions-sm {
+    padding: var(--space-xs) var(--space-sm);
   }
 }

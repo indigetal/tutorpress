@@ -525,7 +525,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
         )}
 
         {/* Modal Actions */}
-        <div className="tutorpress-modal-actions">
+        <div className="tutorpress-modal-actions tpress-button-group tpress-button-group-end">
           <Button variant="tertiary" onClick={handleClose} disabled={isSaving}>
             {__("Cancel", "tutorpress")}
           </Button>

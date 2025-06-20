@@ -50,9 +50,7 @@
   padding: var(--space-lg) var(--space-2xl);
   background: var(--gray-100);
   border-top: 1px solid var(--gray-300);
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-sm);
+  /* Using tpress-flex-end utility class */
 }
 
 /* ========================================================================
