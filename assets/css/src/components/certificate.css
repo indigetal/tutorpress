@@ -1,0 +1,310 @@
+/**
+ * Certificate Metabox Styles
+ *
+ * Styling for the certificate template selection metabox.
+ * Uses TutorPress design tokens and follows established component patterns.
+ *
+ * @package TutorPress
+ * @subpackage CSS/Components
+ * @since 1.0.0
+ */
+
+/* ============================================================================
+   CERTIFICATE METABOX LAYOUT
+   ============================================================================ */
+
+.tutorpress-certificate {
+  padding: var(--space-metabox);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-card);
+}
+
+/* Header Section */
+.tutorpress-certificate__header {
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tutorpress-certificate__description {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* ============================================================================
+   ORIENTATION FILTERS
+   ============================================================================ */
+
+.tutorpress-certificate__orientation-filters {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-certificate__filter-group {
+  display: flex;
+  gap: var(--space-button-gap);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-button);
+  padding: var(--space-xs);
+  background: var(--color-bg-secondary);
+  width: fit-content;
+}
+
+.tutorpress-certificate__filter-button {
+  background: transparent;
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-button);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-in-out);
+  white-space: nowrap;
+}
+
+.tutorpress-certificate__filter-button:hover {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.tutorpress-certificate__filter-button.is-active {
+  background: var(--color-primary);
+  color: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.tutorpress-certificate__filter-button:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ============================================================================
+   TABS LAYOUT
+   ============================================================================ */
+
+.tutorpress-certificate__tabs {
+  margin-top: var(--space-lg);
+}
+
+/* WordPress TabPanel styling */
+.tutorpress-certificate__tabs .components-tab-panel__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-certificate__tabs .components-tab-panel__tabs-item {
+  background: transparent;
+  border: none;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--duration-fast) var(--ease-in-out);
+}
+
+.tutorpress-certificate__tabs .components-tab-panel__tabs-item:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.tutorpress-certificate__tabs .components-tab-panel__tabs-item.is-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-bg-primary);
+}
+
+.tutorpress-certificate__tabs .components-tab-panel__tab-content {
+  padding: var(--space-md) 0;
+}
+
+/* ============================================================================
+   TEMPLATE GRID
+   ============================================================================ */
+
+.tutorpress-certificate__grid {
+  min-height: 200px;
+}
+
+.tutorpress-certificate__grid-content {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-certificate__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+/* Template Card Placeholders (Step 4 will implement full cards) */
+.tutorpress-certificate__card-placeholder {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+  padding: var(--space-md);
+  background: var(--color-bg-primary);
+  transition: all var(--duration-fast) var(--ease-in-out);
+  cursor: pointer;
+}
+
+.tutorpress-certificate__card-placeholder:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.tutorpress-certificate__card-image {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-sm);
+  background: var(--color-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorpress-certificate__card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tutorpress-certificate__card-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: center;
+  line-height: var(--leading-normal);
+  text-transform: capitalize;
+}
+
+/* Empty State */
+.tutorpress-certificate__empty {
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-muted);
+}
+
+.tutorpress-certificate__empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* ============================================================================
+   SELECTION STATUS
+   ============================================================================ */
+
+.tutorpress-certificate__selection-status {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-card);
+}
+
+.tutorpress-certificate__selection-status p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
+.tutorpress-certificate__unsaved {
+  color: var(--color-warning);
+  font-weight: 500;
+}
+
+/* ============================================================================
+   LOADING & ERROR STATES
+   ============================================================================ */
+
+.tutorpress-certificate__error {
+  padding: var(--space-lg);
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-card);
+  text-align: center;
+}
+
+.tutorpress-certificate__error p {
+  margin: 0 0 var(--space-sm) 0;
+  color: var(--error-text);
+  font-size: var(--text-sm);
+}
+
+.tutorpress-certificate__error p:last-child {
+  margin-bottom: 0;
+}
+
+.tutorpress-certificate__selection-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-card);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.tutorpress-certificate__selection-error {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-card);
+}
+
+.tutorpress-certificate__selection-error p {
+  margin: 0 0 var(--space-xs) 0;
+  color: var(--error-text);
+  font-size: var(--text-sm);
+}
+
+.tutorpress-certificate__selection-error p:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+/* Tablet and smaller screens */
+@media (max-width: 768px) {
+  .tutorpress-certificate {
+    padding: var(--space-md);
+  }
+
+  .tutorpress-certificate__cards {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--space-md);
+  }
+
+  .tutorpress-certificate__filter-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tutorpress-certificate__tabs .components-tab-panel__tabs-item {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* Mobile screens */
+@media (max-width: 480px) {
+  .tutorpress-certificate__cards {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .tutorpress-certificate__filter-button {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--text-xs);
+  }
+}

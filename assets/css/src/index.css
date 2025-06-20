@@ -11,6 +11,9 @@
 @import "./components/curriculum/topics.css";
 @import "./components/curriculum/content-items.css";
 
+/* Certificate Feature */
+@import "./components/certificate.css";
+
 /* Live Lessons Feature */
 @import "./components/live-lessons.css";
 

@@ -37,6 +37,17 @@ document.addEventListener("DOMContentLoaded", () => {
   if (root) {
     render(<Curriculum />, root);
   }
+
+  // Conditionally render Certificate metabox only when Certificate addon is enabled
+  if (isCertificateEnabled()) {
+    const certificateRoot = document.getElementById("tutorpress-certificate-root");
+    if (certificateRoot) {
+      // Dynamic import to avoid loading Certificate components when Certificate addon is not available
+      import("./components/metaboxes/Certificate").then(({ default: Certificate }) => {
+        render(<Certificate />, certificateRoot);
+      });
+    }
+  }
 });
 
 // Expose utilities to global scope for testing
