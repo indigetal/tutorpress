@@ -123,7 +123,8 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
             // Get templates from Tutor Certificate class
             if (class_exists('TUTOR_CERT\Certificate')) {
                 $cert_instance = new TUTOR_CERT\Certificate(true); // true = reuse without hooks
-                $templates = $cert_instance->get_templates($include_none);
+                // Pass true to include 'none' and 'off' templates
+                $templates = $cert_instance->get_templates(true);
                 
                 if (empty($templates)) {
                     return new WP_Error(
@@ -133,11 +134,29 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
                     );
                 }
 
-                // Convert associative array to indexed array with key included
+                // Convert associative array to indexed array with proper field mapping
+                // Filter out 'off' template to avoid duplicate "None" options
                 $formatted_templates = [];
                 foreach ($templates as $key => $template) {
-                    $template['key'] = $key;
-                    $formatted_templates[] = $template;
+                    // Skip 'off' template - we only want 'none' template for TutorPress
+                    if ($key === 'off') {
+                        continue;
+                    }
+                    
+                    // Ensure all template fields are properly mapped
+                    $formatted_template = [
+                        'key' => $key,
+                        'slug' => $key, // Same as key for compatibility
+                        'name' => $template['name'] ?? $key,
+                        'orientation' => $template['orientation'] ?? 'landscape',
+                        'is_default' => $template['is_default'] ?? false,
+                        'path' => $template['path'] ?? '',
+                        'url' => $template['url'] ?? '',
+                        'preview_src' => $template['preview_src'] ?? '',
+                        'background_src' => $template['background_src'] ?? '',
+                    ];
+                    
+                    $formatted_templates[] = $formatted_template;
                 }
 
                 return rest_ensure_response($this->format_response(

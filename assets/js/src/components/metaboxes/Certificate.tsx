@@ -19,6 +19,9 @@ import { TabPanel, Spinner, Flex, FlexBlock } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 
+// Components
+import { CertificateCard } from "./certificate/CertificateCard";
+
 // Types
 import type { CertificateTemplate, CertificateFilters } from "../../types/certificate";
 
@@ -77,11 +80,15 @@ const Certificate: React.FC = (): JSX.Element => {
   }, []);
 
   // Certificate store actions
-  const { getCertificateTemplates, getCertificateSelection, setCertificateFilters } = useDispatch(
-    CERTIFICATE_STORE
-  ) as any;
+  const {
+    getCertificateTemplates,
+    getCertificateSelection,
+    setCertificateFilters,
+    saveCertificateSelection,
+    openCertificatePreview,
+  } = useDispatch(CERTIFICATE_STORE) as any;
 
-  // Load data on mount
+  // Load data on mount and ensure proper filter initialization
   useEffect(() => {
     // Load templates
     getCertificateTemplates();
@@ -90,7 +97,25 @@ const Certificate: React.FC = (): JSX.Element => {
     if (courseId > 0) {
       getCertificateSelection(courseId);
     }
-  }, [courseId, getCertificateTemplates, getCertificateSelection]);
+
+    // Force proper filter initialization on component mount
+    // This ensures portrait orientation regardless of store state
+    setCertificateFilters({
+      orientation: "portrait",
+      type: "templates",
+      include_none: true,
+    });
+  }, [courseId, getCertificateTemplates, getCertificateSelection, setCertificateFilters]);
+
+  // Additional safety net for orientation reset
+  useEffect(() => {
+    if (filters.orientation === "all") {
+      setCertificateFilters({
+        ...filters,
+        orientation: "portrait",
+      });
+    }
+  }, [filters.orientation, setCertificateFilters]);
 
   // Handle orientation filter change
   const handleOrientationChange = (orientation: "all" | "landscape" | "portrait") => {
@@ -106,6 +131,23 @@ const Certificate: React.FC = (): JSX.Element => {
       ...filters,
       type: templateType,
     });
+  };
+
+  // Handle template selection
+  const handleTemplateSelect = (template: CertificateTemplate) => {
+    if (courseId > 0) {
+      saveCertificateSelection(courseId, template.key);
+    }
+  };
+
+  // Handle template preview
+  const handleTemplatePreview = (template: CertificateTemplate) => {
+    openCertificatePreview(template);
+  };
+
+  // Check if template is selected
+  const isTemplateSelected = (template: CertificateTemplate): boolean => {
+    return selection?.selectedTemplate === template.key;
   };
 
   // =============================
@@ -172,6 +214,7 @@ const Certificate: React.FC = (): JSX.Element => {
       <TabPanel
         className="tutorpress-certificate__tabs"
         activeClass="is-active"
+        initialTabName="templates"
         onSelect={(tabName) => handleTemplateTypeChange(tabName as "templates" | "custom_templates")}
         tabs={[
           {
@@ -195,19 +238,18 @@ const Certificate: React.FC = (): JSX.Element => {
                   <p>
                     {__("Found", "tutorpress")} {filteredTemplates.length} {__("templates", "tutorpress")}
                   </p>
-                  {/* Template cards will be implemented in Step 4 */}
+                  {/* Certificate Template Cards */}
                   <div className="tutorpress-certificate__cards">
-                    {filteredTemplates.slice(0, 3).map((template: CertificateTemplate) => (
-                      <div key={template.key} className="tutorpress-certificate__card-placeholder">
-                        <div className="tutorpress-certificate__card-image">
-                          <img
-                            src={template.preview_src || template.background_src}
-                            alt={template.name}
-                            style={{ width: "100%", height: "auto" }}
-                          />
-                        </div>
-                        <div className="tutorpress-certificate__card-title">{template.name}</div>
-                      </div>
+                    {filteredTemplates.map((template: CertificateTemplate) => (
+                      <CertificateCard
+                        key={template.key}
+                        template={template}
+                        isSelected={isTemplateSelected(template)}
+                        onSelect={handleTemplateSelect}
+                        onPreview={handleTemplatePreview}
+                        disabled={isSelectionLoading}
+                        isLoading={isSelectionLoading && isTemplateSelected(template)}
+                      />
                     ))}
                   </div>
                 </div>

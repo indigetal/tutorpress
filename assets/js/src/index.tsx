@@ -15,7 +15,8 @@ import "./store/h5p"; // H5P store registration
 
 // Conditionally import certificate store only when Certificate addon is enabled
 if (isCertificateEnabled()) {
-  import("./store/certificate");
+  // Use synchronous import to ensure store is registered immediately
+  require("./store/certificate");
 }
 
 // Import CSS for bundling

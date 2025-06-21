@@ -18,6 +18,8 @@
 export interface CertificateTemplate {
   /** Template key (e.g., 'default', 'template_1', 'none') */
   key: string;
+  /** Template slug (same as key for compatibility) */
+  slug: string;
   /** Display name of the template */
   name: string;
   /** Template orientation: landscape or portrait */
@@ -53,7 +55,7 @@ export interface CertificateFilters {
   /** Filter by orientation */
   orientation?: "landscape" | "portrait" | "all";
   /** Filter by template type */
-  type?: "templates" | "custom" | "all";
+  type?: "templates" | "custom_templates" | "all";
   /** Include none/off options */
   include_none?: boolean;
 }

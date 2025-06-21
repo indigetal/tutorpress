@@ -49,8 +49,8 @@ const DEFAULT_STATE: CertificateState = {
   templates: {
     templates: [],
     filters: {
-      orientation: "all",
-      type: "all",
+      orientation: "portrait",
+      type: "templates",
       include_none: true,
     },
     filteredTemplates: [],
@@ -291,29 +291,50 @@ const reducer = (state = DEFAULT_STATE, action: CertificateAction): CertificateS
 const filterTemplates = (templates: CertificateTemplate[], filters: CertificateFilters): CertificateTemplate[] => {
   let filtered = [...templates];
 
-  // Filter by orientation
-  if (filters.orientation && filters.orientation !== "all") {
-    filtered = filtered.filter((template) => template.orientation === filters.orientation);
-  }
-
-  // Filter by type (templates vs custom)
+  // Filter by type first (templates vs custom)
   if (filters.type && filters.type !== "all") {
     if (filters.type === "templates") {
-      // Built-in templates (exclude none/off and custom templates)
-      filtered = filtered.filter(
-        (template) => template.is_default && template.key !== "none" && template.key !== "off"
-      );
-    } else if (filters.type === "custom") {
-      // Custom templates (non-default templates, excluding none/off)
-      filtered = filtered.filter(
-        (template) => !template.is_default && template.key !== "none" && template.key !== "off"
-      );
+      // Built-in templates - include default templates AND single none option
+      // We only include "none" template (landscape), not "off" (portrait) to avoid duplication
+      filtered = filtered.filter((template) => template.is_default === true || template.key === "none");
+    } else if (filters.type === "custom_templates") {
+      // Custom templates - templates added via tutor_certificate_templates filter
+      // These have is_default !== true AND don't use the standard Tutor plugin path structure
+      // Exclude none/off templates which are special system templates
+      filtered = filtered.filter((template) => {
+        // Exclude none/off system templates
+        if (template.key === "none" || template.key === "off") {
+          return false;
+        }
+
+        // Custom templates don't have is_default: true
+        if (template.is_default === true) {
+          return false;
+        }
+
+        // Additional check: custom templates typically have different path structures
+        // Default templates have paths like "tutor-pro/addons/tutor-certificate/templates/template_1"
+        // Custom templates from plugins will have different path structures
+        if (template.path && template.path.includes("/tutor-certificate/templates/")) {
+          return false;
+        }
+
+        return true;
+      });
     }
   }
 
-  // Include/exclude none options
-  if (!filters.include_none) {
-    filtered = filtered.filter((template) => template.key !== "none" && template.key !== "off");
+  // Filter by orientation (after type filtering)
+  // Special handling: "none" template appears in Templates tab regardless of orientation
+  if (filters.orientation && filters.orientation !== "all") {
+    filtered = filtered.filter((template) => {
+      // Always include "none" template in Templates tab regardless of orientation
+      if (template.key === "none" && filters.type === "templates") {
+        return true;
+      }
+      // For all other templates, filter by orientation
+      return template.orientation === filters.orientation;
+    });
   }
 
   return filtered;
