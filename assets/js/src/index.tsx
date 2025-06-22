@@ -19,6 +19,9 @@ if (isCertificateEnabled()) {
   require("./store/certificate");
 }
 
+// Always import additional content store (core fields always available)
+require("./store/additional-content");
+
 // Import CSS for bundling
 import "../../css/src/index.css";
 
@@ -48,6 +51,15 @@ document.addEventListener("DOMContentLoaded", () => {
       render(<Certificate />, certificateRoot);
     }
   }
+
+  // TODO: Enable when AdditionalContent component is created in Step 3
+  // Always render Additional Content metabox (core fields always available)
+  // const additionalContentRoot = document.getElementById("tutorpress-additional-content-root");
+  // if (additionalContentRoot) {
+  //   // Use synchronous import to match store loading strategy
+  //   const AdditionalContent = require("./components/metaboxes/AdditionalContent").default;
+  //   render(<AdditionalContent />, additionalContentRoot);
+  // }
 });
 
 // Expose utilities to global scope for testing
