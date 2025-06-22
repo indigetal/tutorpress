@@ -25,6 +25,16 @@ require("./store/additional-content");
 // Import CSS for bundling
 import "../../css/src/index.css";
 
+// Import content drip utilities
+import {
+  getDefaultContentDripItemSettings,
+  getEmptyContentDripInfo,
+  isContentDripSettingsEmpty,
+  validateContentDripSettings,
+  isContentDripItemSettings,
+  isContentDripInfo,
+} from "./types/content-drip";
+
 // Register the assignment settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-assignment-settings", {
   render: AssignmentSettingsPanel,
@@ -64,6 +74,16 @@ document.addEventListener("DOMContentLoaded", () => {
 // Expose utilities to global scope for testing
 (window as any).tutorpress = (window as any).tutorpress || {};
 (window as any).tutorpress.AddonChecker = AddonChecker;
+
+// Expose content drip utilities globally for testing and debugging
+(window as any).tutorpress.contentDrip = {
+  getDefaultContentDripItemSettings,
+  getEmptyContentDripInfo,
+  isContentDripSettingsEmpty,
+  validateContentDripSettings,
+  isContentDripItemSettings,
+  isContentDripInfo,
+};
 
 // Conditionally expose Interactive Quiz components only when H5P is enabled
 if (isH5pEnabled()) {

@@ -62,3 +62,6 @@ export * from "./h5p";
 
 // Export Live Lessons types
 export * from "./liveLessons";
+
+// Export Content Drip types
+export * from "./content-drip";

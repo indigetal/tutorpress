@@ -185,6 +185,18 @@ export interface TutorPressQuizUtils {
   service: any;
 }
 
+/**
+ * TutorPress Content Drip utilities interface for window.tutorpress.contentDrip
+ */
+export interface TutorPressContentDripUtils {
+  getDefaultContentDripItemSettings: () => any;
+  getEmptyContentDripInfo: (courseId: number) => any;
+  isContentDripSettingsEmpty: (settings: any) => boolean;
+  validateContentDripSettings: (settings: any, dripType: string) => { isValid: boolean; errors: string[] };
+  isContentDripItemSettings: (value: any) => boolean;
+  isContentDripInfo: (value: any) => boolean;
+}
+
 // ============================================================================
 // Global Window Interface Augmentations
 // ============================================================================
@@ -233,6 +245,7 @@ declare global {
       api: TutorPressApi;
       quiz: TutorPressQuizUtils;
       utils: any; // Quiz form utilities
+      contentDrip: TutorPressContentDripUtils; // Content drip utilities
     };
   }
 }
