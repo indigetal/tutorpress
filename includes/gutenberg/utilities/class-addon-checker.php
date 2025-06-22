@@ -63,6 +63,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_CERT_VERSION',
             'class' => 'TUTOR_CERT\Init',
         ],
+        'content_drip' => [
+            'file' => 'tutor-pro/addons/content-drip/content-drip.php',
+            'basename' => 'tutor-pro/addons/content-drip/content-drip.php',
+            'constant' => 'TUTOR_CONTENT_DRIP_VERSION',
+            'class' => 'TUTOR_CONTENT_DRIP\init',
+        ],
     ];
 
     /**
@@ -135,6 +141,15 @@ class TutorPress_Addon_Checker {
      */
     public static function is_certificate_enabled() {
         return self::is_addon_enabled('certificate');
+    }
+
+    /**
+     * Check if Content Drip addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_content_drip_enabled() {
+        return self::is_addon_enabled('content_drip');
     }
 
     /**

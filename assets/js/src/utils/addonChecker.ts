@@ -13,7 +13,7 @@
 /**
  * Supported addon keys
  */
-export type AddonKey = "course_preview" | "google_meet" | "zoom" | "h5p" | "certificate";
+export type AddonKey = "course_preview" | "google_meet" | "zoom" | "h5p" | "certificate" | "content_drip";
 
 /**
  * Addon status interface
@@ -24,6 +24,7 @@ export interface AddonStatus {
   zoom: boolean;
   h5p: boolean;
   certificate: boolean;
+  content_drip: boolean;
 }
 
 /**
@@ -53,6 +54,7 @@ export class AddonChecker {
         zoom: false,
         h5p: false,
         certificate: false,
+        content_drip: false,
       }
     );
   }
@@ -114,6 +116,13 @@ export class AddonChecker {
   }
 
   /**
+   * Check if Content Drip addon is available
+   */
+  public static isContentDripEnabled(): boolean {
+    return this.isAddonEnabled("content_drip");
+  }
+
+  /**
    * Get availability status for all supported addons
    */
   public static getAllAddonStatus(): AddonStatus {
@@ -156,7 +165,7 @@ export class AddonChecker {
    * Get supported addon keys
    */
   public static getSupportedAddons(): AddonKey[] {
-    return ["course_preview", "google_meet", "zoom", "h5p", "certificate"];
+    return ["course_preview", "google_meet", "zoom", "h5p", "certificate", "content_drip"];
   }
 }
 
@@ -168,5 +177,6 @@ export const isGoogleMeetEnabled = (): boolean => AddonChecker.isGoogleMeetEnabl
 export const isZoomEnabled = (): boolean => AddonChecker.isZoomEnabled();
 export const isH5pEnabled = (): boolean => AddonChecker.isH5pEnabled();
 export const isCertificateEnabled = (): boolean => AddonChecker.isCertificateEnabled();
+export const isContentDripEnabled = (): boolean => AddonChecker.isContentDripEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
