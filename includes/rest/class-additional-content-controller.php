@@ -108,11 +108,15 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
             );
         }
 
-        // Get additional content data
-        $additional_data = get_post_meta($course_id, '_tutor_course_additional_data', true);
-        if (!is_array($additional_data)) {
-            $additional_data = array();
-        }
+        // Get data from Tutor LMS compatible meta fields
+        $what_will_learn = get_post_meta($course_id, '_tutor_course_benefits', true);
+        $target_audience = get_post_meta($course_id, '_tutor_course_target_audience', true);
+        $requirements = get_post_meta($course_id, '_tutor_course_requirements', true);
+
+        // Ensure we return strings, not false
+        $what_will_learn = is_string($what_will_learn) ? $what_will_learn : '';
+        $target_audience = is_string($target_audience) ? $target_audience : '';
+        $requirements = is_string($requirements) ? $requirements : '';
 
         // Get content drip settings
         $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
@@ -127,9 +131,9 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
 
         // Prepare response data
         $response_data = array(
-            'what_will_learn' => isset($additional_data['what_will_learn']) ? $additional_data['what_will_learn'] : '',
-            'target_audience' => isset($additional_data['target_audience']) ? $additional_data['target_audience'] : '',
-            'requirements' => isset($additional_data['requirements']) ? $additional_data['requirements'] : '',
+            'what_will_learn' => $what_will_learn,
+            'target_audience' => $target_audience,
+            'requirements' => $requirements,
             'content_drip' => array(
                 'enabled' => $content_drip_enabled,
                 'type' => $content_drip_type,
@@ -162,12 +166,12 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
             );
         }
 
-        // Get parameters
-        $what_will_learn = sanitize_textarea_field($request->get_param('what_will_learn'));
-        $target_audience = sanitize_textarea_field($request->get_param('target_audience'));
-        $requirements = sanitize_textarea_field($request->get_param('requirements'));
+        // Get parameters with proper defaults
+        $what_will_learn = sanitize_textarea_field($request->get_param('what_will_learn') ?? '');
+        $target_audience = sanitize_textarea_field($request->get_param('target_audience') ?? '');
+        $requirements = sanitize_textarea_field($request->get_param('requirements') ?? '');
         $content_drip_enabled = (bool) $request->get_param('content_drip_enabled');
-        $content_drip_type = sanitize_text_field($request->get_param('content_drip_type'));
+        $content_drip_type = sanitize_text_field($request->get_param('content_drip_type') ?? 'unlock_by_date');
 
         // Validate content drip type
         $valid_drip_types = array('unlock_by_date', 'specific_days', 'unlock_sequentially', 'after_finishing_prerequisites');
@@ -175,29 +179,65 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
             $content_drip_type = 'unlock_by_date';
         }
 
-        // Save additional content data
-        $additional_data = array(
-            'what_will_learn' => $what_will_learn,
-            'target_audience' => $target_audience,
-            'requirements' => $requirements,
-        );
+        // Save data to Tutor LMS compatible meta fields
+        // Set the flag that tells Tutor LMS to save additional data
+        $_POST['_tutor_course_additional_data_edit'] = true;
+        $_POST['course_benefits'] = $what_will_learn;
+        $_POST['course_target_audience'] = $target_audience;
+        $_POST['course_requirements'] = $requirements;
 
-        $additional_saved = update_post_meta($course_id, '_tutor_course_additional_data', $additional_data);
+        // Save directly to Tutor LMS meta fields
+        try {
+            $benefits_saved = update_post_meta($course_id, '_tutor_course_benefits', $what_will_learn);
+            $audience_saved = update_post_meta($course_id, '_tutor_course_target_audience', $target_audience);
+            $requirements_saved = update_post_meta($course_id, '_tutor_course_requirements', $requirements);
+
+            $additional_saved = $benefits_saved !== false && $audience_saved !== false && $requirements_saved !== false;
+        } catch (Exception $e) {
+            error_log('TutorPress: Failed to save additional content meta fields: ' . $e->getMessage());
+            return new WP_Error(
+                'meta_save_failed',
+                __('Failed to save additional content: ' . $e->getMessage(), 'tutorpress'),
+                array('status' => 500)
+            );
+        }
 
         // Save content drip settings (only if content drip addon is enabled)
         $content_drip_saved = true;
-        if (TutorPress_Addon_Checker::is_content_drip_enabled()) {
-            // Get existing course settings
-            $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-            if (!is_array($course_settings)) {
-                $course_settings = array();
+        $content_drip_addon_enabled = false;
+        
+        try {
+            $content_drip_addon_enabled = class_exists('TutorPress_Addon_Checker') && TutorPress_Addon_Checker::is_content_drip_enabled();
+        } catch (Exception $e) {
+            // Log error but don't fail the entire request
+            error_log('TutorPress: Content drip addon check failed: ' . $e->getMessage());
+        }
+        
+        if ($content_drip_addon_enabled) {
+            try {
+                // Get existing course settings
+                $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+                if (!is_array($course_settings)) {
+                    $course_settings = array();
+                }
+
+                // Update content drip settings
+                $course_settings['enable_content_drip'] = $content_drip_enabled;
+                
+                // Only save content drip type if content drip is enabled
+                if ($content_drip_enabled) {
+                    $course_settings['content_drip_type'] = $content_drip_type;
+                } else {
+                    // When disabled, remove the content drip type or set to default
+                    // This ensures "None" behavior - no content drip type is active
+                    unset($course_settings['content_drip_type']);
+                }
+
+                $content_drip_saved = update_post_meta($course_id, '_tutor_course_settings', $course_settings);
+            } catch (Exception $e) {
+                error_log('TutorPress: Failed to save content drip settings: ' . $e->getMessage());
+                $content_drip_saved = false;
             }
-
-            // Update content drip settings
-            $course_settings['enable_content_drip'] = $content_drip_enabled;
-            $course_settings['content_drip_type'] = $content_drip_type;
-
-            $content_drip_saved = update_post_meta($course_id, '_tutor_course_settings', $course_settings);
         }
 
         // Check if save was successful
@@ -216,7 +256,7 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
                 'course_id' => $course_id,
                 'additional_data_saved' => $additional_saved,
                 'content_drip_saved' => $content_drip_saved,
-                'content_drip_addon_enabled' => TutorPress_Addon_Checker::is_content_drip_enabled(),
+                'content_drip_addon_enabled' => $content_drip_addon_enabled,
             ),
         ));
     }

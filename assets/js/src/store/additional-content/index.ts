@@ -541,9 +541,11 @@ const resolvers = {
 
 export const additionalContentStore = createReduxStore("tutorpress/additional-content", {
   reducer,
-  actions,
+  actions: {
+    ...actions,
+    ...resolvers, // Merge resolvers with actions so they can be called as actions
+  },
   selectors,
-  resolvers,
   controls,
 });
 

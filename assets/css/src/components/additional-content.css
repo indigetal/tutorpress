@@ -1,0 +1,326 @@
+/**
+ * Additional Content Metabox Styles
+ *
+ * Provides styling for the Additional Content metabox component including:
+ * - Form field styling with proper spacing
+ * - Content drip section styling
+ * - Loading and error state styling
+ * - Responsive design for mobile devices
+ * - Integration with TutorPress design system
+ *
+ * @package TutorPress
+ * @subpackage CSS/Components
+ * @since 1.0.0
+ */
+
+/* ============================================================================
+   Main Additional Content Container
+   ============================================================================ */
+
+.tutorpress-additional-content {
+  --field-spacing: var(--space-lg);
+  --section-spacing: var(--space-xl);
+
+  padding: var(--space-lg);
+  background: var(--white);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================================
+   Form Fields Section
+   ============================================================================ */
+
+.tutorpress-additional-content__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-spacing);
+}
+
+.tutorpress-additional-content__field {
+  position: relative;
+}
+
+/* Textarea field styling */
+.tutorpress-additional-content__field .components-textarea-control {
+  margin-bottom: 0;
+}
+
+.tutorpress-additional-content__field .components-textarea-control__input {
+  min-height: 100px;
+  resize: vertical;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  transition: border-color 0.2s ease;
+}
+
+.tutorpress-additional-content__field .components-textarea-control__input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+}
+
+.tutorpress-additional-content__field .components-textarea-control__input:disabled {
+  background-color: var(--gray-100);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* Field labels */
+.tutorpress-additional-content__field .components-base-control__label {
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+  display: block;
+}
+
+/* Help text */
+.tutorpress-additional-content__field .components-base-control__help {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  margin-top: var(--space-xs);
+  line-height: var(--leading-relaxed);
+}
+
+/* ============================================================================
+   Content Drip Section
+   ============================================================================ */
+
+.tutorpress-additional-content__content-drip {
+  margin-top: var(--section-spacing);
+  padding-top: var(--section-spacing);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tutorpress-additional-content__section-title {
+  font-size: var(--text-lg);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.tutorpress-additional-content__section-description {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-lg) 0;
+  line-height: var(--leading-relaxed);
+}
+
+/* ============================================================================
+   Content Drip Settings Component
+   ============================================================================ */
+
+.tutorpress-content-drip-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.tutorpress-content-drip-settings__enable {
+  padding: var(--space-md);
+  background: var(--gray-100);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+}
+
+.tutorpress-content-drip-settings__enable .components-checkbox-control {
+  margin-bottom: 0;
+}
+
+.tutorpress-content-drip-settings__enable .components-checkbox-control__label {
+  color: var(--color-text-primary);
+}
+
+.tutorpress-content-drip-settings__type {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+/* Radio control styling */
+.tutorpress-content-drip-settings__type .components-radio-control {
+  margin-bottom: 0;
+}
+
+.tutorpress-content-drip-settings__type .components-radio-control__option {
+  margin-bottom: var(--space-sm);
+}
+
+.tutorpress-content-drip-settings__type .components-radio-control__option:last-child {
+  margin-bottom: 0;
+}
+
+.tutorpress-content-drip-settings__type .components-radio-control__input {
+  margin-right: var(--space-xs);
+}
+
+/* Option descriptions */
+.tutorpress-content-drip-settings__descriptions {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tutorpress-content-drip-settings__description {
+  display: none;
+}
+
+.tutorpress-content-drip-settings__description.is-selected {
+  display: block;
+}
+
+.tutorpress-content-drip-settings__description-text {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+  padding: var(--space-sm);
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+.tutorpress-content-drip-settings__description-text strong {
+  color: var(--color-text-primary);
+}
+
+/* ============================================================================
+   Status and Loading States
+   ============================================================================ */
+
+.tutorpress-additional-content__status {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-light);
+  text-align: center;
+}
+
+.tutorpress-additional-content__unsaved-indicator {
+  color: var(--color-warning);
+  font-size: var(--text-xs);
+  font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tutorpress-additional-content__unsaved-indicator::before {
+  content: "●";
+  color: var(--color-warning);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Loading and error states */
+.tutorpress-additional-content .components-spinner {
+  color: var(--color-primary);
+}
+
+.tutorpress-additional-content .components-notice {
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.tutorpress-additional-content .components-notice.is-info {
+  background-color: var(--info-bg);
+  border-color: var(--color-primary);
+}
+
+.tutorpress-additional-content .components-notice.is-error {
+  background-color: var(--error-bg);
+  border-color: var(--color-error);
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+/* Tablet and small desktop */
+@media (max-width: 782px) {
+  .tutorpress-additional-content {
+    padding: var(--space-md);
+  }
+
+  .tutorpress-additional-content__fields {
+    gap: var(--space-md);
+  }
+
+  .tutorpress-additional-content__field .components-textarea-control__input {
+    font-size: var(--text-lg);
+    min-height: 80px;
+  }
+
+  .tutorpress-content-drip-settings__enable,
+  .tutorpress-content-drip-settings__type {
+    padding: var(--space-sm);
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .tutorpress-additional-content {
+    padding: var(--space-sm);
+  }
+
+  .tutorpress-additional-content__section-title {
+    font-size: var(--text-lg);
+  }
+
+  .tutorpress-additional-content__field .components-textarea-control__input {
+    min-height: 60px;
+  }
+}
+
+/* ============================================================================
+   Accessibility and Interaction States
+   ============================================================================ */
+
+/* Focus states */
+.tutorpress-content-drip-settings__enable .components-checkbox-control__input:focus,
+.tutorpress-content-drip-settings__type .components-radio-control__input:focus {
+  box-shadow: 0 0 0 2px var(--color-primary);
+  outline: none;
+}
+
+/* Disabled states */
+.tutorpress-content-drip-settings__enable .components-checkbox-control__input:disabled,
+.tutorpress-content-drip-settings__type .components-radio-control__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tutorpress-additional-content {
+    border: 2px solid var(--color-text-primary);
+  }
+
+  .tutorpress-additional-content__field .components-textarea-control__input {
+    border: 2px solid var(--color-text-primary);
+  }
+
+  .tutorpress-content-drip-settings__description-text {
+    border-left-width: 4px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-additional-content__field .components-textarea-control__input {
+    transition: none;
+  }
+
+  .tutorpress-additional-content__unsaved-indicator::before {
+    animation: none;
+  }
+}

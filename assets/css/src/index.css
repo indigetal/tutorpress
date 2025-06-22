@@ -14,6 +14,9 @@
 /* Certificate Feature */
 @import "./components/certificate.css";
 
+/* Additional Content Feature */
+@import "./components/additional-content.css";
+
 /* Live Lessons Feature */
 @import "./components/live-lessons.css";
 
