@@ -34,11 +34,19 @@
 }
 
 /* ============================================================================
-   ORIENTATION FILTERS
+   TABS LAYOUT WITH ORIENTATION FILTERS
    ============================================================================ */
 
+.tutorpress-certificate__tabs-container {
+  position: relative;
+}
+
+/* Orientation Filters - positioned on right */
 .tutorpress-certificate__orientation-filters {
-  margin-bottom: var(--space-lg);
+  position: absolute;
+  right: 0;
+  top: 8px;
+  z-index: 10;
 }
 
 .tutorpress-certificate__filter-group {
@@ -466,9 +474,16 @@
     gap: var(--space-md);
   }
 
+  .tutorpress-certificate__orientation-filters {
+    position: static;
+    margin-bottom: var(--space-sm);
+    display: flex;
+    justify-content: flex-end;
+  }
+
   .tutorpress-certificate__filter-group {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    justify-content: flex-end;
   }
 
   .tutorpress-certificate__tabs .components-tab-panel__tabs-item {

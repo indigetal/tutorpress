@@ -59,7 +59,7 @@ class Certificate_Metabox {
             array( __CLASS__, 'display_metabox' ),    // Callback
             array( 'courses' ),               // Post types (certificates only apply to courses)
             'normal',                        // Context
-            'high'                           // Priority
+            'default'                        // Priority - below curriculum metabox (high priority)
         );
     }
 

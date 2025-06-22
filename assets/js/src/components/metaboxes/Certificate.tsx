@@ -225,108 +225,116 @@ const Certificate: React.FC = (): JSX.Element | null => {
         </p>
       </div>
 
-      {/* Orientation Filters */}
-      <div className="tutorpress-certificate__orientation-filters">
-        <div className="tutorpress-certificate__filter-group">
-          <button
-            type="button"
-            className={`tutorpress-certificate__filter-button ${filters.orientation === "portrait" ? "is-active" : ""}`}
-            onClick={() => handleOrientationFilter("portrait")}
-          >
-            {__("Portrait", "tutorpress")}
-          </button>
-          <button
-            type="button"
-            className={`tutorpress-certificate__filter-button ${
-              filters.orientation === "landscape" ? "is-active" : ""
-            }`}
-            onClick={() => handleOrientationFilter("landscape")}
-          >
-            {__("Landscape", "tutorpress")}
-          </button>
+      {/* Template Tabs with Orientation Filters */}
+      <div className="tutorpress-certificate__tabs-container">
+        {/* Orientation Filters - positioned on right side of tabs */}
+        <div className="tutorpress-certificate__orientation-filters">
+          <div className="tutorpress-certificate__filter-group">
+            <button
+              type="button"
+              className={`tutorpress-certificate__filter-button ${filters.orientation === "portrait" ? "is-active" : ""}`}
+              onClick={() => handleOrientationFilter("portrait")}
+            >
+              {__("Portrait", "tutorpress")}
+            </button>
+            <button
+              type="button"
+              className={`tutorpress-certificate__filter-button ${
+                filters.orientation === "landscape" ? "is-active" : ""
+              }`}
+              onClick={() => handleOrientationFilter("landscape")}
+            >
+              {__("Landscape", "tutorpress")}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Template Tabs */}
-      <TabPanel
-        className="tutorpress-certificate__tabs"
-        activeClass="is-active"
-        initialTabName="templates"
-        onSelect={handleTabChange}
-        tabs={[
-          {
-            name: "templates",
-            title: __("Templates", "tutorpress"),
-            className: "tutorpress-certificate__tab",
-          },
-          {
-            name: "custom_templates",
-            title: __("Custom Templates", "tutorpress"),
-            className: "tutorpress-certificate__tab",
-          },
-        ]}
-      >
-        {(tab) => (
-          <div className="tutorpress-certificate__tab-content">
-            {/* Template Grid Placeholder */}
-            <div className="tutorpress-certificate__grid">
-              {filteredTemplates && filteredTemplates.length > 0 ? (
-                <div className="tutorpress-certificate__grid-content">
-                  <p>
-                    {__("Found", "tutorpress")} {filteredTemplates.length} {__("templates", "tutorpress")}
-                  </p>
-                  {/* Certificate Template Cards */}
-                  <div className="tutorpress-certificate__cards">
-                    {filteredTemplates.map((template: CertificateTemplate) => (
-                      <CertificateCard
-                        key={template.key}
-                        template={template}
-                        isSelected={isTemplateSelected(template)}
-                        onSelect={handleTemplateSelect}
-                        onPreview={handleTemplatePreview}
-                        disabled={isSelectionSaving}
-                        isLoading={isSelectionSaving && selection?.selectedTemplate === template.key}
-                      />
-                    ))}
+        <TabPanel
+          className="tutorpress-certificate__tabs"
+          activeClass="is-active"
+          initialTabName="templates"
+          onSelect={handleTabChange}
+          tabs={[
+            {
+              name: "templates",
+              title: __("Templates", "tutorpress"),
+              className: "tutorpress-certificate__tab",
+            },
+            {
+              name: "custom_templates",
+              title: __("Custom Templates", "tutorpress"),
+              className: "tutorpress-certificate__tab",
+            },
+          ]}
+        >
+          {(tab) => (
+            <div className="tutorpress-certificate__tab-content">
+              {/* Template Grid Placeholder */}
+              <div className="tutorpress-certificate__grid">
+                {filteredTemplates && filteredTemplates.length > 0 ? (
+                  <div className="tutorpress-certificate__grid-content">
+                    <p>
+                      {__("Found", "tutorpress")} {filteredTemplates.length} {__("templates", "tutorpress")}
+                    </p>
+                    {/* Certificate Template Cards */}
+                    <div className="tutorpress-certificate__cards">
+                      {filteredTemplates.map((template: CertificateTemplate) => (
+                        <CertificateCard
+                          key={template.key}
+                          template={template}
+                          isSelected={isTemplateSelected(template)}
+                          onSelect={handleTemplateSelect}
+                          onPreview={handleTemplatePreview}
+                          disabled={isSelectionSaving}
+                          isLoading={isSelectionSaving && selection?.selectedTemplate === template.key}
+                        />
+                      ))}
+                    </div>
                   </div>
+                ) : (
+                  <div className="tutorpress-certificate__empty">
+                    <p>{__("No templates found for the selected criteria.", "tutorpress")}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Selection Status */}
+              {selection?.selectedTemplate && (
+                <div className="tutorpress-certificate__selection-status">
+                  <p>
+                    {isSelectionSaving
+                      ? __("Saving selection...", "tutorpress")
+                      : selection.isDirty
+                        ? __("Changes not saved.", "tutorpress")
+                        : (() => {
+                            const selectedTemplate = templates?.find(
+                              (t: CertificateTemplate) => t.key === selection.selectedTemplate
+                            );
+                            const templateName = selectedTemplate?.name || selection.selectedTemplate;
+                            return __("Selected: ", "tutorpress") + templateName;
+                          })()}
+                  </p>
                 </div>
-              ) : (
-                <div className="tutorpress-certificate__empty">
-                  <p>{__("No templates found for the selected criteria.", "tutorpress")}</p>
+              )}
+
+              {/* Loading/Error states for selection */}
+              {isSelectionLoading && (
+                <div className="tutorpress-certificate__selection-loading">
+                  <Spinner />
+                  <span>{__("Saving selection...", "tutorpress")}</span>
+                </div>
+              )}
+
+              {hasSelectionError && (
+                <div className="tutorpress-certificate__selection-error">
+                  <p>{__("Error saving selection:", "tutorpress")}</p>
+                  <p>{selectionError?.message || __("Unknown error occurred", "tutorpress")}</p>
                 </div>
               )}
             </div>
-
-            {/* Selection Status */}
-            {selection?.selectedTemplate && (
-              <div className="tutorpress-certificate__selection-status">
-                <p>
-                  {isSelectionSaving
-                    ? __("Saving selection...", "tutorpress")
-                    : selection.isDirty
-                      ? __("Changes not saved.", "tutorpress")
-                      : __("Selection saved.", "tutorpress")}
-                </p>
-              </div>
-            )}
-
-            {/* Loading/Error states for selection */}
-            {isSelectionLoading && (
-              <div className="tutorpress-certificate__selection-loading">
-                <Spinner />
-                <span>{__("Saving selection...", "tutorpress")}</span>
-              </div>
-            )}
-
-            {hasSelectionError && (
-              <div className="tutorpress-certificate__selection-error">
-                <p>{__("Error saving selection:", "tutorpress")}</p>
-                <p>{selectionError?.message || __("Unknown error occurred", "tutorpress")}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </TabPanel>
+          )}
+        </TabPanel>
+      </div>
 
       {/* Preview Modal */}
       <CertificatePreviewModal
