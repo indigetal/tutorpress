@@ -80,6 +80,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
   };
 
   const imageSrc = template.preview_src || template.background_src;
+  const isNoneTemplate = template.key === "none";
   const cardClasses = [
     "certificate-card",
     isSelected && "certificate-card--selected",
@@ -117,9 +118,11 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
       <div className="certificate-card__hover-info">
         <h4 className="certificate-card__title">{template.name}</h4>
         <div className="certificate-card__actions">
-          <Button variant="secondary" size="small" onClick={handlePreview} disabled={disabled || isLoading}>
-            {__("Preview", "tutorpress")}
-          </Button>
+          {!isNoneTemplate && (
+            <Button variant="secondary" size="small" onClick={handlePreview} disabled={disabled || isLoading}>
+              {__("Preview", "tutorpress")}
+            </Button>
+          )}
           <Button variant="primary" size="small" onClick={handleSelect} disabled={disabled || isLoading}>
             {isSelected ? __("Selected", "tutorpress") : __("Select", "tutorpress")}
           </Button>

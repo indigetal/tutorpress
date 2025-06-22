@@ -43,10 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (isCertificateEnabled()) {
     const certificateRoot = document.getElementById("tutorpress-certificate-root");
     if (certificateRoot) {
-      // Dynamic import to avoid loading Certificate components when Certificate addon is not available
-      import("./components/metaboxes/Certificate").then(({ default: Certificate }) => {
-        render(<Certificate />, certificateRoot);
-      });
+      // Use synchronous import to match store loading strategy and avoid race conditions
+      const Certificate = require("./components/metaboxes/Certificate").default;
+      render(<Certificate />, certificateRoot);
     }
   }
 });

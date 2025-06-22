@@ -14,16 +14,18 @@
  * @subpackage Components/Metaboxes
  * @since 1.0.0
  */
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { TabPanel, Spinner, Flex, FlexBlock } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 
 // Components
 import { CertificateCard } from "./certificate/CertificateCard";
+import CertificatePreviewModal from "../modals/certificate/CertificatePreviewModal";
 
 // Types
 import type { CertificateTemplate, CertificateFilters } from "../../types/certificate";
+import { isCertificateEnabled } from "../../utils/addonChecker";
 
 // Store constant
 const CERTIFICATE_STORE = "tutorpress/certificate";
@@ -46,46 +48,56 @@ const CERTIFICATE_STORE = "tutorpress/certificate";
  * - Uses certificate store for global state (templates, selection, etc.)
  * - Follows established TutorPress data flow patterns
  */
-const Certificate: React.FC = (): JSX.Element => {
+const Certificate: React.FC = (): JSX.Element | null => {
+  // Early return if Certificate addon is not enabled
+  if (!isCertificateEnabled()) {
+    return null;
+  }
+
   // Get course ID from URL parameters (following Curriculum pattern)
   const urlParams = new URLSearchParams(window.location.search);
-  const courseId = Number(urlParams.get("post"));
+  const courseId = parseInt(urlParams.get("post") || "0", 10);
 
   // Certificate store selectors
   const {
     templates,
     filteredTemplates,
     filters,
+    isLoading,
+    hasError,
+    error,
     selection,
-    isTemplatesLoading,
-    hasTemplatesError,
-    templatesError,
     isSelectionLoading,
+    isSelectionSaving,
     hasSelectionError,
     selectionError,
+    previewModal,
   } = useSelect((select) => {
     const certificateStore = select(CERTIFICATE_STORE) as any;
     return {
       templates: certificateStore.getCertificateTemplates(),
       filteredTemplates: certificateStore.getFilteredCertificateTemplates(),
       filters: certificateStore.getCertificateFilters(),
+      isLoading: certificateStore.isCertificateTemplatesLoading(),
+      hasError: certificateStore.hasCertificateTemplatesError(),
+      error: certificateStore.getCertificateTemplatesError(),
       selection: certificateStore.getCertificateSelection(),
-      isTemplatesLoading: certificateStore.isCertificateTemplatesLoading(),
-      hasTemplatesError: certificateStore.hasCertificateTemplatesError(),
-      templatesError: certificateStore.getCertificateTemplatesError(),
       isSelectionLoading: certificateStore.isCertificateSelectionLoading(),
+      isSelectionSaving: certificateStore.isCertificateSelectionSaving(),
       hasSelectionError: certificateStore.hasCertificateSelectionError(),
       selectionError: certificateStore.getCertificateSelectionError(),
+      previewModal: certificateStore.getCertificatePreview(),
     };
   }, []);
 
   // Certificate store actions
   const {
     getCertificateTemplates,
-    getCertificateSelection,
     setCertificateFilters,
+    getCertificateSelection,
     saveCertificateSelection,
     openCertificatePreview,
+    closeCertificatePreview,
   } = useDispatch(CERTIFICATE_STORE) as any;
 
   // Load data on mount and ensure proper filter initialization
@@ -118,7 +130,7 @@ const Certificate: React.FC = (): JSX.Element => {
   }, [filters.orientation, setCertificateFilters]);
 
   // Handle orientation filter change
-  const handleOrientationChange = (orientation: "all" | "landscape" | "portrait") => {
+  const handleOrientationFilter = (orientation: "portrait" | "landscape") => {
     setCertificateFilters({
       ...filters,
       orientation,
@@ -126,10 +138,10 @@ const Certificate: React.FC = (): JSX.Element => {
   };
 
   // Handle template type change (tabs)
-  const handleTemplateTypeChange = (templateType: "templates" | "custom_templates") => {
+  const handleTabChange = (tabName: string) => {
     setCertificateFilters({
       ...filters,
-      type: templateType,
+      type: tabName as "templates" | "custom_templates",
     });
   };
 
@@ -150,12 +162,37 @@ const Certificate: React.FC = (): JSX.Element => {
     return selection?.selectedTemplate === template.key;
   };
 
+  // Preview modal navigation - exclude "None" templates from navigation
+  const handlePreviewNavigation = (direction: "prev" | "next") => {
+    if (!previewModal.template) return;
+
+    // Filter out "None" templates from navigation
+    const previewableTemplates = filteredTemplates.filter((t: CertificateTemplate) => t.key !== "none");
+    const currentIndex = previewableTemplates.findIndex(
+      (t: CertificateTemplate) => t.key === previewModal.template?.key
+    );
+
+    if (currentIndex === -1) return; // Current template not found in previewable templates
+
+    let newIndex;
+    if (direction === "prev") {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : previewableTemplates.length - 1;
+    } else {
+      newIndex = currentIndex < previewableTemplates.length - 1 ? currentIndex + 1 : 0;
+    }
+
+    const newTemplate = previewableTemplates[newIndex];
+    if (newTemplate) {
+      openCertificatePreview(newTemplate);
+    }
+  };
+
   // =============================
   // Render Methods
   // =============================
 
   // Render loading state
-  if (isTemplatesLoading) {
+  if (isLoading) {
     return (
       <div className="tutorpress-certificate">
         <Flex direction="column" align="center" gap={2} style={{ padding: "var(--space-xl)" }}>
@@ -167,12 +204,12 @@ const Certificate: React.FC = (): JSX.Element => {
   }
 
   // Render error state
-  if (hasTemplatesError) {
+  if (hasError) {
     return (
       <div className="tutorpress-certificate">
         <div className="tutorpress-certificate__error">
           <p>{__("Error loading certificate templates:", "tutorpress")}</p>
-          <p>{templatesError?.message || __("Unknown error occurred", "tutorpress")}</p>
+          <p>{error?.message || __("Unknown error occurred", "tutorpress")}</p>
         </div>
       </div>
     );
@@ -193,19 +230,19 @@ const Certificate: React.FC = (): JSX.Element => {
         <div className="tutorpress-certificate__filter-group">
           <button
             type="button"
-            className={`tutorpress-certificate__filter-button ${
-              filters.orientation === "landscape" ? "is-active" : ""
-            }`}
-            onClick={() => handleOrientationChange("landscape")}
+            className={`tutorpress-certificate__filter-button ${filters.orientation === "portrait" ? "is-active" : ""}`}
+            onClick={() => handleOrientationFilter("portrait")}
           >
-            {__("Landscape", "tutorpress")}
+            {__("Portrait", "tutorpress")}
           </button>
           <button
             type="button"
-            className={`tutorpress-certificate__filter-button ${filters.orientation === "portrait" ? "is-active" : ""}`}
-            onClick={() => handleOrientationChange("portrait")}
+            className={`tutorpress-certificate__filter-button ${
+              filters.orientation === "landscape" ? "is-active" : ""
+            }`}
+            onClick={() => handleOrientationFilter("landscape")}
           >
-            {__("Portrait", "tutorpress")}
+            {__("Landscape", "tutorpress")}
           </button>
         </div>
       </div>
@@ -215,7 +252,7 @@ const Certificate: React.FC = (): JSX.Element => {
         className="tutorpress-certificate__tabs"
         activeClass="is-active"
         initialTabName="templates"
-        onSelect={(tabName) => handleTemplateTypeChange(tabName as "templates" | "custom_templates")}
+        onSelect={handleTabChange}
         tabs={[
           {
             name: "templates",
@@ -247,8 +284,8 @@ const Certificate: React.FC = (): JSX.Element => {
                         isSelected={isTemplateSelected(template)}
                         onSelect={handleTemplateSelect}
                         onPreview={handleTemplatePreview}
-                        disabled={isSelectionLoading}
-                        isLoading={isSelectionLoading && isTemplateSelected(template)}
+                        disabled={isSelectionSaving}
+                        isLoading={isSelectionSaving && selection?.selectedTemplate === template.key}
                       />
                     ))}
                   </div>
@@ -264,10 +301,11 @@ const Certificate: React.FC = (): JSX.Element => {
             {selection?.selectedTemplate && (
               <div className="tutorpress-certificate__selection-status">
                 <p>
-                  {__("Selected template:", "tutorpress")} <strong>{selection.selectedTemplate}</strong>
-                  {selection.isDirty && (
-                    <span className="tutorpress-certificate__unsaved"> ({__("unsaved", "tutorpress")})</span>
-                  )}
+                  {isSelectionSaving
+                    ? __("Saving selection...", "tutorpress")
+                    : selection.isDirty
+                      ? __("Changes not saved.", "tutorpress")
+                      : __("Selection saved.", "tutorpress")}
                 </p>
               </div>
             )}
@@ -289,6 +327,16 @@ const Certificate: React.FC = (): JSX.Element => {
           </div>
         )}
       </TabPanel>
+
+      {/* Preview Modal */}
+      <CertificatePreviewModal
+        isOpen={previewModal.isOpen}
+        template={previewModal.template}
+        onClose={closeCertificatePreview}
+        onSelect={handleTemplateSelect}
+        onNavigate={handlePreviewNavigation}
+        canNavigate={filteredTemplates.filter((t: CertificateTemplate) => t.key !== "none").length > 1}
+      />
     </div>
   );
 };
