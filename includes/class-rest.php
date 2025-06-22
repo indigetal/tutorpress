@@ -68,6 +68,12 @@ class TutorPress_REST {
                 $controllers['live_lessons'] = new TutorPress_REST_Live_Lessons_Controller();
             }
 
+            // Conditionally load Content Drip controller only if Content Drip addon is available
+            if (TutorPress_Addon_Checker::is_content_drip_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-content-drip-controller.php';
+                $controllers['content_drip'] = new TutorPress_REST_Content_Drip_Controller();
+            }
+
             // Register routes for each controller
             foreach ($controllers as $name => $controller) {
                 try {
