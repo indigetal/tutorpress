@@ -154,7 +154,7 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
 
         // Get content drip settings using the helper class with proper defaults
         $settings = [
-            'unlock_date' => get_item_content_drip_settings($post_id, 'unlock_date', ''),
+            'unlock_date' => get_item_content_drip_settings($post_id, 'unlock_date', null),
             'after_xdays_of_enroll' => get_item_content_drip_settings($post_id, 'after_xdays_of_enroll', 0),
             'prerequisites' => get_item_content_drip_settings($post_id, 'prerequisites', []),
         ];
@@ -232,15 +232,8 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                 break;
                 
             case 'unlock_by_date':
-                if (isset($settings['unlock_date']) && !empty(trim($settings['unlock_date']))) {
-                    $drip_type = 'unlock_by_date';
-                } else {
-                    return new WP_Error(
-                        'missing_unlock_date',
-                        __('Unlock date is required for date-based content drip.', 'tutorpress'),
-                        ['status' => 400]
-                    );
-                }
+                // Always accept unlock_date field (required field but can be empty)
+                $drip_type = 'unlock_by_date';
                 break;
                 
             case 'specific_days':
@@ -284,6 +277,21 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                 if ($result !== false || get_item_content_drip_settings($post_id, $key) === $value) {
                     $saved_settings[$key] = $value;
                 }
+            } else {
+                // For null values, remove the setting from the _content_drip_settings array
+                $content_drip_settings = get_post_meta($post_id, '_content_drip_settings', true);
+                if (!is_array($content_drip_settings)) {
+                    $content_drip_settings = array();
+                }
+                
+                // Remove the specific key from the settings array
+                unset($content_drip_settings[$key]);
+                
+                // Update the meta with the modified array
+                update_post_meta($post_id, '_content_drip_settings', $content_drip_settings);
+                
+                // Include null in saved_settings to indicate the field was cleared
+                $saved_settings[$key] = null;
             }
         }
 

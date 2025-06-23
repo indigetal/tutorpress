@@ -14,14 +14,17 @@ import { useSelect, useDispatch } from "@wordpress/data";
 import {
   PanelRow,
   TextControl,
-  DateTimePicker,
   Button,
   Notice,
   Spinner,
   Card,
   CardBody,
   FormTokenField,
+  Flex,
+  FlexItem,
+  Icon,
 } from "@wordpress/components";
+import { info } from "@wordpress/icons";
 
 // Import types
 import type {
@@ -271,17 +274,22 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
     return (
       <Card className={`content-drip-panel ${className}`}>
         <CardBody>
-          <Notice status="info" isDismissible={false}>
-            <p>
-              <strong>{__("Sequential Content Drip", "tutorpress")}</strong>
-            </p>
-            <p>
-              {__(
-                "This content will be unlocked automatically based on the curriculum order. No additional settings are needed.",
-                "tutorpress"
-              )}
-            </p>
-          </Notice>
+          <h3 className="content-drip-panel__title">{__("Content Drip", "tutorpress")}</h3>
+          <div className="content-drip-panel__sequential-notice">
+            <Flex align="flex-start" gap={2}>
+              <FlexItem>
+                <Icon icon={info} className="content-drip-panel__info-icon" size={16} />
+              </FlexItem>
+              <FlexItem>
+                <p className="content-drip-panel__sequential-text">
+                  {__(
+                    "Course set to Sequential Content Drip. Content will be unlocked based on curriculum order.",
+                    "tutorpress"
+                  )}
+                </p>
+              </FlexItem>
+            </Flex>
+          </div>
         </CardBody>
       </Card>
     );
@@ -290,7 +298,7 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
   return (
     <Card className={`content-drip-panel ${className}`}>
       <CardBody>
-        <h3 className="content-drip-panel__title">{__("Content Drip Settings", "tutorpress")}</h3>
+        <h3 className="content-drip-panel__title">{__("Content Drip", "tutorpress")}</h3>
 
         {saveError && (
           <Notice status="error" isDismissible={false}>
@@ -303,11 +311,14 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
           <PanelRow>
             <div className="content-drip-panel__field">
               <label className="content-drip-panel__label">{__("Unlock Date", "tutorpress")}</label>
-              <DateTimePicker
-                currentDate={localSettings.unlock_date || ""}
-                onChange={handleDateChange}
-                is12Hour={true}
-              />
+              <div className="content-drip-panel__date-field">
+                <TextControl
+                  type="date"
+                  value={localSettings.unlock_date ? localSettings.unlock_date.split("T")[0] : ""}
+                  onChange={(value) => handleDateChange(value ? `${value}T00:00:00` : "")}
+                  disabled={isDisabled || saving}
+                />
+              </div>
               <p className="content-drip-panel__help">
                 {__(
                   "This content will be available from the given date. Leave empty to make it available immediately.",
@@ -376,38 +387,8 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
               )}
 
               <p className="content-drip-panel__help">
-                {__(
-                  "Select content items that must be completed before this item becomes available. Enhanced multi-select interface for better UX.",
-                  "tutorpress"
-                )}
+                {__("Select content items that must be completed before this item becomes available.", "tutorpress")}
               </p>
-
-              {/* Show selected prerequisites grouped by topic */}
-              {prerequisites && localSettings.prerequisites && localSettings.prerequisites.length > 0 && (
-                <div className="content-drip-panel__prerequisites">
-                  <strong className="content-drip-panel__prerequisites-label">
-                    {__("Selected Prerequisites:", "tutorpress")}
-                  </strong>
-                  {prerequisites.map((topic: PrerequisitesByTopic) => {
-                    const topicPrerequisites = topic.items.filter((item: PrerequisiteItem) =>
-                      localSettings.prerequisites?.includes(item.id)
-                    );
-
-                    if (topicPrerequisites.length === 0) return null;
-
-                    return (
-                      <div key={topic.topic_id} className="content-drip-panel__topic">
-                        <div className="content-drip-panel__topic-title">{topic.topic_title}</div>
-                        {topicPrerequisites.map((item: PrerequisiteItem) => (
-                          <div key={item.id} className="content-drip-panel__prerequisite-item">
-                            {item.title} ({item.type_label})
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </PanelRow>
         )}

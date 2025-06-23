@@ -366,9 +366,8 @@ export function validateContentDripSettings(
 
   switch (dripType) {
     case "unlock_by_date":
-      if (!settings.unlock_date) {
-        errors.push("Unlock date is required for date-based content drip");
-      } else {
+      // Allow empty unlock_date (content available immediately)
+      if (settings.unlock_date && settings.unlock_date.trim()) {
         const date = new Date(settings.unlock_date);
         if (isNaN(date.getTime())) {
           errors.push("Invalid unlock date format");
