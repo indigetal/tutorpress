@@ -60,25 +60,11 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                         ],
                         'settings' => [
                             'required'          => true,
-                            'type'             => 'object',
                             'description'       => __('Content drip settings object.', 'tutorpress'),
-                            'properties'        => [
-                                'unlock_date' => [
-                                    'type'        => 'string',
-                                    'format'      => 'date',
-                                    'description' => __('Unlock date for date-based content drip.', 'tutorpress'),
-                                ],
-                                'after_xdays_of_enroll' => [
-                                    'type'        => 'integer',
-                                    'minimum'     => 0,
-                                    'description' => __('Days after enrollment for days-based content drip.', 'tutorpress'),
-                                ],
-                                'prerequisites' => [
-                                    'type'        => 'array',
-                                    'items'       => ['type' => 'integer'],
-                                    'description' => __('Array of prerequisite content item IDs.', 'tutorpress'),
-                                ],
-                            ],
+                            'validate_callback' => function($param, $request, $key) {
+                                // Allow any array/object, let our controller handle validation
+                                return is_array($param);
+                            },
                         ],
                     ],
                 ],
@@ -155,7 +141,7 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
         // Get content drip settings using the helper class with proper defaults
         $settings = [
             'unlock_date' => get_item_content_drip_settings($post_id, 'unlock_date', null),
-            'after_xdays_of_enroll' => get_item_content_drip_settings($post_id, 'after_xdays_of_enroll', 0),
+            'after_xdays_of_enroll' => get_item_content_drip_settings($post_id, 'after_xdays_of_enroll', null),
             'prerequisites' => get_item_content_drip_settings($post_id, 'prerequisites', []),
         ];
 
@@ -219,16 +205,8 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
         $drip_type = null;
         switch ($course_drip_type) {
             case 'after_finishing_prerequisites':
-                // For prerequisite-based drip, allow empty prerequisites (means no prerequisites for this item)
-                if (isset($settings['prerequisites']) && is_array($settings['prerequisites'])) {
-                    $drip_type = 'after_finishing_prerequisites';
-                } else {
-                    return new WP_Error(
-                        'missing_prerequisites',
-                        __('Prerequisites field is required for prerequisite-based content drip.', 'tutorpress'),
-                        ['status' => 400]
-                    );
-                }
+                // Allow empty or missing prerequisites (means no prerequisites for this item)
+                $drip_type = 'after_finishing_prerequisites';
                 break;
                 
             case 'unlock_by_date':
@@ -237,15 +215,8 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                 break;
                 
             case 'specific_days':
-                if (isset($settings['after_xdays_of_enroll']) && $settings['after_xdays_of_enroll'] >= 0) {
-                    $drip_type = 'specific_days';
-                } else {
-                    return new WP_Error(
-                        'missing_days_value',
-                        __('Days after enrollment value is required for day-based content drip.', 'tutorpress'),
-                        ['status' => 400]
-                    );
-                }
+                // Allow missing or any valid days value (will be sanitized later)
+                $drip_type = 'specific_days';
                 break;
                 
             case 'unlock_sequentially':
@@ -568,6 +539,9 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                         );
                     }
                     $sanitized['after_xdays_of_enroll'] = $days;
+                } else {
+                    // Default to null if not provided (empty field)
+                    $sanitized['after_xdays_of_enroll'] = null;
                 }
                 break;
 
@@ -595,6 +569,9 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                         }
                     }
                     $sanitized['prerequisites'] = $sanitized_prerequisites;
+                } else {
+                    // Default to empty array if not provided
+                    $sanitized['prerequisites'] = [];
                 }
                 break;
 
