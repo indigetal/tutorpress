@@ -64,7 +64,7 @@ const AdditionalContent: React.FC = (): JSX.Element => {
   const courseId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
 
   // Additional Content store selectors
-  const { data, contentDrip, isLoading, isSaving, isDirty, hasError, error, isContentDripEnabled } = useSelect(
+  const { data, contentDrip, isLoading, isSaving, isDirty, hasError, error, isContentDripAddonAvailable } = useSelect(
     (select) => {
       const additionalContentStore = select(ADDITIONAL_CONTENT_STORE) as any;
       return {
@@ -75,7 +75,7 @@ const AdditionalContent: React.FC = (): JSX.Element => {
         isDirty: additionalContentStore.hasUnsavedChanges(),
         hasError: additionalContentStore.hasError(),
         error: additionalContentStore.getError(),
-        isContentDripEnabled: additionalContentStore.isContentDripEnabled(),
+        isContentDripAddonAvailable: additionalContentStore.isContentDripAddonAvailable(),
       };
     },
     []
@@ -239,8 +239,8 @@ const AdditionalContent: React.FC = (): JSX.Element => {
         </div>
       </div>
 
-      {/* Content Drip Settings (conditional on addon) */}
-      {isContentDripEnabled && (
+      {/* Content Drip Settings (always show when addon is available) */}
+      {isContentDripAddonAvailable && (
         <div className="tutorpress-additional-content__content-drip">
           <h3 className="tutorpress-additional-content__section-title">{__("Content Drip Settings", "tutorpress")}</h3>
           <p className="tutorpress-additional-content__section-description">

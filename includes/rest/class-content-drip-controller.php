@@ -152,10 +152,10 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
             return $validation;
         }
 
-        // Get content drip settings using the helper class
+        // Get content drip settings using the helper class with proper defaults
         $settings = [
-            'unlock_date' => get_item_content_drip_settings($post_id, 'unlock_date'),
-            'after_xdays_of_enroll' => get_item_content_drip_settings($post_id, 'after_xdays_of_enroll', 7),
+            'unlock_date' => get_item_content_drip_settings($post_id, 'unlock_date', ''),
+            'after_xdays_of_enroll' => get_item_content_drip_settings($post_id, 'after_xdays_of_enroll', 0),
             'prerequisites' => get_item_content_drip_settings($post_id, 'prerequisites', []),
         ];
 
@@ -212,18 +212,18 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Determine drip type from settings keys (since we're setting individual content settings)
+        // Determine drip type from settings values (check which ones have meaningful values)
         $drip_type = null;
-        if (isset($settings['unlock_date'])) {
-            $drip_type = 'unlock_by_date';
-        } elseif (isset($settings['after_xdays_of_enroll'])) {
-            $drip_type = 'specific_days';
-        } elseif (isset($settings['prerequisites'])) {
+        if (isset($settings['prerequisites']) && is_array($settings['prerequisites']) && !empty($settings['prerequisites'])) {
             $drip_type = 'after_finishing_prerequisites';
+        } elseif (isset($settings['unlock_date']) && !empty(trim($settings['unlock_date']))) {
+            $drip_type = 'unlock_by_date';
+        } elseif (isset($settings['after_xdays_of_enroll']) && $settings['after_xdays_of_enroll'] > 0) {
+            $drip_type = 'specific_days';
         } else {
             return new WP_Error(
                 'invalid_settings_format',
-                __('Settings must contain valid content drip fields.', 'tutorpress'),
+                __('Settings must contain valid content drip fields with meaningful values.', 'tutorpress'),
                 ['status' => 400]
             );
         }
@@ -239,7 +239,9 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
         foreach ($sanitized_settings as $key => $value) {
             if ($value !== null) {
                 $result = set_item_content_drip_settings($post_id, $key, $value);
-                if ($result) {
+                // Always include the setting in saved_settings if no error occurred
+                // update_post_meta() returns false when value hasn't changed, which is not an error
+                if ($result !== false || get_item_content_drip_settings($post_id, $key) === $value) {
                     $saved_settings[$key] = $value;
                 }
             }
@@ -536,8 +538,12 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                     $sanitized_prerequisites = [];
                     foreach ($prerequisites as $prereq_id) {
                         $prereq_id = (int) $prereq_id;
-                        if ($prereq_id > 0 && get_post($prereq_id)) {
-                            $sanitized_prerequisites[] = $prereq_id;
+                        if ($prereq_id > 0) {
+                            // Check if post exists (regardless of status or permissions)
+                            $post = get_post($prereq_id);
+                            if ($post && !is_wp_error($post)) {
+                                $sanitized_prerequisites[] = $prereq_id;
+                            }
                         }
                     }
                     $sanitized['prerequisites'] = $sanitized_prerequisites;

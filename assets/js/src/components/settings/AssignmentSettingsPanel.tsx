@@ -20,7 +20,6 @@ interface AssignmentSettings {
   file_size_limit: number;
   attachments_enabled: boolean;
   instructor_attachments?: number[]; // Array of attachment IDs
-  content_drip?: ContentDripItemSettings;
 }
 
 const AssignmentSettingsPanel: React.FC = () => {
@@ -103,8 +102,11 @@ const AssignmentSettingsPanel: React.FC = () => {
   };
 
   // Handle content drip settings changes
+  // Note: ContentDripPanel handles its own saving through TutorPress content drip endpoint
   const handleContentDripChange = useCallback((newSettings: ContentDripItemSettings) => {
-    updateSetting("content_drip", newSettings);
+    // No-op: ContentDripPanel manages its own state and saving
+    // This prevents content drip settings from being included in assignment_settings
+    // which would cause 500 errors in WordPress core assignment endpoint
   }, []);
 
   const timeUnitOptions = [

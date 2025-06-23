@@ -50,9 +50,14 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
   isDisabled = false,
   className = "",
 }: ContentDripPanelProps<T>) {
-  // Local state for form management
-  const [localSettings, setLocalSettings] = useState<ContentDripItemSettings>(settings);
+  // Local state for form management - start with default values, will be updated when store loads
+  const [localSettings, setLocalSettings] = useState<ContentDripItemSettings>({
+    unlock_date: "",
+    after_xdays_of_enroll: 0,
+    prerequisites: [],
+  });
   const [selectedPrerequisiteTokens, setSelectedPrerequisiteTokens] = useState<string[]>([]);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Get content drip info and prerequisites from store
   const { contentDripInfo, prerequisites, isLoadingSettings, isLoadingPrerequisites, error, saving, saveError } =
@@ -61,13 +66,13 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
         const store = select("tutorpress/additional-content");
 
         return {
-          contentDripInfo: store.getContentDripInfoForPost({}, postId),
-          prerequisites: store.getPrerequisitesForCourse({}, courseId),
-          isLoadingSettings: store.isContentDripLoadingForPost({}, postId),
-          isLoadingPrerequisites: store.isPrerequisitesLoadingForCourse({}, courseId),
-          error: store.getContentDripErrorForPost({}, postId),
-          saving: store.isContentDripSavingForPost({}, postId),
-          saveError: store.getContentDripSaveErrorForPost({}, postId),
+          contentDripInfo: store.getContentDripInfoForPost(postId),
+          prerequisites: store.getPrerequisitesForCourse(courseId),
+          isLoadingSettings: store.isContentDripLoadingForPost(postId),
+          isLoadingPrerequisites: store.isPrerequisitesLoadingForCourse(courseId),
+          error: store.getContentDripErrorForPost(postId),
+          saving: store.isContentDripSavingForPost(postId),
+          saveError: store.getContentDripSaveErrorForPost(postId),
         };
       },
       [postId, courseId]
@@ -111,19 +116,29 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
     }
   }, [postId, getContentDripSettings]);
 
-  // Load prerequisites only if content drip is enabled and uses prerequisites
+  // Load prerequisites when content drip is enabled and we need to show the prerequisites field
   useEffect(() => {
-    if (courseId && isContentDripEnabled && courseContentDripType === "after_finishing_prerequisites") {
+    if (
+      courseId &&
+      courseContentDripSettings?.enabled &&
+      courseContentDripSettings?.type === "after_finishing_prerequisites"
+    ) {
       getPrerequisites(courseId);
     }
-  }, [courseId, isContentDripEnabled, courseContentDripType, getPrerequisites]);
+  }, [courseId, courseContentDripSettings?.enabled, courseContentDripSettings?.type, getPrerequisites]);
 
-  // Update local settings when store settings change
+  // Update local settings when store settings change, or use passed settings as fallback
   useEffect(() => {
     if (contentDripInfo?.settings) {
+      // Use store settings if available (loaded from API)
       setLocalSettings(contentDripInfo.settings);
+      setHasInitialized(true);
+    } else if (!hasInitialized && !isLoadingSettings) {
+      // Use passed settings as fallback if store hasn't loaded anything yet
+      setLocalSettings(settings);
+      setHasInitialized(true);
     }
-  }, [contentDripInfo?.settings]);
+  }, [contentDripInfo?.settings, settings, hasInitialized, isLoadingSettings]);
 
   // Update prerequisite tokens when prerequisites or settings change
   useEffect(() => {
@@ -228,8 +243,8 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
     return null;
   }
 
-  // Show loading state
-  if (isLoadingSettings) {
+  // Show loading state while fetching settings or waiting for initialization
+  if (isLoadingSettings || !hasInitialized) {
     return (
       <Card className={`content-drip-panel ${className}`}>
         <CardBody>
@@ -304,8 +319,6 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
                 currentDate={localSettings.unlock_date || ""}
                 onChange={handleDateChange}
                 is12Hour={true}
-                __nextRemoveHelpButton
-                __nextRemoveResetButton
               />
               <p className="content-drip-panel__help">
                 {__(
@@ -351,15 +364,27 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
                   </span>
                 </div>
               ) : (
-                <FormTokenField
-                  value={selectedPrerequisiteTokens}
-                  suggestions={getPrerequisiteSuggestions()}
-                  onChange={handlePrerequisiteChange}
-                  placeholder={__("Search for content items...", "tutorpress")}
-                  disabled={isDisabled || saving}
-                  __experimentalExpandOnFocus
-                  __experimentalShowHowTo={false}
-                />
+                <div
+                  className="content-drip-panel__form-token-wrapper"
+                  onFocus={(e) => {
+                    // Prevent TinyMCE from interfering with this component
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    // Prevent TinyMCE event bubbling
+                    e.stopPropagation();
+                  }}
+                >
+                  <FormTokenField
+                    value={selectedPrerequisiteTokens}
+                    suggestions={getPrerequisiteSuggestions()}
+                    onChange={handlePrerequisiteChange}
+                    placeholder={__("Search for content items...", "tutorpress")}
+                    disabled={isDisabled || saving}
+                    __experimentalExpandOnFocus
+                    __experimentalShowHowTo={false}
+                  />
+                </div>
               )}
 
               <p className="content-drip-panel__help">
@@ -375,8 +400,8 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
                   <strong className="content-drip-panel__prerequisites-label">
                     {__("Selected Prerequisites:", "tutorpress")}
                   </strong>
-                  {prerequisites.map((topic) => {
-                    const topicPrerequisites = topic.items.filter((item) =>
+                  {prerequisites.map((topic: PrerequisitesByTopic) => {
+                    const topicPrerequisites = topic.items.filter((item: PrerequisiteItem) =>
                       localSettings.prerequisites?.includes(item.id)
                     );
 
@@ -385,7 +410,7 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
                     return (
                       <div key={topic.topic_id} className="content-drip-panel__topic">
                         <div className="content-drip-panel__topic-title">{topic.topic_title}</div>
-                        {topicPrerequisites.map((item) => (
+                        {topicPrerequisites.map((item: PrerequisiteItem) => (
                           <div key={item.id} className="content-drip-panel__prerequisite-item">
                             {item.title} ({item.type_label})
                           </div>

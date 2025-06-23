@@ -4,6 +4,7 @@
  */
 
 import {
+  CONTENT_DRIP_ACTION_TYPES,
   setContentDripSettings,
   setContentDripLoading,
   setContentDripError,
@@ -24,8 +25,14 @@ import type {
 export function* getContentDripSettings(postId: number) {
   try {
     // Set loading state
-    yield setContentDripLoading(postId, true);
-    yield setContentDripError(postId, null);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_LOADING,
+      payload: { postId, loading: true },
+    };
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR,
+      payload: { postId, error: null },
+    };
 
     // Fetch content drip settings
     const response: ContentDripSettingsResponse = yield {
@@ -36,24 +43,54 @@ export function* getContentDripSettings(postId: number) {
       },
     };
 
+    // Debug logging
+    console.log("Content Drip API Response:", response);
+    console.log("Response success:", response.success);
+    console.log("Response data:", response.data);
+    console.log("Settings from response:", response.data?.settings);
+
     if (response.success) {
       // Set the settings in store
-      yield setContentDripSettings(postId, response.data.settings);
+      console.log("Setting content drip settings for post", postId, ":", response.data.settings);
+      const action = {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS,
+        payload: { postId, settings: response.data.settings },
+      };
+      console.log("About to yield action:", action);
+      console.log("Action type constant value:", CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
+      yield action;
     } else {
-      yield setContentDripError(postId, "Failed to fetch content drip settings");
+      console.log("API response was not successful:", response);
+      yield {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR,
+        payload: { postId, error: "Failed to fetch content drip settings" },
+      };
     }
   } catch (error) {
-    yield setContentDripError(postId, error instanceof Error ? error.message : "Unknown error occurred");
+    console.error("Content Drip Settings fetch error:", error);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR,
+      payload: { postId, error: error instanceof Error ? error.message : "Unknown error occurred" },
+    };
   } finally {
-    yield setContentDripLoading(postId, false);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_LOADING,
+      payload: { postId, loading: false },
+    };
   }
 }
 
 export function* updateContentDripSettings(postId: number, settings: any) {
   try {
     // Set saving state
-    yield setContentDripSaving(postId, true);
-    yield setContentDripSaveError(postId, null);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVING,
+      payload: { postId, saving: true },
+    };
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVE_ERROR,
+      payload: { postId, error: null },
+    };
 
     // Save content drip settings
     const response: ContentDripSaveResponse = yield {
@@ -67,26 +104,44 @@ export function* updateContentDripSettings(postId: number, settings: any) {
 
     if (response.success) {
       // Update settings in store
-      yield setContentDripSettings(postId, response.data.settings);
+      yield {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS,
+        payload: { postId, settings: response.data.settings },
+      };
     } else {
-      yield setContentDripSaveError(postId, response.message || "Failed to save content drip settings");
+      yield {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVE_ERROR,
+        payload: { postId, error: response.message || "Failed to save content drip settings" },
+      };
     }
 
     return response;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    yield setContentDripSaveError(postId, errorMessage);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVE_ERROR,
+      payload: { postId, error: errorMessage },
+    };
     throw error;
   } finally {
-    yield setContentDripSaving(postId, false);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVING,
+      payload: { postId, saving: false },
+    };
   }
 }
 
 export function* getPrerequisites(courseId: number) {
   try {
     // Set loading state
-    yield setPrerequisitesLoading(courseId, true);
-    yield setPrerequisitesError(courseId, null);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_LOADING,
+      payload: { courseId, loading: true },
+    };
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_ERROR,
+      payload: { courseId, error: null },
+    };
 
     // Fetch prerequisites
     const response: PrerequisitesResponse = yield {
@@ -99,14 +154,26 @@ export function* getPrerequisites(courseId: number) {
 
     if (response.success) {
       // Store prerequisites as array (the API already groups them by topic)
-      yield setPrerequisites(courseId, response.data.prerequisites);
+      yield {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES,
+        payload: { courseId, prerequisites: response.data.prerequisites },
+      };
     } else {
-      yield setPrerequisitesError(courseId, "Failed to fetch prerequisites");
+      yield {
+        type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_ERROR,
+        payload: { courseId, error: "Failed to fetch prerequisites" },
+      };
     }
   } catch (error) {
-    yield setPrerequisitesError(courseId, error instanceof Error ? error.message : "Unknown error occurred");
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_ERROR,
+      payload: { courseId, error: error instanceof Error ? error.message : "Unknown error occurred" },
+    };
   } finally {
-    yield setPrerequisitesLoading(courseId, false);
+    yield {
+      type: CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_LOADING,
+      payload: { courseId, loading: false },
+    };
   }
 }
 
@@ -131,7 +198,7 @@ export function* duplicateContentDripSettings(sourcePostId: number, targetPostId
   }
 }
 
-export function* getCourseContentDripSettings(courseId: number) {
+export function* getCourseContentDripSettings(courseId: number): Generator<any, any, any> {
   try {
     // Fetch lightweight course content drip settings
     const response: any = yield {

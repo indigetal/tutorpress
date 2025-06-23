@@ -13,7 +13,7 @@ import type {
 
 // Action Types
 export const CONTENT_DRIP_ACTION_TYPES = {
-  SET_CONTENT_DRIP_SETTINGS: "SET_CONTENT_DRIP_SETTINGS",
+  SET_CONTENT_DRIP_ITEM_SETTINGS: "SET_CONTENT_DRIP_ITEM_SETTINGS", // Changed: for individual items (lessons/assignments)
   SET_CONTENT_DRIP_LOADING: "SET_CONTENT_DRIP_LOADING",
   SET_CONTENT_DRIP_ERROR: "SET_CONTENT_DRIP_ERROR",
   SET_CONTENT_DRIP_SAVING: "SET_CONTENT_DRIP_SAVING",
@@ -25,7 +25,7 @@ export const CONTENT_DRIP_ACTION_TYPES = {
 
 // Action Creators
 export const setContentDripSettings = (postId: number, settings: ContentDripItemSettings) => ({
-  type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SETTINGS,
+  type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS,
   payload: { postId, settings },
 });
 

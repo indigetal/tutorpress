@@ -20,6 +20,7 @@ import {
   AdditionalContentSaveResponse,
   AdditionalContentError,
 } from "../../types/additional-content";
+import type { PrerequisitesByTopic, ContentDripItemSettings } from "../../types/content-drip";
 
 // Import modular content drip functionality
 import {
@@ -39,6 +40,7 @@ import {
   getContentDripInfo,
   getPrerequisitesInfo,
 } from "./content-drip";
+import { CONTENT_DRIP_ACTION_TYPES, type ContentDripAction } from "./content-drip/actions";
 
 // ============================================================================
 // STORE STATE INTERFACE
@@ -63,6 +65,24 @@ interface StoreState {
   error: string | null;
   /** Last saved timestamp */
   lastSaved: number | null;
+
+  /** Content Drip Module State */
+  contentDripItems: {
+    [postId: number]: {
+      settings: ContentDripItemSettings;
+      loading: boolean;
+      error: string | null;
+      saving: boolean;
+      saveError: string | null;
+    };
+  };
+  prerequisites: {
+    [courseId: number]: {
+      data: PrerequisitesByTopic[];
+      loading: boolean;
+      error: string | null;
+    };
+  };
 }
 
 // ============================================================================
@@ -85,6 +105,8 @@ const DEFAULT_STATE: StoreState = {
   isDirty: false,
   error: null,
   lastSaved: null,
+  contentDripItems: {},
+  prerequisites: {},
 };
 
 // ============================================================================
@@ -119,39 +141,55 @@ export type AdditionalContentAction =
   | { type: "SET_DIRTY_STATE"; payload: { isDirty: boolean } }
   | { type: "SET_ERROR"; payload: { error: string | null } }
   | { type: "CLEAR_ERROR" }
-  | { type: "RESET_STATE" };
+  | { type: "RESET_STATE" }
+  // Content Drip Actions
+  | ContentDripAction;
 
 // ============================================================================
 // REDUCER
 // ============================================================================
 
 const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreState => {
+  // Debug: Log all actions
+  if (action.type.includes("CONTENT_DRIP")) {
+    console.log("Reducer received content drip action:", action.type, action);
+  }
+
   switch (action.type) {
     // Data Loading
-    case "FETCH_ADDITIONAL_CONTENT_START":
+    case "FETCH_ADDITIONAL_CONTENT_START": {
+      const typedAction = action as { type: "FETCH_ADDITIONAL_CONTENT_START"; payload: { courseId: number } };
       return {
         ...state,
-        courseId: action.payload.courseId,
+        courseId: typedAction.payload.courseId,
         isLoading: true,
         error: null,
       };
+    }
 
-    case "FETCH_ADDITIONAL_CONTENT_SUCCESS":
+    case "FETCH_ADDITIONAL_CONTENT_SUCCESS": {
+      const typedAction = action as {
+        type: "FETCH_ADDITIONAL_CONTENT_SUCCESS";
+        payload: { data: AdditionalContentData; contentDrip: ContentDripSettings };
+      };
       return {
         ...state,
-        data: action.payload.data,
-        contentDrip: action.payload.contentDrip,
+        data: typedAction.payload.data,
+        contentDrip: typedAction.payload.contentDrip,
         isLoading: false,
         isDirty: false,
         error: null,
       };
+    }
 
-    case "FETCH_ADDITIONAL_CONTENT_ERROR":
+    case "FETCH_ADDITIONAL_CONTENT_ERROR": {
+      const typedAction = action as { type: "FETCH_ADDITIONAL_CONTENT_ERROR"; payload: { error: string } };
       return {
         ...state,
         isLoading: false,
-        error: action.payload.error,
+        error: typedAction.payload.error,
       };
+    }
 
     // Data Saving
     case "SAVE_ADDITIONAL_CONTENT_START":
@@ -161,90 +199,121 @@ const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreS
         error: null,
       };
 
-    case "SAVE_ADDITIONAL_CONTENT_SUCCESS":
+    case "SAVE_ADDITIONAL_CONTENT_SUCCESS": {
+      const typedAction = action as { type: "SAVE_ADDITIONAL_CONTENT_SUCCESS"; payload: { timestamp: number } };
       return {
         ...state,
         isSaving: false,
         isDirty: false,
         error: null,
-        lastSaved: action.payload.timestamp,
+        lastSaved: typedAction.payload.timestamp,
       };
+    }
 
-    case "SAVE_ADDITIONAL_CONTENT_ERROR":
+    case "SAVE_ADDITIONAL_CONTENT_ERROR": {
+      const typedAction = action as { type: "SAVE_ADDITIONAL_CONTENT_ERROR"; payload: { error: string } };
       return {
         ...state,
         isSaving: false,
-        error: action.payload.error,
+        error: typedAction.payload.error,
       };
+    }
 
     // State Management
-    case "SET_COURSE_ID":
+    case "SET_COURSE_ID": {
+      const typedAction = action as { type: "SET_COURSE_ID"; payload: { courseId: number | null } };
       return {
         ...state,
-        courseId: action.payload.courseId,
+        courseId: typedAction.payload.courseId,
       };
+    }
 
-    case "SET_ADDITIONAL_CONTENT_DATA":
+    case "SET_ADDITIONAL_CONTENT_DATA": {
+      const typedAction = action as { type: "SET_ADDITIONAL_CONTENT_DATA"; payload: { data: AdditionalContentData } };
       return {
         ...state,
-        data: action.payload.data,
+        data: typedAction.payload.data,
         isDirty: true,
       };
+    }
 
-    case "SET_CONTENT_DRIP_SETTINGS":
+    case "SET_CONTENT_DRIP_SETTINGS": {
+      const typedAction = action as {
+        type: "SET_CONTENT_DRIP_SETTINGS";
+        payload: { contentDrip: ContentDripSettings };
+      };
       return {
         ...state,
-        contentDrip: action.payload.contentDrip,
+        contentDrip: typedAction.payload.contentDrip,
         isDirty: true,
       };
+    }
 
-    case "UPDATE_FIELD":
+    case "UPDATE_FIELD": {
+      const typedAction = action as {
+        type: "UPDATE_FIELD";
+        payload: { field: keyof AdditionalContentData; value: string };
+      };
       return {
         ...state,
         data: {
           ...state.data,
-          [action.payload.field]: action.payload.value,
+          [typedAction.payload.field]: typedAction.payload.value,
         },
         isDirty: true,
       };
+    }
 
-    case "UPDATE_CONTENT_DRIP_ENABLED":
+    case "UPDATE_CONTENT_DRIP_ENABLED": {
+      const typedAction = action as { type: "UPDATE_CONTENT_DRIP_ENABLED"; payload: { enabled: boolean } };
       return {
         ...state,
         contentDrip: {
           ...state.contentDrip,
-          enabled: action.payload.enabled,
+          enabled: typedAction.payload.enabled,
         },
         isDirty: true,
       };
+    }
 
-    case "UPDATE_CONTENT_DRIP_TYPE":
+    case "UPDATE_CONTENT_DRIP_TYPE": {
+      const typedAction = action as {
+        type: "UPDATE_CONTENT_DRIP_TYPE";
+        payload: { type: ContentDripSettings["type"] };
+      };
       return {
         ...state,
         contentDrip: {
           ...state.contentDrip,
-          type: action.payload.type,
+          type: typedAction.payload.type,
         },
         isDirty: true,
       };
+    }
 
-    case "SET_LOADING":
+    case "SET_LOADING": {
+      const typedAction = action as { type: "SET_LOADING"; payload: { isLoading: boolean } };
       return {
         ...state,
-        isLoading: action.payload.isLoading,
+        isLoading: typedAction.payload.isLoading,
       };
+    }
 
-    case "SET_DIRTY_STATE":
+    case "SET_DIRTY_STATE": {
+      const typedAction = action as { type: "SET_DIRTY_STATE"; payload: { isDirty: boolean } };
       return {
         ...state,
-        isDirty: action.payload.isDirty,
+        isDirty: typedAction.payload.isDirty,
       };
+    }
 
-    case "SET_ERROR":
+    case "SET_ERROR": {
+      const typedAction = action as { type: "SET_ERROR"; payload: { error: string | null } };
       return {
         ...state,
-        error: action.payload.error,
+        error: typedAction.payload.error,
       };
+    }
 
     case "CLEAR_ERROR":
       return {
@@ -254,6 +323,193 @@ const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreS
 
     case "RESET_STATE":
       return DEFAULT_STATE;
+
+    // Content Drip Actions (Individual Items)
+    case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS: {
+      console.log("🎯 MATCHED SET_CONTENT_DRIP_ITEM_SETTINGS case in reducer!");
+      console.log("Action constant:", CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
+      console.log("Action type:", action.type);
+      console.log("Types match:", action.type === CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
+      console.log("Full action:", action);
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS;
+        payload: { postId: number; settings: ContentDripItemSettings };
+      };
+      console.log("Typed action payload:", typedAction.payload);
+      const existingItem = state.contentDripItems[typedAction.payload.postId] || {
+        settings: null,
+        loading: false,
+        error: null,
+        saving: false,
+        saveError: null,
+      };
+      console.log("Existing item for post", typedAction.payload.postId, ":", existingItem);
+      const newState = {
+        ...state,
+        contentDripItems: {
+          ...state.contentDripItems,
+          [typedAction.payload.postId]: {
+            ...existingItem,
+            settings: typedAction.payload.settings,
+          },
+        },
+      };
+      console.log("New state for content drip items:", newState.contentDripItems);
+      console.log(
+        "New state settings for post",
+        typedAction.payload.postId,
+        ":",
+        newState.contentDripItems[typedAction.payload.postId].settings
+      );
+      return newState;
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_LOADING: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_LOADING;
+        payload: { postId: number; loading: boolean };
+      };
+      const existingItem = state.contentDripItems[typedAction.payload.postId] || {
+        settings: null,
+        loading: false,
+        error: null,
+        saving: false,
+        saveError: null,
+      };
+      return {
+        ...state,
+        contentDripItems: {
+          ...state.contentDripItems,
+          [typedAction.payload.postId]: {
+            ...existingItem,
+            loading: typedAction.payload.loading,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR;
+        payload: { postId: number; error: string | null };
+      };
+      const existingItem = state.contentDripItems[typedAction.payload.postId] || {
+        settings: null,
+        loading: false,
+        error: null,
+        saving: false,
+        saveError: null,
+      };
+      return {
+        ...state,
+        contentDripItems: {
+          ...state.contentDripItems,
+          [typedAction.payload.postId]: {
+            ...existingItem,
+            error: typedAction.payload.error,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVING: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVING;
+        payload: { postId: number; saving: boolean };
+      };
+      const existingItem = state.contentDripItems[typedAction.payload.postId] || {
+        settings: null,
+        loading: false,
+        error: null,
+        saving: false,
+        saveError: null,
+      };
+      return {
+        ...state,
+        contentDripItems: {
+          ...state.contentDripItems,
+          [typedAction.payload.postId]: {
+            ...existingItem,
+            saving: typedAction.payload.saving,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVE_ERROR: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_SAVE_ERROR;
+        payload: { postId: number; error: string | null };
+      };
+      const existingItem = state.contentDripItems[typedAction.payload.postId] || {
+        settings: null,
+        loading: false,
+        error: null,
+        saving: false,
+        saveError: null,
+      };
+      return {
+        ...state,
+        contentDripItems: {
+          ...state.contentDripItems,
+          [typedAction.payload.postId]: {
+            ...existingItem,
+            saveError: typedAction.payload.error,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES;
+        payload: { courseId: number; prerequisites: PrerequisitesByTopic[] };
+      };
+      return {
+        ...state,
+        prerequisites: {
+          ...state.prerequisites,
+          [typedAction.payload.courseId]: {
+            ...state.prerequisites[typedAction.payload.courseId],
+            data: typedAction.payload.prerequisites,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_LOADING: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_LOADING;
+        payload: { courseId: number; loading: boolean };
+      };
+      return {
+        ...state,
+        prerequisites: {
+          ...state.prerequisites,
+          [typedAction.payload.courseId]: {
+            ...state.prerequisites[typedAction.payload.courseId],
+            loading: typedAction.payload.loading,
+          },
+        },
+      };
+    }
+
+    case CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_ERROR: {
+      const typedAction = action as {
+        type: typeof CONTENT_DRIP_ACTION_TYPES.SET_PREREQUISITES_ERROR;
+        payload: { courseId: number; error: string | null };
+      };
+      return {
+        ...state,
+        prerequisites: {
+          ...state.prerequisites,
+          [typedAction.payload.courseId]: {
+            ...state.prerequisites[typedAction.payload.courseId],
+            error: typedAction.payload.error,
+          },
+        },
+      };
+    }
 
     default:
       return state;
@@ -427,20 +683,22 @@ const selectors = {
   },
 
   // Content Drip Specific Selectors
-  isContentDripEnabled(state: StoreState) {
+  isContentDripAddonAvailable(state: StoreState) {
     // Check if Content Drip addon is available
     const addonChecker = (window as any).tutorpress?.AddonChecker;
     if (addonChecker) {
       const addonEnabled = addonChecker.isContentDripEnabled();
       // Handle both boolean and string "1" values from Tutor's addon system
-      const isAddonEnabled = addonEnabled === true || addonEnabled === "1" || addonEnabled === 1;
-
-      // Also check if content drip is enabled at course level
-      const courseContentDripEnabled = state.contentDrip?.enabled === true;
-
-      return isAddonEnabled && courseContentDripEnabled;
+      return addonEnabled === true || addonEnabled === "1" || addonEnabled === 1;
     }
     return false;
+  },
+
+  isContentDripEnabled(state: StoreState) {
+    // Check if content drip is enabled at course level (requires addon to be available)
+    const isAddonAvailable = selectors.isContentDripAddonAvailable(state);
+    const courseContentDripEnabled = state.contentDrip?.enabled === true;
+    return isAddonAvailable && courseContentDripEnabled;
   },
 
   getContentDripType(state: StoreState) {

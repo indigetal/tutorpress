@@ -50,7 +50,6 @@ interface LessonSettings {
   duration: DurationSettings;
   exercise_files: number[];
   lesson_preview: LessonPreviewSettings;
-  content_drip?: ContentDripItemSettings;
 }
 
 interface AttachmentDuration {
@@ -288,8 +287,11 @@ const LessonSettingsPanel: React.FC = () => {
   };
 
   // Handle content drip settings changes
+  // Note: ContentDripPanel handles its own saving through TutorPress content drip endpoint
   const handleContentDripChange = useCallback((newSettings: ContentDripItemSettings) => {
-    updateSetting("content_drip", newSettings);
+    // No-op: ContentDripPanel manages its own state and saving
+    // This prevents content drip settings from being included in lesson_settings
+    // which would cause 500 errors in WordPress core lesson endpoint
   }, []);
 
   const videoSourceOptions = [
