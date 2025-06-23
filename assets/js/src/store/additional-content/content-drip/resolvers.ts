@@ -131,10 +131,34 @@ export function* duplicateContentDripSettings(sourcePostId: number, targetPostId
   }
 }
 
+export function* getCourseContentDripSettings(courseId: number) {
+  try {
+    // Fetch lightweight course content drip settings
+    const response: any = yield {
+      type: "API_FETCH",
+      request: {
+        path: `/tutorpress/v1/content-drip/course/${courseId}/settings`,
+        method: "GET",
+      },
+    };
+
+    if (response.success) {
+      // Return the course content drip settings
+      return response.data.content_drip;
+    } else {
+      throw new Error("Failed to fetch course content drip settings");
+    }
+  } catch (error) {
+    console.error("Failed to fetch course content drip settings:", error);
+    throw error;
+  }
+}
+
 // Resolver configuration for WordPress Data Store
 export const contentDripResolvers = {
   getContentDripSettings,
   updateContentDripSettings,
   getPrerequisites,
   duplicateContentDripSettings,
+  getCourseContentDripSettings,
 };

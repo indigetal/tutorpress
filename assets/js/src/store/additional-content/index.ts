@@ -433,13 +433,18 @@ const selectors = {
     if (addonChecker) {
       const addonEnabled = addonChecker.isContentDripEnabled();
       // Handle both boolean and string "1" values from Tutor's addon system
-      return addonEnabled === true || addonEnabled === "1" || addonEnabled === 1;
+      const isAddonEnabled = addonEnabled === true || addonEnabled === "1" || addonEnabled === 1;
+
+      // Also check if content drip is enabled at course level
+      const courseContentDripEnabled = state.contentDrip?.enabled === true;
+
+      return isAddonEnabled && courseContentDripEnabled;
     }
     return false;
   },
 
   getContentDripType(state: StoreState) {
-    return state.contentDrip.type;
+    return state.contentDrip?.type || null;
   },
 
   // Computed Selectors

@@ -17,6 +17,9 @@
 /* Additional Content Feature */
 @import "./components/additional-content.css";
 
+/* Content Drip Feature */
+@import "./components/content-drip-panel.css";
+
 /* Live Lessons Feature */
 @import "./components/live-lessons.css";
 

@@ -1,8 +1,13 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { PanelRow, TextControl, SelectControl, Button, Notice } from "@wordpress/components";
+
+// Import Content Drip Panel
+import ContentDripPanel from "./ContentDripPanel";
+import { useCourseId } from "../../hooks/curriculum/useCourseId";
+import type { ContentDripItemSettings } from "../../types/content-drip";
 
 interface AssignmentSettings {
   time_duration: {
@@ -15,19 +20,18 @@ interface AssignmentSettings {
   file_size_limit: number;
   attachments_enabled: boolean;
   instructor_attachments?: number[]; // Array of attachment IDs
-  content_drip?: {
-    enabled: boolean;
-    type: string;
-    available_after_days: number;
-    show_days_field: boolean;
-  };
+  content_drip?: ContentDripItemSettings;
 }
 
 const AssignmentSettingsPanel: React.FC = () => {
-  const { postType, assignmentSettings, isSaving } = useSelect((select: any) => {
+  // Get course ID for content drip context
+  const courseId = useCourseId();
+
+  const { postType, assignmentSettings, isSaving, postId } = useSelect((select: any) => {
     const { getCurrentPostType } = select("core/editor");
     const { getEditedPostAttribute } = select("core/editor");
     const { isSavingPost } = select("core/editor");
+    const { getCurrentPostId } = select("core/editor");
 
     return {
       postType: getCurrentPostType(),
@@ -40,13 +44,13 @@ const AssignmentSettingsPanel: React.FC = () => {
         attachments_enabled: true,
         instructor_attachments: [],
         content_drip: {
-          enabled: false,
-          type: "unlock_by_date",
-          available_after_days: 0,
-          show_days_field: false,
+          unlock_date: "",
+          after_xdays_of_enroll: 0,
+          prerequisites: [],
         },
       },
       isSaving: isSavingPost(),
+      postId: getCurrentPostId(),
     };
   }, []);
 
@@ -97,6 +101,11 @@ const AssignmentSettingsPanel: React.FC = () => {
     const updatedAttachments = currentAttachments.filter((id: number) => id !== attachmentId);
     updateSetting("instructor_attachments", updatedAttachments);
   };
+
+  // Handle content drip settings changes
+  const handleContentDripChange = useCallback((newSettings: ContentDripItemSettings) => {
+    updateSetting("content_drip", newSettings);
+  }, []);
 
   const timeUnitOptions = [
     { label: __("Hours", "tutorpress"), value: "hours" },
@@ -258,55 +267,16 @@ const AssignmentSettingsPanel: React.FC = () => {
         />
       </PanelRow>
 
-      {/* Content Drip Settings - Only show if enabled and type is specific_days */}
-      {assignmentSettings.content_drip?.show_days_field && (
-        <PanelRow>
-          <div style={{ width: "100%" }}>
-            <TextControl
-              label={__("Available After Days", "tutorpress")}
-              help={__(
-                "This assignment will be available after the given number of days from enrollment.",
-                "tutorpress"
-              )}
-              type="number"
-              min="0"
-              value={assignmentSettings.content_drip.available_after_days.toString()}
-              onChange={(value) => updateSetting("content_drip.available_after_days", parseInt(value) || 0)}
-              disabled={isSaving}
-            />
-            <p style={{ fontSize: "12px", color: "#757575", margin: "4px 0 0 0" }}>
-              {assignmentSettings.content_drip.available_after_days === 0
-                ? __("Available immediately upon enrollment", "tutorpress")
-                : __(
-                    `Available ${assignmentSettings.content_drip.available_after_days} days after enrollment`,
-                    "tutorpress"
-                  )}
-            </p>
-          </div>
-        </PanelRow>
-      )}
-
-      {/* Content Drip Info Notice */}
-      {assignmentSettings.content_drip?.enabled && !assignmentSettings.content_drip.show_days_field && (
-        <Notice status="info" isDismissible={false}>
-          <p>
-            {assignmentSettings.content_drip.type === "unlock_by_date" &&
-              __(
-                "Content Drip is enabled for this course using date-based scheduling. Individual assignment timing is controlled at the course level.",
-                "tutorpress"
-              )}
-            {assignmentSettings.content_drip.type === "unlock_sequentially" &&
-              __(
-                "Content Drip is enabled for this course using sequential unlocking. Assignments will be available based on completion of previous content.",
-                "tutorpress"
-              )}
-            {assignmentSettings.content_drip.type === "after_finishing_prerequisites" &&
-              __(
-                "Content Drip is enabled for this course using prerequisite-based unlocking. Assignment availability is controlled by course prerequisites.",
-                "tutorpress"
-              )}
-          </p>
-        </Notice>
+      {/* Content Drip Section - Only show when course ID is available */}
+      {courseId && postId && (
+        <ContentDripPanel
+          postType="tutor_assignments"
+          courseId={courseId}
+          postId={postId}
+          settings={assignmentSettings.content_drip || { unlock_date: "", after_xdays_of_enroll: 0, prerequisites: [] }}
+          onSettingsChange={handleContentDripChange}
+          isDisabled={isSaving}
+        />
       )}
     </PluginDocumentSettingPanel>
   );

@@ -29,7 +29,7 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
      * @return void
      */
     public function register_routes() {
-        // Get content drip settings for a specific content item
+        // Get content drip settings for a specific post (lesson/assignment)
         register_rest_route(
             $this->namespace,
             '/' . $this->rest_base . '/(?P<post_id>\d+)',
@@ -111,6 +111,29 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
                 ],
             ]
         );
+
+        // Get course-level content drip settings (lightweight)
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/course/(?P<course_id>\d+)/settings',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_course_content_drip_settings'],
+                    'permission_callback' => [$this, 'check_course_read_permission'],
+                    'args'               => [
+                        'course_id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the course to get content drip settings for.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+
     }
 
     /**
@@ -553,5 +576,49 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
         ];
 
         return isset($labels[$post_type]) ? $labels[$post_type] : ucfirst($post_type);
+    }
+
+    /**
+     * Get course-level content drip settings (lightweight endpoint).
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function get_course_content_drip_settings($request) {
+        $course_id = (int) $request->get_param('course_id');
+
+        // Basic validation - just check if course ID is positive
+        if ($course_id <= 0) {
+            return new WP_Error(
+                'invalid_course_id',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Direct post meta access for maximum performance (bypass all helper functions)
+        $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+        if (!is_array($course_settings)) {
+            $course_settings = [];
+        }
+        
+        $content_drip_enabled = (bool) ($course_settings['enable_content_drip'] ?? false);
+        $content_drip_type = $course_settings['content_drip_type'] ?? 'unlock_by_date';
+        
+        // Default to unlock_by_date if type is not set
+        if (empty($content_drip_type)) {
+            $content_drip_type = 'unlock_by_date';
+        }
+
+        $response_data = [
+            'enabled' => $content_drip_enabled,
+            'type'    => $content_drip_type,
+        ];
+
+                return rest_ensure_response($this->format_response([
+            'course_id' => $course_id,
+            'content_drip' => $response_data,
+        ], __('Course content drip settings retrieved successfully.', 'tutorpress')));
     }
 } 

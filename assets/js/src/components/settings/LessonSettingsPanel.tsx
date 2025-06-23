@@ -18,6 +18,11 @@ import { useVideoDetection } from "../../hooks/useVideoDetection";
 import type { VideoSource } from "../../utils/videoDetection";
 import { apiService } from "../../api/service";
 
+// Import Content Drip Panel
+import ContentDripPanel from "./ContentDripPanel";
+import { useCourseId } from "../../hooks/curriculum/useCourseId";
+import type { ContentDripItemSettings } from "../../types/content-drip";
+
 interface VideoSettings {
   source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode";
   source_video_id: number;
@@ -45,6 +50,7 @@ interface LessonSettings {
   duration: DurationSettings;
   exercise_files: number[];
   lesson_preview: LessonPreviewSettings;
+  content_drip?: ContentDripItemSettings;
 }
 
 interface AttachmentDuration {
@@ -64,10 +70,14 @@ const LessonSettingsPanel: React.FC = () => {
   // Use shared video detection hook
   const { isDetecting, detectDuration, error, isSourceSupported } = useVideoDetection();
 
-  const { postType, lessonSettings, isSaving } = useSelect((select: any) => {
+  // Get course ID for content drip context
+  const courseId = useCourseId();
+
+  const { postType, lessonSettings, isSaving, postId } = useSelect((select: any) => {
     const { getCurrentPostType } = select("core/editor");
     const { getEditedPostAttribute } = select("core/editor");
     const { isSavingPost } = select("core/editor");
+    const { getCurrentPostId } = select("core/editor");
 
     return {
       postType: getCurrentPostType(),
@@ -92,8 +102,14 @@ const LessonSettingsPanel: React.FC = () => {
           enabled: false,
           addon_available: false,
         },
+        content_drip: {
+          unlock_date: "",
+          after_xdays_of_enroll: 0,
+          prerequisites: [],
+        },
       },
       isSaving: isSavingPost(),
+      postId: getCurrentPostId(),
     };
   }, []);
 
@@ -270,6 +286,11 @@ const LessonSettingsPanel: React.FC = () => {
     setVideoMetaError("");
     editPost({ lesson_settings: newSettings });
   };
+
+  // Handle content drip settings changes
+  const handleContentDripChange = useCallback((newSettings: ContentDripItemSettings) => {
+    updateSetting("content_drip", newSettings);
+  }, []);
 
   const videoSourceOptions = [
     { label: __("No Video", "tutorpress"), value: "" },
@@ -670,6 +691,18 @@ const LessonSettingsPanel: React.FC = () => {
             </p>
           </div>
         </PanelRow>
+      )}
+
+      {/* Content Drip Section - Only show when course ID is available */}
+      {courseId && postId && (
+        <ContentDripPanel
+          postType="lesson"
+          courseId={courseId}
+          postId={postId}
+          settings={lessonSettings.content_drip || { unlock_date: "", after_xdays_of_enroll: 0, prerequisites: [] }}
+          onSettingsChange={handleContentDripChange}
+          isDisabled={isSaving}
+        />
       )}
     </PluginDocumentSettingPanel>
   );
