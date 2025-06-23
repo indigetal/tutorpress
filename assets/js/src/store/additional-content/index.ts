@@ -21,6 +21,25 @@ import {
   AdditionalContentError,
 } from "../../types/additional-content";
 
+// Import modular content drip functionality
+import {
+  contentDripResolvers,
+  getContentDripSettings,
+  isContentDripLoading,
+  getContentDripError,
+  isContentDripSaving,
+  getContentDripSaveError,
+  getPrerequisites,
+  isPrerequisitesLoading,
+  getPrerequisitesError,
+  hasContentDripSettings,
+  isContentDripEnabled as isContentDripEnabledForPost,
+  getContentDripType as getContentDripTypeForPost,
+  hasPrerequisites,
+  getContentDripInfo,
+  getPrerequisitesInfo,
+} from "./content-drip";
+
 // ============================================================================
 // STORE STATE INTERFACE
 // ============================================================================
@@ -544,8 +563,26 @@ export const additionalContentStore = createReduxStore("tutorpress/additional-co
   actions: {
     ...actions,
     ...resolvers, // Merge resolvers with actions so they can be called as actions
+    ...contentDripResolvers, // Add content drip resolvers
   },
-  selectors,
+  selectors: {
+    ...selectors,
+    // Add content drip selectors with prefixed names to avoid conflicts
+    getContentDripSettingsForPost: getContentDripSettings,
+    isContentDripLoadingForPost: isContentDripLoading,
+    getContentDripErrorForPost: getContentDripError,
+    isContentDripSavingForPost: isContentDripSaving,
+    getContentDripSaveErrorForPost: getContentDripSaveError,
+    getPrerequisitesForCourse: getPrerequisites,
+    isPrerequisitesLoadingForCourse: isPrerequisitesLoading,
+    getPrerequisitesErrorForCourse: getPrerequisitesError,
+    hasContentDripSettingsForPost: hasContentDripSettings,
+    isContentDripEnabledForPost,
+    getContentDripTypeForPost,
+    hasPrerequisitesForCourse: hasPrerequisites,
+    getContentDripInfoForPost: getContentDripInfo,
+    getPrerequisitesInfoForCourse: getPrerequisitesInfo,
+  },
   controls,
 });
 
