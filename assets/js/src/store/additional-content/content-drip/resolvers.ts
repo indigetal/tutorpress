@@ -43,31 +43,19 @@ export function* getContentDripSettings(postId: number) {
       },
     };
 
-    // Debug logging
-    console.log("Content Drip API Response:", response);
-    console.log("Response success:", response.success);
-    console.log("Response data:", response.data);
-    console.log("Settings from response:", response.data?.settings);
-
     if (response.success) {
       // Set the settings in store
-      console.log("Setting content drip settings for post", postId, ":", response.data.settings);
-      const action = {
+      yield {
         type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS,
         payload: { postId, settings: response.data.settings },
       };
-      console.log("About to yield action:", action);
-      console.log("Action type constant value:", CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
-      yield action;
     } else {
-      console.log("API response was not successful:", response);
       yield {
         type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR,
         payload: { postId, error: "Failed to fetch content drip settings" },
       };
     }
   } catch (error) {
-    console.error("Content Drip Settings fetch error:", error);
     yield {
       type: CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ERROR,
       payload: { postId, error: error instanceof Error ? error.message : "Unknown error occurred" },
@@ -193,7 +181,6 @@ export function* duplicateContentDripSettings(sourcePostId: number, targetPostId
       yield* updateContentDripSettings(targetPostId, response.data.settings);
     }
   } catch (error) {
-    console.error("Failed to duplicate content drip settings:", error);
     throw error;
   }
 }
@@ -216,7 +203,6 @@ export function* getCourseContentDripSettings(courseId: number): Generator<any, 
       throw new Error("Failed to fetch course content drip settings");
     }
   } catch (error) {
-    console.error("Failed to fetch course content drip settings:", error);
     throw error;
   }
 }

@@ -150,11 +150,6 @@ export type AdditionalContentAction =
 // ============================================================================
 
 const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreState => {
-  // Debug: Log all actions
-  if (action.type.includes("CONTENT_DRIP")) {
-    console.log("Reducer received content drip action:", action.type, action);
-  }
-
   switch (action.type) {
     // Data Loading
     case "FETCH_ADDITIONAL_CONTENT_START": {
@@ -326,16 +321,10 @@ const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreS
 
     // Content Drip Actions (Individual Items)
     case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS: {
-      console.log("🎯 MATCHED SET_CONTENT_DRIP_ITEM_SETTINGS case in reducer!");
-      console.log("Action constant:", CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
-      console.log("Action type:", action.type);
-      console.log("Types match:", action.type === CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS);
-      console.log("Full action:", action);
       const typedAction = action as {
         type: typeof CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_ITEM_SETTINGS;
         payload: { postId: number; settings: ContentDripItemSettings };
       };
-      console.log("Typed action payload:", typedAction.payload);
       const existingItem = state.contentDripItems[typedAction.payload.postId] || {
         settings: null,
         loading: false,
@@ -343,8 +332,7 @@ const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreS
         saving: false,
         saveError: null,
       };
-      console.log("Existing item for post", typedAction.payload.postId, ":", existingItem);
-      const newState = {
+      return {
         ...state,
         contentDripItems: {
           ...state.contentDripItems,
@@ -354,14 +342,6 @@ const reducer = (state = DEFAULT_STATE, action: AdditionalContentAction): StoreS
           },
         },
       };
-      console.log("New state for content drip items:", newState.contentDripItems);
-      console.log(
-        "New state settings for post",
-        typedAction.payload.postId,
-        ":",
-        newState.contentDripItems[typedAction.payload.postId].settings
-      );
-      return newState;
     }
 
     case CONTENT_DRIP_ACTION_TYPES.SET_CONTENT_DRIP_LOADING: {
