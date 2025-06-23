@@ -16,6 +16,7 @@ import {
 } from "./actions";
 
 import type {
+  ContentDripItemSettings,
   ContentDripSettingsResponse,
   ContentDripSaveResponse,
   PrerequisitesResponse,
@@ -68,7 +69,7 @@ export function* getContentDripSettings(postId: number) {
   }
 }
 
-export function* updateContentDripSettings(postId: number, settings: any) {
+export function* updateContentDripSettings(postId: number, settings: ContentDripItemSettings) {
   try {
     // Set saving state
     yield {
@@ -185,16 +186,18 @@ export function* duplicateContentDripSettings(sourcePostId: number, targetPostId
   }
 }
 
-export function* getCourseContentDripSettings(courseId: number): Generator<any, any, any> {
+export function* getCourseContentDripSettings(
+  courseId: number
+): Generator<unknown, { enabled: boolean; type: string }, unknown> {
   try {
     // Fetch lightweight course content drip settings
-    const response: any = yield {
+    const response = (yield {
       type: "API_FETCH",
       request: {
         path: `/tutorpress/v1/content-drip/course/${courseId}/settings`,
         method: "GET",
       },
-    };
+    }) as { success: boolean; data: { content_drip: { enabled: boolean; type: string } } };
 
     if (response.success) {
       // Return the course content drip settings
