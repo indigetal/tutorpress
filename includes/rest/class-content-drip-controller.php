@@ -212,20 +212,60 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Determine drip type from settings values (check which ones have meaningful values)
+        // Get course-level content drip type to determine what settings are expected
+        $course_drip_type = get_tutor_course_settings($drip_info['course_id'], 'content_drip_type', 'unlock_by_date');
+        
+        // Determine drip type from course settings and validate accordingly
         $drip_type = null;
-        if (isset($settings['prerequisites']) && is_array($settings['prerequisites']) && !empty($settings['prerequisites'])) {
-            $drip_type = 'after_finishing_prerequisites';
-        } elseif (isset($settings['unlock_date']) && !empty(trim($settings['unlock_date']))) {
-            $drip_type = 'unlock_by_date';
-        } elseif (isset($settings['after_xdays_of_enroll']) && $settings['after_xdays_of_enroll'] > 0) {
-            $drip_type = 'specific_days';
-        } else {
-            return new WP_Error(
-                'invalid_settings_format',
-                __('Settings must contain valid content drip fields with meaningful values.', 'tutorpress'),
-                ['status' => 400]
-            );
+        switch ($course_drip_type) {
+            case 'after_finishing_prerequisites':
+                // For prerequisite-based drip, allow empty prerequisites (means no prerequisites for this item)
+                if (isset($settings['prerequisites']) && is_array($settings['prerequisites'])) {
+                    $drip_type = 'after_finishing_prerequisites';
+                } else {
+                    return new WP_Error(
+                        'missing_prerequisites',
+                        __('Prerequisites field is required for prerequisite-based content drip.', 'tutorpress'),
+                        ['status' => 400]
+                    );
+                }
+                break;
+                
+            case 'unlock_by_date':
+                if (isset($settings['unlock_date']) && !empty(trim($settings['unlock_date']))) {
+                    $drip_type = 'unlock_by_date';
+                } else {
+                    return new WP_Error(
+                        'missing_unlock_date',
+                        __('Unlock date is required for date-based content drip.', 'tutorpress'),
+                        ['status' => 400]
+                    );
+                }
+                break;
+                
+            case 'specific_days':
+                if (isset($settings['after_xdays_of_enroll']) && $settings['after_xdays_of_enroll'] >= 0) {
+                    $drip_type = 'specific_days';
+                } else {
+                    return new WP_Error(
+                        'missing_days_value',
+                        __('Days after enrollment value is required for day-based content drip.', 'tutorpress'),
+                        ['status' => 400]
+                    );
+                }
+                break;
+                
+            case 'unlock_sequentially':
+                // Sequential drip doesn't require item-level settings
+                $drip_type = 'unlock_sequentially';
+                break;
+                
+            default:
+                return new WP_Error(
+                    'invalid_course_drip_type',
+                    __('Invalid course content drip type.', 'tutorpress'),
+                    ['status' => 400]
+                );
         }
 
         // Sanitize and validate settings based on drip type

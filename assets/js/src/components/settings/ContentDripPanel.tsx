@@ -21,7 +21,6 @@ import {
   Card,
   CardBody,
   FormTokenField,
-  SelectControl,
 } from "@wordpress/components";
 
 // Import types
@@ -59,55 +58,48 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
   const [selectedPrerequisiteTokens, setSelectedPrerequisiteTokens] = useState<string[]>([]);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Get content drip info and prerequisites from store
-  const { contentDripInfo, prerequisites, isLoadingSettings, isLoadingPrerequisites, error, saving, saveError } =
-    useSelect(
-      (select: any) => {
-        const store = select("tutorpress/additional-content");
+  // Get content drip info and prerequisites from store, including course-level settings
+  const {
+    contentDripInfo,
+    prerequisites,
+    isLoadingSettings,
+    isLoadingPrerequisites,
+    error,
+    saving,
+    saveError,
+    isContentDripEnabled,
+    courseContentDripType,
+  } = useSelect(
+    (select: any) => {
+      const store = select("tutorpress/additional-content");
 
-        return {
-          contentDripInfo: store.getContentDripInfoForPost(postId),
-          prerequisites: store.getPrerequisitesForCourse(courseId),
-          isLoadingSettings: store.isContentDripLoadingForPost(postId),
-          isLoadingPrerequisites: store.isPrerequisitesLoadingForCourse(courseId),
-          error: store.getContentDripErrorForPost(postId),
-          saving: store.isContentDripSavingForPost(postId),
-          saveError: store.getContentDripSaveErrorForPost(postId),
-        };
-      },
-      [postId, courseId]
-    );
-
-  // Local state for course content drip settings
-  const [courseContentDripSettings, setCourseContentDripSettings] = useState<{
-    enabled: boolean;
-    type: string;
-  } | null>(null);
+      return {
+        contentDripInfo: store.getContentDripInfoForPost(postId),
+        prerequisites: store.getPrerequisitesForCourse(courseId),
+        isLoadingSettings: store.isContentDripLoadingForPost(postId),
+        isLoadingPrerequisites: store.isPrerequisitesLoadingForCourse(courseId),
+        error: store.getContentDripErrorForPost(postId),
+        saving: store.isContentDripSavingForPost(postId),
+        saveError: store.getContentDripSaveErrorForPost(postId),
+        // Use existing store selectors for course-level settings (no separate API call needed)
+        isContentDripEnabled: store.isContentDripEnabled(),
+        courseContentDripType: store.getContentDripType(),
+      };
+    },
+    [postId, courseId]
+  );
 
   // Get actions from store
-  const { getContentDripSettings, getPrerequisites, updateContentDripSettings, getCourseContentDripSettings } =
-    useDispatch("tutorpress/additional-content");
+  const { getContentDripSettings, getPrerequisites, updateContentDripSettings, fetchAdditionalContent } = useDispatch(
+    "tutorpress/additional-content"
+  );
 
-  // Check if content drip is enabled at course level
-  const isContentDripEnabled = courseContentDripSettings?.enabled === true;
-
-  // Get course content drip type
-  const courseContentDripType = courseContentDripSettings?.type || null;
-
-  // Load lightweight course content drip settings on mount
+  // Load course-level additional content (includes content drip settings)
   useEffect(() => {
     if (courseId) {
-      // Use lightweight endpoint to get only course content drip settings
-      getCourseContentDripSettings(courseId)
-        .then((settings: any) => {
-          setCourseContentDripSettings(settings);
-        })
-        .catch((error: any) => {
-          console.error("Failed to load course content drip settings:", error);
-          setCourseContentDripSettings({ enabled: false, type: "unlock_by_date" });
-        });
+      fetchAdditionalContent(courseId);
     }
-  }, [courseId, getCourseContentDripSettings]);
+  }, [courseId, fetchAdditionalContent]);
 
   // Load post-level content drip settings
   useEffect(() => {
@@ -118,14 +110,10 @@ function ContentDripPanel<T extends "lesson" | "tutor_assignments">({
 
   // Load prerequisites when content drip is enabled and we need to show the prerequisites field
   useEffect(() => {
-    if (
-      courseId &&
-      courseContentDripSettings?.enabled &&
-      courseContentDripSettings?.type === "after_finishing_prerequisites"
-    ) {
+    if (courseId && isContentDripEnabled && courseContentDripType === "after_finishing_prerequisites") {
       getPrerequisites(courseId);
     }
-  }, [courseId, courseContentDripSettings?.enabled, courseContentDripSettings?.type, getPrerequisites]);
+  }, [courseId, isContentDripEnabled, courseContentDripType, getPrerequisites]);
 
   // Update local settings when store settings change, or use passed settings as fallback
   useEffect(() => {
