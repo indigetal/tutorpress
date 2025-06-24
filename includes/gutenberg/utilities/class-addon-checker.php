@@ -69,6 +69,24 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_CONTENT_DRIP_VERSION',
             'class' => 'TUTOR_CONTENT_DRIP\init',
         ],
+        'prerequisites' => [
+            'file' => 'tutor-pro/addons/tutor-prerequisites/tutor-prerequisites.php',
+            'basename' => 'tutor-pro/addons/tutor-prerequisites/tutor-prerequisites.php',
+            'constant' => 'TUTOR_PREREQUISITES_VERSION',
+            'class' => 'TUTOR_PREREQUISITES\init',
+        ],
+        'multi_instructors' => [
+            'file' => 'tutor-pro/addons/tutor-multi-instructors/tutor-multi-instructors.php',
+            'basename' => 'tutor-pro/addons/tutor-multi-instructors/tutor-multi-instructors.php',
+            'constant' => 'TUTOR_MULTI_INSTRUCTORS_VERSION',
+            'class' => 'TUTOR_MULTI_INSTRUCTORS\init',
+        ],
+        'enrollments' => [
+            'file' => 'tutor-pro/addons/enrollments/enrollments.php',
+            'basename' => 'tutor-pro/addons/enrollments/enrollments.php',
+            'constant' => 'TUTOR_ENROLLMENTS_VERSION',
+            'class' => 'TUTOR_ENROLLMENTS\Init',
+        ],
     ];
 
     /**
@@ -153,6 +171,35 @@ class TutorPress_Addon_Checker {
     }
 
     /**
+     * Check if Prerequisites addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_prerequisites_enabled() {
+        return self::is_addon_enabled('prerequisites');
+    }
+
+    /**
+     * Check if Multi Instructors addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_multi_instructors_enabled() {
+        return self::is_addon_enabled('multi_instructors');
+    }
+
+    /**
+     * Check if Enrollments addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_enrollments_enabled() {
+        return self::is_addon_enabled('enrollments');
+    }
+
+
+
+    /**
      * Get availability status for all supported addons
      *
      * @return array Associative array of addon availability
@@ -225,4 +272,6 @@ class TutorPress_Addon_Checker {
     public static function get_supported_addons() {
         return array_keys(self::$addon_configs);
     }
+
+
 } 

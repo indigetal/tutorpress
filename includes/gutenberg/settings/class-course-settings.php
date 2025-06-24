@@ -92,11 +92,14 @@ class TutorPress_Course_Settings {
                             ],
                         ],
                         'course_enrollment_period' => [
-                            'type'       => 'object',
-                            'properties' => [
-                                'start_date' => ['type' => 'string'],
-                                'end_date'   => ['type' => 'string'],
-                            ],
+                            'type' => 'string',
+                            'enum' => ['yes', 'no'],
+                        ],
+                        'enrollment_starts_at' => [
+                            'type' => 'string',
+                        ],
+                        'enrollment_ends_at' => [
+                            'type' => 'string',
                         ],
                         'pause_enrollment' => [
                             'type' => 'boolean',
@@ -201,20 +204,19 @@ class TutorPress_Course_Settings {
             'enable_qna' => $enable_qna !== 'no',
             'course_duration' => $course_duration,
             
-            // Future sections (will be implemented in Steps 3-6)
-            'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
-            'course_prerequisites' => $tutor_settings['course_prerequisites'] ?? [],
+                    // Future sections (will be implemented in Steps 3-6)
+        'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
+        'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
             'schedule' => $tutor_settings['schedule'] ?? [
                 'enabled' => false,
                 'start_date' => '',
                 'start_time' => '',
                 'show_coming_soon' => false,
             ],
-            'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? [
-                'start_date' => '',
-                'end_date' => '',
-            ],
-            'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? false,
+            'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
+            'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
+            'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
+            'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? 'no',
             'featured_video' => $tutor_settings['featured_video'] ?? [
                 'source' => '',
                 'source_youtube' => '',
@@ -275,9 +277,23 @@ class TutorPress_Course_Settings {
             $results[] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
         }
         
+        // Handle prerequisites separately (stored in _tutor_course_prerequisites_ids)
+        if (isset($value['course_prerequisites'])) {
+            $prerequisite_ids = $value['course_prerequisites'];
+            if (is_array($prerequisite_ids) && !empty($prerequisite_ids)) {
+                // Filter to ensure all values are valid integers
+                $prerequisite_ids = array_filter(array_map('intval', $prerequisite_ids));
+                $results[] = update_post_meta($post_id, '_tutor_course_prerequisites_ids', $prerequisite_ids);
+            } else {
+                // Delete the meta if empty
+                $results[] = delete_post_meta($post_id, '_tutor_course_prerequisites_ids');
+            }
+        }
+        
         // Future sections: Update _tutor_course_settings for non-Course Details fields
-        $future_section_fields = ['maximum_students', 'course_prerequisites', 'schedule', 
-                                 'course_enrollment_period', 'pause_enrollment', 'featured_video', 'attachments',
+        // Note: course_prerequisites is handled separately above
+        $future_section_fields = ['maximum_students', 'schedule', 
+                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'featured_video', 'attachments',
                                  'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
                                  'subscription_enabled', 'instructors', 'additional_instructors'];
         
@@ -346,7 +362,7 @@ class TutorPress_Course_Settings {
      */
     public static function handle_tutor_individual_field_update($meta_id, $post_id, $meta_key, $meta_value) {
         // Only handle individual Tutor LMS fields for courses
-        $tutor_fields = ['_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration'];
+        $tutor_fields = ['_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration', '_tutor_course_prerequisites_ids'];
         if (!in_array($meta_key, $tutor_fields) || get_post_type($post_id) !== 'courses') {
             return;
         }
@@ -385,6 +401,9 @@ class TutorPress_Course_Settings {
                 } else {
                     $current_settings['course_duration'] = ['hours' => 0, 'minutes' => 0];
                 }
+                break;
+            case '_tutor_course_prerequisites_ids':
+                $current_settings['course_prerequisites'] = is_array($meta_value) ? $meta_value : [];
                 break;
         }
 

@@ -26,6 +26,11 @@ export {
   isGoogleMeetEnabled,
   isZoomEnabled,
   isH5pEnabled,
+  isCertificateEnabled,
+  isContentDripEnabled,
+  isPrerequisitesEnabled,
+  isMultiInstructorsEnabled,
+  isEnrollmentsEnabled,
   isAnyLiveLessonEnabled,
   getAvailableLiveLessonTypes,
 } from "./addonChecker";

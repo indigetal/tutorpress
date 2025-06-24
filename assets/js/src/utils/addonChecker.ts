@@ -13,7 +13,16 @@
 /**
  * Supported addon keys
  */
-export type AddonKey = "course_preview" | "google_meet" | "zoom" | "h5p" | "certificate" | "content_drip";
+export type AddonKey =
+  | "course_preview"
+  | "google_meet"
+  | "zoom"
+  | "h5p"
+  | "certificate"
+  | "content_drip"
+  | "prerequisites"
+  | "multi_instructors"
+  | "enrollments";
 
 /**
  * Addon status interface
@@ -25,6 +34,9 @@ export interface AddonStatus {
   h5p: boolean;
   certificate: boolean;
   content_drip: boolean;
+  prerequisites: boolean;
+  multi_instructors: boolean;
+  enrollments: boolean;
 }
 
 /**
@@ -55,6 +67,9 @@ export class AddonChecker {
         h5p: false,
         certificate: false,
         content_drip: false,
+        prerequisites: false,
+        multi_instructors: false,
+        enrollments: false,
       }
     );
   }
@@ -123,6 +138,34 @@ export class AddonChecker {
   }
 
   /**
+   * Check if Prerequisites addon is available
+   */
+  public static isPrerequisitesEnabled(): boolean {
+    return this.isAddonEnabled("prerequisites");
+  }
+
+  /**
+   * Check if Multi Instructors addon is available
+   */
+  public static isMultiInstructorsEnabled(): boolean {
+    return this.isAddonEnabled("multi_instructors");
+  }
+
+  /**
+   * Check if Enrollments addon is available
+   */
+  public static isEnrollmentsEnabled(): boolean {
+    return this.isAddonEnabled("enrollments");
+  }
+
+  /**
+   * Test method to verify build process
+   */
+  public static testEnrollmentsMethod(): boolean {
+    return this.isAddonEnabled("enrollments");
+  }
+
+  /**
    * Get availability status for all supported addons
    */
   public static getAllAddonStatus(): AddonStatus {
@@ -165,7 +208,17 @@ export class AddonChecker {
    * Get supported addon keys
    */
   public static getSupportedAddons(): AddonKey[] {
-    return ["course_preview", "google_meet", "zoom", "h5p", "certificate", "content_drip"];
+    return [
+      "course_preview",
+      "google_meet",
+      "zoom",
+      "h5p",
+      "certificate",
+      "content_drip",
+      "prerequisites",
+      "multi_instructors",
+      "enrollments",
+    ];
   }
 }
 
@@ -178,5 +231,8 @@ export const isZoomEnabled = (): boolean => AddonChecker.isZoomEnabled();
 export const isH5pEnabled = (): boolean => AddonChecker.isH5pEnabled();
 export const isCertificateEnabled = (): boolean => AddonChecker.isCertificateEnabled();
 export const isContentDripEnabled = (): boolean => AddonChecker.isContentDripEnabled();
+export const isPrerequisitesEnabled = (): boolean => AddonChecker.isPrerequisitesEnabled();
+export const isMultiInstructorsEnabled = (): boolean => AddonChecker.isMultiInstructorsEnabled();
+export const isEnrollmentsEnabled = (): boolean => AddonChecker.isEnrollmentsEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();

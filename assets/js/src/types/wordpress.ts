@@ -172,10 +172,10 @@ export interface TutorPressApi {
  */
 export interface TutorPressQuizUtils {
   getDefaultQuizSettings: () => any;
-  getDefaultQuestionSettings: (questionType: string) => any;
+  getDefaultQuestionSettings: (questionType: any) => any;
   isValidQuizQuestion: (question: unknown) => boolean;
   isValidQuizDetails: (quiz: unknown) => boolean;
-  createQuizError: (code: string, message: string, operation: any, context?: any) => any;
+  createQuizError: (code: any, message: string, operation: any, context?: any) => any;
   // Quiz service methods
   saveQuiz: (quizData: any, courseId: number, topicId: number) => Promise<any>;
   getQuizDetails: (quizId: number) => Promise<any>;
@@ -245,7 +245,7 @@ declare global {
       api: TutorPressApi;
       quiz: TutorPressQuizUtils;
       utils: any; // Quiz form utilities
-      contentDrip: TutorPressContentDripUtils; // Content drip utilities
+      contentDrip?: TutorPressContentDripUtils; // Content drip utilities
     };
   }
 }

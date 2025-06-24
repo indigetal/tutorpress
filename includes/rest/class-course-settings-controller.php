@@ -87,6 +87,30 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                                 'sanitize_callback' => 'absint',
                                 'description'       => __('Maximum number of students (0 for unlimited).', 'tutorpress'),
                             ],
+                            'course_enrollment_period' => [
+                                'type'              => 'string',
+                                'enum'              => ['yes', 'no'],
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('Whether enrollment period is enabled.', 'tutorpress'),
+                            ],
+                            'enrollment_starts_at' => [
+                                'type'              => 'string',
+                                'format'            => 'date-time',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('When enrollment starts (ISO 8601 format).', 'tutorpress'),
+                            ],
+                            'enrollment_ends_at' => [
+                                'type'              => 'string',
+                                'format'            => 'date-time',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('When enrollment ends (ISO 8601 format).', 'tutorpress'),
+                            ],
+                            'pause_enrollment' => [
+                                'type'              => 'string',
+                                'enum'              => ['yes', 'no'],
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('Whether enrollment is paused.', 'tutorpress'),
+                            ],
                         ],
                     ],
                 ]
@@ -106,6 +130,34 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                     ],
                 ]
             );
+
+                    // Add endpoint for course selection (prerequisites dropdown)
+        register_rest_route($this->namespace, '/courses/for-prerequisites', array(
+            array(
+                'methods'  => WP_REST_Server::READABLE,
+                'callback' => array($this, 'get_courses_for_prerequisites'),
+                'permission_callback' => array($this, 'check_prerequisites_permission'),
+                    'args'     => array(
+                        'exclude' => array(
+                            'description' => __('Course ID to exclude from results (typically the current course).', 'tutorpress'),
+                            'type'        => 'integer',
+                            'required'    => false,
+                        ),
+                        'search' => array(
+                            'description' => __('Search term to filter courses.', 'tutorpress'),
+                            'type'        => 'string',
+                            'required'    => false,
+                        ),
+                        'per_page' => array(
+                            'description' => __('Number of courses per page.', 'tutorpress'),
+                            'type'        => 'integer',
+                            'default'     => 20,
+                            'minimum'     => 1,
+                            'maximum'     => 100,
+                        ),
+                    ),
+                ),
+            ));
         } catch (Exception $e) {
             // Silently handle any registration errors
             return;
@@ -156,20 +208,13 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'enable_qna' => $enable_qna !== 'no',
             'course_duration' => $course_duration,
             
-            // Future sections (will be implemented in Steps 3-6)
-            'course_prerequisites' => $future_settings['course_prerequisites'] ?? array(),
+            // Course Access & Enrollment Section (Tutor LMS Pro field names)
+            'course_prerequisites' => get_post_meta($course_id, '_tutor_course_prerequisites_ids', true) ?: array(),
             'maximum_students' => $future_settings['maximum_students'] ?? 0,
-            'schedule' => $future_settings['schedule'] ?? array(
-                'enabled' => false,
-                'start_date' => '',
-                'start_time' => '',
-                'show_coming_soon' => false,
-            ),
-            'course_enrollment_period' => $future_settings['course_enrollment_period'] ?? array(
-                'start_date' => '',
-                'end_date' => '',
-            ),
-            'pause_enrollment' => $future_settings['pause_enrollment'] ?? false,
+            'course_enrollment_period' => $future_settings['course_enrollment_period'] ?? 'no',
+            'enrollment_starts_at' => $future_settings['enrollment_starts_at'] ?? '',
+            'enrollment_ends_at' => $future_settings['enrollment_ends_at'] ?? '',
+            'pause_enrollment' => $future_settings['pause_enrollment'] ?? 'no',
             
             // Course Media Section
             'featured_video' => $future_settings['featured_video'] ?? array(
@@ -246,17 +291,48 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             }
         }
         
+        // Handle prerequisites separately (stored in _tutor_course_prerequisites_ids)
+        if ($request->has_param('course_prerequisites')) {
+            $prerequisite_ids = $request->get_param('course_prerequisites');
+            if (is_array($prerequisite_ids) && !empty($prerequisite_ids)) {
+                // Filter to ensure all values are valid integers
+                $prerequisite_ids = array_filter(array_map('intval', $prerequisite_ids));
+                $results[] = update_post_meta($course_id, '_tutor_course_prerequisites_ids', $prerequisite_ids);
+            } else {
+                // Delete the meta if empty
+                $results[] = delete_post_meta($course_id, '_tutor_course_prerequisites_ids');
+            }
+        }
+        
         // Future sections: Update _tutor_course_settings for non-Course Details fields
+        // Note: course_prerequisites is handled separately via _tutor_course_prerequisites_ids
         $future_updates = array();
-        $future_fields = array('maximum_students', 'course_prerequisites', 'schedule', 
-                              'course_enrollment_period', 'pause_enrollment', 'featured_video', 
+        $future_fields = array('maximum_students', 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'featured_video', 
                               'attachments', 'materials_included', 'is_free', 'pricing_model', 
                               'price', 'sale_price', 'subscription_enabled', 'instructors', 
                               'additional_instructors');
         
         foreach ($future_fields as $field) {
             if ($request->has_param($field)) {
-                $future_updates[$field] = $request->get_param($field);
+                $value = $request->get_param($field);
+                
+                // Sanitize specific fields
+                switch ($field) {
+                    case 'maximum_students':
+                        $future_updates[$field] = max(0, (int) $value);
+                        break;
+                    case 'course_enrollment_period':
+                    case 'pause_enrollment':
+                        $future_updates[$field] = in_array($value, ['yes', 'no']) ? $value : 'no';
+                        break;
+                    case 'enrollment_starts_at':
+                    case 'enrollment_ends_at':
+                        $future_updates[$field] = sanitize_text_field($value);
+                        break;
+                    default:
+                        $future_updates[$field] = $value;
+                        break;
+                }
             }
         }
         
@@ -271,12 +347,22 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Also update the Gutenberg course_settings field to ensure sync
-        $post_data = array('id' => $course_id);
-        $gutenberg_settings = TutorPress_Course_Settings::get_course_settings($post_data);
-        update_post_meta($course_id, 'course_settings', $gutenberg_settings);
+        try {
+            $post_data = array('id' => $course_id);
+            $gutenberg_settings = TutorPress_Course_Settings::get_course_settings($post_data);
+            update_post_meta($course_id, 'course_settings', $gutenberg_settings);
+        } catch (Exception $e) {
+            error_log('TutorPress: Error syncing course settings: ' . $e->getMessage());
+            return new WP_Error(
+                'sync_failed',
+                __('Failed to sync course settings: ', 'tutorpress') . $e->getMessage(),
+                array('status' => 500)
+            );
+        }
         
         // Check if any updates failed
         if (!empty($results) && in_array(false, $results, true)) {
+            error_log('TutorPress: Some course setting updates failed for course ID: ' . $course_id);
             return new WP_Error(
                 'save_failed',
                 __('Failed to save some course settings', 'tutorpress'),
@@ -332,5 +418,79 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         return true;
+    }
+
+    /**
+     * Check permissions for prerequisites endpoint
+     *
+     * @param WP_REST_Request $request The REST request object
+     * @return bool|WP_Error True if user has permission, error otherwise
+     */
+    public function check_prerequisites_permission($request) {
+        // Allow any user who can edit courses to view the prerequisites list
+        if (!current_user_can('edit_posts')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to view courses.', 'tutorpress'),
+                array('status' => 403)
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Get courses for prerequisites dropdown
+     *
+     * @param WP_REST_Request $request The REST request object
+     * @return WP_REST_Response|WP_Error Response object or error
+     */
+    public function get_courses_for_prerequisites($request) {
+        $exclude = $request->get_param('exclude');
+        $search = $request->get_param('search');
+        $per_page = $request->get_param('per_page') ?: 20;
+
+        $args = array(
+            'post_type' => 'courses',
+            'post_status' => 'publish',
+            'posts_per_page' => $per_page,
+            'meta_query' => array(
+                array(
+                    'key' => '_tutor_course_price_type',
+                    'compare' => 'EXISTS',
+                ),
+            ),
+        );
+
+        // Exclude specific course (typically the current course)
+        if ($exclude) {
+            $args['post__not_in'] = array((int) $exclude);
+        }
+
+        // Add search functionality
+        if ($search) {
+            $args['s'] = sanitize_text_field($search);
+        }
+
+        $courses = get_posts($args);
+        $formatted_courses = array();
+
+        foreach ($courses as $course) {
+            $formatted_courses[] = array(
+                'id' => $course->ID,
+                'title' => $course->post_title,
+                'permalink' => get_permalink($course->ID),
+                'featured_image' => get_the_post_thumbnail_url($course->ID, 'thumbnail'),
+                'author' => get_the_author_meta('display_name', $course->post_author),
+                'date_created' => $course->post_date,
+            );
+        }
+
+        return rest_ensure_response(array(
+            'success' => true,
+            'data' => $formatted_courses,
+            'total_found' => count($formatted_courses),
+            'search_term' => $search,
+        ));
     }
 } 

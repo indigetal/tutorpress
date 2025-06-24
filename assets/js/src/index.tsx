@@ -8,6 +8,7 @@ import Curriculum from "./components/metaboxes/Curriculum";
 import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
 import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import CourseDetailsPanel from "./components/settings/CourseDetailsPanel";
+import CourseAccessPanel from "./components/settings/CourseAccessPanel";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
 import "./api"; // Import API module to expose it to window
 
@@ -51,6 +52,11 @@ registerPlugin("tutorpress-course-details-settings", {
   render: CourseDetailsPanel,
 });
 
+// Register the course access & enrollment settings plugin for Gutenberg sidebar
+registerPlugin("tutorpress-course-access-settings", {
+  render: CourseAccessPanel,
+});
+
 // Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("tutorpress-curriculum-root");
@@ -80,6 +86,17 @@ document.addEventListener("DOMContentLoaded", () => {
 // Expose utilities to global scope for testing
 (window as any).tutorpress = (window as any).tutorpress || {};
 (window as any).tutorpress.AddonChecker = AddonChecker;
+
+// Explicitly reference all AddonChecker methods to prevent tree-shaking
+console.log("TutorPress: AddonChecker methods available:", {
+  isPrerequisitesEnabled: typeof AddonChecker.isPrerequisitesEnabled,
+  isEnrollmentsEnabled: typeof AddonChecker.isEnrollmentsEnabled,
+  isH5pEnabled: typeof AddonChecker.isH5pEnabled,
+  isCertificateEnabled: typeof AddonChecker.isCertificateEnabled,
+  isContentDripEnabled: typeof AddonChecker.isContentDripEnabled,
+  isGoogleMeetEnabled: typeof AddonChecker.isGoogleMeetEnabled,
+  isZoomEnabled: typeof AddonChecker.isZoomEnabled,
+});
 
 // Expose content drip utilities globally for testing and debugging
 (window as any).tutorpress.contentDrip = {
