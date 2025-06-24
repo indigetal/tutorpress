@@ -56,6 +56,10 @@ class TutorPress_REST {
             require_once TUTORPRESS_PATH . 'includes/rest/class-additional-content-controller.php';
             $controllers['additional_content'] = new TutorPress_Additional_Content_Controller();
 
+            // Always load Course Settings controller (core course settings always available)
+            require_once TUTORPRESS_PATH . 'includes/rest/class-course-settings-controller.php';
+            $controllers['course_settings'] = new TutorPress_Course_Settings_Controller();
+
             // Conditionally load H5P controller only if H5P addon is available
             if (TutorPress_Addon_Checker::is_h5p_enabled()) {
                 require_once TUTORPRESS_PATH . 'includes/rest/class-h5p-controller.php';

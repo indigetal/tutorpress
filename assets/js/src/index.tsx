@@ -7,6 +7,7 @@ import React from "react";
 import Curriculum from "./components/metaboxes/Curriculum";
 import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPanel";
 import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
+import CourseDetailsPanel from "./components/settings/CourseDetailsPanel";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
 import "./api"; // Import API module to expose it to window
 
@@ -43,6 +44,11 @@ registerPlugin("tutorpress-assignment-settings", {
 // Register the lesson settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-lesson-settings", {
   render: LessonSettingsPanel,
+});
+
+// Register the course details settings plugin for Gutenberg sidebar
+registerPlugin("tutorpress-course-details-settings", {
+  render: CourseDetailsPanel,
 });
 
 // Wait for DOM to be ready for curriculum metabox
