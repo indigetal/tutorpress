@@ -102,7 +102,8 @@ class TutorPress_Course_Settings {
                             'type' => 'string',
                         ],
                         'pause_enrollment' => [
-                            'type' => 'boolean',
+                            'type' => 'string',
+                            'enum' => ['yes', 'no'],
                         ],
                         'featured_video' => [
                             'type'       => 'object',

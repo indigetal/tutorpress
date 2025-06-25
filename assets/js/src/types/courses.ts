@@ -82,8 +82,10 @@ export interface CourseSettings {
   course_prerequisites: number[];
   maximum_students: number;
   schedule: CourseSchedule;
-  course_enrollment_period: CourseEnrollmentPeriod;
-  pause_enrollment: boolean;
+  course_enrollment_period: "yes" | "no"; // Tutor LMS uses "yes"/"no" strings
+  enrollment_starts_at: string; // ISO 8601 date-time string
+  enrollment_ends_at: string; // ISO 8601 date-time string
+  pause_enrollment: "yes" | "no"; // Tutor LMS uses "yes"/"no" strings
 
   // Course Media Section
   featured_video: CourseFeaturedVideo;
@@ -128,11 +130,10 @@ export const defaultCourseSettings: CourseSettings = {
     start_time: "",
     show_coming_soon: false,
   },
-  course_enrollment_period: {
-    start_date: "",
-    end_date: "",
-  },
-  pause_enrollment: false,
+  course_enrollment_period: "no",
+  enrollment_starts_at: "",
+  enrollment_ends_at: "",
+  pause_enrollment: "no",
 
   // Course Media
   featured_video: {

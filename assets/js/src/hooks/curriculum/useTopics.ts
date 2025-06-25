@@ -31,18 +31,6 @@ import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
 import { store as editorStore } from "@wordpress/editor";
 import { useCurriculumError } from "./useCurriculumError";
-import {
-  setTopics,
-  setOperationState,
-  setEditState,
-  setTopicCreationState,
-  setDeletionState,
-  setDuplicationState,
-  setReorderState,
-  setIsAddingTopic,
-  setActiveOperation,
-  deleteTopic,
-} from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
 import { addFilter, removeFilter } from "@wordpress/hooks";
@@ -147,7 +135,7 @@ export interface UseTopicsReturn {
  */
 export function useTopics({ courseId, isLesson = false, isAssignment = false }: UseTopicsOptions): UseTopicsReturn {
   const { createNotice } = useDispatch(noticesStore);
-  const { dispatch } = useDispatch("tutorpress/curriculum");
+  const dispatch = useDispatch(curriculumStore);
 
   const {
     topics,
@@ -221,19 +209,6 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
   const prevPostIdRef = useRef(currentPostId);
   const prevPostStatusRef = useRef(currentPostStatus);
 
-  const {
-    setTopics,
-    setOperationState,
-    setEditState,
-    setTopicCreationState,
-    setDeletionState,
-    setDuplicationState,
-    setReorderState,
-    setIsAddingTopic,
-    setActiveOperation,
-    deleteTopic,
-  } = useDispatch(curriculumStore);
-
   // Use the error handling hook
   const { validateApiResponse, createCurriculumError, handleRetry } = useCurriculumError({
     reorderState,
@@ -259,17 +234,17 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
   // Use the snapshot hook
   const { snapshot, createSnapshot, restoreFromSnapshot, clearSnapshot } = useSnapshot({
     topics,
-    setTopics,
+    setTopics: dispatch.setTopics,
   });
 
   // Use state persistence hook at the top level
-  useStatePersistence(courseId ?? 0, topics, setTopics);
+  useStatePersistence(courseId ?? 0, topics, dispatch.setTopics);
 
   // Helper for operation success cleanup
   const handleOperationSuccess = useCallback(() => {
     clearSnapshot();
-    setActiveOperation({ type: "none" });
-  }, [clearSnapshot, setActiveOperation]);
+    dispatch.setActiveOperation({ type: "none" });
+  }, [clearSnapshot, dispatch]);
 
   // Helper for operation error cleanup
   const handleOperationError = useCallback(
@@ -278,19 +253,19 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         restoreFromSnapshot();
       }
       clearSnapshot();
-      setActiveOperation({ type: "none" });
+      dispatch.setActiveOperation({ type: "none" });
       return error;
     },
-    [snapshot, restoreFromSnapshot, clearSnapshot, setActiveOperation]
+    [snapshot, restoreFromSnapshot, clearSnapshot, dispatch]
   );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearSnapshot();
-      setActiveOperation({ type: "none" });
+      dispatch.setActiveOperation({ type: "none" });
     };
-  }, [clearSnapshot, setActiveOperation]);
+  }, [clearSnapshot, dispatch]);
 
   // Add a useEffect to track topics changes
   useEffect(() => {
@@ -302,52 +277,13 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     // Operation state updated
   }, [operationState]);
 
-  // Add refreshTopics function
-  const refreshTopics = useCallback(async () => {
-    if (!courseId) {
-      console.warn("Cannot refresh topics: courseId is not available");
-      return;
-    }
-
-    try {
-      setOperationState({ status: "loading" });
-      const response = await apiFetch({
-        path: `/tutorpress/v1/topics?course_id=${courseId}`,
-      });
-
-      // Validate and transform the response
-      const topicsWithCollapsed = validateApiResponse(response);
-
-      // Update topics and operation state atomically
-      setTopics(topicsWithCollapsed);
-      setOperationState({
-        status: "success",
-        data: topicsWithCollapsed,
-      });
-    } catch (err) {
-      const error = createCurriculumError(err, { action: "refresh_topics" });
-      console.error("Error refreshing topics:", error);
-
-      // Show error notice
-      createNotice("error", error.message, {
-        type: "snackbar",
-        isDismissible: true,
-      });
-
-      // Update operation state to error
-      setOperationState({
-        status: "error",
-        error,
-      });
-    }
-  }, [courseId, setTopics, setOperationState, createNotice, validateApiResponse, createCurriculumError]);
-
   // Fetch topics on mount and when courseId changes
   useEffect(() => {
-    if (courseId && courseId > 0 && operationState.status !== "loading" && (!topics || topics.length === 0)) {
-      refreshTopics();
+    if (courseId && courseId > 0) {
+      // Always fetch if we have a valid courseId
+      dispatch.fetchTopics(courseId);
     }
-  }, [courseId, operationState.status, topics, refreshTopics]);
+  }, [courseId, dispatch]);
 
   // Monitor post status changes for automatic refresh
   useEffect(() => {
@@ -366,13 +302,13 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
 
     if (isInitialPublish && courseId) {
       // Trigger curriculum refresh
-      refreshTopics();
+      dispatch.fetchTopics(courseId);
     }
 
     // Update refs for next check
     prevPostIdRef.current = currentPostId;
     prevPostStatusRef.current = currentPostStatus;
-  }, [isLesson, isAssignment, currentPostId, currentPostStatus, courseId, refreshTopics]);
+  }, [isLesson, isAssignment, currentPostId, currentPostStatus, courseId, dispatch]);
 
   // Add editor.didPostSaving filter for existing lesson and assignment updates
   useEffect(() => {
@@ -393,7 +329,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       }
 
       // Refresh topics
-      refreshTopics();
+      dispatch.fetchTopics(currentCourseId);
     };
 
     // Add the filter
@@ -403,27 +339,30 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     return () => {
       removeFilter("editor.didPostSaving", "tutorpress/curriculum-refresh");
     };
-  }, [isLesson, isAssignment, courseId, refreshTopics]);
+  }, [isLesson, isAssignment, courseId, dispatch]);
 
   /** Handle topic toggle (collapse/expand) */
-  const handleTopicToggle = useCallback((topicId: number) => {
-    setTopics((currentTopics: Topic[]) =>
-      currentTopics.map((topic: Topic) =>
-        topic.id === topicId ? { ...topic, isCollapsed: !topic.isCollapsed } : topic
-      )
-    );
-  }, []);
+  const handleTopicToggle = useCallback(
+    (topicId: number) => {
+      dispatch.setTopics((currentTopics: Topic[]) =>
+        currentTopics.map((topic: Topic) =>
+          topic.id === topicId ? { ...topic, isCollapsed: !topic.isCollapsed } : topic
+        )
+      );
+    },
+    [dispatch]
+  );
 
   /** Handle starting topic addition */
   const handleAddTopicClick = useCallback(() => {
-    setTopics((currentTopics: Topic[]) =>
+    dispatch.setTopics((currentTopics: Topic[]) =>
       currentTopics.map((topic: Topic) => ({
         ...topic,
         isCollapsed: true,
       }))
     );
-    setIsAddingTopic(true);
-  }, []);
+    dispatch.setIsAddingTopic(true);
+  }, [dispatch]);
 
   /** Handle topic edit start */
   const handleTopicEdit = useCallback(
@@ -432,9 +371,9 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         createNotice("error", "Another operation is in progress. Please wait.");
         return;
       }
-      setEditState({ isEditing: true, topicId });
+      dispatch.setEditState({ isEditing: true, topicId });
     },
-    [activeOperation, createNotice]
+    [activeOperation, createNotice, dispatch]
   );
 
   /** Handle topic edit cancel */
@@ -444,7 +383,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
 
     try {
       // Reset edit state
-      setEditState({ isEditing: false, topicId: null });
+      dispatch.setEditState({ isEditing: false, topicId: null });
 
       // Restore from snapshot to ensure clean state
       restoreFromSnapshot();
@@ -459,7 +398,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       // Clear snapshot
       clearSnapshot();
     }
-  }, [createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]);
+  }, [createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot, dispatch]);
 
   /** Handle topic edit save */
   const handleTopicEditSave = useCallback(
@@ -493,7 +432,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
 
         // Update local state atomically
-        setTopics((currentTopics) =>
+        dispatch.setTopics((currentTopics) =>
           currentTopics.map((topic) => {
             if (topic.id === topicId) {
               return {
@@ -507,7 +446,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         );
 
         // Reset edit state
-        setEditState({ isEditing: false, topicId: null });
+        dispatch.setEditState({ isEditing: false, topicId: null });
 
         // Show success notice
         createNotice("success", __("Topic updated successfully", "tutorpress"), {
@@ -525,7 +464,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
 
         // Reset edit state
-        setEditState({ isEditing: false, topicId: null });
+        dispatch.setEditState({ isEditing: false, topicId: null });
 
         throw error;
       } finally {
@@ -560,11 +499,11 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
 
         // Update local state with new topic
-        setTopics((currentTopics) => [...currentTopics, newTopic]);
+        dispatch.setTopics((currentTopics) => [...currentTopics, newTopic]);
 
         // Reset form state
-        setTopicCreationState({ status: "idle" });
-        setIsAddingTopic(false);
+        dispatch.setTopicCreationState({ status: "idle" });
+        dispatch.setIsAddingTopic(false);
 
         // Cleanup and show success notice
         handleOperationSuccess();
@@ -579,13 +518,22 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
       }
     },
-    [courseId, createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]
+    [
+      courseId,
+      createNotice,
+      createSnapshot,
+      restoreFromSnapshot,
+      clearSnapshot,
+      dispatch,
+      handleOperationSuccess,
+      handleOperationError,
+    ]
   );
 
   /** Handle topic form cancel */
   const handleTopicFormCancel = () => {
-    setTopicCreationState({ status: "idle" });
-    setIsAddingTopic(false);
+    dispatch.setTopicCreationState({ status: "idle" });
+    dispatch.setIsAddingTopic(false);
   };
 
   /** Handle topic deletion */
@@ -607,8 +555,17 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       try {
         createSnapshot("delete");
 
+        // Set deletion state to indicate deletion is in progress
+        dispatch.setDeletionState({
+          status: "deleting",
+          topicId,
+        });
+
         // Use the store resolver for topic deletion (uses API_FETCH control type)
-        await deleteTopic(topicId, courseId);
+        await dispatch.deleteTopic(topicId, courseId);
+
+        // Reset deletion state to idle (the resolver handles topics refresh)
+        dispatch.setDeletionState({ status: "idle" });
 
         // Cleanup and show success notice
         handleOperationSuccess();
@@ -627,7 +584,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
           },
         };
 
-        setDeletionState({
+        dispatch.setDeletionState({
           status: "error",
           error,
           topicId,
@@ -640,7 +597,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
       }
     },
-    [courseId, activeOperation, createNotice, handleOperationSuccess, handleOperationError, createSnapshot, deleteTopic]
+    [courseId, activeOperation, createNotice, handleOperationSuccess, handleOperationError, createSnapshot, dispatch]
   );
 
   /** Handle topic duplication */
@@ -660,7 +617,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         createSnapshot("duplicate");
 
         // Set duplication state to loading
-        setDuplicationState({
+        dispatch.setDuplicationState({
           status: "duplicating",
           sourceTopicId: topicId,
         });
@@ -669,8 +626,8 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         const duplicatedTopic = await duplicateTopic(topicId, courseId);
 
         // Update state with the new topic
-        setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
-        setDuplicationState({
+        dispatch.setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
+        dispatch.setDuplicationState({
           status: "success",
           sourceTopicId: topicId,
           duplicatedTopicId: duplicatedTopic.id,
@@ -684,7 +641,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       } catch (error) {
         // Handle error
         const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate topic.", "tutorpress");
-        setDuplicationState({
+        dispatch.setDuplicationState({
           status: "error",
           error: createOperationError(
             CurriculumErrorCode.DUPLICATE_FAILED,
@@ -705,8 +662,22 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
       }
     },
-    [courseId, createNotice, createSnapshot, restoreFromSnapshot, clearSnapshot]
+    [
+      courseId,
+      createNotice,
+      createSnapshot,
+      restoreFromSnapshot,
+      clearSnapshot,
+      dispatch,
+      handleOperationSuccess,
+      handleOperationError,
+    ]
   );
+
+  // Computed values
+  const isLoading = operationState.status === "loading";
+  const hasError = operationState.status === "error";
+  const shouldShowEmpty = !isLoading && !hasError && topics.length === 0;
 
   return {
     // State
@@ -745,7 +716,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     restoreFromSnapshot,
 
     // Computed
-    isLoading: operationState.status === "loading",
-    error: operationState.status === "error" ? operationState.error : null,
+    isLoading,
+    error: hasError ? operationState.error : null,
   };
 }

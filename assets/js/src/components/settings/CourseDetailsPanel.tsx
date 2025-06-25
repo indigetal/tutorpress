@@ -2,27 +2,22 @@ import React, { useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } from "@wordpress/components";
+import { PanelRow, TextControl, SelectControl, ToggleControl, Notice } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings, CourseDifficultyLevel } from "../../types/courses";
 import { defaultCourseSettings, courseDifficultyLevels } from "../../types/courses";
 
 const CourseDetailsPanel: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const { postType, courseSettings, isSaving, postId } = useSelect((select: any) => {
+  const { postType, courseSettings } = useSelect((select: any) => {
     const { getCurrentPostType } = select("core/editor");
     const { getEditedPostAttribute } = select("core/editor");
-    const { isSavingPost } = select("core/editor");
-    const { getCurrentPostId } = select("core/editor");
 
     return {
       postType: getCurrentPostType(),
       courseSettings: getEditedPostAttribute("course_settings") || defaultCourseSettings,
-      isSaving: isSavingPost(),
-      postId: getCurrentPostId(),
     };
   }, []);
 
@@ -73,14 +68,6 @@ const CourseDetailsPanel: React.FC = () => {
         </Notice>
       )}
 
-      {/* Loading State */}
-      {isLoading && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-          <Spinner />
-          <span>{__("Loading course settings...", "tutorpress")}</span>
-        </div>
-      )}
-
       {/* Difficulty Level */}
       <PanelRow>
         <div style={{ width: "100%" }}>
@@ -89,7 +76,6 @@ const CourseDetailsPanel: React.FC = () => {
             value={courseSettings.course_level}
             options={courseDifficultyLevels}
             onChange={(value: CourseDifficultyLevel) => updateSetting("course_level", value)}
-            disabled={isSaving || isLoading}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
           />
         </div>
@@ -107,7 +93,6 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={courseSettings.is_public_course}
             onChange={(enabled) => updateSetting("is_public_course", enabled)}
-            disabled={isSaving || isLoading}
           />
 
           <p
@@ -134,7 +119,6 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={courseSettings.enable_qna}
             onChange={(enabled) => updateSetting("enable_qna", enabled)}
-            disabled={isSaving || isLoading}
           />
 
           <p
@@ -168,7 +152,6 @@ const CourseDetailsPanel: React.FC = () => {
                 min="0"
                 value={courseSettings.course_duration.hours.toString()}
                 onChange={(value) => updateSetting("course_duration.hours", parseInt(value) || 0)}
-                disabled={isSaving || isLoading}
               />
             </div>
 
@@ -180,7 +163,6 @@ const CourseDetailsPanel: React.FC = () => {
                 max="59"
                 value={courseSettings.course_duration.minutes.toString()}
                 onChange={(value) => updateSetting("course_duration.minutes", Math.min(59, parseInt(value) || 0))}
-                disabled={isSaving || isLoading}
               />
             </div>
           </div>

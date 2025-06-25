@@ -7,428 +7,267 @@ import {
   TextControl,
   SelectControl,
   ToggleControl,
+  CheckboxControl,
   Notice,
   Spinner,
   Button,
   BaseControl,
   DateTimePicker,
-  __experimentalNumberControl as NumberControl,
 } from "@wordpress/components";
 import { store as editorStore } from "@wordpress/editor";
+import apiFetch from "@wordpress/api-fetch";
 import { AddonChecker } from "../../utils/addonChecker";
 
 // Import types and utilities
 import type { CourseSettings } from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
-import { isPrerequisitesEnabled } from "../../utils/addonChecker";
 
 interface Course {
   id: number;
-  title: string;
-  permalink: string;
-  featured_image?: string;
-  author: string;
-  date_created: string;
+  title: { rendered: string };
 }
 
-interface EnrollmentSettings {
-  maximum_students: number;
-  course_enrollment_period: "yes" | "no";
-  enrollment_starts_at: string;
-  enrollment_ends_at: string;
-  pause_enrollment: "yes" | "no";
-}
-
-interface CourseOption {
-  value: string;
-  label: string;
-}
-
-export const CourseAccessPanel: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string>("");
+export default function CourseAccessPanel() {
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(false);
-  const [courseSettings, setCourseSettings] = useState({
-    course_prerequisites: [] as number[],
-    maximum_students: 0,
-    course_enrollment_period: "no" as "yes" | "no",
-    enrollment_starts_at: "",
-    enrollment_ends_at: "",
-    pause_enrollment: "no" as "yes" | "no",
-  });
+  const [courseFetchError, setCourseFetchError] = useState<string | null>(null);
 
-  // Get current post data
-  const { courseId, postType } = useSelect((select: any) => {
-    const { getCurrentPostType } = select("core/editor");
-    const { getCurrentPostId } = select("core/editor");
-
+  // Get course settings from Gutenberg's data store
+  const courseSettings = useSelect((select) => {
+    const editorSelect = select(editorStore) as any;
+    const settings = editorSelect.getEditedPostAttribute("course_settings") || {};
     return {
-      courseId: getCurrentPostId(),
-      postType: getCurrentPostType(),
+      ...defaultCourseSettings,
+      ...settings,
     };
   }, []);
 
-  // Only show for course post type
-  if (postType !== "courses") {
-    return null;
-  }
+  const { editPost } = useDispatch(editorStore);
 
-  // Addon availability
-  const [addonsAvailable, setAddonsAvailable] = useState({
-    prerequisites: false,
-    enrollments: false,
-  });
+  // Update course settings - same pattern as CourseDetailsPanel
+  const updateCourseSetting = (key: keyof CourseSettings, value: any) => {
+    const newSettings = { ...courseSettings };
+    newSettings[key] = value;
+    editPost({ course_settings: newSettings });
+  };
 
-  // Load addon availability
+  // Fetch available courses for prerequisites
   useEffect(() => {
-    const loadAddonStatus = () => {
-      try {
-        const prerequisites = AddonChecker.isPrerequisitesEnabled();
-        const enrollments = AddonChecker.isEnrollmentsEnabled();
+    if (!AddonChecker.isPrerequisitesEnabled()) return;
 
-        console.log("CourseAccessPanel - Addon Status Loaded:", {
-          prerequisites,
-          enrollments,
-        });
+    setIsLoadingCourses(true);
+    setCourseFetchError(null);
 
-        setAddonsAvailable({
-          prerequisites,
-          enrollments,
-        });
-      } catch (error) {
-        console.error("Error checking addon status:", error);
-        // Set defaults if addon checker fails
-        setAddonsAvailable({
-          prerequisites: false,
-          enrollments: false,
-        });
-      }
-    };
-
-    loadAddonStatus();
-  }, []);
-
-  // Load course settings from REST API
-  useEffect(() => {
-    if (!courseId) return;
-
-    const loadCourseSettings = async () => {
-      setIsLoading(true);
-      try {
-        const baseUrl = window.location.origin + window.location.pathname.split("/wp-admin")[0];
-        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/${courseId}/settings`, {
-          headers: {
-            "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+    apiFetch({
+      path: "/wp/v2/courses?per_page=100&status=publish",
+    })
+      .then((response: any) => {
+        // Ensure response is an array and handle different response formats
+        let courses: Course[] = [];
+        if (Array.isArray(response)) {
+          courses = response;
+        } else if (response && Array.isArray(response.data)) {
+          courses = response.data;
+        } else if (response && response.success && Array.isArray(response.data)) {
+          courses = response.data;
         }
 
-        const data = await response.json();
-        if (data.success) {
-          const settings = data.data;
-          setCourseSettings({
-            course_prerequisites: settings.course_prerequisites || [],
-            maximum_students: settings.maximum_students || 0,
-            course_enrollment_period: settings.course_enrollment_period || "no",
-            enrollment_starts_at: settings.enrollment_starts_at || "",
-            enrollment_ends_at: settings.enrollment_ends_at || "",
-            pause_enrollment: settings.pause_enrollment || "no",
-          });
-        } else {
-          setError(__("Failed to load course settings", "tutorpress"));
-        }
-      } catch (err) {
-        console.error("Error loading course settings:", err);
-        setError(__("Failed to load course settings", "tutorpress"));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCourseSettings();
-  }, [courseId]);
-
-  // Debug: Log render state
-  useEffect(() => {
-    console.log("CourseAccessPanel - Render State:", {
-      isLoading,
-      addonsAvailable,
-      courseSettings,
-      courseId,
-    });
-  }, [isLoading, addonsAvailable, courseSettings, courseId]);
-
-  // Load available courses for prerequisites
-  useEffect(() => {
-    if (!addonsAvailable.prerequisites) return;
-
-    const loadCourses = async () => {
-      setCoursesLoading(true);
-      try {
-        const baseUrl = window.location.origin + window.location.pathname.split("/wp-admin")[0];
-        const params = new URLSearchParams({
-          exclude: courseId.toString(),
-          per_page: "50",
-        });
-
-        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/for-prerequisites?${params}`, {
-          headers: {
-            "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-          setAvailableCourses(data.data || []);
-        } else {
-          setError(__("Failed to load available courses", "tutorpress"));
-        }
-      } catch (err) {
-        console.error("Error loading courses:", err);
-        setError(__("Failed to load available courses", "tutorpress"));
-      } finally {
-        setCoursesLoading(false);
-      }
-    };
-
-    loadCourses();
-  }, [addonsAvailable.prerequisites, courseId]);
-
-  // Save course settings via REST API
-  const saveCourseSettings = async (newSettings: Partial<typeof courseSettings>) => {
-    setIsSaving(true);
-    try {
-      const baseUrl = window.location.origin + window.location.pathname.split("/wp-admin")[0];
-      const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/${courseId}/settings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-        },
-        body: JSON.stringify(newSettings),
+        setAvailableCourses(courses);
+      })
+      .catch((error) => {
+        console.error("Error fetching courses:", error);
+        setCourseFetchError(__("Failed to load courses. Please refresh the page and try again.", "tutorpress"));
+        setAvailableCourses([]); // Ensure it's always an array
+      })
+      .finally(() => {
+        setIsLoadingCourses(false);
       });
+  }, []);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  // Get selected prerequisites with course details - with safety checks
+  const selectedPrerequisitesWithDetails = (courseSettings.course_prerequisites || [])
+    .map((id: number) => {
+      // Ensure availableCourses is an array before calling find
+      if (!Array.isArray(availableCourses)) {
+        return undefined;
       }
+      return availableCourses.find((course: Course) => course.id === id);
+    })
+    .filter((course: Course | undefined): course is Course => course !== undefined);
 
-      const data = await response.json();
-      if (data.success) {
-        // Update local state with new settings
-        setCourseSettings((prev) => ({ ...prev, ...newSettings }));
-        return true;
-      } else {
-        setError(__("Failed to save course settings", "tutorpress"));
-        return false;
-      }
-    } catch (err) {
-      console.error("Error saving course settings:", err);
-      setError(__("Failed to save course settings", "tutorpress"));
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
+  // Get available courses for the dropdown (excluding already selected) - with safety checks
+  const availableCoursesForDropdown = Array.isArray(availableCourses)
+    ? availableCourses
+        .filter((course: Course) => !(courseSettings.course_prerequisites || []).includes(course.id))
+        .map((course: Course) => ({
+          label: course.title.rendered,
+          value: course.id.toString(),
+        }))
+    : [];
+
+  const handlePrerequisiteAdd = (courseId: number) => {
+    const currentPrerequisites = courseSettings.course_prerequisites || [];
+    updateCourseSetting("course_prerequisites", [...currentPrerequisites, courseId]);
   };
 
-  // Update a single setting
-  const updateSetting = async (key: keyof typeof courseSettings, value: any) => {
-    await saveCourseSettings({ [key]: value });
+  const handlePrerequisiteRemove = (courseId: number) => {
+    const currentPrerequisites = courseSettings.course_prerequisites || [];
+    updateCourseSetting(
+      "course_prerequisites",
+      currentPrerequisites.filter((id: number) => id !== courseId)
+    );
   };
-
-  // Handle prerequisite selection
-  const handlePrerequisiteChange = async (courseId: string) => {
-    const numericId = parseInt(courseId);
-    if (isNaN(numericId) || !courseId) return;
-
-    const currentPrereqs = courseSettings.course_prerequisites || [];
-    if (!currentPrereqs.includes(numericId)) {
-      const newPrereqs = [...currentPrereqs, numericId];
-      await updateSetting("course_prerequisites", newPrereqs);
-    }
-  };
-
-  // Remove prerequisite
-  const removePrerequisite = async (courseId: number) => {
-    const currentPrereqs = courseSettings.course_prerequisites || [];
-    const updatedPrereqs = currentPrereqs.filter((id: number) => id !== courseId);
-    await updateSetting("course_prerequisites", updatedPrereqs);
-  };
-
-  // Convert course list to select options
-  const courseOptions: CourseOption[] = [
-    {
-      value: "",
-      label: coursesLoading ? __("Loading courses...", "tutorpress") : __("Select a course...", "tutorpress"),
-    },
-    ...availableCourses
-      .filter((course) => !courseSettings.course_prerequisites.includes(course.id))
-      .map((course) => ({
-        value: course.id.toString(),
-        label: course.title,
-      })),
-  ];
-
-  // Get selected prerequisites with course details
-  const selectedPrerequisitesWithDetails = courseSettings.course_prerequisites
-    .map((id: number) => availableCourses.find((course) => course.id === id))
-    .filter((course): course is Course => course !== undefined);
 
   return (
     <PluginDocumentSettingPanel
-      name="course-access-enrollment"
+      name="course-access-panel"
       title={__("Course Access & Enrollment", "tutorpress")}
       className="tutorpress-course-access-panel"
     >
-      {/* Error Display */}
-      {error && (
-        <Notice status="error" isDismissible={true} onRemove={() => setError("")}>
-          {error}
-        </Notice>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-          <Spinner />
-          <span>{__("Loading course settings...", "tutorpress")}</span>
-        </div>
-      )}
-
-      {!isLoading && (
+      {/* Prerequisites Section */}
+      {AddonChecker.isPrerequisitesEnabled() && (
         <>
-          {/* Prerequisites Section */}
-          {addonsAvailable.prerequisites && (
-            <div className="tutorpress-settings-section">
-              <h4>{__("Prerequisites", "tutorpress")}</h4>
-              <p className="description">
-                {__("Select courses that students must complete before enrolling in this course.", "tutorpress")}
-              </p>
-
-              {/* Add Prerequisites */}
-              <SelectControl
-                label={__("Add Prerequisite Course", "tutorpress")}
-                value=""
-                options={courseOptions}
-                onChange={handlePrerequisiteChange}
-                disabled={coursesLoading}
-                __next40pxDefaultSize
-              />
-
-              {/* Selected Prerequisites Display */}
-              {selectedPrerequisitesWithDetails.length > 0 && (
-                <div style={{ marginTop: "8px" }}>
-                  <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
-                    {__("Selected Prerequisites:", "tutorpress")}
-                  </div>
-                  {selectedPrerequisitesWithDetails.map((course) => (
-                    <div
-                      key={course.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "4px 8px",
-                        backgroundColor: "#f0f0f0",
-                        borderRadius: "4px",
-                        marginBottom: "4px",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <span>{course.title}</span>
-                      <Button isSmall isDestructive onClick={() => removePrerequisite(course.id)}>
-                        {__("Remove", "tutorpress")}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Maximum Students - Always Available */}
           <PanelRow>
-            <TextControl
-              label={__("Maximum Students", "tutorpress")}
-              type="number"
-              min="0"
-              value={(courseSettings.maximum_students || 0).toString()}
-              onChange={(value) => updateSetting("maximum_students", parseInt(value) || 0)}
-              disabled={isSaving}
-              help={__("Set 0 for unlimited enrollment", "tutorpress")}
-              __next40pxDefaultSize
-              __nextHasNoMarginBottom
+            <BaseControl
+              label={__("Prerequisites", "tutorpress")}
+              help={__("Students must complete these courses before enrolling.", "tutorpress")}
+            >
+              {isLoadingCourses ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Spinner />
+                  <span>{__("Loading courses...", "tutorpress")}</span>
+                </div>
+              ) : courseFetchError ? (
+                <Notice status="error" isDismissible={false}>
+                  <p>{courseFetchError}</p>
+                </Notice>
+              ) : (
+                <>
+                  {/* Selected Prerequisites */}
+                  {selectedPrerequisitesWithDetails.length > 0 && (
+                    <div style={{ marginBottom: "12px" }}>
+                      <strong>{__("Selected Prerequisites:", "tutorpress")}</strong>
+                      <ul style={{ margin: "8px 0", paddingLeft: "20px" }}>
+                        {selectedPrerequisitesWithDetails.map((course: Course) => (
+                          <li
+                            key={course.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              margin: "4px 0",
+                            }}
+                          >
+                            <span>{course.title.rendered}</span>
+                            <Button isSmall isDestructive onClick={() => handlePrerequisiteRemove(course.id)}>
+                              {__("Remove", "tutorpress")}
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Add New Prerequisite */}
+                  {availableCoursesForDropdown.length > 0 ? (
+                    <SelectControl
+                      label={__("Add Prerequisite Course", "tutorpress")}
+                      value=""
+                      options={[
+                        { label: __("Select a course...", "tutorpress"), value: "" },
+                        ...availableCoursesForDropdown,
+                      ]}
+                      onChange={(value) => {
+                        if (value) {
+                          handlePrerequisiteAdd(parseInt(value, 10));
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p style={{ fontStyle: "italic", color: "#666" }}>
+                      {selectedPrerequisitesWithDetails.length > 0
+                        ? __("All available courses have been selected as prerequisites.", "tutorpress")
+                        : __("No courses available for prerequisites.", "tutorpress")}
+                    </p>
+                  )}
+                </>
+              )}
+            </BaseControl>
+          </PanelRow>
+        </>
+      )}
+
+      {/* Maximum Students - Always visible (core Tutor Pro feature) */}
+      <PanelRow>
+        <TextControl
+          label={__("Maximum Students", "tutorpress")}
+          help={__("Set the maximum number of students who can enroll. Leave empty for unlimited.", "tutorpress")}
+          value={courseSettings.maximum_students || ""}
+          onChange={(value) => updateCourseSetting("maximum_students", parseInt(value, 10) || 0)}
+          type="number"
+          min="0"
+        />
+      </PanelRow>
+
+      {/* Enrollment Period Section - Only show if Enrollments addon is enabled */}
+      {AddonChecker.isEnrollmentsEnabled() && (
+        <>
+          <PanelRow>
+            <ToggleControl
+              label={__("Set Enrollment Period", "tutorpress")}
+              help={__("Enable to set specific start and end dates for course enrollment.", "tutorpress")}
+              checked={courseSettings.course_enrollment_period === "yes"}
+              onChange={(checked) => updateCourseSetting("course_enrollment_period", checked ? "yes" : "no")}
             />
           </PanelRow>
 
-          {/* TODO: Schedule Fields - Core Feature */}
-          {/* Research needed: toggle + date/time + "Show coming soon" checkbox */}
-          {/* Not associated with Prerequisites or Enrollments addons */}
+          {courseSettings.course_enrollment_period === "yes" && (
+            <>
+              <PanelRow>
+                <BaseControl label={__("Enrollment Start Date & Time", "tutorpress")}>
+                  <DateTimePicker
+                    currentDate={courseSettings.enrollment_starts_at || null}
+                    onChange={(date) => updateCourseSetting("enrollment_starts_at", date)}
+                    is12Hour={true}
+                  />
+                </BaseControl>
+              </PanelRow>
 
-          {/* Enrollment Settings Section (Addon-dependent) */}
-          {addonsAvailable.enrollments && (
-            <div className="tutorpress-settings-section">
-              <h4>{__("Enrollment Settings", "tutorpress")}</h4>
-
-              {/* Pause Enrollment - Enrollments Addon Feature */}
-              <ToggleControl
-                label={__("Pause Enrollment", "tutorpress")}
-                help={
-                  courseSettings.pause_enrollment === "yes"
-                    ? __("New enrollments are currently paused", "tutorpress")
-                    : __("Students can enroll in this course", "tutorpress")
-                }
-                checked={courseSettings.pause_enrollment === "yes"}
-                onChange={(checked) => updateSetting("pause_enrollment", checked ? "yes" : "no")}
-                disabled={isSaving}
-                __nextHasNoMarginBottom
-              />
-
-              {/* Enrollment Period - Enrollments Addon Feature */}
-              <ToggleControl
-                label={__("Set Enrollment Period", "tutorpress")}
-                help={__("Restrict enrollment to specific dates.", "tutorpress")}
-                checked={courseSettings.course_enrollment_period === "yes"}
-                onChange={(checked) => updateSetting("course_enrollment_period", checked ? "yes" : "no")}
-                __nextHasNoMarginBottom
-              />
-
-              {/* Enrollment Start/End Dates - Enrollments Addon Feature */}
-              {courseSettings.course_enrollment_period === "yes" && (
-                <div style={{ marginTop: "12px", paddingLeft: "8px" }}>
-                  <BaseControl label={__("Enrollment Start Date", "tutorpress")} __nextHasNoMarginBottom>
-                    <DateTimePicker
-                      currentDate={courseSettings.enrollment_starts_at}
-                      onChange={(date) => updateSetting("enrollment_starts_at", date || "")}
-                      is12Hour
-                    />
-                  </BaseControl>
-
-                  <div style={{ marginTop: "12px" }}>
-                    <BaseControl label={__("Enrollment End Date", "tutorpress")} __nextHasNoMarginBottom>
-                      <DateTimePicker
-                        currentDate={courseSettings.enrollment_ends_at}
-                        onChange={(date) => updateSetting("enrollment_ends_at", date || "")}
-                        is12Hour
-                      />
-                    </BaseControl>
-                  </div>
-                </div>
-              )}
-            </div>
+              <PanelRow>
+                <BaseControl label={__("Enrollment End Date & Time", "tutorpress")}>
+                  <DateTimePicker
+                    currentDate={courseSettings.enrollment_ends_at || null}
+                    onChange={(date) => updateCourseSetting("enrollment_ends_at", date)}
+                    is12Hour={true}
+                  />
+                </BaseControl>
+              </PanelRow>
+            </>
           )}
+
+          <PanelRow>
+            <CheckboxControl
+              label={__("Pause Enrollment", "tutorpress")}
+              help={__("Temporarily disable new enrollments for this course.", "tutorpress")}
+              checked={courseSettings.pause_enrollment === "yes"}
+              onChange={(checked) => updateCourseSetting("pause_enrollment", checked ? "yes" : "no")}
+            />
+          </PanelRow>
         </>
+      )}
+
+      {/* Show notice when addons are disabled */}
+      {!AddonChecker.isPrerequisitesEnabled() && !AddonChecker.isEnrollmentsEnabled() && (
+        <Notice status="info" isDismissible={false}>
+          <p>
+            {__("Additional enrollment features are available when Tutor LMS Pro addons are enabled:", "tutorpress")}
+          </p>
+          <ul style={{ marginLeft: "20px" }}>
+            <li>{__("Prerequisites addon: Course prerequisites", "tutorpress")}</li>
+            <li>{__("Enrollments addon: Enrollment periods and controls", "tutorpress")}</li>
+          </ul>
+        </Notice>
       )}
     </PluginDocumentSettingPanel>
   );
-};
-
-export default CourseAccessPanel;
+}

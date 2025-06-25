@@ -1295,6 +1295,14 @@ interface TopicsResponse {
     title: string;
     content: string;
     menu_order: number;
+    status: string;
+    contents: Array<{
+      id: number;
+      title: string;
+      type: string;
+      menu_order: number;
+      status: string;
+    }>;
   }>;
 }
 
@@ -1323,26 +1331,46 @@ const resolvers = {
   *fetchTopics(courseId: number): Generator<unknown, void, unknown> {
     yield actions.setOperationState({ status: "loading" });
     try {
-      const response = (yield apiFetch({
-        path: `/tutorpress/v1/topics?course_id=${courseId}`,
-      })) as TopicsResponse;
+      const response = (yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+        },
+      }) as { success: boolean; message: string; data: Array<Topic> };
 
+      if (!response.success) {
+        throw new Error(response.message || "Failed to fetch topics");
+      }
+
+      // Transform topics to include isCollapsed and ensure contents array exists
       const topics = response.data.map((topic) => ({
         ...topic,
         isCollapsed: true,
-        contents: [],
+        contents:
+          topic.contents?.map((content, index) => ({
+            ...content,
+            topic_id: topic.id,
+            order: index,
+          })) || [],
       }));
+
       yield actions.setTopics(topics);
-      yield actions.setOperationState({ status: "success", data: topics });
+      yield actions.setOperationState({ status: "idle" });
     } catch (error) {
+      console.error("Error fetching topics:", error);
       yield actions.setOperationState({
         status: "error",
         error: {
           code: CurriculumErrorCode.SERVER_ERROR,
           message: error instanceof Error ? error.message : "Failed to fetch topics",
-          context: { action: "fetchTopics" },
+          context: {
+            action: "fetchTopics",
+            details: `Failed to fetch topics for course ${courseId}`,
+          },
         },
       });
+      // Set topics to empty array on error to ensure consistent state
+      yield actions.setTopics([]);
     }
   },
 

@@ -1,6 +1,6 @@
 {
   "name": "tutorpress",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "TutorPress is a comprehensive solution for Tutor LMS that extends the WordPress editor with advanced Gutenberg functionalities. It includes the innovative Course Curriculum metabox and is designed to evolve with additional features for enhanced course management, enrollment, and content delivery.",
   "author": "",
   "license": "GPL-2.0-or-later",
@@ -15,10 +15,13 @@
   "scripts": {
     "start": "wp-scripts start --config webpack.config.js",
     "build": "wp-scripts build --config webpack.config.js",
-    "build:production": "npm run build && npm run clean:dist && npm run copy:dist",
+    "build:clean": "npm run clean:cache && npm run build",
+    "build:production": "npm run check-types && npm run build:clean && npm run clean:dist && npm run copy:dist",
+    "clean:cache": "rm -rf node_modules/.cache && rm -rf assets/js/build",
     "clean:dist": "rm -rf dist && mkdir dist",
     "copy:dist": "rsync -av --exclude-from=.distignore . dist/",
     "package": "npm run build:production && cd dist && zip -r ../tutorpress.zip .",
+    "package:quick": "npm run build && npm run clean:dist && npm run copy:dist && cd dist && zip -r ../tutorpress.zip .",
     "check-types": "tsc --noEmit",
     "check-types:watch": "tsc --noEmit --watch",
     "lint:js": "wp-scripts lint-js",
