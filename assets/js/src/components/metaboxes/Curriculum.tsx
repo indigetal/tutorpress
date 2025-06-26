@@ -9,7 +9,7 @@
  * - Drag and drop state is managed locally through useDragDrop hook
  * - Error handling is managed through useCurriculumError hook
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Button, Flex, FlexBlock, Spinner } from "@wordpress/components";
 import { plus, update, close } from "@wordpress/icons";
 import { CurriculumErrorCode } from "../../types/curriculum";
@@ -19,7 +19,7 @@ import { DndContext } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { store as noticesStore } from "@wordpress/notices";
-import { useDispatch } from "@wordpress/data";
+import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
@@ -106,13 +106,26 @@ const SortableTopic: React.FC<{
  * - Error handling through dedicated hook
  */
 const Curriculum: React.FC = (): JSX.Element => {
+  // Get root element data attributes
+  const rootElement = document.getElementById("tutorpress-curriculum-builder");
+  const postId = rootElement?.dataset.postId ? parseInt(rootElement.dataset.postId, 10) : 0;
+  const postType = rootElement?.dataset.postType || "";
+  const isLesson = postType === "lesson";
+  const isAssignment = postType === "tutor_assignments";
+
+  // Get course ID from hook (will handle both direct course ID and parent course ID)
   const courseId = useCourseId();
-  const isLesson = (window as any).tutorPressCurriculum?.isLesson;
-  const isAssignment = (window as any).tutorPressCurriculum?.isAssignment;
+
+  // Get store state
+  const { operationState } = useSelect(
+    (select) => ({
+      operationState: select(curriculumStore).getOperationState(),
+    }),
+    []
+  );
 
   const {
     topics,
-    operationState,
     topicCreationState,
     editState,
     reorderState,
@@ -206,7 +219,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   }
 
   // Render loading state
-  if (isLoading) {
+  if (isLoading || operationState.status === "loading" || !courseId) {
     return (
       <div className="tutorpress-curriculum">
         <Flex direction="column" align="center" justify="center" style={{ padding: "20px", gap: "8px" }}>
@@ -220,114 +233,64 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Main render
   return (
     <div className="tutorpress-curriculum">
-      {courseId === null ? (
-        <div style={{ textAlign: "center", padding: "32px 0", color: "#757575" }}>
-          {__("Loading course curriculum...", "tutorpress")}
-        </div>
-      ) : (
-        <div style={{ textAlign: "left" }}>
-          <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
-            <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-              <div className="tutorpress-topics-list">
-                {topics.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "32px 0", color: "#757575" }}>
-                    {__("Start building your course", "tutorpress")}
+      <div style={{ textAlign: "left" }}>
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+            <div className="tutorpress-topics-list">
+              {topics.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#757575" }}>
+                  {__("Start building your course", "tutorpress")}
+                </div>
+              ) : (
+                topics.map((topic) => (
+                  <div key={topic.id} className={getWrapperClasses(topic)}>
+                    <SortableTopic
+                      topic={topic}
+                      courseId={courseId}
+                      onEdit={() => handleTopicEdit(topic.id)}
+                      onEditCancel={handleTopicEditCancel}
+                      onEditSave={handleTopicEditSave}
+                      onDuplicate={() => handleTopicDuplicate(topic.id)}
+                      onDelete={() => handleTopicDelete(topic.id)}
+                      onToggle={() => handleTopicToggle(topic.id)}
+                      isEditing={editState.isEditing && editState.topicId === topic.id}
+                      getItemClasses={getItemClasses}
+                    />
                   </div>
-                ) : (
-                  topics.map((topic) => (
-                    <div key={topic.id} className={getWrapperClasses(topic)}>
-                      <SortableTopic
-                        topic={topic}
-                        courseId={courseId}
-                        onEdit={() => handleTopicEdit(topic.id)}
-                        onEditCancel={handleTopicEditCancel}
-                        onEditSave={handleTopicEditSave}
-                        onDuplicate={() => handleTopicDuplicate(topic.id)}
-                        onDelete={() => handleTopicDelete(topic.id)}
-                        onToggle={() => handleTopicToggle(topic.id)}
-                        isEditing={editState.isEditing && editState.topicId === topic.id}
-                        getItemClasses={getItemClasses}
-                      />
-                      {reorderState.status === "reordering" && activeId === topic.id && (
-                        <div className="tutorpress-saving-indicator">
-                          <Flex align="center" gap={2}>
-                            <Spinner />
-                            <div>{__("Saving...", "tutorpress")}</div>
-                          </Flex>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-                {isAddingTopic && (
-                  <TopicForm
-                    onSave={handleTopicFormSave}
-                    onCancel={handleTopicFormCancel}
-                    error={topicCreationState.status === "error" ? topicCreationState.error : undefined}
-                    isCreating={topicCreationState.status === "creating"}
-                  />
-                )}
-              </div>
-            </SortableContext>
-          </DndContext>
+                ))
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
 
-          <div style={{ marginTop: "16px" }}>
-            <Button
-              variant="secondary"
-              className="tutorpress-add-topic"
-              icon={plus}
-              onClick={handleAddTopicClick}
-              disabled={
-                ["loading", "reordering"].includes(operationState.status) ||
-                reorderState.status === "reordering" ||
-                isAddingTopic
-              }
-            >
-              {__("Add Topic", "tutorpress")}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Error notification */}
-      {showError &&
-        (reorderState.status === "error" ||
-          deletionState.status === "error" ||
-          duplicationState.status === "error") && (
-          <div className="tutorpress-error-notification">
-            <Flex direction="column" gap={2} style={{ padding: "12px" }}>
-              <Flex justify="space-between" align="center">
-                <div style={{ color: "#842029", fontWeight: "500" }}>{__("Error Saving Changes", "tutorpress")}</div>
-                <Button
-                  icon={close}
-                  label={__("Dismiss", "tutorpress")}
-                  onClick={handleDismissError}
-                  style={{ padding: 0, height: "auto" }}
-                />
-              </Flex>
-              <div style={{ color: "#842029" }}>
-                {reorderState.status === "error"
-                  ? getErrorMessage(reorderState.error)
-                  : deletionState.status === "error"
-                  ? getErrorMessage(deletionState.error!)
-                  : duplicationState.status === "error"
-                  ? getErrorMessage(duplicationState.error!)
-                  : ""}
-              </div>
-              <Flex justify="flex-end">
-                <Button variant="secondary" icon={update} onClick={handleRetry} style={{ marginTop: "8px" }}>
-                  {__("Retry", "tutorpress")}
-                </Button>
-              </Flex>
-            </Flex>
-          </div>
+        {/* Add Topic Button */}
+        {!isAddingTopic && (
+          <Button
+            variant="secondary"
+            icon={plus}
+            onClick={handleAddTopicClick}
+            style={{ marginTop: "16px" }}
+            disabled={isLoading}
+          >
+            {__("Add Topic", "tutorpress")}
+          </Button>
         )}
+
+        {/* Topic Creation Form */}
+        {isAddingTopic && (
+          <TopicForm
+            onSave={handleTopicFormSave}
+            onCancel={handleTopicFormCancel}
+            isCreating={topicCreationState.status === "creating"}
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -19,21 +19,18 @@ interface ParentInfoResponse {
  * - Topic's parent (new lesson/assignment with topic_id parameter)
  */
 export function useCourseId(): number | null {
-  // Get the context from the localized script data
-  const isLesson = (window as any).tutorPressCurriculum?.isLesson;
-  const isAssignment = (window as any).tutorPressCurriculum?.isAssignment;
+  // Get the root element data attributes
+  const rootElement = document.getElementById("tutorpress-curriculum-builder");
+  const postId = rootElement?.dataset.postId ? parseInt(rootElement.dataset.postId, 10) : 0;
+  const postType = rootElement?.dataset.postType || "";
+  const isLesson = postType === "lesson";
+  const isAssignment = postType === "tutor_assignments";
 
-  // Get the post ID and topic_id from the URL query parameters
+  // Get the topic_id from the URL query parameters
   const urlParams = new URLSearchParams(window.location.search);
-  const postId = Number(urlParams.get("post"));
   const topicId = Number(urlParams.get("topic_id"));
 
-  // If we're in the course editor, return the post ID directly
-  if (!isLesson && !isAssignment) {
-    return postId;
-  }
-
-  // If we're in the lesson or assignment editor, we need to get the course ID
+  // Get the store state
   const { courseId, operationState } = useSelect(
     (select) => ({
       courseId: select(curriculumStore).getCourseId(),
@@ -41,23 +38,32 @@ export function useCourseId(): number | null {
     }),
     []
   );
-  const { fetchCourseId } = useDispatch(curriculumStore);
+  const { fetchCourseId, setCourseId } = useDispatch(curriculumStore);
 
   useEffect(() => {
+    // If we're in the course editor, set the post ID as the course ID
+    if (!isLesson && !isAssignment && postId && courseId === null) {
+      setCourseId(postId);
+      return;
+    }
+
+    // Only fetch if we don't already have a course ID and we're in a lesson/assignment
     if (!isLesson && !isAssignment) {
       return;
     }
 
-    // If we have a topic_id, use that to get the course ID
-    // Otherwise use the lesson/assignment ID (postId) to get the course ID
-    const idToUse = topicId || postId;
-    if (idToUse) {
-      fetchCourseId(idToUse);
+    if (courseId === null) {
+      // If we have a topic_id, use that to get the course ID
+      // Otherwise use the lesson/assignment ID (postId) to get the course ID
+      const idToUse = topicId || postId;
+      if (idToUse) {
+        fetchCourseId(idToUse);
+      }
     }
-  }, [isLesson, isAssignment, postId, topicId, fetchCourseId]);
+  }, [isLesson, isAssignment, postId, topicId, fetchCourseId, courseId, setCourseId]);
 
-  // Return null while loading or if no course ID is available
-  if (operationState.status === "loading" || !courseId) {
+  // Return null only if we're actively loading the course ID
+  if (operationState.status === "loading") {
     return null;
   }
 

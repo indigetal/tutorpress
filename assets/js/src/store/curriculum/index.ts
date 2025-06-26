@@ -321,12 +321,15 @@ export const actions = {
     return async ({ dispatch }: { dispatch: (action: CurriculumAction) => void }) => {
       dispatch({ type: "FETCH_COURSE_ID_START", payload: { lessonId: id } });
       try {
+        // Get the root element data attributes
+        const rootElement = document.getElementById("tutorpress-curriculum-builder");
+        const postType = rootElement?.dataset.postType || "";
+        const isLesson = postType === "lesson";
+        const isAssignment = postType === "tutor_assignments";
+
         // Get the URL parameters to check if this is a new lesson/assignment with topic_id
         const urlParams = new URLSearchParams(window.location.search);
         const isNewContent = urlParams.has("topic_id");
-
-        // Get the context from the localized script data
-        const isAssignment = (window as any).tutorPressCurriculum?.isAssignment;
 
         // Determine the correct API endpoint based on context
         let path: string;

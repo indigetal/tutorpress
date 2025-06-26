@@ -87,16 +87,14 @@ document.addEventListener("DOMContentLoaded", () => {
 (window as any).tutorpress = (window as any).tutorpress || {};
 (window as any).tutorpress.AddonChecker = AddonChecker;
 
-// Explicitly reference all AddonChecker methods to prevent tree-shaking
-console.log("TutorPress: AddonChecker methods available:", {
-  isPrerequisitesEnabled: typeof AddonChecker.isPrerequisitesEnabled,
-  isEnrollmentsEnabled: typeof AddonChecker.isEnrollmentsEnabled,
-  isH5pEnabled: typeof AddonChecker.isH5pEnabled,
-  isCertificateEnabled: typeof AddonChecker.isCertificateEnabled,
-  isContentDripEnabled: typeof AddonChecker.isContentDripEnabled,
-  isGoogleMeetEnabled: typeof AddonChecker.isGoogleMeetEnabled,
-  isZoomEnabled: typeof AddonChecker.isZoomEnabled,
-});
+// Prevent tree-shaking of AddonChecker methods by referencing them
+void AddonChecker.isPrerequisitesEnabled;
+void AddonChecker.isEnrollmentsEnabled;
+void AddonChecker.isH5pEnabled;
+void AddonChecker.isCertificateEnabled;
+void AddonChecker.isContentDripEnabled;
+void AddonChecker.isGoogleMeetEnabled;
+void AddonChecker.isZoomEnabled;
 
 // Expose content drip utilities globally for testing and debugging
 (window as any).tutorpress.contentDrip = {
