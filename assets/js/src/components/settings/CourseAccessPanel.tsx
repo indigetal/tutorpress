@@ -27,7 +27,19 @@ interface Course {
   title: { rendered: string };
 }
 
-export default function CourseAccessPanel() {
+const CourseAccessPanel: React.FC = () => {
+  const { postType } = useSelect(
+    (select: any) => ({
+      postType: select("core/editor").getCurrentPostType(),
+    }),
+    []
+  );
+
+  // Only show for course post type
+  if (postType !== "courses") {
+    return null;
+  }
+
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [courseFetchError, setCourseFetchError] = useState<string | null>(null);
@@ -270,4 +282,6 @@ export default function CourseAccessPanel() {
       )}
     </PluginDocumentSettingPanel>
   );
-}
+};
+
+export default CourseAccessPanel;
