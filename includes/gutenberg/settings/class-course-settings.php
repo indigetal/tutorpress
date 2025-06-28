@@ -594,12 +594,17 @@ class TutorPress_Course_Settings {
                 ? $settings['course_level'] : 'all_levels';
         }
 
-        // Sanitize boolean fields
-        $boolean_fields = ['is_public_course', 'enable_qna', 'pause_enrollment', 'is_free', 'subscription_enabled'];
+        // Sanitize boolean fields (excluding pause_enrollment which stores 'yes'/'no')
+        $boolean_fields = ['is_public_course', 'enable_qna', 'is_free', 'subscription_enabled'];
         foreach ($boolean_fields as $field) {
             if (isset($settings[$field])) {
                 $sanitized[$field] = (bool) $settings[$field];
             }
+        }
+
+        // Sanitize pause_enrollment separately to keep 'yes'/'no' format
+        if (isset($settings['pause_enrollment'])) {
+            $sanitized['pause_enrollment'] = ($settings['pause_enrollment'] === 'yes' || $settings['pause_enrollment'] === true) ? 'yes' : 'no';
         }
 
         // Sanitize course_duration

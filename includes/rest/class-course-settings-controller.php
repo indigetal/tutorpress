@@ -194,10 +194,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             $course_duration = array('hours' => 0, 'minutes' => 0);
         }
         
-        // Future sections: Get from _tutor_course_settings
-        $future_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($future_settings)) {
-            $future_settings = array();
+        // Get _tutor_course_settings array
+        $tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = array();
         }
 
         // Build course settings structure
@@ -208,35 +208,13 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'enable_qna' => $enable_qna !== 'no',
             'course_duration' => $course_duration,
             
-            // Course Access & Enrollment Section (Tutor LMS Pro field names)
+            // Course Access & Enrollment Section
             'course_prerequisites' => get_post_meta($course_id, '_tutor_course_prerequisites_ids', true) ?: array(),
-            'maximum_students' => $future_settings['maximum_students'] ?? 0,
-            'course_enrollment_period' => $future_settings['course_enrollment_period'] ?? 'no',
-            'enrollment_starts_at' => $future_settings['enrollment_starts_at'] ?? '',
-            'enrollment_ends_at' => $future_settings['enrollment_ends_at'] ?? '',
-            'pause_enrollment' => $future_settings['pause_enrollment'] ?? 'no',
-            
-            // Course Media Section
-            'featured_video' => $future_settings['featured_video'] ?? array(
-                'source' => '',
-                'source_youtube' => '',
-                'source_vimeo' => '',
-                'source_external_url' => '',
-                'source_embedded' => '',
-            ),
-            'attachments' => $future_settings['attachments'] ?? array(),
-            'materials_included' => $future_settings['materials_included'] ?? '',
-            
-            // Pricing Model Section
-            'is_free' => $future_settings['is_free'] ?? true,
-            'pricing_model' => $future_settings['pricing_model'] ?? '',
-            'price' => $future_settings['price'] ?? 0,
-            'sale_price' => $future_settings['sale_price'] ?? 0,
-            'subscription_enabled' => $future_settings['subscription_enabled'] ?? false,
-            
-            // Instructors Section
-            'instructors' => $future_settings['instructors'] ?? array(),
-            'additional_instructors' => $future_settings['additional_instructors'] ?? array(),
+            'maximum_students'          => isset($tutor_settings['maximum_students']) ? $tutor_settings['maximum_students'] : '',
+            'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
+            'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
+            'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
+            'pause_enrollment'          => $tutor_settings['pause_enrollment'] ?? 'no',
         );
 
         return rest_ensure_response(array(
@@ -304,60 +282,44 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             }
         }
         
-        // Future sections: Update _tutor_course_settings for non-Course Details fields
-        // Note: course_prerequisites is handled separately via _tutor_course_prerequisites_ids
-        $future_updates = array();
-        $future_fields = array('maximum_students', 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'featured_video', 
-                              'attachments', 'materials_included', 'is_free', 'pricing_model', 
-                              'price', 'sale_price', 'subscription_enabled', 'instructors', 
-                              'additional_instructors');
-        
-        foreach ($future_fields as $field) {
-            if ($request->has_param($field)) {
-                $value = $request->get_param($field);
-                
-                // Sanitize specific fields
-                switch ($field) {
-                    case 'maximum_students':
-                        $future_updates[$field] = max(0, (int) $value);
-                        break;
-                    case 'course_enrollment_period':
-                    case 'pause_enrollment':
-                        $future_updates[$field] = in_array($value, ['yes', 'no']) ? $value : 'no';
-                        break;
-                    case 'enrollment_starts_at':
-                    case 'enrollment_ends_at':
-                        $future_updates[$field] = sanitize_text_field($value);
-                        break;
-                    default:
-                        $future_updates[$field] = $value;
-                        break;
-                }
-            }
-        }
-        
-        if (!empty($future_updates)) {
-            $existing_future_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-            if (!is_array($existing_future_settings)) {
-                $existing_future_settings = array();
-            }
-            
-            $updated_future_settings = array_merge($existing_future_settings, $future_updates);
-            $results[] = update_post_meta($course_id, '_tutor_course_settings', $updated_future_settings);
+        // -------------------------------------------------------------
+        // Update _tutor_course_settings array values (enrollment section)
+        // -------------------------------------------------------------
+
+        $tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = array();
         }
 
-        // Also update the Gutenberg course_settings field to ensure sync
-        try {
-            $post_data = array('id' => $course_id);
-            $gutenberg_settings = TutorPress_Course_Settings::get_course_settings($post_data);
-            update_post_meta($course_id, 'course_settings', $gutenberg_settings);
-        } catch (Exception $e) {
-            error_log('TutorPress: Error syncing course settings: ' . $e->getMessage());
-            return new WP_Error(
-                'sync_failed',
-                __('Failed to sync course settings: ', 'tutorpress') . $e->getMessage(),
-                array('status' => 500)
-            );
+        $settings_updates = array();
+
+        // Gather updates from request
+        if ($request->has_param('maximum_students')) {
+            $max_students = $request->get_param('maximum_students');
+            $settings_updates['maximum_students'] = ($max_students === '' || $max_students === null) ? '' : absint($max_students);
+        }
+
+        if ($request->has_param('pause_enrollment')) {
+            $pause_value                        = sanitize_text_field($request->get_param('pause_enrollment'));
+            $settings_updates['pause_enrollment'] = ($pause_value === 'yes') ? 'yes' : 'no';
+        }
+
+        if ($request->has_param('course_enrollment_period')) {
+            $settings_updates['course_enrollment_period'] = $request->get_param('course_enrollment_period') === 'yes' ? 'yes' : 'no';
+        }
+
+        if ($request->has_param('enrollment_starts_at')) {
+            $settings_updates['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
+        }
+
+        if ($request->has_param('enrollment_ends_at')) {
+            $settings_updates['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
+        }
+
+        // Persist only if there is something to change
+        if (!empty($settings_updates)) {
+            $merged_settings = array_merge($tutor_settings, $settings_updates);
+            $results[]       = update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
         }
         
         // Check if any updates failed
@@ -370,10 +332,16 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
+        // Get updated settings for response
+        $updated_settings = $this->get_course_settings($request);
+        if (is_wp_error($updated_settings)) {
+            return $updated_settings;
+        }
+
         return rest_ensure_response(array(
             'success' => true,
             'message' => __('Course settings saved successfully', 'tutorpress'),
-            'data' => $gutenberg_settings,
+            'data' => $updated_settings->get_data()['data'],
             'course_id' => $course_id,
         ));
     }
