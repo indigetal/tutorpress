@@ -80,12 +80,14 @@ export interface CourseSettings {
 
   // Course Access & Enrollment Section
   course_prerequisites: number[];
-  maximum_students: number;
+  maximum_students: number | null; // null means unlimited
+  maximum_students_allowed?: number | null; // Legacy field, synced with maximum_students
   schedule: CourseSchedule;
   course_enrollment_period: "yes" | "no"; // Tutor LMS uses "yes"/"no" strings
   enrollment_starts_at: string; // ISO 8601 date-time string
   enrollment_ends_at: string; // ISO 8601 date-time string
   pause_enrollment: "yes" | "no"; // Tutor LMS uses "yes"/"no" strings
+  enrollment_status?: "yes" | "no"; // Legacy field, synced with pause_enrollment
 
   // Course Media Section
   featured_video: CourseFeaturedVideo;
@@ -123,7 +125,8 @@ export const defaultCourseSettings: CourseSettings = {
 
   // Course Access & Enrollment
   course_prerequisites: [],
-  maximum_students: 0, // 0 means unlimited
+  maximum_students: null, // null means unlimited
+  maximum_students_allowed: null, // Legacy field, synced with maximum_students
   schedule: {
     enabled: false,
     start_date: "",
@@ -134,6 +137,7 @@ export const defaultCourseSettings: CourseSettings = {
   enrollment_starts_at: "",
   enrollment_ends_at: "",
   pause_enrollment: "no",
+  enrollment_status: undefined, // Legacy field, synced with pause_enrollment
 
   // Course Media
   featured_video: {

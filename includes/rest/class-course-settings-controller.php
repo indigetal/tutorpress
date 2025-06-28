@@ -243,106 +243,72 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        $results = array();
+        // Get existing settings
+        $existing_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+        if (!is_array($existing_settings)) {
+            $existing_settings = array();
+        }
 
-        // Course Details Section: Update individual Tutor LMS meta fields
+        // Get new settings from request
+        $new_settings = array();
+
+        // Course Details Section
         if ($request->has_param('course_level')) {
-            $level = sanitize_text_field($request->get_param('course_level'));
-            $results[] = update_post_meta($course_id, '_tutor_course_level', $level);
+            $new_settings['course_level'] = sanitize_text_field($request->get_param('course_level'));
         }
+
         if ($request->has_param('is_public_course')) {
-            $public_value = $request->get_param('is_public_course') ? 'yes' : 'no';
-            $results[] = update_post_meta($course_id, '_tutor_is_public_course', $public_value);
+            $new_settings['is_public_course'] = (bool) $request->get_param('is_public_course');
         }
+
         if ($request->has_param('enable_qna')) {
-            $qna_value = $request->get_param('enable_qna') ? 'yes' : 'no';
-            $results[] = update_post_meta($course_id, '_tutor_enable_qa', $qna_value);
+            $new_settings['enable_qna'] = (bool) $request->get_param('enable_qna');
         }
+
         if ($request->has_param('course_duration')) {
             $duration = $request->get_param('course_duration');
             if (is_array($duration)) {
-                $duration_data = array(
-                    'hours' => isset($duration['hours']) ? max(0, (int) $duration['hours']) : 0,
-                    'minutes' => isset($duration['minutes']) ? max(0, min(59, (int) $duration['minutes'])) : 0,
+                $new_settings['course_duration'] = array(
+                    'hours'   => max(0, (int) ($duration['hours'] ?? 0)),
+                    'minutes' => min(59, max(0, (int) ($duration['minutes'] ?? 0))),
                 );
-                $results[] = update_post_meta($course_id, '_course_duration', $duration_data);
             }
         }
-        
-        // Handle prerequisites separately (stored in _tutor_course_prerequisites_ids)
-        if ($request->has_param('course_prerequisites')) {
-            $prerequisite_ids = $request->get_param('course_prerequisites');
-            if (is_array($prerequisite_ids) && !empty($prerequisite_ids)) {
-                // Filter to ensure all values are valid integers
-                $prerequisite_ids = array_filter(array_map('intval', $prerequisite_ids));
-                $results[] = update_post_meta($course_id, '_tutor_course_prerequisites_ids', $prerequisite_ids);
-            } else {
-                // Delete the meta if empty
-                $results[] = delete_post_meta($course_id, '_tutor_course_prerequisites_ids');
-            }
-        }
-        
-        // -------------------------------------------------------------
-        // Update _tutor_course_settings array values (enrollment section)
-        // -------------------------------------------------------------
 
-        $tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($tutor_settings)) {
-            $tutor_settings = array();
-        }
-
-        $settings_updates = array();
-
-        // Gather updates from request
+        // Course Access & Enrollment Section
         if ($request->has_param('maximum_students')) {
             $max_students = $request->get_param('maximum_students');
-            $settings_updates['maximum_students'] = ($max_students === '' || $max_students === null) ? '' : absint($max_students);
-        }
-
-        if ($request->has_param('pause_enrollment')) {
-            $pause_value                        = sanitize_text_field($request->get_param('pause_enrollment'));
-            $settings_updates['pause_enrollment'] = ($pause_value === 'yes') ? 'yes' : 'no';
+            $new_settings['maximum_students'] = $max_students === '' || $max_students === null ? null : max(0, (int) $max_students);
+            $new_settings['maximum_students_allowed'] = $new_settings['maximum_students'];
         }
 
         if ($request->has_param('course_enrollment_period')) {
-            $settings_updates['course_enrollment_period'] = $request->get_param('course_enrollment_period') === 'yes' ? 'yes' : 'no';
+            $new_settings['course_enrollment_period'] = sanitize_text_field($request->get_param('course_enrollment_period'));
         }
 
         if ($request->has_param('enrollment_starts_at')) {
-            $settings_updates['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
+            $new_settings['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
         }
 
         if ($request->has_param('enrollment_ends_at')) {
-            $settings_updates['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
+            $new_settings['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
         }
 
-        // Persist only if there is something to change
-        if (!empty($settings_updates)) {
-            $merged_settings = array_merge($tutor_settings, $settings_updates);
-            $results[]       = update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
-        }
-        
-        // Check if any updates failed
-        if (!empty($results) && in_array(false, $results, true)) {
-            error_log('TutorPress: Some course setting updates failed for course ID: ' . $course_id);
-            return new WP_Error(
-                'save_failed',
-                __('Failed to save some course settings', 'tutorpress'),
-                array('status' => 500)
-            );
+        if ($request->has_param('pause_enrollment')) {
+            $new_settings['pause_enrollment'] = sanitize_text_field($request->get_param('pause_enrollment'));
+            $new_settings['enrollment_status'] = $new_settings['pause_enrollment'];
         }
 
-        // Get updated settings for response
-        $updated_settings = $this->get_course_settings($request);
-        if (is_wp_error($updated_settings)) {
-            return $updated_settings;
-        }
+        // Merge with existing settings
+        $merged_settings = array_merge($existing_settings, $new_settings);
 
+        // Update course settings
+        update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
+
+        // Return updated settings
         return rest_ensure_response(array(
             'success' => true,
-            'message' => __('Course settings saved successfully', 'tutorpress'),
-            'data' => $updated_settings->get_data()['data'],
-            'course_id' => $course_id,
+            'data'    => $merged_settings,
         ));
     }
 
@@ -460,5 +426,128 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'total_found' => count($formatted_courses),
             'search_term' => $search,
         ));
+    }
+
+    /**
+     * Check if a given request has access to get items.
+     *
+     * @param WP_REST_Request $request Full data about the request.
+     * @return WP_Error|bool
+     */
+    public function get_items_permissions_check($request) {
+        $course_id = $request->get_param('id');
+        return current_user_can('edit_post', $course_id);
+    }
+
+    /**
+     * Get course settings.
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function get_item($request) {
+        $course_id = $request->get_param('id');
+
+        // Use TutorPress_Course_Settings to get settings (this handles both systems)
+        $settings = TutorPress_Course_Settings::get_course_settings(['id' => $course_id]);
+
+        if (empty($settings)) {
+            return new WP_Error(
+                'no_settings',
+                __('No settings found for this course.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $settings,
+            'course_id' => $course_id,
+        ]);
+    }
+
+    /**
+     * Update course settings.
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function update_item($request) {
+        $course_id = $request->get_param('id');
+
+        if (!current_user_can('edit_post', $course_id)) {
+            return new WP_Error(
+                'rest_cannot_edit',
+                __('Sorry, you are not allowed to edit this course.', 'tutorpress'),
+                ['status' => rest_authorization_required_code()]
+            );
+        }
+
+        // Get current settings
+        $current_settings = get_post_meta($course_id, 'course_settings', true);
+        if (!is_array($current_settings)) {
+            $current_settings = [];
+        }
+
+        // Build settings updates
+        $settings_updates = [];
+
+        // Handle maximum_students
+        if ($request->has_param('maximum_students')) {
+            $max_students = $request->get_param('maximum_students');
+            $settings_updates['maximum_students'] = ($max_students === '' || $max_students === null || $max_students === 0) ? '' : absint($max_students);
+        }
+
+        // Handle pause_enrollment
+        if ($request->has_param('pause_enrollment')) {
+            $pause_value = sanitize_text_field($request->get_param('pause_enrollment'));
+            $settings_updates['pause_enrollment'] = ($pause_value === 'yes') ? 'yes' : 'no';
+        }
+
+        // Handle course_enrollment_period
+        if ($request->has_param('course_enrollment_period')) {
+            $period_value = sanitize_text_field($request->get_param('course_enrollment_period'));
+            $settings_updates['course_enrollment_period'] = ($period_value === 'yes') ? 'yes' : 'no';
+        }
+
+        // Handle enrollment dates
+        if ($request->has_param('enrollment_starts_at')) {
+            $settings_updates['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
+        }
+
+        if ($request->has_param('enrollment_ends_at')) {
+            $settings_updates['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
+        }
+
+        // Merge with current settings
+        $updated_settings = array_merge($current_settings, $settings_updates);
+
+        // Get post object for update_course_settings
+        $post = get_post($course_id);
+        if (!$post) {
+            return new WP_Error(
+                'invalid_post',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Use TutorPress_Course_Settings to update (this handles bidirectional sync)
+        $result = TutorPress_Course_Settings::update_course_settings($updated_settings, $post);
+
+        if (!$result) {
+            return new WP_Error(
+                'save_failed',
+                __('Failed to save some course settings', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => __('Course settings saved successfully', 'tutorpress'),
+            'data' => $updated_settings,
+            'course_id' => $course_id,
+        ]);
     }
 } 
