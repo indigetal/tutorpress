@@ -10,7 +10,7 @@
 
 defined('ABSPATH') || exit;
 
-abstract class TutorPress_REST_Controller {
+class TutorPress_REST_Controller extends WP_REST_Controller {
 
     /**
      * The namespace for our REST API endpoints.
@@ -28,11 +28,14 @@ abstract class TutorPress_REST_Controller {
 
     /**
      * Register routes for this controller.
+     * Child classes should override this method to register their routes.
      *
      * @since 0.1.0
      * @return void
      */
-    abstract public function register_routes();
+    public function register_routes() {
+        // Child classes should override this method
+    }
 
     /**
      * Check if user has permission to access endpoints.
@@ -83,5 +86,14 @@ abstract class TutorPress_REST_Controller {
             );
         }
         return true;
+    }
+
+    /**
+     * Get the item schema name for the controller.
+     *
+     * @return string
+     */
+    protected function get_schema_title() {
+        return $this->rest_base;
     }
 } 

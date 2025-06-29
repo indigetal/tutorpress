@@ -29,6 +29,11 @@ class TutorPress_REST {
      */
     public function register_rest_routes() {
         try {
+            // Check if Tutor LMS is available
+            if (!function_exists('tutor')) {
+                return;
+            }
+
             // Load base controller
             require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
 
@@ -58,7 +63,7 @@ class TutorPress_REST {
 
             // Always load Course Settings controller (core course settings always available)
             require_once TUTORPRESS_PATH . 'includes/rest/class-course-settings-controller.php';
-            $controllers['course_settings'] = new TutorPress_Course_Settings_Controller();
+            $controllers['course_settings'] = new TutorPress_REST_Course_Settings_Controller();
 
             // Conditionally load H5P controller only if H5P addon is available
             if (TutorPress_Addon_Checker::is_h5p_enabled()) {
