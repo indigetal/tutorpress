@@ -32,10 +32,9 @@ class ApiService {
    */
   async get<T>(path: string): Promise<TutorResponse<T>> {
     try {
-      const response = await apiFetch<TutorResponse<T>>({
+      return await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,
       });
-      return response;
     } catch (error) {
       console.error("API GET error:", error);
       throw error;
@@ -47,12 +46,11 @@ class ApiService {
    */
   async post<T>(path: string, data: Record<string, unknown> | object): Promise<TutorResponse<T>> {
     try {
-      const response = await apiFetch<TutorResponse<T>>({
+      return await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,
         method: "POST",
         data,
       });
-      return response;
     } catch (error) {
       console.error("API POST error:", error);
       throw error;
@@ -64,12 +62,11 @@ class ApiService {
    */
   async patch<T>(path: string, data: Record<string, unknown> | object): Promise<TutorResponse<T>> {
     try {
-      const response = await apiFetch<TutorResponse<T>>({
+      return await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,
         method: "PATCH",
         data,
       });
-      return response;
     } catch (error) {
       console.error("API PATCH error:", error);
       throw error;
@@ -81,11 +78,10 @@ class ApiService {
    */
   async delete<T>(path: string): Promise<TutorResponse<T>> {
     try {
-      const response = await apiFetch<TutorResponse<T>>({
+      return await apiFetch<TutorResponse<T>>({
         path: `${this.config.basePath}${path}`,
         method: "DELETE",
       });
-      return response;
     } catch (error) {
       console.error("API DELETE error:", error);
       throw error;

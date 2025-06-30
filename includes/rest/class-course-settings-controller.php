@@ -14,6 +14,13 @@ defined('ABSPATH') || exit;
 class TutorPress_REST_Course_Settings_Controller extends TutorPress_REST_Controller {
 
     /**
+     * REST base.
+     *
+     * @var string
+     */
+    protected $rest_base = 'courses';
+
+    /**
      * Initialize the controller.
      *
      * @since 0.1.0
@@ -41,39 +48,19 @@ class TutorPress_REST_Course_Settings_Controller extends TutorPress_REST_Control
      * @return void
      */
     public function register_routes() {
-        // Get/Update course settings
         register_rest_route(
             $this->namespace,
-            '/' . $this->rest_base . '/(?P<id>[\d]+)/settings',
+            '/' . $this->rest_base . '/(?P<course_id>[\d]+)/settings',
             [
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_item'],
                     'permission_callback' => [$this, 'check_permission'],
-                    'args'               => [
-                        'id' => [
-                            'required'          => true,
-                            'type'             => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('The ID of the course.', 'tutorpress'),
-                        ],
-                    ],
                 ],
                 [
                     'methods'             => WP_REST_Server::EDITABLE,
                     'callback'            => [$this, 'update_item'],
                     'permission_callback' => [$this, 'check_permission'],
-                    'args'               => array_merge(
-                        [
-                            'id' => [
-                                'required'          => true,
-                                'type'             => 'integer',
-                                'sanitize_callback' => 'absint',
-                                'description'       => __('The ID of the course.', 'tutorpress'),
-                            ],
-                        ],
-                        $this->get_endpoint_args_for_item_schema()
-                    ),
                 ],
             ]
         );
@@ -132,7 +119,7 @@ class TutorPress_REST_Course_Settings_Controller extends TutorPress_REST_Control
         }
 
         // Get course ID from request
-        $course_id = $request->get_param('id');
+        $course_id = $request->get_param('course_id');
         
         // Validate course exists
         $course = get_post($course_id);
@@ -165,7 +152,7 @@ class TutorPress_REST_Course_Settings_Controller extends TutorPress_REST_Control
      */
     public function get_item($request) {
         try {
-            $course_id = $request->get_param('id');
+            $course_id = $request->get_param('course_id');
 
             // Course Details Section: Individual meta fields
             $settings = [
@@ -212,7 +199,7 @@ class TutorPress_REST_Course_Settings_Controller extends TutorPress_REST_Control
      */
     public function update_item($request) {
         try {
-            $course_id = $request->get_param('id');
+            $course_id = $request->get_param('course_id');
             $params = $request->get_params();
 
             // Update Course Details Section (individual meta fields)

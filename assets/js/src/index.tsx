@@ -57,6 +57,10 @@ registerPlugin("tutorpress-course-access-settings", {
   render: CourseAccessPanel,
 });
 
+// Initialize stores
+import "./store/curriculum";
+import "./store/course-settings";
+
 // Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("tutorpress-curriculum-root");

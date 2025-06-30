@@ -12,8 +12,17 @@ import { BaseTopic, BaseContentItem, Topic, ContentItem } from "./curriculum";
  */
 export interface TutorResponse<T> {
   status_code: number;
-  message: string;
+  message?: string;
   data: T;
+}
+
+/**
+ * Error response from TutorPress API
+ */
+export interface TutorErrorResponse {
+  status_code: number;
+  message: string;
+  data?: null;
 }
 
 /**
