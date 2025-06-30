@@ -159,27 +159,9 @@ const CourseAccessPanel: React.FC = () => {
     );
   }
 
-  // Update course access settings using the API wrapper pattern
-  const updateCourseSetting = (key: keyof CourseSettings, value: any) => {
-    console.log(`TutorPress Debug - Updating ${key}:`, value);
-
-    // Handle special cases for field relationships
-    const updates: Partial<CourseSettings> = { [key]: value };
-
-    // Add legacy field values for Tutor LMS compatibility
-    if (key === "maximum_students") {
-      // Handle unlimited students case (null or 0 means unlimited)
-      const processedValue = value === "" || value === "0" || value === 0 ? null : parseInt(value);
-      updates.maximum_students = processedValue;
-    } else if (key === "course_enrollment_period") {
-      // When disabling enrollment period, clear the dates
-      if (value === "no") {
-        updates.enrollment_starts_at = "";
-        updates.enrollment_ends_at = "";
-      }
-    }
-
-    updateSettings(updates);
+  // Helper function for maximum students processing
+  const processMaximumStudents = (value: string | number | null): number | null => {
+    return value === "" || value === "0" || value === 0 ? null : parseInt(value?.toString() || "0") || null;
   };
 
   const timeOptions = generateTimeOptions();
@@ -210,11 +192,8 @@ const CourseAccessPanel: React.FC = () => {
             label={__("Maximum Students", "tutorpress")}
             value={settings.maximum_students?.toString() || ""}
             onChange={(value) => {
-              console.log("TutorPress Debug - Maximum Students Input:", value);
-              // Empty string or "0" should be stored as null (unlimited)
-              const newValue = value === "" || value === "0" ? null : parseInt(value);
-              console.log("TutorPress Debug - Maximum Students Processed:", newValue);
-              updateCourseSetting("maximum_students", newValue);
+              const newValue = processMaximumStudents(value);
+              updateSettings({ maximum_students: newValue });
             }}
             help={__(
               "Maximum number of students who can enroll in this course. Leave empty or enter 0 for unlimited.",
@@ -231,10 +210,7 @@ const CourseAccessPanel: React.FC = () => {
             label={__("Pause Enrollment", "tutorpress")}
             checked={settings.pause_enrollment === "yes"}
             onChange={(checked: boolean) => {
-              console.log("TutorPress Debug - Pause Enrollment Input:", checked);
-              const newValue = checked ? "yes" : "no";
-              console.log("TutorPress Debug - Pause Enrollment Processed:", newValue);
-              updateCourseSetting("pause_enrollment", newValue);
+              updateSettings({ pause_enrollment: checked ? "yes" : "no" });
             }}
             help={__("Temporarily stop new enrollments for this course.", "tutorpress")}
           />
@@ -247,7 +223,15 @@ const CourseAccessPanel: React.FC = () => {
           <ToggleControl
             label={__("Course Enrollment Period", "tutorpress")}
             checked={settings.course_enrollment_period === "yes"}
-            onChange={(checked) => updateCourseSetting("course_enrollment_period", checked ? "yes" : "no")}
+            onChange={(checked) => {
+              const updates: Partial<CourseSettings> = { course_enrollment_period: checked ? "yes" : "no" };
+              // When disabling enrollment period, clear the dates
+              if (!checked) {
+                updates.enrollment_starts_at = "";
+                updates.enrollment_ends_at = "";
+              }
+              updateSettings(updates);
+            }}
             help={__("Set a specific time period when students can enroll in this course.", "tutorpress")}
           />
         </div>
@@ -276,7 +260,7 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={startDate}
                         onChange={(date) => {
                           const newDate = combineDateTime(new Date(date), displayTime(settings.enrollment_starts_at));
-                          updateCourseSetting("enrollment_starts_at", newDate);
+                          updateSettings({ enrollment_starts_at: newDate });
                           setStartDatePickerOpen(false);
                         }}
                       />
@@ -292,7 +276,7 @@ const CourseAccessPanel: React.FC = () => {
                   options={timeOptions}
                   onChange={(value) => {
                     const newDate = combineDateTime(startDate, value);
-                    updateCourseSetting("enrollment_starts_at", newDate);
+                    updateSettings({ enrollment_starts_at: newDate });
                   }}
                 />
               </FlexItem>
@@ -316,7 +300,7 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={endDate}
                         onChange={(date) => {
                           const newDate = combineDateTime(new Date(date), displayTime(settings.enrollment_ends_at));
-                          updateCourseSetting("enrollment_ends_at", newDate);
+                          updateSettings({ enrollment_ends_at: newDate });
                           setEndDatePickerOpen(false);
                         }}
                       />
@@ -332,7 +316,7 @@ const CourseAccessPanel: React.FC = () => {
                   options={timeOptions}
                   onChange={(value) => {
                     const newDate = combineDateTime(endDate, value);
-                    updateCourseSetting("enrollment_ends_at", newDate);
+                    updateSettings({ enrollment_ends_at: newDate });
                   }}
                 />
               </FlexItem>
