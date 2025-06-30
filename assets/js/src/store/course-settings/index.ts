@@ -1,50 +1,149 @@
+/**
+ * Course Settings Store for TutorPress
+ *
+ * Handles course settings state management following TutorPress patterns.
+ *
+ * @package TutorPress
+ * @since 1.0.0
+ */
+
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { select } from "@wordpress/data";
 import type { CourseSettings } from "../../types/courses";
-import { AnyAction } from "redux";
+import { defaultCourseSettings } from "../../types/courses";
+import { createCurriculumError } from "../../utils/errors";
+import { CurriculumErrorCode } from "../../types/curriculum";
 
-// Action Types
-export const TYPES = {
-  GET_COURSE_SETTINGS: "GET_COURSE_SETTINGS",
-  SET_COURSE_SETTINGS: "SET_COURSE_SETTINGS",
-  UPDATE_COURSE_SETTINGS: "UPDATE_COURSE_SETTINGS",
-} as const;
-
-interface State {
-  settings: CourseSettings;
+interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
 }
 
-// Actions
-export const actions = {
-  getCourseSettings() {
-    return {
-      type: TYPES.GET_COURSE_SETTINGS,
-    };
+interface State {
+  settings: CourseSettings | null;
+  fetchState: {
+    isLoading: boolean;
+    error: string | null;
+  };
+  saveState: {
+    isSaving: boolean;
+    error: string | null;
+  };
+}
+
+const DEFAULT_STATE: State = {
+  settings: null,
+  fetchState: {
+    isLoading: false,
+    error: null,
   },
-  setCourseSettings(settings: CourseSettings) {
-    return {
-      type: TYPES.SET_COURSE_SETTINGS,
-      settings,
-    };
-  },
-  updateCourseSettings(settings: Partial<CourseSettings>) {
-    return {
-      type: TYPES.UPDATE_COURSE_SETTINGS,
-      settings,
-    };
+  saveState: {
+    isSaving: false,
+    error: null,
   },
 };
 
-// Resolvers
-export const resolvers = {
-  *getCourseSettings(): Generator<any, any, any> {
-    try {
-      // Get course ID directly from editor store
-      const courseId = yield select("core/editor").getCurrentPostId();
+type CourseSettingsAction =
+  | { type: "SET_SETTINGS"; payload: CourseSettings }
+  | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }
+  | { type: "SET_SAVE_STATE"; payload: Partial<State["saveState"]> };
 
+const actions = {
+  setSettings(settings: CourseSettings) {
+    return {
+      type: "SET_SETTINGS" as const,
+      payload: settings,
+    };
+  },
+  setFetchState(state: Partial<State["fetchState"]>) {
+    return {
+      type: "SET_FETCH_STATE" as const,
+      payload: state,
+    };
+  },
+  setSaveState(state: Partial<State["saveState"]>) {
+    return {
+      type: "SET_SAVE_STATE" as const,
+      payload: state,
+    };
+  },
+  *updateSettings(settings: Partial<CourseSettings>): Generator<unknown, void, APIResponse<CourseSettings>> {
+    try {
+      yield actions.setSaveState({ isSaving: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
       if (!courseId) {
-        throw new Error("No course ID available");
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "updateSettings",
+          "Failed to get course ID"
+        );
+      }
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/settings`,
+          method: "POST",
+          data: settings,
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.SAVE_FAILED,
+          "updateSettings",
+          "Failed to update settings"
+        );
+      }
+
+      yield actions.setSettings(response.data);
+      yield actions.setSaveState({ isSaving: false, error: null });
+    } catch (error: any) {
+      yield actions.setSaveState({ isSaving: false, error: error.message });
+      throw error;
+    }
+  },
+};
+
+const selectors = {
+  getSettings(state: State) {
+    return state.settings || defaultCourseSettings;
+  },
+  getFetchState(state: State) {
+    return state.fetchState;
+  },
+  getSaveState(state: State) {
+    return state.saveState;
+  },
+  getIsLoading(state: State) {
+    return state.fetchState.isLoading;
+  },
+  getIsSaving(state: State) {
+    return state.saveState.isSaving;
+  },
+  getError(state: State) {
+    return state.fetchState.error || state.saveState.error;
+  },
+};
+
+const resolvers = {
+  *getSettings(): Generator<unknown, void, APIResponse<CourseSettings>> {
+    try {
+      yield actions.setFetchState({ isLoading: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "getSettings",
+          "Failed to get course ID"
+        );
       }
 
       const response = yield {
@@ -55,75 +154,46 @@ export const resolvers = {
         },
       };
 
-      if (response.success) {
-        return actions.setCourseSettings(response.data);
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "getSettings",
+          "Failed to fetch settings"
+        );
       }
 
-      throw new Error(response.message || "Failed to fetch course settings");
-    } catch (error) {
-      console.error("Error fetching course settings:", error);
+      yield actions.setSettings(response.data);
+      yield actions.setFetchState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setFetchState({ isLoading: false, error: error.message });
       throw error;
     }
   },
 };
 
-// Selectors
-export const selectors = {
-  getCourseSettings(state: State) {
-    return state.settings;
-  },
-};
-
-// Initial state
-const DEFAULT_STATE: State = {
-  settings: {
-    course_level: "all_levels",
-    is_public_course: false,
-    enable_qna: true,
-    course_duration: {
-      hours: 0,
-      minutes: 0,
-    },
-    course_prerequisites: [],
-    maximum_students: 0,
-    course_enrollment_period: "no",
-    enrollment_starts_at: "",
-    enrollment_ends_at: "",
-    pause_enrollment: "no",
-    featured_video: {
-      source: "",
-      source_youtube: "",
-      source_vimeo: "",
-      source_external_url: "",
-      source_embedded: "",
-    },
-    attachments: [],
-    materials_included: "",
-    is_free: true,
-    pricing_model: "",
-    price: 0,
-    sale_price: 0,
-    subscription_enabled: false,
-    instructors: [],
-    additional_instructors: [],
-  },
-};
-
-// Store configuration
 const store = createReduxStore("tutorpress/course-settings", {
-  reducer(state: State = DEFAULT_STATE, action: AnyAction) {
+  reducer(state = DEFAULT_STATE, action: CourseSettingsAction) {
     switch (action.type) {
-      case TYPES.SET_COURSE_SETTINGS:
+      case "SET_SETTINGS":
         return {
           ...state,
-          settings: action.settings,
+          settings: action.payload,
         };
-      case TYPES.UPDATE_COURSE_SETTINGS:
+      case "SET_FETCH_STATE":
         return {
           ...state,
-          settings: {
-            ...state.settings,
-            ...action.settings,
+          fetchState: {
+            ...state.fetchState,
+            ...action.payload,
+          },
+        };
+      case "SET_SAVE_STATE":
+        return {
+          ...state,
+          saveState: {
+            ...state.saveState,
+            ...action.payload,
           },
         };
       default:

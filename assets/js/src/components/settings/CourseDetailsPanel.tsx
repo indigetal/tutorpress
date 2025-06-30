@@ -1,55 +1,53 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, TextControl, SelectControl, ToggleControl, Notice } from "@wordpress/components";
+import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings, CourseDifficultyLevel } from "../../types/courses";
-import { defaultCourseSettings, courseDifficultyLevels } from "../../types/courses";
+import { courseDifficultyLevels } from "../../types/courses";
 
 const CourseDetailsPanel: React.FC = () => {
-  const [error, setError] = useState<string>("");
+  // Get settings from our store
+  const { postType, settings, isSaving, error, isLoading } = useSelect(
+    (select: any) => ({
+      postType: select("core/editor").getCurrentPostType(),
+      settings: select("tutorpress/course-settings").getSettings(),
+      isSaving: select("tutorpress/course-settings").getIsSaving(),
+      error: select("tutorpress/course-settings").getError(),
+      isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
+    }),
+    []
+  );
 
-  const { postType, courseSettings } = useSelect((select: any) => {
-    const { getCurrentPostType } = select("core/editor");
-    const { getEditedPostAttribute } = select("core/editor");
-
-    return {
-      postType: getCurrentPostType(),
-      courseSettings: getEditedPostAttribute("course_settings") || defaultCourseSettings,
-    };
-  }, []);
-
-  const { editPost } = useDispatch("core/editor");
+  // Get dispatch actions
+  const { updateSettings } = useDispatch("tutorpress/course-settings");
 
   // Only show for course post type
   if (postType !== "courses") {
     return null;
   }
 
-  const updateSetting = (key: string, value: any) => {
-    const newSettings = { ...courseSettings };
-
-    if (key.includes(".")) {
-      const keys = key.split(".");
-      let current = newSettings;
-
-      for (let i = 0; i < keys.length - 1; i++) {
-        current[keys[i]] = { ...current[keys[i]] };
-        current = current[keys[i]];
-      }
-
-      current[keys[keys.length - 1]] = value;
-    } else {
-      newSettings[key] = value;
-    }
-
-    editPost({ course_settings: newSettings });
-  };
+  // Show loading state while fetching settings
+  if (isLoading) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-details-settings"
+        title={__("Course Details", "tutorpress")}
+        className="tutorpress-course-details-panel"
+      >
+        <PanelRow>
+          <div style={{ width: "100%", textAlign: "center", padding: "20px 0" }}>
+            <Spinner />
+          </div>
+        </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
+  }
 
   // Calculate total duration display
-  const totalDuration = courseSettings.course_duration;
+  const totalDuration = settings.course_duration;
   const hasDuration = totalDuration.hours > 0 || totalDuration.minutes > 0;
   const durationText = hasDuration
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`
@@ -61,11 +59,21 @@ const CourseDetailsPanel: React.FC = () => {
       title={__("Course Details", "tutorpress")}
       className="tutorpress-course-details-panel"
     >
-      {/* Error Display */}
       {error && (
-        <Notice status="error" isDismissible={true} onRemove={() => setError("")}>
-          {error}
-        </Notice>
+        <PanelRow>
+          <Notice status="error" isDismissible={false}>
+            {error}
+          </Notice>
+        </PanelRow>
+      )}
+
+      {isSaving && (
+        <PanelRow>
+          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" }}>
+            <Spinner />
+            <span>{__("Saving...", "tutorpress")}</span>
+          </div>
+        </PanelRow>
       )}
 
       {/* Difficulty Level */}
@@ -73,10 +81,11 @@ const CourseDetailsPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <SelectControl
             label={__("Difficulty Level", "tutorpress")}
-            value={courseSettings.course_level}
+            value={settings.course_level}
             options={courseDifficultyLevels}
-            onChange={(value: CourseDifficultyLevel) => updateSetting("course_level", value)}
+            onChange={(value: CourseDifficultyLevel) => updateSettings({ course_level: value })}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
+            disabled={isSaving}
           />
         </div>
       </PanelRow>
@@ -87,12 +96,13 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Public Course", "tutorpress")}
             help={
-              courseSettings.is_public_course
+              settings.is_public_course
                 ? __("This course is visible to all users", "tutorpress")
                 : __("This course requires enrollment to view", "tutorpress")
             }
-            checked={courseSettings.is_public_course}
-            onChange={(enabled) => updateSetting("is_public_course", enabled)}
+            checked={settings.is_public_course}
+            onChange={(enabled) => updateSettings({ is_public_course: enabled })}
+            disabled={isSaving}
           />
 
           <p
@@ -113,12 +123,13 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Q&A", "tutorpress")}
             help={
-              courseSettings.enable_qna
+              settings.enable_qna
                 ? __("Students can ask questions and get answers", "tutorpress")
                 : __("Q&A is disabled for this course", "tutorpress")
             }
-            checked={courseSettings.enable_qna}
-            onChange={(enabled) => updateSetting("enable_qna", enabled)}
+            checked={settings.enable_qna}
+            onChange={(enabled) => updateSettings({ enable_qna: enabled })}
+            disabled={isSaving}
           />
 
           <p
@@ -150,8 +161,16 @@ const CourseDetailsPanel: React.FC = () => {
               <TextControl
                 type="number"
                 min="0"
-                value={courseSettings.course_duration.hours.toString()}
-                onChange={(value) => updateSetting("course_duration.hours", parseInt(value) || 0)}
+                value={settings.course_duration.hours.toString()}
+                onChange={(value) =>
+                  updateSettings({
+                    course_duration: {
+                      ...settings.course_duration,
+                      hours: parseInt(value) || 0,
+                    },
+                  })
+                }
+                disabled={isSaving}
               />
             </div>
 
@@ -161,8 +180,16 @@ const CourseDetailsPanel: React.FC = () => {
                 type="number"
                 min="0"
                 max="59"
-                value={courseSettings.course_duration.minutes.toString()}
-                onChange={(value) => updateSetting("course_duration.minutes", Math.min(59, parseInt(value) || 0))}
+                value={settings.course_duration.minutes.toString()}
+                onChange={(value) =>
+                  updateSettings({
+                    course_duration: {
+                      ...settings.course_duration,
+                      minutes: Math.min(59, parseInt(value) || 0),
+                    },
+                  })
+                }
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -174,7 +201,7 @@ const CourseDetailsPanel: React.FC = () => {
               margin: "4px 0 0 0",
             }}
           >
-            {__("Current duration: ", "tutorpress") + durationText}
+            {__("Set the total time required to complete this course", "tutorpress")}
           </p>
         </div>
       </PanelRow>
