@@ -96,11 +96,11 @@ const combineDateTime = (localDate: Date, localTimeStr: string): string => {
   return convertToGMT(combinedLocalDate);
 };
 
-// Generate time options (15 min intervals, 12-hour format)
+// Generate time options (30 min intervals, 12-hour format to match Tutor LMS)
 const generateTimeOptions = () => {
   const options = [];
   for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
+    for (let minute = 0; minute < 60; minute += 30) {
       const date = new Date();
       date.setHours(hour, minute);
       const time12 = date.toLocaleTimeString("en-US", {
@@ -166,9 +166,61 @@ const CourseAccessPanel: React.FC = () => {
 
   const timeOptions = generateTimeOptions();
 
-  // Get current dates for date pickers
-  const startDate = parseGMTString(settings.enrollment_starts_at) || new Date();
-  const endDate = parseGMTString(settings.enrollment_ends_at) || new Date();
+  // Get current dates for date pickers (default to current date)
+  const currentDate = new Date();
+  const startDate = parseGMTString(settings.enrollment_starts_at) || currentDate;
+  const endDate = parseGMTString(settings.enrollment_ends_at) || currentDate;
+
+  // Helper function to get filtered time options based on constraints
+  const getFilteredTimeOptions = (isEndTime: boolean) => {
+    const allOptions = timeOptions;
+
+    if (!isEndTime) {
+      return allOptions; // Start time has no constraints
+    }
+
+    // For end time, filter out times that are before start time on the same date
+    const startDateTime = parseGMTString(settings.enrollment_starts_at);
+    const endDateTime = parseGMTString(settings.enrollment_ends_at);
+
+    if (!startDateTime) {
+      return allOptions; // No start date set, show all options
+    }
+
+    // If we have a start date, check if we're on the same date
+    const currentEndDate = endDateTime || startDateTime; // Use start date if no end date
+
+    if (startDateTime.toDateString() === currentEndDate.toDateString()) {
+      const startTimeStr = displayTime(settings.enrollment_starts_at);
+      const startTimeIndex = allOptions.findIndex((option) => option.value === startTimeStr);
+
+      if (startTimeIndex >= 0) {
+        // Return options after start time (at least 30 minutes later)
+        return allOptions.slice(startTimeIndex + 1);
+      }
+    }
+
+    return allOptions;
+  };
+
+  // Helper function to validate and auto-correct end time
+  const validateAndCorrectEndTime = (newEndTime: string, currentStartTime: string) => {
+    const startDateTime = parseGMTString(currentStartTime);
+    const endDateTime = parseGMTString(newEndTime);
+
+    if (!startDateTime || !endDateTime) {
+      return newEndTime; // Can't validate without both dates
+    }
+
+    // If end is before start, auto-correct to be 30 minutes after start
+    if (endDateTime <= startDateTime) {
+      const correctedEnd = new Date(startDateTime);
+      correctedEnd.setMinutes(correctedEnd.getMinutes() + 30);
+      return convertToGMT(correctedEnd);
+    }
+
+    return newEndTime;
+  };
 
   return (
     <PluginDocumentSettingPanel
@@ -191,12 +243,13 @@ const CourseAccessPanel: React.FC = () => {
             type="number"
             label={__("Maximum Students", "tutorpress")}
             value={settings.maximum_students?.toString() || ""}
+            placeholder="0"
             onChange={(value) => {
               const newValue = processMaximumStudents(value);
               updateSettings({ maximum_students: newValue });
             }}
             help={__(
-              "Maximum number of students who can enroll in this course. Leave empty or enter 0 for unlimited.",
+              "Maximum number of students who can enroll in this course. Set to 0 for unlimited students.",
               "tutorpress"
             )}
           />
@@ -261,6 +314,20 @@ const CourseAccessPanel: React.FC = () => {
                         onChange={(date) => {
                           const newDate = combineDateTime(new Date(date), displayTime(settings.enrollment_starts_at));
                           updateSettings({ enrollment_starts_at: newDate });
+
+                          // If end date is before new start date, update end date to match
+                          const currentEndDate = parseGMTString(settings.enrollment_ends_at);
+                          if (currentEndDate && new Date(date) > currentEndDate) {
+                            const newEndDate = combineDateTime(
+                              new Date(date),
+                              displayTime(settings.enrollment_ends_at)
+                            );
+                            updateSettings({
+                              enrollment_starts_at: newDate,
+                              enrollment_ends_at: newEndDate,
+                            });
+                          }
+
                           setStartDatePickerOpen(false);
                         }}
                       />
@@ -273,10 +340,21 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <SelectControl
                   value={displayTime(settings.enrollment_starts_at)}
-                  options={timeOptions}
+                  options={getFilteredTimeOptions(false)}
                   onChange={(value) => {
-                    const newDate = combineDateTime(startDate, value);
-                    updateSettings({ enrollment_starts_at: newDate });
+                    const newStartDate = combineDateTime(startDate, value);
+                    updateSettings({ enrollment_starts_at: newStartDate });
+
+                    // Auto-correct end time if it becomes invalid
+                    if (settings.enrollment_ends_at) {
+                      const correctedEndDate = validateAndCorrectEndTime(settings.enrollment_ends_at, newStartDate);
+                      if (correctedEndDate !== settings.enrollment_ends_at) {
+                        updateSettings({
+                          enrollment_starts_at: newStartDate,
+                          enrollment_ends_at: correctedEndDate,
+                        });
+                      }
+                    }
                   }}
                 />
               </FlexItem>
@@ -299,8 +377,33 @@ const CourseAccessPanel: React.FC = () => {
                       <DatePicker
                         currentDate={endDate}
                         onChange={(date) => {
-                          const newDate = combineDateTime(new Date(date), displayTime(settings.enrollment_ends_at));
-                          updateSettings({ enrollment_ends_at: newDate });
+                          // Ensure end date is not before start date
+                          const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                          const selectedDate = new Date(date);
+
+                          if (startDateTime) {
+                            // Compare just the date part (not time)
+                            const startDateOnly = new Date(
+                              startDateTime.getFullYear(),
+                              startDateTime.getMonth(),
+                              startDateTime.getDate()
+                            );
+                            const selectedDateOnly = new Date(
+                              selectedDate.getFullYear(),
+                              selectedDate.getMonth(),
+                              selectedDate.getDate()
+                            );
+
+                            if (selectedDateOnly < startDateOnly) {
+                              // If selected date is before start date, don't allow it
+                              return;
+                            }
+                          }
+
+                          const newDate = combineDateTime(selectedDate, displayTime(settings.enrollment_ends_at));
+                          const correctedEndDate = validateAndCorrectEndTime(newDate, settings.enrollment_starts_at);
+
+                          updateSettings({ enrollment_ends_at: correctedEndDate });
                           setEndDatePickerOpen(false);
                         }}
                       />
@@ -313,10 +416,14 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <SelectControl
                   value={displayTime(settings.enrollment_ends_at)}
-                  options={timeOptions}
+                  options={getFilteredTimeOptions(true)}
                   onChange={(value) => {
-                    const newDate = combineDateTime(endDate, value);
-                    updateSettings({ enrollment_ends_at: newDate });
+                    const newEndDate = combineDateTime(endDate, value);
+
+                    // Validate and auto-correct if needed
+                    const correctedEndDate = validateAndCorrectEndTime(newEndDate, settings.enrollment_starts_at);
+
+                    updateSettings({ enrollment_ends_at: correctedEndDate });
                   }}
                 />
               </FlexItem>

@@ -79,12 +79,15 @@ const actions = {
       const currentGutenbergSettings = yield select("core/editor").getEditedPostAttribute("course_settings") || {};
 
       // Merge settings, prioritizing new settings
-      const mergedSettings = {
+      let mergedSettings = {
         ...defaultCourseSettings,
         ...currentGutenbergSettings,
         ...currentSettings,
         ...settings,
       };
+
+      // Apply validation and auto-correction for date/time fields
+      mergedSettings = actions.validateAndCorrectSettings(mergedSettings);
 
       // Update Gutenberg store
       const editorDispatch = wpDispatch("core/editor") as EditorStore;
@@ -100,6 +103,30 @@ const actions = {
       yield actions.setFetchState({ error: error.message });
       throw error;
     }
+  },
+
+  // Validate and auto-correct course settings
+  validateAndCorrectSettings(settings: CourseSettings): CourseSettings {
+    const correctedSettings = { ...settings };
+
+    // Validate enrollment period dates
+    if (
+      correctedSettings.course_enrollment_period === "yes" &&
+      correctedSettings.enrollment_starts_at &&
+      correctedSettings.enrollment_ends_at
+    ) {
+      const startDate = new Date(correctedSettings.enrollment_starts_at.replace(" ", "T") + "Z");
+      const endDate = new Date(correctedSettings.enrollment_ends_at.replace(" ", "T") + "Z");
+
+      // If end date is before start date, auto-correct to 30 minutes after start
+      if (endDate <= startDate) {
+        const correctedEnd = new Date(startDate);
+        correctedEnd.setMinutes(correctedEnd.getMinutes() + 30);
+        correctedSettings.enrollment_ends_at = correctedEnd.toISOString().replace("T", " ").slice(0, 19);
+      }
+    }
+
+    return correctedSettings;
   },
 };
 
