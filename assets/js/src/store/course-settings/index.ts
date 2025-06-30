@@ -9,11 +9,16 @@
 
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
-import { select } from "@wordpress/data";
+import { select, dispatch as wpDispatch } from "@wordpress/data";
 import type { CourseSettings } from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
+
+// Add type definitions for WordPress editor store
+interface EditorStore {
+  editPost: (edits: { course_settings?: CourseSettings }) => void;
+}
 
 interface APIResponse<T> {
   success: boolean;
@@ -27,10 +32,6 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
-  saveState: {
-    isSaving: boolean;
-    error: string | null;
-  };
 }
 
 const DEFAULT_STATE: State = {
@@ -39,16 +40,11 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
-  saveState: {
-    isSaving: false,
-    error: null,
-  },
 };
 
 type CourseSettingsAction =
   | { type: "SET_SETTINGS"; payload: CourseSettings }
-  | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }
-  | { type: "SET_SAVE_STATE"; payload: Partial<State["saveState"]> };
+  | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -57,22 +53,17 @@ const actions = {
       payload: settings,
     };
   },
+
   setFetchState(state: Partial<State["fetchState"]>) {
     return {
       type: "SET_FETCH_STATE" as const,
       payload: state,
     };
   },
-  setSaveState(state: Partial<State["saveState"]>) {
-    return {
-      type: "SET_SAVE_STATE" as const,
-      payload: state,
-    };
-  },
-  *updateSettings(settings: Partial<CourseSettings>): Generator<unknown, void, APIResponse<CourseSettings>> {
-    try {
-      yield actions.setSaveState({ isSaving: true, error: null });
 
+  // Update settings in Gutenberg store and our local state
+  *updateSettings(settings: Partial<CourseSettings>): Generator {
+    try {
       const courseId = yield select("core/editor").getCurrentPostId();
       if (!courseId) {
         throw createCurriculumError(
@@ -83,28 +74,30 @@ const actions = {
         );
       }
 
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/courses/${courseId}/settings`,
-          method: "POST",
-          data: settings,
-        },
+      // Get current settings from both stores
+      const currentSettings = yield select("tutorpress/course-settings").getSettings();
+      const currentGutenbergSettings = yield select("core/editor").getEditedPostAttribute("course_settings") || {};
+
+      // Merge settings, prioritizing new settings
+      const mergedSettings = {
+        ...defaultCourseSettings,
+        ...currentGutenbergSettings,
+        ...currentSettings,
+        ...settings,
       };
 
-      if (!response.success) {
-        throw createCurriculumError(
-          response.message || "API Error",
-          CurriculumErrorCode.SAVE_FAILED,
-          "updateSettings",
-          "Failed to update settings"
-        );
+      // Update Gutenberg store
+      const editorDispatch = wpDispatch("core/editor") as EditorStore;
+      if (editorDispatch) {
+        editorDispatch.editPost({
+          course_settings: mergedSettings,
+        });
       }
 
-      yield actions.setSettings(response.data);
-      yield actions.setSaveState({ isSaving: false, error: null });
+      // Update our local store state
+      yield actions.setSettings(mergedSettings);
     } catch (error: any) {
-      yield actions.setSaveState({ isSaving: false, error: error.message });
+      yield actions.setFetchState({ error: error.message });
       throw error;
     }
   },
@@ -112,22 +105,22 @@ const actions = {
 
 const selectors = {
   getSettings(state: State) {
-    return state.settings || defaultCourseSettings;
+    // Get settings from both stores and merge
+    const gutenbergSettings = select("core/editor").getEditedPostAttribute("course_settings") || {};
+    return {
+      ...defaultCourseSettings,
+      ...gutenbergSettings,
+      ...state.settings,
+    };
   },
   getFetchState(state: State) {
     return state.fetchState;
   },
-  getSaveState(state: State) {
-    return state.saveState;
-  },
   getIsLoading(state: State) {
     return state.fetchState.isLoading;
   },
-  getIsSaving(state: State) {
-    return state.saveState.isSaving;
-  },
   getError(state: State) {
-    return state.fetchState.error || state.saveState.error;
+    return state.fetchState.error;
   },
 };
 
@@ -146,6 +139,7 @@ const resolvers = {
         );
       }
 
+      // Get settings through our API wrapper
       const response = yield {
         type: "API_FETCH",
         request: {
@@ -163,7 +157,25 @@ const resolvers = {
         );
       }
 
-      yield actions.setSettings(response.data);
+      // Get current Gutenberg settings
+      const gutenbergSettings = yield select("core/editor").getEditedPostAttribute("course_settings") || {};
+
+      // Merge settings, prioritizing API response
+      const mergedSettings = {
+        ...defaultCourseSettings,
+        ...gutenbergSettings,
+        ...response.data,
+      };
+
+      // Update both stores
+      const editorDispatch = wpDispatch("core/editor") as EditorStore;
+      if (editorDispatch) {
+        editorDispatch.editPost({
+          course_settings: mergedSettings,
+        });
+      }
+
+      yield actions.setSettings(mergedSettings);
       yield actions.setFetchState({ isLoading: false, error: null });
     } catch (error: any) {
       yield actions.setFetchState({ isLoading: false, error: error.message });
@@ -173,27 +185,19 @@ const resolvers = {
 };
 
 const store = createReduxStore("tutorpress/course-settings", {
-  reducer(state = DEFAULT_STATE, action: CourseSettingsAction) {
+  reducer(state = DEFAULT_STATE, action: CourseSettingsAction | { type: string }) {
     switch (action.type) {
       case "SET_SETTINGS":
         return {
           ...state,
-          settings: action.payload,
+          settings: (action as { type: "SET_SETTINGS"; payload: CourseSettings }).payload,
         };
       case "SET_FETCH_STATE":
         return {
           ...state,
           fetchState: {
             ...state.fetchState,
-            ...action.payload,
-          },
-        };
-      case "SET_SAVE_STATE":
-        return {
-          ...state,
-          saveState: {
-            ...state.saveState,
-            ...action.payload,
+            ...(action as { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }).payload,
           },
         };
       default:

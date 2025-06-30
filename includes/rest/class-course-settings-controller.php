@@ -254,49 +254,69 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
 
         // Course Details Section
         if ($request->has_param('course_level')) {
-            $new_settings['course_level'] = sanitize_text_field($request->get_param('course_level'));
+            $level = sanitize_text_field($request->get_param('course_level'));
+            $new_settings['course_level'] = $level;
+            update_post_meta($course_id, '_tutor_course_level', $level);
         }
 
         if ($request->has_param('is_public_course')) {
-            $new_settings['is_public_course'] = (bool) $request->get_param('is_public_course');
+            $is_public = (bool) $request->get_param('is_public_course');
+            $new_settings['is_public_course'] = $is_public;
+            update_post_meta($course_id, '_tutor_is_public_course', $is_public ? 'yes' : 'no');
         }
 
         if ($request->has_param('enable_qna')) {
-            $new_settings['enable_qna'] = (bool) $request->get_param('enable_qna');
+            $enable_qna = (bool) $request->get_param('enable_qna');
+            $new_settings['enable_qna'] = $enable_qna;
+            update_post_meta($course_id, '_tutor_enable_qa', $enable_qna ? 'yes' : 'no');
         }
 
         if ($request->has_param('course_duration')) {
             $duration = $request->get_param('course_duration');
             if (is_array($duration)) {
-                $new_settings['course_duration'] = array(
+                $duration_data = array(
                     'hours'   => max(0, (int) ($duration['hours'] ?? 0)),
                     'minutes' => min(59, max(0, (int) ($duration['minutes'] ?? 0))),
                 );
+                $new_settings['course_duration'] = $duration_data;
+                update_post_meta($course_id, '_course_duration', $duration_data);
             }
         }
 
         // Course Access & Enrollment Section
         if ($request->has_param('maximum_students')) {
             $max_students = $request->get_param('maximum_students');
-            $new_settings['maximum_students'] = $max_students === '' || $max_students === null ? null : max(0, (int) $max_students);
-            $new_settings['maximum_students_allowed'] = $new_settings['maximum_students'];
+            $max_students_value = $max_students === '' || $max_students === null || $max_students === 0 ? '' : max(0, (int) $max_students);
+            $new_settings['maximum_students'] = $max_students_value;
+            $new_settings['maximum_students_allowed'] = $max_students_value;
+            update_post_meta($course_id, '_tutor_maximum_students', $max_students_value);
         }
 
         if ($request->has_param('course_enrollment_period')) {
-            $new_settings['course_enrollment_period'] = sanitize_text_field($request->get_param('course_enrollment_period'));
+            $period_value = sanitize_text_field($request->get_param('course_enrollment_period'));
+            $period_value = $period_value === 'yes' ? 'yes' : 'no';
+            $new_settings['course_enrollment_period'] = $period_value;
+            update_post_meta($course_id, '_tutor_course_enrollment_period', $period_value);
         }
 
         if ($request->has_param('enrollment_starts_at')) {
-            $new_settings['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
+            $starts_at = sanitize_text_field($request->get_param('enrollment_starts_at'));
+            $new_settings['enrollment_starts_at'] = $starts_at;
+            update_post_meta($course_id, '_tutor_enrollment_starts_at', $starts_at);
         }
 
         if ($request->has_param('enrollment_ends_at')) {
-            $new_settings['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
+            $ends_at = sanitize_text_field($request->get_param('enrollment_ends_at'));
+            $new_settings['enrollment_ends_at'] = $ends_at;
+            update_post_meta($course_id, '_tutor_enrollment_ends_at', $ends_at);
         }
 
         if ($request->has_param('pause_enrollment')) {
-            $new_settings['pause_enrollment'] = sanitize_text_field($request->get_param('pause_enrollment'));
-            $new_settings['enrollment_status'] = $new_settings['pause_enrollment'];
+            $pause_value = sanitize_text_field($request->get_param('pause_enrollment'));
+            $pause_value = $pause_value === 'yes' ? 'yes' : 'no';
+            $new_settings['pause_enrollment'] = $pause_value;
+            $new_settings['enrollment_status'] = $pause_value;
+            update_post_meta($course_id, '_tutor_enrollment_status', $pause_value);
         }
 
         // Merge with existing settings
@@ -304,6 +324,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
 
         // Update course settings
         update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
+        update_post_meta($course_id, 'course_settings', $merged_settings);
 
         // Return updated settings
         return rest_ensure_response(array(

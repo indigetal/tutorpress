@@ -9,14 +9,14 @@ import type { CourseSettings, CourseDifficultyLevel } from "../../types/courses"
 import { courseDifficultyLevels } from "../../types/courses";
 
 const CourseDetailsPanel: React.FC = () => {
-  // Get settings from our store
-  const { postType, settings, isSaving, error, isLoading } = useSelect(
+  // Get settings from our store and Gutenberg store
+  const { postType, settings, error, isLoading, isSaving } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       settings: select("tutorpress/course-settings").getSettings(),
-      isSaving: select("tutorpress/course-settings").getIsSaving(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
+      isSaving: select("core/editor").isSavingPost() && !select("core/editor").isAutosavingPost(),
     }),
     []
   );
