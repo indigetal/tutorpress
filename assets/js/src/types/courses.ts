@@ -80,7 +80,7 @@ export interface CourseSettings {
 
   // Course Access & Enrollment Section
   course_prerequisites: number[];
-  maximum_students: number;
+  maximum_students: number | null;
   course_enrollment_period: "yes" | "no";
   enrollment_starts_at: string;
   enrollment_ends_at: string;
@@ -122,7 +122,7 @@ export const defaultCourseSettings: CourseSettings = {
 
   // Course Access & Enrollment
   course_prerequisites: [],
-  maximum_students: 0,
+  maximum_students: null,
   course_enrollment_period: "no",
   enrollment_starts_at: "",
   enrollment_ends_at: "",

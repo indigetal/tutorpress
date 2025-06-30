@@ -210,7 +210,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             
             // Course Access & Enrollment Section
             'course_prerequisites' => get_post_meta($course_id, '_tutor_course_prerequisites_ids', true) ?: array(),
-            'maximum_students'          => isset($tutor_settings['maximum_students']) ? $tutor_settings['maximum_students'] : '',
+            'maximum_students'          => isset($tutor_settings['maximum_students']) ? $tutor_settings['maximum_students'] : null,
             'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
@@ -286,10 +286,17 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         // Course Access & Enrollment Section
         if ($request->has_param('maximum_students')) {
             $max_students = $request->get_param('maximum_students');
-            $max_students_value = $max_students === '' || $max_students === null || $max_students === 0 ? '' : max(0, (int) $max_students);
+            // Handle null/unlimited case properly
+            if ($max_students === null || $max_students === '' || $max_students === 0) {
+                $max_students_value = null;
+                $legacy_value = ''; // Tutor LMS uses empty string for unlimited
+            } else {
+                $max_students_value = max(0, (int) $max_students);
+                $legacy_value = $max_students_value;
+            }
             $new_settings['maximum_students'] = $max_students_value;
-            $new_settings['maximum_students_allowed'] = $max_students_value;
-            update_post_meta($course_id, '_tutor_maximum_students', $max_students_value);
+            $new_settings['maximum_students_allowed'] = $legacy_value;
+            update_post_meta($course_id, '_tutor_maximum_students', $legacy_value);
         }
 
         if ($request->has_param('course_enrollment_period')) {
