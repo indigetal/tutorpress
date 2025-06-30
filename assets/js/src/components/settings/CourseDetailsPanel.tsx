@@ -10,13 +10,12 @@ import { courseDifficultyLevels } from "../../types/courses";
 
 const CourseDetailsPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading, isSaving } = useSelect(
+  const { postType, settings, error, isLoading } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
-      isSaving: select("core/editor").isSavingPost() && !select("core/editor").isAutosavingPost(),
     }),
     []
   );
@@ -67,15 +66,6 @@ const CourseDetailsPanel: React.FC = () => {
         </PanelRow>
       )}
 
-      {isSaving && (
-        <PanelRow>
-          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" }}>
-            <Spinner />
-            <span>{__("Saving...", "tutorpress")}</span>
-          </div>
-        </PanelRow>
-      )}
-
       {/* Difficulty Level */}
       <PanelRow>
         <div style={{ width: "100%" }}>
@@ -85,7 +75,6 @@ const CourseDetailsPanel: React.FC = () => {
             options={courseDifficultyLevels}
             onChange={(value: CourseDifficultyLevel) => updateSettings({ course_level: value })}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
-            disabled={isSaving}
           />
         </div>
       </PanelRow>
@@ -102,7 +91,6 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={settings.is_public_course}
             onChange={(enabled) => updateSettings({ is_public_course: enabled })}
-            disabled={isSaving}
           />
 
           <p
@@ -129,7 +117,6 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={settings.enable_qna}
             onChange={(enabled) => updateSettings({ enable_qna: enabled })}
-            disabled={isSaving}
           />
 
           <p
@@ -170,7 +157,6 @@ const CourseDetailsPanel: React.FC = () => {
                     },
                   })
                 }
-                disabled={isSaving}
               />
             </div>
 
@@ -189,7 +175,6 @@ const CourseDetailsPanel: React.FC = () => {
                     },
                   })
                 }
-                disabled={isSaving}
               />
             </div>
           </div>
