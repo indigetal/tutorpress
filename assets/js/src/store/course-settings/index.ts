@@ -10,7 +10,7 @@
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { select, dispatch as wpDispatch } from "@wordpress/data";
-import type { CourseSettings } from "../../types/courses";
+import type { CourseSettings, PrerequisiteCourse } from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
@@ -32,6 +32,11 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
+  courseSelection: {
+    availableCourses: PrerequisiteCourse[];
+    isLoading: boolean;
+    error: string | null;
+  };
 }
 
 const DEFAULT_STATE: State = {
@@ -40,11 +45,18 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
+  courseSelection: {
+    availableCourses: [],
+    isLoading: false,
+    error: null,
+  },
 };
 
 type CourseSettingsAction =
   | { type: "SET_SETTINGS"; payload: CourseSettings }
-  | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> };
+  | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }
+  | { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }
+  | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -57,6 +69,20 @@ const actions = {
   setFetchState(state: Partial<State["fetchState"]>) {
     return {
       type: "SET_FETCH_STATE" as const,
+      payload: state,
+    };
+  },
+
+  setAvailableCourses(courses: PrerequisiteCourse[]) {
+    return {
+      type: "SET_AVAILABLE_COURSES" as const,
+      payload: courses,
+    };
+  },
+
+  setCourseSelectionState(state: Partial<State["courseSelection"]>) {
+    return {
+      type: "SET_COURSE_SELECTION_STATE" as const,
       payload: state,
     };
   },
@@ -149,6 +175,15 @@ const selectors = {
   getError(state: State) {
     return state.fetchState.error;
   },
+  getAvailableCourses(state: State) {
+    return state.courseSelection.availableCourses;
+  },
+  getCourseSelectionLoading(state: State) {
+    return state.courseSelection.isLoading;
+  },
+  getCourseSelectionError(state: State) {
+    return state.courseSelection.error;
+  },
 };
 
 const resolvers = {
@@ -225,6 +260,22 @@ const store = createReduxStore("tutorpress/course-settings", {
           fetchState: {
             ...state.fetchState,
             ...(action as { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }).payload,
+          },
+        };
+      case "SET_AVAILABLE_COURSES":
+        return {
+          ...state,
+          courseSelection: {
+            ...state.courseSelection,
+            availableCourses: (action as { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }).payload,
+          },
+        };
+      case "SET_COURSE_SELECTION_STATE":
+        return {
+          ...state,
+          courseSelection: {
+            ...state.courseSelection,
+            ...(action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }).payload,
           },
         };
       default:
