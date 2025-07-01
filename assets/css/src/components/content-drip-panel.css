@@ -77,103 +77,7 @@
   align-items: flex-start;
 }
 
-/* Date/Time Picker Styles */
-.tutorpress-datetime-section {
-  margin-bottom: var(--space-lg);
-}
-
-.tutorpress-datetime-section h4 {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.tutorpress-date-picker-wrapper {
-  position: relative;
-  z-index: 1000;
-}
-
-.tutorpress-date-picker-wrapper button {
-  width: 100%;
-  justify-content: flex-start;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  background: var(--white);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  transition: all 0.15s ease-in-out;
-}
-
-.tutorpress-date-picker-wrapper button:hover {
-  border-color: var(--color-primary);
-  background-color: var(--info-bg);
-}
-
-.tutorpress-date-picker-wrapper button:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
-.tutorpress-date-picker-wrapper .components-popover {
-  z-index: 1001;
-}
-
-.tutorpress-date-picker-wrapper .components-popover__content {
-  min-width: 380px !important;
-  max-width: 420px !important;
-  padding: var(--space-lg);
-}
-
-.tutorpress-date-picker-wrapper .components-datetime {
-  min-width: 350px;
-  max-width: 390px;
-}
-
-.tutorpress-date-picker-wrapper .components-datetime__calendar {
-  min-width: 320px;
-  padding: var(--space-md);
-}
-
-.tutorpress-date-picker-wrapper .components-datetime__time {
-  padding: var(--space-md) var(--space-lg);
-}
-
-.tutorpress-date-picker-wrapper .components-datetime__date input,
-.tutorpress-date-picker-wrapper .components-datetime__time input {
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
-}
-
-/* Time Select Control */
-.tutorpress-datetime-section .components-select-control {
-  margin-top: var(--space-sm);
-}
-
-.tutorpress-datetime-section .components-select-control__input {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  background: var(--white);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  transition: all 0.15s ease-in-out;
-}
-
-.tutorpress-datetime-section .components-select-control__input:hover {
-  border-color: var(--color-primary);
-}
-
-.tutorpress-datetime-section .components-select-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
+/* Content Drip specific datetime overrides - all base styles now in post-settings.css */
 
 /* ============================================================================
    Prerequisites Multi-Select Field
@@ -362,20 +266,10 @@
   .content-drip-panel__label {
     color: var(--black);
   }
-
-  .tutorpress-date-picker-wrapper button,
-  .tutorpress-datetime-section .components-select-control__input {
-    border: 1px solid currentColor;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .content-drip-panel .components-spinner {
     animation: none;
-  }
-
-  .tutorpress-date-picker-wrapper button,
-  .tutorpress-datetime-section .components-select-control__input {
-    transition: none;
   }
 }

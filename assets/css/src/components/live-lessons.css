@@ -105,33 +105,9 @@
    DATETIME SECTION STYLES (Google Meet & Zoom)
    ======================================================================== */
 
-/* DateTime section container */
-.tutorpress-datetime-section {
-  margin-bottom: 1rem;
-}
-
-.tutorpress-datetime-section h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
 /* Google Meet: Side-by-side date/time fields with equal spacing */
 .tutorpress-google-meet-form .tutorpress-datetime-section .components-h-stack .components-flex-item {
   flex: 1;
-}
-
-/* Google Meet: Full-width date picker buttons */
-.tutorpress-google-meet-form .tutorpress-date-picker-wrapper button {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-/* Zoom: Full-width date picker button */
-.tutorpress-zoom-form .tutorpress-date-picker-wrapper button {
-  width: 100%;
-  justify-content: flex-start;
 }
 
 /* Zoom: Stacked date/time layout (no HStack) */
@@ -140,48 +116,15 @@
 }
 
 /* ========================================================================
-   DURATION SECTION STYLES (Zoom)
+   LIVE LESSON SPECIFIC OVERRIDES
    ======================================================================== */
-
-/* Duration section container */
-.tutorpress-duration-section {
-  margin-bottom: 1rem;
-}
-
-.tutorpress-duration-section h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
 
 /* Zoom: Side-by-side duration fields with equal spacing */
 .tutorpress-zoom-form .tutorpress-duration-section .components-h-stack .components-flex-item {
   flex: 1;
 }
 
-/* Remove individual field labels when section heading provides context */
-.tutorpress-google-meet-form .tutorpress-datetime-section .components-h-stack .components-base-control__label,
-.tutorpress-zoom-form .tutorpress-duration-section .components-h-stack .components-base-control__label {
-  display: none;
-}
-
-/* Date and Time picker styling */
-.tutorpress-modal-content .components-datetime {
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  background: var(--white);
-}
-
-/* Date picker popover positioning */
-.tutorpress-date-picker-wrapper {
-  position: relative;
-  z-index: 1000;
-}
-
-.tutorpress-date-picker-wrapper .components-popover {
-  z-index: 1001;
-}
+/* Modal-specific date picker styling */
 
 .tutorpress-modal-content .components-datetime__date {
   padding: var(--space-sm);
@@ -408,26 +351,7 @@
   margin-bottom: 1rem;
 }
 
-/* Google Meet Date/Time: Side by side */
-.tutorpress-datetime-fields {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.tutorpress-datetime-fields > div {
-  flex: 1;
-}
-
-/* Zoom Date/Time: Stacked full width */
-.tutorpress-date-picker-wrapper {
-  margin-bottom: 1rem;
-}
-
-.tutorpress-date-picker-wrapper .components-button {
-  width: 100%;
-  justify-content: flex-start;
-}
+/* Live lesson specific layout - base styles now in post-settings.css */
 
 /* Form Notices and Errors */
 .tutorpress-form-notice {

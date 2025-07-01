@@ -17,6 +17,9 @@
 /* Additional Content Feature */
 @import "./components/additional-content.css";
 
+/* Post Settings Panels */
+@import "./components/post-settings.css";
+
 /* Content Drip Feature */
 @import "./components/content-drip-panel.css";
 

@@ -1,0 +1,369 @@
+/**
+ * Post Settings Panel Styles
+ *
+ * Provides consistent styling for all TutorPress Gutenberg post settings panels including:
+ * - Course Access & Enrollment (CourseAccessPanel)
+ * - Course Details (CourseDetailsPanel) 
+ * - Content Drip Settings (ContentDripPanel)
+ * - Lesson Settings (LessonSettingsPanel)
+ * - Assignment Settings (AssignmentSettingsPanel)
+ * - Live Lesson Modals (Google Meet, Zoom)
+ *
+ * Eliminates style duplication across components and provides consistent UX.
+ *
+ * @package TutorPress
+ * @subpackage CSS/Components
+ * @since 1.11.12
+ */
+
+/* ============================================================================
+   SHARED POST SETTINGS PANEL STYLES
+   ============================================================================ */
+
+/* Panel sections spacing */
+.tutorpress-settings-section {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-settings-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Section headings */
+.tutorpress-settings-section h4,
+.tutorpress-datetime-section h4,
+.tutorpress-duration-section h4 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Help text */
+.tutorpress-settings-section .components-base-control__help {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+/* ============================================================================
+   FORM CONTROLS - STANDARDIZED ACROSS ALL SETTINGS
+   ============================================================================ */
+
+/* Text inputs, selects, and textareas */
+.tutorpress-settings-section .components-text-control__input,
+.tutorpress-settings-section .components-select-control__input,
+.tutorpress-settings-section .components-textarea-control__input,
+.tutorpress-datetime-section .components-select-control__input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  transition: all 0.15s ease-in-out;
+}
+
+/* Hover states */
+.tutorpress-settings-section .components-text-control__input:hover,
+.tutorpress-settings-section .components-select-control__input:hover,
+.tutorpress-settings-section .components-textarea-control__input:hover,
+.tutorpress-datetime-section .components-select-control__input:hover {
+  border-color: var(--color-primary);
+}
+
+/* Focus states */
+.tutorpress-settings-section .components-text-control__input:focus,
+.tutorpress-settings-section .components-select-control__input:focus,
+.tutorpress-settings-section .components-textarea-control__input:focus,
+.tutorpress-datetime-section .components-select-control__input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+}
+
+/* Disabled states */
+.tutorpress-settings-section .components-text-control__input:disabled,
+.tutorpress-settings-section .components-select-control__input:disabled,
+.tutorpress-settings-section .components-textarea-control__input:disabled {
+  background-color: var(--gray-100);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ============================================================================
+   DATE/TIME COMPONENTS - CONSOLIDATED FROM MULTIPLE FILES
+   ============================================================================ */
+
+/* DateTime section container */
+.tutorpress-datetime-section {
+  margin-bottom: var(--space-lg);
+}
+
+/* Date picker wrapper */
+.tutorpress-date-picker-wrapper {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Date picker button - unified styling across all contexts */
+.tutorpress-date-picker-wrapper button {
+  width: 100%;
+  justify-content: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  transition: all 0.15s ease-in-out;
+}
+
+/* Date picker button hover state */
+.tutorpress-date-picker-wrapper button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background-color: var(--info-bg);
+}
+
+/* Date picker button focus state */
+.tutorpress-date-picker-wrapper button:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+}
+
+/* Date picker button disabled state */
+.tutorpress-date-picker-wrapper button:disabled {
+  background-color: var(--gray-100);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Calendar icon in date picker button */
+.tutorpress-date-picker-wrapper button svg {
+  margin-right: var(--space-sm);
+  color: var(--color-text-muted);
+}
+
+/* Date picker popover positioning */
+.tutorpress-date-picker-wrapper .components-popover {
+  z-index: 1001;
+}
+
+.tutorpress-date-picker-wrapper .components-popover__content {
+  min-width: 380px !important;
+  max-width: 420px !important;
+  padding: var(--space-lg);
+}
+
+/* Date picker calendar styling */
+.tutorpress-date-picker-wrapper .components-datetime {
+  min-width: 350px;
+  max-width: 390px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.tutorpress-date-picker-wrapper .components-datetime__calendar {
+  min-width: 320px;
+  padding: var(--space-md);
+}
+
+.tutorpress-date-picker-wrapper .components-datetime__time {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.tutorpress-date-picker-wrapper .components-datetime__date input,
+.tutorpress-date-picker-wrapper .components-datetime__time input {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+/* ============================================================================
+   DURATION PICKER - FOR LIVE LESSONS
+   ============================================================================ */
+
+/* Duration section container */
+.tutorpress-duration-section {
+  margin-bottom: var(--space-lg);
+}
+
+/* Duration fields side-by-side layout */
+.tutorpress-duration-section .components-h-stack .components-flex-item {
+  flex: 1;
+}
+
+/* Hide individual field labels when section heading provides context */
+.tutorpress-duration-section .components-h-stack .components-base-control__label,
+.tutorpress-datetime-section .components-h-stack .components-base-control__label {
+  display: none;
+}
+
+/* ============================================================================
+   SIDE-BY-SIDE FIELD LAYOUTS (for modals and settings)
+   ============================================================================ */
+
+/* Equal spacing for side-by-side fields */
+.tutorpress-datetime-section .components-h-stack .components-flex-item {
+  flex: 1;
+}
+
+/* Time select spacing */
+.tutorpress-datetime-section .components-select-control {
+  margin-top: var(--space-sm);
+}
+
+/* ============================================================================
+   TOGGLE CONTROLS & CHECKBOXES
+   ============================================================================ */
+
+.tutorpress-settings-section .components-toggle-control,
+.tutorpress-settings-section .components-checkbox-control {
+  margin-bottom: var(--space-md);
+}
+
+.tutorpress-settings-section .components-toggle-control:last-child,
+.tutorpress-settings-section .components-checkbox-control:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================================
+   NOTICES IN SETTINGS PANELS
+   ============================================================================ */
+
+.tutorpress-settings-section .components-notice {
+  margin: var(--space-md) 0;
+}
+
+.tutorpress-settings-section .components-notice:first-child {
+  margin-top: 0;
+}
+
+.tutorpress-settings-section .components-notice:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================================
+   FORM TOKEN FIELDS (Multi-select)
+   ============================================================================ */
+
+/* Form Token Field isolation from TinyMCE */
+.tutorpress-settings-section .components-form-token-field {
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.tutorpress-settings-section .components-form-token-field * {
+  -moz-user-select: text !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Hide default FormTokenField labels */
+.tutorpress-settings-section .components-form-token-field__label {
+  display: none;
+}
+
+.tutorpress-settings-section .components-form-token-field__help {
+  display: none;
+}
+
+/* ============================================================================
+   LOADING & SAVING STATES
+   ============================================================================ */
+
+.tutorpress-settings-loading,
+.tutorpress-settings-saving {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+}
+
+.tutorpress-settings-loading-text,
+.tutorpress-settings-saving-text {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+/* Tablet and smaller screens */
+@media (max-width: 782px) {
+  .tutorpress-settings-section .components-text-control__input,
+  .tutorpress-settings-section .components-select-control__input,
+  .tutorpress-settings-section .components-textarea-control__input,
+  .tutorpress-datetime-section .components-select-control__input,
+  .tutorpress-date-picker-wrapper button {
+    padding: var(--space-md);
+    font-size: var(--text-base);
+  }
+
+  /* Stack side-by-side fields on mobile */
+  .tutorpress-datetime-section .components-h-stack,
+  .tutorpress-duration-section .components-h-stack {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .tutorpress-datetime-section .components-h-stack .components-flex-item,
+  .tutorpress-duration-section .components-h-stack .components-flex-item {
+    flex: none;
+    width: 100%;
+  }
+
+  /* Smaller popover on mobile */
+  .tutorpress-date-picker-wrapper .components-popover__content {
+    min-width: 320px !important;
+    max-width: 360px !important;
+    padding: var(--space-md);
+  }
+}
+
+/* Mobile screens */
+@media (max-width: 480px) {
+  .tutorpress-settings-section {
+    margin-bottom: var(--space-md);
+  }
+
+  .tutorpress-date-picker-wrapper .components-popover__content {
+    min-width: 280px !important;
+    max-width: 320px !important;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   ============================================================================ */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tutorpress-settings-section .components-text-control__input,
+  .tutorpress-settings-section .components-select-control__input,
+  .tutorpress-settings-section .components-textarea-control__input,
+  .tutorpress-datetime-section .components-select-control__input,
+  .tutorpress-date-picker-wrapper button {
+    border: 2px solid var(--color-text-primary);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-settings-section .components-text-control__input,
+  .tutorpress-settings-section .components-select-control__input,
+  .tutorpress-settings-section .components-textarea-control__input,
+  .tutorpress-datetime-section .components-select-control__input,
+  .tutorpress-date-picker-wrapper button {
+    transition: none;
+  }
+}
