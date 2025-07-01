@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -15,6 +15,7 @@ import {
   DatePicker,
   Notice,
   Spinner,
+  BaseControl,
 } from "@wordpress/components";
 import { calendar } from "@wordpress/icons";
 import { AddonChecker } from "../../utils/addonChecker";
@@ -33,18 +34,39 @@ import {
   validateAndCorrectDateTime,
 } from "../../utils/datetime-validation";
 
+// Types for prerequisites functionality
+interface Course {
+  id: number;
+  title: string;
+  permalink: string;
+  featured_image?: string;
+  author: string;
+  date_created: string;
+}
+
+interface CourseOption {
+  value: string;
+  label: string;
+}
+
 const CourseAccessPanel: React.FC = () => {
   // State for date picker popovers
   const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
   const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
 
+  // Prerequisites-specific state
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [prerequisitesError, setPrerequisitesError] = useState<string>("");
+
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading } = useSelect(
+  const { postType, settings, error, isLoading, courseId } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
+      courseId: select("core/editor").getCurrentPostId(),
     }),
     []
   );
@@ -56,6 +78,51 @@ const CourseAccessPanel: React.FC = () => {
   if (postType !== "courses") {
     return null;
   }
+
+  // Check if prerequisites addon is enabled
+  const isPrerequisitesEnabled = AddonChecker.isPrerequisitesEnabled();
+
+  // Load available courses for prerequisites when addon is enabled
+  useEffect(() => {
+    if (!isPrerequisitesEnabled || !courseId) return;
+
+    const loadCourses = async () => {
+      setCoursesLoading(true);
+      setPrerequisitesError("");
+
+      try {
+        const baseUrl = window.location.origin + window.location.pathname.split("/wp-admin")[0];
+        const params = new URLSearchParams({
+          exclude: courseId.toString(),
+          per_page: "50",
+        });
+
+        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/for-prerequisites?${params}`, {
+          headers: {
+            "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setAvailableCourses(data.data || []);
+        } else {
+          setPrerequisitesError(__("Failed to load available courses", "tutorpress"));
+        }
+      } catch (err) {
+        console.error("Error loading courses:", err);
+        setPrerequisitesError(__("Failed to load available courses", "tutorpress"));
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    loadCourses();
+  }, [isPrerequisitesEnabled, courseId]);
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -87,6 +154,43 @@ const CourseAccessPanel: React.FC = () => {
   const startDate = parseGMTString(settings.enrollment_starts_at) || currentDate;
   const endDate = parseGMTString(settings.enrollment_ends_at) || currentDate;
 
+  // Prerequisites functionality
+  const handlePrerequisiteChange = async (courseId: string) => {
+    const numericId = parseInt(courseId);
+    if (isNaN(numericId) || !courseId) return;
+
+    const currentPrereqs = settings.course_prerequisites || [];
+    if (!currentPrereqs.includes(numericId)) {
+      const newPrereqs = [...currentPrereqs, numericId];
+      updateSettings({ course_prerequisites: newPrereqs });
+    }
+  };
+
+  const removePrerequisite = async (courseId: number) => {
+    const currentPrereqs = settings.course_prerequisites || [];
+    const updatedPrereqs = currentPrereqs.filter((id: number) => id !== courseId);
+    updateSettings({ course_prerequisites: updatedPrereqs });
+  };
+
+  // Convert course list to select options
+  const courseOptions: CourseOption[] = [
+    {
+      value: "",
+      label: coursesLoading ? __("Loading courses...", "tutorpress") : __("Select a course...", "tutorpress"),
+    },
+    ...availableCourses
+      .filter((course) => !(settings.course_prerequisites || []).includes(course.id))
+      .map((course) => ({
+        value: course.id.toString(),
+        label: course.title,
+      })),
+  ];
+
+  // Get selected prerequisites with course details
+  const selectedPrerequisitesWithDetails = (settings.course_prerequisites || [])
+    .map((id: number) => availableCourses.find((course: Course) => course.id === id))
+    .filter((course: Course | undefined): course is Course => course !== undefined);
+
   return (
     <PluginDocumentSettingPanel
       name="course-access-panel"
@@ -99,6 +203,61 @@ const CourseAccessPanel: React.FC = () => {
             {error}
           </Notice>
         </PanelRow>
+      )}
+
+      {/* Prerequisites Section - Only show if addon is enabled */}
+      {isPrerequisitesEnabled && (
+        <div className="tutorpress-settings-section" style={{ marginBottom: "16px" }}>
+          <BaseControl
+            label={__("Prerequisites", "tutorpress")}
+            help={__("Select courses that students must complete before enrolling in this course.", "tutorpress")}
+          >
+            {prerequisitesError && (
+              <Notice status="error" isDismissible={true} onRemove={() => setPrerequisitesError("")}>
+                {prerequisitesError}
+              </Notice>
+            )}
+
+            {/* Add Prerequisites Dropdown */}
+            <SelectControl
+              label={__("Add Prerequisite Course", "tutorpress")}
+              value=""
+              options={courseOptions}
+              onChange={handlePrerequisiteChange}
+              disabled={coursesLoading}
+              __next40pxDefaultSize
+            />
+
+            {/* Selected Prerequisites Display */}
+            {selectedPrerequisitesWithDetails.length > 0 && (
+              <div style={{ marginTop: "8px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
+                  {__("Selected Prerequisites:", "tutorpress")}
+                </div>
+                {selectedPrerequisitesWithDetails.map((course: Course) => (
+                  <div
+                    key={course.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "4px 8px",
+                      backgroundColor: "#f0f0f0",
+                      borderRadius: "4px",
+                      marginBottom: "4px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <span>{course.title}</span>
+                    <Button isSmall isDestructive onClick={() => removePrerequisite(course.id)}>
+                      {__("Remove", "tutorpress")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </BaseControl>
+        </div>
       )}
 
       {/* Maximum Students */}
