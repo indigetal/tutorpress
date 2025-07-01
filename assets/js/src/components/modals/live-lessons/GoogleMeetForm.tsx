@@ -2,8 +2,8 @@
  * Google Meet Form Component
  *
  * @description Form component for Google Meet Live Lesson creation and editing.
- *              Uses WordPress components for consistent UI/UX and follows the
- *              field patterns from Tutor LMS Google Meet addon research.
+ *              Enhanced with reusable datetime validation utilities for consistent UX.
+ *              Features 30-minute intervals and auto-correction validation.
  *
  * @package TutorPress
  * @subpackage Components/Modals/LiveLessons
@@ -28,6 +28,13 @@ import { calendar } from "@wordpress/icons";
 import type { GoogleMeetFormData } from "../../../types/liveLessons";
 import { generateTimezoneOptions } from "./index";
 
+// Import our reusable datetime validation utilities
+import {
+  generateTimeOptions,
+  filterEndTimeOptions,
+  validateAndCorrectMeetingTime,
+} from "../../../utils/datetime-validation";
+
 interface GoogleMeetFormProps {
   formData: GoogleMeetFormData;
   onChange: (data: GoogleMeetFormData) => void;
@@ -49,28 +56,8 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
     });
   };
 
-  /**
-   * Generate time options for select controls
-   */
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const time24 = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-        const period = hour < 12 ? "AM" : "PM";
-        const time12 = `${hour12}:${minute.toString().padStart(2, "0")} ${period}`;
-
-        options.push({
-          label: time12,
-          value: time12,
-        });
-      }
-    }
-    return options;
-  };
-
-  const timeOptions = generateTimeOptions();
+  // Generate time options with 30-minute intervals (standardized across TutorPress)
+  const timeOptions = generateTimeOptions(30);
   const timezoneOptions = generateTimezoneOptions();
 
   return (
@@ -118,7 +105,26 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                   <DatePicker
                     currentDate={formData.startDate.toISOString()}
                     onChange={(date) => {
-                      updateField("startDate", new Date(date));
+                      const newStartDate = new Date(date);
+                      updateField("startDate", newStartDate);
+
+                      // Auto-correct end date if it becomes before start date
+                      if (formData.endDate < newStartDate) {
+                        updateField("endDate", newStartDate);
+                      }
+
+                      // Auto-correct end time if it becomes invalid using our validation utility
+                      const validationResult = validateAndCorrectMeetingTime(
+                        newStartDate,
+                        formData.startTime,
+                        formData.endDate,
+                        formData.endTime
+                      );
+
+                      if (!validationResult.isValid && validationResult.correctedEndTime) {
+                        updateField("endTime", validationResult.correctedEndTime);
+                      }
+
                       setStartDatePickerOpen(false);
                     }}
                   />
@@ -132,7 +138,21 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
             <SelectControl
               value={formData.startTime}
               options={timeOptions}
-              onChange={(value) => updateField("startTime", value)}
+              onChange={(value) => {
+                updateField("startTime", value);
+
+                // Auto-correct end time if it becomes invalid using our validation utility
+                const validationResult = validateAndCorrectMeetingTime(
+                  formData.startDate,
+                  value,
+                  formData.endDate,
+                  formData.endTime
+                );
+
+                if (!validationResult.isValid && validationResult.correctedEndTime) {
+                  updateField("endTime", validationResult.correctedEndTime);
+                }
+              }}
               disabled={disabled}
             />
           </FlexItem>
@@ -161,7 +181,28 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                   <DatePicker
                     currentDate={formData.endDate.toISOString()}
                     onChange={(date) => {
-                      updateField("endDate", new Date(date));
+                      const newEndDate = new Date(date);
+
+                      // Ensure end date is not before start date
+                      if (newEndDate < formData.startDate) {
+                        // Don't allow selecting date before start date
+                        return;
+                      }
+
+                      updateField("endDate", newEndDate);
+
+                      // Validate and auto-correct end time using our validation utility
+                      const validationResult = validateAndCorrectMeetingTime(
+                        formData.startDate,
+                        formData.startTime,
+                        newEndDate,
+                        formData.endTime
+                      );
+
+                      if (!validationResult.isValid && validationResult.correctedEndTime) {
+                        updateField("endTime", validationResult.correctedEndTime);
+                      }
+
                       setEndDatePickerOpen(false);
                     }}
                   />
@@ -174,8 +215,22 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
           <FlexItem>
             <SelectControl
               value={formData.endTime}
-              options={timeOptions}
-              onChange={(value) => updateField("endTime", value)}
+              options={filterEndTimeOptions(timeOptions, formData.startDate, formData.startTime, formData.endDate)}
+              onChange={(value) => {
+                const validationResult = validateAndCorrectMeetingTime(
+                  formData.startDate,
+                  formData.startTime,
+                  formData.endDate,
+                  value
+                );
+
+                if (!validationResult.isValid && validationResult.correctedEndTime) {
+                  // Auto-correct invalid end time
+                  updateField("endTime", validationResult.correctedEndTime);
+                } else {
+                  updateField("endTime", value);
+                }
+              }}
               disabled={disabled}
             />
           </FlexItem>
