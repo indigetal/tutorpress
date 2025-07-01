@@ -54,25 +54,23 @@ const CourseAccessPanel: React.FC = () => {
   const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
   const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
 
-  // Prerequisites-specific state
-  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(false);
-  const [prerequisitesError, setPrerequisitesError] = useState<string>("");
-
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading, courseId } = useSelect(
+  const { postType, settings, error, isLoading, courseId, availableCourses, coursesLoading, coursesError } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       courseId: select("core/editor").getCurrentPostId(),
+      availableCourses: select("tutorpress/course-settings").getAvailableCourses(),
+      coursesLoading: select("tutorpress/course-settings").getCourseSelectionLoading(),
+      coursesError: select("tutorpress/course-settings").getCourseSelectionError(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { updateSettings } = useDispatch("tutorpress/course-settings");
+  const { updateSettings, fetchAvailableCourses } = useDispatch("tutorpress/course-settings");
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -84,45 +82,10 @@ const CourseAccessPanel: React.FC = () => {
 
   // Load available courses for prerequisites when addon is enabled
   useEffect(() => {
-    if (!isPrerequisitesEnabled || !courseId) return;
-
-    const loadCourses = async () => {
-      setCoursesLoading(true);
-      setPrerequisitesError("");
-
-      try {
-        const baseUrl = window.location.origin + window.location.pathname.split("/wp-admin")[0];
-        const params = new URLSearchParams({
-          exclude: courseId.toString(),
-          per_page: "50",
-        });
-
-        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/prerequisites?${params}`, {
-          headers: {
-            "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-          setAvailableCourses(data.data || []);
-        } else {
-          setPrerequisitesError(__("Failed to load available courses", "tutorpress"));
-        }
-      } catch (err) {
-        console.error("Error loading courses:", err);
-        setPrerequisitesError(__("Failed to load available courses", "tutorpress"));
-      } finally {
-        setCoursesLoading(false);
-      }
-    };
-
-    loadCourses();
-  }, [isPrerequisitesEnabled, courseId]);
+    if (isPrerequisitesEnabled && courseId) {
+      fetchAvailableCourses();
+    }
+  }, [isPrerequisitesEnabled, courseId, fetchAvailableCourses]);
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -179,8 +142,8 @@ const CourseAccessPanel: React.FC = () => {
       label: coursesLoading ? __("Loading courses...", "tutorpress") : __("Select a course...", "tutorpress"),
     },
     ...availableCourses
-      .filter((course) => !(settings.course_prerequisites || []).includes(course.id))
-      .map((course) => ({
+      .filter((course: Course) => !(settings.course_prerequisites || []).includes(course.id))
+      .map((course: Course) => ({
         value: course.id.toString(),
         label: course.title,
       })),
@@ -212,9 +175,9 @@ const CourseAccessPanel: React.FC = () => {
             label={__("Prerequisites", "tutorpress")}
             help={__("Select courses that students must complete before enrolling in this course.", "tutorpress")}
           >
-            {prerequisitesError && (
-              <Notice status="error" isDismissible={true} onRemove={() => setPrerequisitesError("")}>
-                {prerequisitesError}
+            {coursesError && (
+              <Notice status="error" isDismissible={false}>
+                {coursesError}
               </Notice>
             )}
 
