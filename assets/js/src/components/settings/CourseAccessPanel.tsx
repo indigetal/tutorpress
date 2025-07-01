@@ -17,106 +17,22 @@ import {
   Spinner,
 } from "@wordpress/components";
 import { calendar } from "@wordpress/icons";
-import { format } from "date-fns";
 import { AddonChecker } from "../../utils/addonChecker";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 
-// Convert local time to GMT for storage
-const convertToGMT = (localDate: Date): string => {
-  // Get timezone offset in minutes
-  const offsetInMinutes = localDate.getTimezoneOffset();
-
-  // Add offset to convert local to GMT
-  const gmtDate = new Date(localDate.getTime() + offsetInMinutes * 60 * 1000);
-
-  // Format as 'yyyy-MM-dd HH:mm:ss'
-  return format(gmtDate, "yyyy-MM-dd HH:mm:ss");
-};
-
-// Parse GMT string to local Date for display
-const parseGMTString = (gmtString: string | null | undefined): Date | null => {
-  if (!gmtString) return null;
-
-  try {
-    // Parse GMT string
-    const [datePart, timePart] = gmtString.split(" ");
-    if (!datePart || !timePart) return null;
-
-    const [year, month, day] = datePart.split("-").map(Number);
-    const [hours, minutes] = timePart.split(":").map(Number);
-
-    // Create Date in GMT then convert to local
-    const date = new Date();
-    date.setUTCFullYear(year, month - 1, day);
-    date.setUTCHours(hours, minutes, 0, 0);
-    return date;
-  } catch (e) {
-    console.error("Error parsing GMT date:", e);
-    return null;
-  }
-};
-
-// Display functions use local time
-const displayDate = (gmtString: string | null | undefined): string => {
-  const date = parseGMTString(gmtString);
-  return date ? date.toLocaleDateString() : new Date().toLocaleDateString();
-};
-
-const displayTime = (gmtString: string | null | undefined): string => {
-  const date = parseGMTString(gmtString);
-  return date
-    ? date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-    : "09:00 AM";
-};
-
-// Combine local date and time, then convert to GMT for storage
-const combineDateTime = (localDate: Date, localTimeStr: string): string => {
-  // Parse time string (12-hour format)
-  const match = localTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return convertToGMT(localDate);
-
-  let [_, hours, minutes, period] = match;
-  let hour = parseInt(hours);
-
-  // Convert to 24-hour
-  if (period.toUpperCase() === "PM" && hour < 12) hour += 12;
-  if (period.toUpperCase() === "AM" && hour === 12) hour = 0;
-
-  // Create new date with local time
-  const combinedLocalDate = new Date(localDate);
-  combinedLocalDate.setHours(hour, parseInt(minutes), 0, 0);
-
-  // Convert local to GMT for storage
-  return convertToGMT(combinedLocalDate);
-};
-
-// Generate time options (30 min intervals, 12-hour format to match Tutor LMS)
-const generateTimeOptions = () => {
-  const options = [];
-  for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const date = new Date();
-      date.setHours(hour, minute);
-      const time12 = date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-
-      options.push({
-        label: time12,
-        value: time12,
-      });
-    }
-  }
-  return options;
-};
+// Import our reusable datetime validation utilities
+import {
+  convertToGMT,
+  parseGMTString,
+  displayDate,
+  displayTime,
+  combineDateTime,
+  generateTimeOptions,
+  filterEndTimeOptions,
+  validateAndCorrectMeetingTime,
+} from "../../utils/datetime-validation";
 
 const CourseAccessPanel: React.FC = () => {
   // State for date picker popovers
@@ -164,63 +80,13 @@ const CourseAccessPanel: React.FC = () => {
     return value === "" || value === "0" || value === 0 ? null : parseInt(value?.toString() || "0") || null;
   };
 
-  const timeOptions = generateTimeOptions();
+  // Generate time options with 30-minute intervals (standardized across TutorPress)
+  const timeOptions = generateTimeOptions(30);
 
   // Get current dates for date pickers (default to current date)
   const currentDate = new Date();
   const startDate = parseGMTString(settings.enrollment_starts_at) || currentDate;
   const endDate = parseGMTString(settings.enrollment_ends_at) || currentDate;
-
-  // Helper function to get filtered time options based on constraints
-  const getFilteredTimeOptions = (isEndTime: boolean) => {
-    const allOptions = timeOptions;
-
-    if (!isEndTime) {
-      return allOptions; // Start time has no constraints
-    }
-
-    // For end time, filter out times that are before start time on the same date
-    const startDateTime = parseGMTString(settings.enrollment_starts_at);
-    const endDateTime = parseGMTString(settings.enrollment_ends_at);
-
-    if (!startDateTime) {
-      return allOptions; // No start date set, show all options
-    }
-
-    // If we have a start date, check if we're on the same date
-    const currentEndDate = endDateTime || startDateTime; // Use start date if no end date
-
-    if (startDateTime.toDateString() === currentEndDate.toDateString()) {
-      const startTimeStr = displayTime(settings.enrollment_starts_at);
-      const startTimeIndex = allOptions.findIndex((option) => option.value === startTimeStr);
-
-      if (startTimeIndex >= 0) {
-        // Return options after start time (at least 30 minutes later)
-        return allOptions.slice(startTimeIndex + 1);
-      }
-    }
-
-    return allOptions;
-  };
-
-  // Helper function to validate and auto-correct end time
-  const validateAndCorrectEndTime = (newEndTime: string, currentStartTime: string) => {
-    const startDateTime = parseGMTString(currentStartTime);
-    const endDateTime = parseGMTString(newEndTime);
-
-    if (!startDateTime || !endDateTime) {
-      return newEndTime; // Can't validate without both dates
-    }
-
-    // If end is before start, auto-correct to be 30 minutes after start
-    if (endDateTime <= startDateTime) {
-      const correctedEnd = new Date(startDateTime);
-      correctedEnd.setMinutes(correctedEnd.getMinutes() + 30);
-      return convertToGMT(correctedEnd);
-    }
-
-    return newEndTime;
-  };
 
   return (
     <PluginDocumentSettingPanel
@@ -340,19 +206,31 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <SelectControl
                   value={displayTime(settings.enrollment_starts_at)}
-                  options={getFilteredTimeOptions(false)}
+                  options={timeOptions}
                   onChange={(value) => {
                     const newStartDate = combineDateTime(startDate, value);
                     updateSettings({ enrollment_starts_at: newStartDate });
 
-                    // Auto-correct end time if it becomes invalid
+                    // Auto-correct end time if it becomes invalid using our validation utility
                     if (settings.enrollment_ends_at) {
-                      const correctedEndDate = validateAndCorrectEndTime(settings.enrollment_ends_at, newStartDate);
-                      if (correctedEndDate !== settings.enrollment_ends_at) {
-                        updateSettings({
-                          enrollment_starts_at: newStartDate,
-                          enrollment_ends_at: correctedEndDate,
-                        });
+                      const startDateTimeParsed = parseGMTString(settings.enrollment_starts_at);
+                      const endDateTimeParsed = parseGMTString(settings.enrollment_ends_at);
+
+                      if (startDateTimeParsed && endDateTimeParsed) {
+                        const validationResult = validateAndCorrectMeetingTime(
+                          startDateTimeParsed,
+                          value,
+                          endDateTimeParsed,
+                          displayTime(settings.enrollment_ends_at)
+                        );
+
+                        if (!validationResult.isValid && validationResult.correctedEndTime) {
+                          const correctedEndDate = combineDateTime(endDate, validationResult.correctedEndTime);
+                          updateSettings({
+                            enrollment_starts_at: newStartDate,
+                            enrollment_ends_at: correctedEndDate,
+                          });
+                        }
                       }
                     }
                   }}
@@ -401,9 +279,28 @@ const CourseAccessPanel: React.FC = () => {
                           }
 
                           const newDate = combineDateTime(selectedDate, displayTime(settings.enrollment_ends_at));
-                          const correctedEndDate = validateAndCorrectEndTime(newDate, settings.enrollment_starts_at);
 
-                          updateSettings({ enrollment_ends_at: correctedEndDate });
+                          // Use our validation utility to ensure valid time range
+                          const startDateTimeForDate = parseGMTString(settings.enrollment_starts_at);
+                          let finalEndDate = newDate;
+
+                          if (startDateTimeForDate) {
+                            const validationResult = validateAndCorrectMeetingTime(
+                              startDateTimeForDate,
+                              displayTime(settings.enrollment_starts_at),
+                              selectedDate,
+                              displayTime(settings.enrollment_ends_at)
+                            );
+
+                            finalEndDate = validationResult.isValid
+                              ? newDate
+                              : combineDateTime(
+                                  selectedDate,
+                                  validationResult.correctedEndTime || displayTime(settings.enrollment_ends_at)
+                                );
+                          }
+
+                          updateSettings({ enrollment_ends_at: finalEndDate });
                           setEndDatePickerOpen(false);
                         }}
                       />
@@ -416,14 +313,38 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <SelectControl
                   value={displayTime(settings.enrollment_ends_at)}
-                  options={getFilteredTimeOptions(true)}
+                  options={(() => {
+                    const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                    return startDateTime
+                      ? filterEndTimeOptions(
+                          timeOptions,
+                          startDateTime,
+                          displayTime(settings.enrollment_starts_at),
+                          endDate
+                        )
+                      : timeOptions;
+                  })()}
                   onChange={(value) => {
                     const newEndDate = combineDateTime(endDate, value);
 
-                    // Validate and auto-correct if needed
-                    const correctedEndDate = validateAndCorrectEndTime(newEndDate, settings.enrollment_starts_at);
+                    // Validate and auto-correct if needed using our validation utility
+                    const startDateTimeForValidation = parseGMTString(settings.enrollment_starts_at);
+                    let finalEndDate = newEndDate;
 
-                    updateSettings({ enrollment_ends_at: correctedEndDate });
+                    if (startDateTimeForValidation) {
+                      const validationResult = validateAndCorrectMeetingTime(
+                        startDateTimeForValidation,
+                        displayTime(settings.enrollment_starts_at),
+                        endDate,
+                        value
+                      );
+
+                      finalEndDate = validationResult.isValid
+                        ? newEndDate
+                        : combineDateTime(endDate, validationResult.correctedEndTime || value);
+                    }
+
+                    updateSettings({ enrollment_ends_at: finalEndDate });
                   }}
                 />
               </FlexItem>
