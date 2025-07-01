@@ -97,7 +97,7 @@ const CourseAccessPanel: React.FC = () => {
           per_page: "50",
         });
 
-        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/for-prerequisites?${params}`, {
+        const response = await fetch(`${baseUrl}/wp-json/tutorpress/v1/courses/prerequisites?${params}`, {
           headers: {
             "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
           },

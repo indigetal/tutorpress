@@ -87,6 +87,46 @@ const actions = {
     };
   },
 
+  // Fetch available courses for prerequisites dropdown
+  *fetchAvailableCourses(): Generator {
+    try {
+      yield actions.setCourseSelectionState({ isLoading: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "fetchAvailableCourses",
+          "Failed to get course ID"
+        );
+      }
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/prerequisites?exclude=${courseId}&per_page=50`,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "Failed to fetch courses",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchAvailableCourses",
+          "API Error"
+        );
+      }
+
+      yield actions.setAvailableCourses(response.data);
+      yield actions.setCourseSelectionState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setCourseSelectionState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
   // Update settings in Gutenberg store and our local state
   *updateSettings(settings: Partial<CourseSettings>): Generator {
     try {

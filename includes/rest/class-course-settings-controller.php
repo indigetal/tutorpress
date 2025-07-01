@@ -132,7 +132,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
 
                     // Add endpoint for course selection (prerequisites dropdown)
-        register_rest_route($this->namespace, '/courses/for-prerequisites', array(
+        register_rest_route($this->namespace, '/courses/prerequisites', array(
             array(
                 'methods'  => WP_REST_Server::READABLE,
                 'callback' => array($this, 'get_courses_for_prerequisites'),
