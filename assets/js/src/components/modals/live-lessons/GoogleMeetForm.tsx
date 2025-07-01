@@ -106,31 +106,24 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                     currentDate={formData.startDate.toISOString()}
                     onChange={(date) => {
                       const newStartDate = new Date(date);
-                      updateField("startDate", newStartDate);
 
-                      // Auto-correct end date if it becomes before start date
-                      if (formData.endDate < newStartDate) {
-                        updateField("endDate", newStartDate);
-                      }
-
-                      // Auto-correct end date and time using comprehensive validation utility
-                      const currentEndDate = formData.endDate < newStartDate ? newStartDate : formData.endDate;
+                      // Auto-correct end date and time using simplified validation utility
                       const validationResult = validateAndCorrectDateTime(
                         newStartDate,
                         formData.startTime,
-                        currentEndDate,
-                        formData.endTime,
-                        { dateStrategy: "adjust-end" }
+                        formData.endDate,
+                        formData.endTime
                       );
 
-                      if (!validationResult.isValid) {
-                        if (validationResult.correctedEndDate) {
-                          updateField("endDate", validationResult.correctedEndDate);
-                        }
-                        if (validationResult.correctedEndTime) {
-                          updateField("endTime", validationResult.correctedEndTime);
-                        }
-                      }
+                      // Build updates object to avoid race conditions
+                      const updates: Partial<GoogleMeetFormData> = {
+                        startDate: newStartDate,
+                        ...(validationResult.correctedEndDate && { endDate: validationResult.correctedEndDate }),
+                        ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
+                      };
+
+                      // Apply all updates at once
+                      onChange({ ...formData, ...updates });
 
                       setStartDatePickerOpen(false);
                     }}
@@ -146,25 +139,23 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
               value={formData.startTime}
               options={timeOptions}
               onChange={(value) => {
-                updateField("startTime", value);
-
-                // Auto-correct end date and time if they become invalid using comprehensive validation
+                // Auto-correct end date and time using simplified validation
                 const validationResult = validateAndCorrectDateTime(
                   formData.startDate,
                   value,
                   formData.endDate,
-                  formData.endTime,
-                  { dateStrategy: "adjust-end" }
+                  formData.endTime
                 );
 
-                if (!validationResult.isValid) {
-                  if (validationResult.correctedEndDate) {
-                    updateField("endDate", validationResult.correctedEndDate);
-                  }
-                  if (validationResult.correctedEndTime) {
-                    updateField("endTime", validationResult.correctedEndTime);
-                  }
-                }
+                // Build updates object to avoid race conditions
+                const updates: Partial<GoogleMeetFormData> = {
+                  startTime: value,
+                  ...(validationResult.correctedEndDate && { endDate: validationResult.correctedEndDate }),
+                  ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
+                };
+
+                // Apply all updates at once
+                onChange({ ...formData, ...updates });
               }}
               disabled={disabled}
             />
@@ -196,31 +187,38 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                     onChange={(date) => {
                       const newEndDate = new Date(date);
 
-                      // Auto-correct start date if end date is before start date (match Course Access Panel behavior)
-                      if (newEndDate < formData.startDate) {
-                        // Instead of blocking, auto-correct start date to match end date
-                        updateField("startDate", newEndDate);
-                      }
-
-                      updateField("endDate", newEndDate);
-
-                      // Validate and auto-correct end time using comprehensive validation utility
+                      // Auto-correct start date if end date is earlier (match Course Access Panel behavior)
                       const validationResult = validateAndCorrectDateTime(
                         formData.startDate,
                         formData.startTime,
                         newEndDate,
-                        formData.endTime,
-                        { dateStrategy: "adjust-start" }
+                        formData.endTime
                       );
 
-                      if (!validationResult.isValid) {
-                        if (validationResult.correctedStartDate) {
-                          updateField("startDate", validationResult.correctedStartDate);
-                        }
-                        if (validationResult.correctedEndTime) {
-                          updateField("endTime", validationResult.correctedEndTime);
-                        }
+                      // Build updates object to avoid race conditions
+                      const updates: Partial<GoogleMeetFormData> = {
+                        endDate: newEndDate,
+                        ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
+                      };
+
+                      // If end date is before start date, auto-correct by moving start date back
+                      const startDateOnly = new Date(
+                        formData.startDate.getFullYear(),
+                        formData.startDate.getMonth(),
+                        formData.startDate.getDate()
+                      );
+                      const endDateOnly = new Date(
+                        newEndDate.getFullYear(),
+                        newEndDate.getMonth(),
+                        newEndDate.getDate()
+                      );
+
+                      if (endDateOnly < startDateOnly) {
+                        updates.startDate = new Date(newEndDate);
                       }
+
+                      // Apply all updates at once
+                      onChange({ ...formData, ...updates });
 
                       setEndDatePickerOpen(false);
                     }}
@@ -243,12 +241,9 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                   value
                 );
 
-                if (!validationResult.isValid && validationResult.correctedEndTime) {
-                  // Auto-correct invalid end time
-                  updateField("endTime", validationResult.correctedEndTime);
-                } else {
-                  updateField("endTime", value);
-                }
+                // Use corrected time if validation suggests it, otherwise use selected value
+                const finalEndTime = validationResult.correctedEndTime || value;
+                updateField("endTime", finalEndTime);
               }}
               disabled={disabled}
             />

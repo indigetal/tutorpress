@@ -24,7 +24,6 @@ import type { CourseSettings } from "../../types/courses";
 
 // Import our reusable datetime validation utilities
 import {
-  convertToGMT,
   parseGMTString,
   displayDate,
   displayTime,
@@ -181,28 +180,30 @@ const CourseAccessPanel: React.FC = () => {
                           const newStartDate = new Date(date);
                           const newDate = combineDateTime(newStartDate, displayTime(settings.enrollment_starts_at));
 
-                          // Use comprehensive datetime validation utility
+                          // Auto-correct end date if start date is later (simple behavior)
                           const currentEndDate = parseGMTString(settings.enrollment_ends_at) || newStartDate;
                           const validation = validateAndCorrectDateTime(
                             newStartDate,
                             displayTime(settings.enrollment_starts_at),
                             currentEndDate,
-                            displayTime(settings.enrollment_ends_at),
-                            { dateStrategy: "adjust-end" }
+                            displayTime(settings.enrollment_ends_at)
                           );
 
-                          if (!validation.isValid && validation.correctedEndDate) {
-                            const correctedEndDate = combineDateTime(
+                          // Always update start date, and auto-correct end date if needed
+                          const updates: any = { enrollment_starts_at: newDate };
+
+                          if (validation.correctedEndDate) {
+                            updates.enrollment_ends_at = combineDateTime(
                               validation.correctedEndDate,
                               displayTime(settings.enrollment_ends_at)
                             );
-                            updateSettings({
-                              enrollment_starts_at: newDate,
-                              enrollment_ends_at: correctedEndDate,
-                            });
-                          } else {
-                            updateSettings({ enrollment_starts_at: newDate });
                           }
+                          if (validation.correctedEndTime) {
+                            const endDateToUse = validation.correctedEndDate || currentEndDate;
+                            updates.enrollment_ends_at = combineDateTime(endDateToUse, validation.correctedEndTime);
+                          }
+
+                          updateSettings(updates);
 
                           setStartDatePickerOpen(false);
                         }}
@@ -234,7 +235,7 @@ const CourseAccessPanel: React.FC = () => {
                           displayTime(settings.enrollment_ends_at)
                         );
 
-                        if (!validationResult.isValid && validationResult.correctedEndTime) {
+                        if (validationResult.correctedEndTime) {
                           const correctedEndDate = combineDateTime(endDate, validationResult.correctedEndTime);
                           updateSettings({
                             enrollment_starts_at: newStartDate,
@@ -265,52 +266,49 @@ const CourseAccessPanel: React.FC = () => {
                       <DatePicker
                         currentDate={endDate}
                         onChange={(date) => {
-                          // Ensure end date is not before start date
-                          const startDateTime = parseGMTString(settings.enrollment_starts_at);
                           const selectedDate = new Date(date);
-
-                          if (startDateTime) {
-                            // Compare just the date part (not time)
-                            const startDateOnly = new Date(
-                              startDateTime.getFullYear(),
-                              startDateTime.getMonth(),
-                              startDateTime.getDate()
-                            );
-                            const selectedDateOnly = new Date(
-                              selectedDate.getFullYear(),
-                              selectedDate.getMonth(),
-                              selectedDate.getDate()
-                            );
-
-                            if (selectedDateOnly < startDateOnly) {
-                              // If selected date is before start date, don't allow it
-                              return;
-                            }
-                          }
-
                           const newDate = combineDateTime(selectedDate, displayTime(settings.enrollment_ends_at));
 
-                          // Use our validation utility to ensure valid time range
-                          const startDateTimeForDate = parseGMTString(settings.enrollment_starts_at);
-                          let finalEndDate = newDate;
+                          // Auto-correct start date if end date is earlier (match Google Meet behavior)
+                          const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                          const updates: any = { enrollment_ends_at: newDate };
 
-                          if (startDateTimeForDate) {
+                          if (startDateTime) {
                             const validationResult = validateAndCorrectDateTime(
-                              startDateTimeForDate,
+                              startDateTime,
                               displayTime(settings.enrollment_starts_at),
                               selectedDate,
                               displayTime(settings.enrollment_ends_at)
                             );
 
-                            finalEndDate = validationResult.isValid
-                              ? newDate
-                              : combineDateTime(
-                                  selectedDate,
-                                  validationResult.correctedEndTime || displayTime(settings.enrollment_ends_at)
-                                );
+                            if (validationResult.correctedEndTime) {
+                              updates.enrollment_ends_at = combineDateTime(
+                                selectedDate,
+                                validationResult.correctedEndTime
+                              );
+                            }
+
+                            // If end date is before start date, auto-correct start date backward
+                            const startDateOnly = new Date(
+                              startDateTime.getFullYear(),
+                              startDateTime.getMonth(),
+                              startDateTime.getDate()
+                            );
+                            const endDateOnly = new Date(
+                              selectedDate.getFullYear(),
+                              selectedDate.getMonth(),
+                              selectedDate.getDate()
+                            );
+
+                            if (endDateOnly < startDateOnly) {
+                              updates.enrollment_starts_at = combineDateTime(
+                                selectedDate,
+                                displayTime(settings.enrollment_starts_at)
+                              );
+                            }
                           }
 
-                          updateSettings({ enrollment_ends_at: finalEndDate });
+                          updateSettings(updates);
                           setEndDatePickerOpen(false);
                         }}
                       />
@@ -349,9 +347,9 @@ const CourseAccessPanel: React.FC = () => {
                         value
                       );
 
-                      finalEndDate = validationResult.isValid
-                        ? newEndDate
-                        : combineDateTime(endDate, validationResult.correctedEndTime || value);
+                      finalEndDate = validationResult.correctedEndTime
+                        ? combineDateTime(endDate, validationResult.correctedEndTime)
+                        : newEndDate;
                     }
 
                     updateSettings({ enrollment_ends_at: finalEndDate });
