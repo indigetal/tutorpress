@@ -31,7 +31,7 @@ import {
   combineDateTime,
   generateTimeOptions,
   filterEndTimeOptions,
-  validateAndCorrectMeetingTime,
+  validateAndCorrectDateTime,
 } from "../../utils/datetime-validation";
 
 const CourseAccessPanel: React.FC = () => {
@@ -178,20 +178,30 @@ const CourseAccessPanel: React.FC = () => {
                       <DatePicker
                         currentDate={startDate}
                         onChange={(date) => {
-                          const newDate = combineDateTime(new Date(date), displayTime(settings.enrollment_starts_at));
-                          updateSettings({ enrollment_starts_at: newDate });
+                          const newStartDate = new Date(date);
+                          const newDate = combineDateTime(newStartDate, displayTime(settings.enrollment_starts_at));
 
-                          // If end date is before new start date, update end date to match
-                          const currentEndDate = parseGMTString(settings.enrollment_ends_at);
-                          if (currentEndDate && new Date(date) > currentEndDate) {
-                            const newEndDate = combineDateTime(
-                              new Date(date),
+                          // Use comprehensive datetime validation utility
+                          const currentEndDate = parseGMTString(settings.enrollment_ends_at) || newStartDate;
+                          const validation = validateAndCorrectDateTime(
+                            newStartDate,
+                            displayTime(settings.enrollment_starts_at),
+                            currentEndDate,
+                            displayTime(settings.enrollment_ends_at),
+                            { dateStrategy: "adjust-end" }
+                          );
+
+                          if (!validation.isValid && validation.correctedEndDate) {
+                            const correctedEndDate = combineDateTime(
+                              validation.correctedEndDate,
                               displayTime(settings.enrollment_ends_at)
                             );
                             updateSettings({
                               enrollment_starts_at: newDate,
-                              enrollment_ends_at: newEndDate,
+                              enrollment_ends_at: correctedEndDate,
                             });
+                          } else {
+                            updateSettings({ enrollment_starts_at: newDate });
                           }
 
                           setStartDatePickerOpen(false);
@@ -217,7 +227,7 @@ const CourseAccessPanel: React.FC = () => {
                       const endDateTimeParsed = parseGMTString(settings.enrollment_ends_at);
 
                       if (startDateTimeParsed && endDateTimeParsed) {
-                        const validationResult = validateAndCorrectMeetingTime(
+                        const validationResult = validateAndCorrectDateTime(
                           startDateTimeParsed,
                           value,
                           endDateTimeParsed,
@@ -285,7 +295,7 @@ const CourseAccessPanel: React.FC = () => {
                           let finalEndDate = newDate;
 
                           if (startDateTimeForDate) {
-                            const validationResult = validateAndCorrectMeetingTime(
+                            const validationResult = validateAndCorrectDateTime(
                               startDateTimeForDate,
                               displayTime(settings.enrollment_starts_at),
                               selectedDate,
@@ -332,7 +342,7 @@ const CourseAccessPanel: React.FC = () => {
                     let finalEndDate = newEndDate;
 
                     if (startDateTimeForValidation) {
-                      const validationResult = validateAndCorrectMeetingTime(
+                      const validationResult = validateAndCorrectDateTime(
                         startDateTimeForValidation,
                         displayTime(settings.enrollment_starts_at),
                         endDate,

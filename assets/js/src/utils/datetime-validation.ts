@@ -198,6 +198,44 @@ export const filterEndTimeOptions = (
 };
 
 /**
+ * Validate and auto-correct date ranges
+ *
+ * Handles date-level validation that ensures end date is not before start date
+ * Replicates Course Access Panel date validation logic for consistency
+ */
+export const validateAndCorrectDateRange = (
+  startDate: Date,
+  endDate: Date,
+  strategy: "adjust-end" | "adjust-start" = "adjust-end"
+): {
+  isValid: boolean;
+  correctedStartDate?: Date;
+  correctedEndDate?: Date;
+} => {
+  // Compare just the date part (not time)
+  const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+  if (endDateOnly < startDateOnly) {
+    if (strategy === "adjust-end") {
+      // Auto-correct end date to match start date (Course Access Panel behavior)
+      return {
+        isValid: false,
+        correctedEndDate: new Date(startDate),
+      };
+    } else {
+      // Auto-correct start date to match end date (Google Meet alternative behavior)
+      return {
+        isValid: false,
+        correctedStartDate: new Date(endDate),
+      };
+    }
+  }
+
+  return { isValid: true };
+};
+
+/**
  * Validate and auto-correct meeting times
  *
  * Returns corrected time if end is before start
@@ -250,4 +288,51 @@ export const validateAndCorrectMeetingTime = (
   }
 
   return { isValid: true };
+};
+
+/**
+ * Complete date and time validation with auto-correction
+ *
+ * Combines date and time validation for comprehensive validation
+ * Replicates the full Course Access Panel validation logic
+ */
+export const validateAndCorrectDateTime = (
+  startDate: Date,
+  startTime: string,
+  endDate: Date,
+  endTime: string,
+  options: {
+    minDurationMinutes?: number;
+    dateStrategy?: "adjust-end" | "adjust-start";
+  } = {}
+): {
+  isValid: boolean;
+  correctedStartDate?: Date;
+  correctedEndDate?: Date;
+  correctedEndTime?: string;
+} => {
+  const { minDurationMinutes = 30, dateStrategy = "adjust-end" } = options;
+
+  // First validate dates
+  const dateValidation = validateAndCorrectDateRange(startDate, endDate, dateStrategy);
+
+  // Use corrected dates if needed
+  const finalStartDate = dateValidation.correctedStartDate || startDate;
+  const finalEndDate = dateValidation.correctedEndDate || endDate;
+
+  // Then validate times with final dates
+  const timeValidation = validateAndCorrectMeetingTime(
+    finalStartDate,
+    startTime,
+    finalEndDate,
+    endTime,
+    minDurationMinutes
+  );
+
+  return {
+    isValid: dateValidation.isValid && timeValidation.isValid,
+    correctedStartDate: dateValidation.correctedStartDate,
+    correctedEndDate: dateValidation.correctedEndDate,
+    correctedEndTime: timeValidation.correctedEndTime,
+  };
 };
