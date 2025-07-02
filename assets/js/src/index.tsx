@@ -9,6 +9,7 @@ import AssignmentSettingsPanel from "./components/settings/AssignmentSettingsPan
 import LessonSettingsPanel from "./components/settings/LessonSettingsPanel";
 import CourseDetailsPanel from "./components/settings/CourseDetailsPanel";
 import CourseAccessPanel from "./components/settings/CourseAccessPanel";
+import CourseMediaPanel from "./components/settings/CourseMediaPanel";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
 import "./api"; // Import API module to expose it to window
 
@@ -55,6 +56,11 @@ registerPlugin("tutorpress-course-details-settings", {
 // Register the course access & enrollment settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-course-access-settings", {
   render: CourseAccessPanel,
+});
+
+// Register the course media settings plugin for Gutenberg sidebar
+registerPlugin("tutorpress-course-media-settings", {
+  render: CourseMediaPanel,
 });
 
 // Initialize stores
