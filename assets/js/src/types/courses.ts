@@ -58,14 +58,18 @@ export interface CourseSchedule {
 }
 
 /**
- * Featured video settings
+ * Course intro video settings (renamed from featured_video for clarity)
+ * Full compatibility with lesson video sources including html5 and shortcode
  */
-export interface CourseFeaturedVideo {
-  source: "" | "youtube" | "vimeo" | "external_url" | "embedded";
+export interface CourseIntroVideo {
+  source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode";
+  source_video_id: number; // For HTML5 uploads
   source_youtube: string;
   source_vimeo: string;
   source_external_url: string;
   source_embedded: string;
+  source_shortcode: string; // For shortcode support
+  poster: string; // Video poster image
 }
 
 /**
@@ -87,7 +91,7 @@ export interface CourseSettings {
   pause_enrollment: "yes" | "no";
 
   // Course Media Section
-  featured_video: CourseFeaturedVideo;
+  intro_video: CourseIntroVideo; // Renamed from featured_video
   attachments: number[];
   materials_included: string;
 
@@ -129,12 +133,15 @@ export const defaultCourseSettings: CourseSettings = {
   pause_enrollment: "no",
 
   // Course Media
-  featured_video: {
+  intro_video: {
     source: "",
+    source_video_id: 0,
     source_youtube: "",
     source_vimeo: "",
     source_external_url: "",
     source_embedded: "",
+    source_shortcode: "",
+    poster: "",
   },
   attachments: [],
   materials_included: "",

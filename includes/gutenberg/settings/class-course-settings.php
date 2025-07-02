@@ -105,14 +105,17 @@ class TutorPress_Course_Settings {
                             'type' => 'string',
                             'enum' => ['yes', 'no'],
                         ],
-                        'featured_video' => [
+                        'intro_video' => [
                             'type'       => 'object',
                             'properties' => [
                                 'source'               => ['type' => 'string'],
+                                'source_video_id'      => ['type' => 'integer'],
                                 'source_youtube'       => ['type' => 'string'],
                                 'source_vimeo'         => ['type' => 'string'],
                                 'source_external_url'  => ['type' => 'string'],
                                 'source_embedded'      => ['type' => 'string'],
+                                'source_shortcode'     => ['type' => 'string'],
+                                'poster'               => ['type' => 'string'],
                             ],
                         ],
                         'attachments' => [
@@ -218,13 +221,16 @@ class TutorPress_Course_Settings {
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
             'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? 'no',
-            'featured_video' => $tutor_settings['featured_video'] ?? [
+            'intro_video' => array_merge([
                 'source' => '',
+                'source_video_id' => 0,
                 'source_youtube' => '',
                 'source_vimeo' => '',
                 'source_external_url' => '',
                 'source_embedded' => '',
-            ],
+                'source_shortcode' => '',
+                'poster' => '',
+            ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
             'attachments' => $tutor_settings['attachments'] ?? [],
             'materials_included' => $tutor_settings['materials_included'] ?? '',
             'is_free' => $tutor_settings['is_free'] ?? true,
@@ -294,7 +300,7 @@ class TutorPress_Course_Settings {
         // Future sections: Update _tutor_course_settings for non-Course Details fields
         // Note: course_prerequisites is handled separately above
         $future_section_fields = ['maximum_students', 'schedule', 
-                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'featured_video', 'attachments',
+                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'intro_video', 'attachments',
                                  'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
                                  'subscription_enabled', 'instructors', 'additional_instructors'];
         
@@ -643,7 +649,7 @@ class TutorPress_Course_Settings {
             
             // Update _tutor_course_settings for other extended fields
             $extended_fields = ['maximum_students', 'course_prerequisites', 'schedule', 
-                               'course_enrollment_period', 'pause_enrollment', 'featured_video', 'attachments',
+                               'course_enrollment_period', 'pause_enrollment', 'intro_video', 'attachments',
                                'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
                                'subscription_enabled', 'instructors', 'additional_instructors'];
             
