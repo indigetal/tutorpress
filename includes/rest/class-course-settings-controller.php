@@ -273,9 +273,9 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Get existing settings
-        $existing_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($existing_settings)) {
-            $existing_settings = array();
+        $existing_tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
+        if (!is_array($existing_tutor_settings)) {
+            $existing_tutor_settings = array();
         }
 
         // Get new settings from request
@@ -356,7 +356,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Merge with existing settings
-        $merged_settings = array_merge($existing_settings, $new_settings);
+        $merged_settings = array_merge($existing_tutor_settings, $new_settings);
 
         // Update course settings
         update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
@@ -639,7 +639,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Merge with current settings
-        $updated_settings = array_merge($current_settings, $settings_updates);
+        $merged_settings = array_merge($current_settings, $settings_updates);
 
         // Get post object for update_course_settings
         $post = get_post($course_id);
@@ -652,7 +652,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Use TutorPress_Course_Settings to update (this handles bidirectional sync)
-        $result = TutorPress_Course_Settings::update_course_settings($updated_settings, $post);
+        $result = TutorPress_Course_Settings::update_course_settings($merged_settings, $post);
 
         if (!$result) {
             return new WP_Error(
@@ -665,7 +665,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         return rest_ensure_response([
             'success' => true,
             'message' => __('Course settings saved successfully', 'tutorpress'),
-            'data' => $updated_settings,
+            'data' => $merged_settings,
             'course_id' => $course_id,
         ]);
     }

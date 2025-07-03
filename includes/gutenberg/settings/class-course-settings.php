@@ -15,6 +15,30 @@ defined('ABSPATH') || exit;
 class TutorPress_Course_Settings {
 
     /**
+     * Extended field names that are stored in _tutor_course_settings array.
+     * These fields are not stored as individual meta fields like Course Details.
+     *
+     * @since 0.1.0
+     */
+    const EXTENDED_FIELD_NAMES = [
+        'maximum_students',
+        'schedule',
+        'course_enrollment_period',
+        'enrollment_starts_at',
+        'enrollment_ends_at',
+        'pause_enrollment',
+        'intro_video',
+        'materials_included',
+        'is_free',
+        'pricing_model',
+        'price',
+        'sale_price',
+        'subscription_enabled',
+        'instructors',
+        'additional_instructors'
+    ];
+
+    /**
      * Initialize the course settings.
      *
      * @since 0.1.0
@@ -319,12 +343,8 @@ class TutorPress_Course_Settings {
             }
         }
         
-        // Future sections: Update _tutor_course_settings for non-Course Details fields
+        // Extended sections: Update _tutor_course_settings for non-Course Details fields
         // Note: course_prerequisites and attachments are handled separately above
-        $future_section_fields = ['maximum_students', 'schedule', 
-                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'intro_video',
-                                 'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
-                                 'subscription_enabled', 'instructors', 'additional_instructors'];
         
         // Get existing _tutor_course_settings first
         $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
@@ -332,69 +352,69 @@ class TutorPress_Course_Settings {
             $existing_tutor_settings = [];
         }
         
-        // Extract only the fields we're updating
-        $future_updates = array_intersect_key($value, array_flip($future_section_fields));
+        // Extract only the extended fields we're updating
+        $settings_to_update = array_intersect_key($value, array_flip(self::EXTENDED_FIELD_NAMES));
         
         // Special handling for maximum_students and pause_enrollment
-        if (isset($future_updates['maximum_students'])) {
-            $max_students = $future_updates['maximum_students'];
+        if (isset($settings_to_update['maximum_students'])) {
+            $max_students = $settings_to_update['maximum_students'];
             error_log('TutorPress Debug - Maximum Students Before: ' . var_export($max_students, true));
             // Handle all falsy values (0, '', null, false) as empty string for unlimited students
             $max_students_value = empty($max_students) ? '' : absint($max_students);
-            $future_updates['maximum_students'] = $max_students_value;
-            $future_updates['maximum_students_allowed'] = $max_students_value; // Legacy field
+            $settings_to_update['maximum_students'] = $max_students_value;
+            $settings_to_update['maximum_students_allowed'] = $max_students_value; // Legacy field
             error_log('TutorPress Debug - Maximum Students After: ' . var_export($max_students_value, true));
         }
         
-        if (isset($future_updates['pause_enrollment'])) {
-            $pause_value = $future_updates['pause_enrollment'];
+        if (isset($settings_to_update['pause_enrollment'])) {
+            $pause_value = $settings_to_update['pause_enrollment'];
             error_log('TutorPress Debug - Pause Enrollment Before: ' . var_export($pause_value, true));
             // Ensure we store exactly 'yes' or 'no' strings
             $pause_value_normalized = ($pause_value === true || $pause_value === 'yes') ? 'yes' : 'no';
-            $future_updates['pause_enrollment'] = $pause_value_normalized;
-            $future_updates['enrollment_status'] = $pause_value_normalized; // Legacy field
+            $settings_to_update['pause_enrollment'] = $pause_value_normalized;
+            $settings_to_update['enrollment_status'] = $pause_value_normalized; // Legacy field
             error_log('TutorPress Debug - Pause Enrollment After: ' . var_export($pause_value_normalized, true));
         }
 
         // Special handling for enrollment period dates
-        if (isset($future_updates['course_enrollment_period'])) {
-            $period_value = $future_updates['course_enrollment_period'];
+        if (isset($settings_to_update['course_enrollment_period'])) {
+            $period_value = $settings_to_update['course_enrollment_period'];
             error_log('TutorPress Debug - Course Enrollment Period: ' . var_export($period_value, true));
-            $future_updates['course_enrollment_period'] = ($period_value === 'yes') ? 'yes' : 'no';
+            $settings_to_update['course_enrollment_period'] = ($period_value === 'yes') ? 'yes' : 'no';
             
             // If enrollment period is disabled, clear the dates
-            if ($future_updates['course_enrollment_period'] === 'no') {
-                $future_updates['enrollment_starts_at'] = '';
-                $future_updates['enrollment_ends_at'] = '';
+            if ($settings_to_update['course_enrollment_period'] === 'no') {
+                $settings_to_update['enrollment_starts_at'] = '';
+                $settings_to_update['enrollment_ends_at'] = '';
             }
         }
 
         // Ensure dates are in correct MySQL format (YYYY-MM-DD HH:MM:SS)
         foreach (['enrollment_starts_at', 'enrollment_ends_at'] as $date_field) {
-            if (isset($future_updates[$date_field]) && $future_updates[$date_field]) {
+            if (isset($settings_to_update[$date_field]) && $settings_to_update[$date_field]) {
                 // Parse the date string
-                $date = date_create_from_format('Y-m-d H:i:s', $future_updates[$date_field]);
+                $date = date_create_from_format('Y-m-d H:i:s', $settings_to_update[$date_field]);
                 if ($date) {
                     // Format in MySQL format
-                    $future_updates[$date_field] = $date->format('Y-m-d H:i:s');
+                    $settings_to_update[$date_field] = $date->format('Y-m-d H:i:s');
                 } else {
                     // If parsing fails, try to handle common formats
-                    $timestamp = strtotime($future_updates[$date_field]);
+                    $timestamp = strtotime($settings_to_update[$date_field]);
                     if ($timestamp !== false) {
-                        $future_updates[$date_field] = date('Y-m-d H:i:s', $timestamp);
+                        $settings_to_update[$date_field] = date('Y-m-d H:i:s', $timestamp);
                     } else {
                         // If all parsing fails, clear the field
-                        $future_updates[$date_field] = '';
+                        $settings_to_update[$date_field] = '';
                     }
                 }
             }
         }
         
         // Merge with existing settings, preserving any fields we're not updating
-        if (!empty($future_updates)) {
+        if (!empty($settings_to_update)) {
             error_log('TutorPress Debug - Existing Settings: ' . var_export($existing_tutor_settings, true));
-            error_log('TutorPress Debug - Updates to Apply: ' . var_export($future_updates, true));
-            $merged_settings = array_merge($existing_tutor_settings, $future_updates);
+            error_log('TutorPress Debug - Updates to Apply: ' . var_export($settings_to_update, true));
+            $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
             error_log('TutorPress Debug - Final Merged Settings: ' . var_export($merged_settings, true));
             $results[] = update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
         }
@@ -427,13 +447,13 @@ class TutorPress_Course_Settings {
         }
 
         // Get existing settings
-        $existing_settings = get_post_meta($post->ID, '_tutor_course_settings', true);
-        if (!is_array($existing_settings)) {
-            $existing_settings = array();
+        $existing_tutor_settings = get_post_meta($post->ID, '_tutor_course_settings', true);
+        if (!is_array($existing_tutor_settings)) {
+            $existing_tutor_settings = array();
         }
 
         // Merge settings, ensuring both primary and legacy fields are updated
-        $merged_settings = array_merge($existing_settings, $settings);
+        $merged_settings = array_merge($existing_tutor_settings, $settings);
 
         // Handle maximum_students field
         if (isset($settings['maximum_students'])) {
@@ -698,19 +718,14 @@ class TutorPress_Course_Settings {
             }
             
             // Update _tutor_course_settings for other extended fields
-            $extended_fields = ['maximum_students', 'course_prerequisites', 'schedule', 
-                               'course_enrollment_period', 'pause_enrollment', 'intro_video', 'attachments',
-                               'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
-                               'subscription_enabled', 'instructors', 'additional_instructors'];
+            $settings_to_update = array_intersect_key($meta_value, array_flip(self::EXTENDED_FIELD_NAMES));
+            error_log("TutorPress Sync Debug - Extended updates: " . print_r($settings_to_update, true));
             
-            $extended_updates = array_intersect_key($meta_value, array_flip($extended_fields));
-            error_log("TutorPress Sync Debug - Extended updates: " . print_r($extended_updates, true));
-            
-            if (!empty($extended_updates)) {
+            if (!empty($settings_to_update)) {
                 error_log("TutorPress Sync Debug - Existing tutor settings: " . print_r($existing_tutor_settings, true));
-                $updated_settings = array_merge($existing_tutor_settings, $extended_updates);
-                error_log("TutorPress Sync Debug - Updated settings: " . print_r($updated_settings, true));
-                $result = update_post_meta($post_id, '_tutor_course_settings', $updated_settings);
+                $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
+                error_log("TutorPress Sync Debug - Updated settings: " . print_r($merged_settings, true));
+                $result = update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
                 error_log("TutorPress Sync Debug - Update result: " . ($result ? 'SUCCESS' : 'FAILED'));
             } else {
                 error_log("TutorPress Sync Debug - No extended updates to process");
