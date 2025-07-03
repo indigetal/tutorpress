@@ -158,6 +158,35 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                     ),
                 ),
             ));
+
+            // Add endpoint for fetching attachment metadata
+            register_rest_route(
+                $this->namespace,
+                '/courses/(?P<course_id>[\d]+)/attachments',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_attachment_metadata'],
+                        'permission_callback' => [$this, 'check_read_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course to get attachment metadata for.', 'tutorpress'),
+                            ],
+                            'attachment_ids' => [
+                                'type'              => 'array',
+                                'items'             => ['type' => 'integer'],
+                                'sanitize_callback' => function($ids) {
+                                    return array_map('absint', (array) $ids);
+                                },
+                                'description'       => __('Array of attachment IDs to get metadata for.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
         } catch (Exception $e) {
             // Silently handle any registration errors
             return;
@@ -399,6 +428,68 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         return true;
+    }
+
+    /**
+     * Get attachment metadata for course attachments
+     *
+     * @param WP_REST_Request $request The REST request object
+     * @return WP_REST_Response|WP_Error Response object or error
+     */
+    public function get_attachment_metadata($request) {
+        $course_id = (int) $request->get_param('course_id');
+        $attachment_ids = $request->get_param('attachment_ids');
+
+        // Validate course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'courses') {
+            return new WP_Error(
+                'course_not_found',
+                __('Course not found', 'tutorpress'),
+                array('status' => 404)
+            );
+        }
+
+        // Validate attachment IDs - handle both array and string formats
+        if (empty($attachment_ids)) {
+            return rest_ensure_response([
+                'success' => true,
+                'data' => [],
+                'message' => __('No attachment IDs provided', 'tutorpress')
+            ]);
+        }
+        
+        // Ensure we have an array of integers
+        if (!is_array($attachment_ids)) {
+            $attachment_ids = [$attachment_ids];
+        }
+        
+        $attachment_ids = array_map('absint', $attachment_ids);
+        $attachment_ids = array_filter($attachment_ids); // Remove any 0 values
+
+        $attachments = [];
+        foreach ($attachment_ids as $attachment_id) {
+            $attachment = get_post($attachment_id);
+            if ($attachment && $attachment->post_type === 'attachment') {
+                $file_path = get_attached_file($attachment_id);
+                $file_size = file_exists($file_path) ? filesize($file_path) : 0;
+                
+                $attachments[] = [
+                    'id' => $attachment_id,
+                    'title' => $attachment->post_title,
+                    'filename' => basename($file_path),
+                    'url' => wp_get_attachment_url($attachment_id),
+                    'mime_type' => $attachment->post_mime_type,
+                    'filesize' => $file_size,
+                ];
+            }
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $attachments,
+            'message' => sprintf(__('Retrieved metadata for %d attachments', 'tutorpress'), count($attachments))
+        ]);
     }
 
     /**

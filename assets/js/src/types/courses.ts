@@ -196,3 +196,17 @@ export interface PrerequisiteCourse {
 }
 
 export type PrerequisiteCoursesResponse = TutorResponse<PrerequisiteCourse[]>;
+
+/**
+ * Course attachment metadata interface
+ */
+export interface CourseAttachment {
+  id: number;
+  title: string;
+  filename: string;
+  url: string;
+  mime_type: string;
+  filesize: number;
+}
+
+export type CourseAttachmentsResponse = TutorResponse<CourseAttachment[]>;

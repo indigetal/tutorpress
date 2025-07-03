@@ -27,6 +27,7 @@ class TutorPress_Course_Settings {
         // Bidirectional sync hooks for Tutor LMS compatibility
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_individual_field_update'], 10, 4);
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_course_settings_update'], 10, 4);
+        add_action('updated_post_meta', [__CLASS__, 'handle_tutor_attachments_meta_update'], 10, 4);
         
         // Sync our fields to Tutor LMS when updated
         add_action('updated_post_meta', [__CLASS__, 'handle_course_settings_update'], 10, 4);
@@ -231,7 +232,7 @@ class TutorPress_Course_Settings {
                 'source_shortcode' => '',
                 'poster' => '',
             ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
-            'attachments' => $tutor_settings['attachments'] ?? [],
+            'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
             'materials_included' => $tutor_settings['materials_included'] ?? '',
             'is_free' => $tutor_settings['is_free'] ?? true,
             'pricing_model' => $tutor_settings['pricing_model'] ?? '',
@@ -296,11 +297,32 @@ class TutorPress_Course_Settings {
                 $results[] = delete_post_meta($post_id, '_tutor_course_prerequisites_ids');
             }
         }
+
+        // Handle course attachments separately (following lesson exercise files pattern)
+        if (isset($value['attachments'])) {
+            $attachment_ids = $value['attachments'];
+            if (is_array($attachment_ids)) {
+                // Filter to ensure all values are valid integers
+                $attachment_ids = array_filter(array_map('intval', $attachment_ids));
+                $attachment_ids = array_unique($attachment_ids);
+                
+                if (!empty($attachment_ids)) {
+                    // Store in our format
+                    $results[] = update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
+                    // Sync to Tutor LMS format
+                    $results[] = update_post_meta($post_id, '_tutor_attachments', $attachment_ids);
+                } else {
+                    // Delete both if empty
+                    $results[] = delete_post_meta($post_id, '_tutor_course_attachments');
+                    $results[] = delete_post_meta($post_id, '_tutor_attachments');
+                }
+            }
+        }
         
         // Future sections: Update _tutor_course_settings for non-Course Details fields
-        // Note: course_prerequisites is handled separately above
+        // Note: course_prerequisites and attachments are handled separately above
         $future_section_fields = ['maximum_students', 'schedule', 
-                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'intro_video', 'attachments',
+                                 'course_enrollment_period', 'enrollment_starts_at', 'enrollment_ends_at', 'pause_enrollment', 'intro_video',
                                  'materials_included', 'is_free', 'pricing_model', 'price', 'sale_price',
                                  'subscription_enabled', 'instructors', 'additional_instructors'];
         
@@ -575,6 +597,34 @@ class TutorPress_Course_Settings {
 
         // Update our course_settings field
         update_post_meta($post_id, 'course_settings', $current_settings);
+    }
+
+    /**
+     * Handle Tutor LMS _tutor_attachments meta updates to sync back to our field.
+     *
+     * @since 0.1.0
+     * @param int $meta_id Meta ID.
+     * @param int $post_id Post ID.
+     * @param string $meta_key Meta key.
+     * @param mixed $meta_value Meta value.
+     * @return void
+     */
+    public static function handle_tutor_attachments_meta_update($meta_id, $post_id, $meta_key, $meta_value) {
+        // Only handle _tutor_attachments updates for courses
+        if ($meta_key !== '_tutor_attachments' || get_post_type($post_id) !== 'courses') {
+            return;
+        }
+
+        // Avoid infinite loops
+        $our_last_update = get_post_meta($post_id, '_tutorpress_attachments_last_sync', true);
+        if ($our_last_update && (time() - $our_last_update) < 5) {
+            return;
+        }
+
+        // Sync course attachments
+        update_post_meta($post_id, '_tutorpress_attachments_last_sync', time());
+        $attachment_ids = is_array($meta_value) ? array_map('absint', $meta_value) : [];
+        update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
     }
 
     /**

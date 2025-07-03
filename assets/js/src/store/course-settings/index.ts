@@ -10,7 +10,7 @@
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { select, dispatch as wpDispatch } from "@wordpress/data";
-import type { CourseSettings, PrerequisiteCourse } from "../../types/courses";
+import type { CourseSettings, PrerequisiteCourse, CourseAttachment } from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
@@ -37,6 +37,11 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
+  attachments: {
+    metadata: CourseAttachment[];
+    isLoading: boolean;
+    error: string | null;
+  };
 }
 
 const DEFAULT_STATE: State = {
@@ -50,13 +55,20 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
+  attachments: {
+    metadata: [],
+    isLoading: false,
+    error: null,
+  },
 };
 
 type CourseSettingsAction =
   | { type: "SET_SETTINGS"; payload: CourseSettings }
   | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }
   | { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }
-  | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> };
+  | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }
+  | { type: "SET_ATTACHMENTS_METADATA"; payload: CourseAttachment[] }
+  | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -85,6 +97,70 @@ const actions = {
       type: "SET_COURSE_SELECTION_STATE" as const,
       payload: state,
     };
+  },
+
+  setAttachmentsMetadata(attachments: CourseAttachment[]) {
+    return {
+      type: "SET_ATTACHMENTS_METADATA" as const,
+      payload: attachments,
+    };
+  },
+
+  setAttachmentsState(state: Partial<State["attachments"]>) {
+    return {
+      type: "SET_ATTACHMENTS_STATE" as const,
+      payload: state,
+    };
+  },
+
+  // Fetch attachment metadata for display
+  *fetchAttachmentsMetadata(attachmentIds: number[]): Generator {
+    try {
+      yield actions.setAttachmentsState({ isLoading: true, error: null });
+
+      if (attachmentIds.length === 0) {
+        yield actions.setAttachmentsMetadata([]);
+        yield actions.setAttachmentsState({ isLoading: false, error: null });
+        return;
+      }
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "fetchAttachmentsMetadata",
+          "Failed to get course ID"
+        );
+      }
+
+      // Get attachment metadata through our API wrapper
+      const queryParams = new URLSearchParams();
+      attachmentIds.forEach((id) => queryParams.append("attachment_ids[]", id.toString()));
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/attachments?${queryParams.toString()}`,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchAttachmentsMetadata",
+          "Failed to fetch attachment metadata"
+        );
+      }
+
+      yield actions.setAttachmentsMetadata(response.data);
+      yield actions.setAttachmentsState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setAttachmentsState({ isLoading: false, error: error.message });
+      throw error;
+    }
   },
 
   // Fetch available courses for prerequisites dropdown
@@ -224,6 +300,15 @@ const selectors = {
   getCourseSelectionError(state: State) {
     return state.courseSelection.error;
   },
+  getAttachmentsMetadata(state: State) {
+    return state.attachments.metadata;
+  },
+  getAttachmentsLoading(state: State) {
+    return state.attachments.isLoading;
+  },
+  getAttachmentsError(state: State) {
+    return state.attachments.error;
+  },
 };
 
 const resolvers = {
@@ -316,6 +401,22 @@ const store = createReduxStore("tutorpress/course-settings", {
           courseSelection: {
             ...state.courseSelection,
             ...(action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }).payload,
+          },
+        };
+      case "SET_ATTACHMENTS_METADATA":
+        return {
+          ...state,
+          attachments: {
+            ...state.attachments,
+            metadata: (action as { type: "SET_ATTACHMENTS_METADATA"; payload: CourseAttachment[] }).payload,
+          },
+        };
+      case "SET_ATTACHMENTS_STATE":
+        return {
+          ...state,
+          attachments: {
+            ...state.attachments,
+            ...(action as { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }).payload,
           },
         };
       default:

@@ -1,31 +1,74 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, Button } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
+import { isCourseAttachmentsEnabled } from "../../utils/addonChecker";
 
 const CourseMediaPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading } = useSelect(
+  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
+      attachmentsMetadata: select("tutorpress/course-settings").getAttachmentsMetadata(),
+      attachmentsLoading: select("tutorpress/course-settings").getAttachmentsLoading(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { updateSettings } = useDispatch("tutorpress/course-settings");
+  const { updateSettings, fetchAttachmentsMetadata } = useDispatch("tutorpress/course-settings");
+
+  // Fetch attachment metadata when attachments change
+  useEffect(() => {
+    const attachmentIds = settings?.attachments || [];
+    if (attachmentIds.length > 0) {
+      fetchAttachmentsMetadata(attachmentIds);
+    }
+  }, [settings?.attachments, fetchAttachmentsMetadata]);
 
   // Only show for course post type
   if (postType !== "courses") {
     return null;
   }
+
+  // Course Attachments functions (following Exercise Files pattern)
+  const openCourseAttachmentsLibrary = () => {
+    const currentAttachments = settings?.attachments || [];
+
+    const mediaFrame = (window as any).wp.media({
+      title: __("Select Course Attachments", "tutorpress"),
+      button: {
+        text: __("Add Attachments", "tutorpress"),
+      },
+      multiple: true,
+    });
+
+    mediaFrame.on("select", () => {
+      const newAttachments = mediaFrame.state().get("selection").toJSON();
+      const newAttachmentIds = newAttachments.map((attachment: any) => attachment.id);
+
+      // Combine existing attachments with new ones, avoiding duplicates
+      const allAttachmentIds = [...new Set([...currentAttachments, ...newAttachmentIds])];
+      updateSettings({ attachments: allAttachmentIds });
+    });
+
+    mediaFrame.open();
+  };
+
+  const removeCourseAttachment = (attachmentId: number) => {
+    const currentAttachments = settings?.attachments || [];
+    const updatedAttachments = currentAttachments.filter((id: number) => id !== attachmentId);
+    updateSettings({ attachments: updatedAttachments });
+  };
+
+  const attachmentCount = settings?.attachments?.length || 0;
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -58,12 +101,92 @@ const CourseMediaPanel: React.FC = () => {
         </PanelRow>
       )}
 
-      {/* Placeholder content - we'll add sections incrementally */}
-      <PanelRow>
-        <div style={{ width: "100%" }}>
-          <p>{__("Course Media settings will be added here.", "tutorpress")}</p>
-        </div>
-      </PanelRow>
+      {/* Course Attachments Section - Only show if addon is available */}
+      {isCourseAttachmentsEnabled() && (
+        <PanelRow>
+          <div style={{ width: "100%" }}>
+            <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Attachments", "tutorpress")}</div>
+
+            <Button
+              variant="secondary"
+              onClick={openCourseAttachmentsLibrary}
+              style={{ width: "100%", marginBottom: "8px" }}
+            >
+              {attachmentCount > 0
+                ? __("Attachments", "tutorpress") + " (" + attachmentCount + " " + __("selected", "tutorpress") + ")"
+                : __("Add Attachment", "tutorpress")}
+            </Button>
+
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#757575",
+                margin: "0 0 8px 0",
+              }}
+            >
+              {__("Add files that students can download to access course materials and resources.", "tutorpress")}
+            </p>
+
+            {/* Display selected files */}
+            {attachmentCount > 0 && (
+              <div style={{ marginTop: "8px" }}>
+                {settings?.attachments?.map((attachmentId: number) => {
+                  // Find attachment metadata
+                  const attachment = attachmentsMetadata.find((meta: any) => meta.id === attachmentId);
+                  const displayName = attachment ? attachment.filename : `File ID: ${attachmentId}`;
+
+                  return (
+                    <div
+                      key={attachmentId}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "8px 12px",
+                        backgroundColor: "#f6f7f7",
+                        border: "1px solid #dcdcde",
+                        borderRadius: "4px",
+                        marginBottom: "6px",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          flex: 1,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          marginRight: "8px",
+                        }}
+                        title={displayName}
+                      >
+                        {attachmentsLoading ? <Spinner style={{ marginRight: "4px" }} /> : null}
+                        {displayName}
+                      </span>
+                      <Button
+                        variant="tertiary"
+                        onClick={() => removeCourseAttachment(attachmentId)}
+                        style={{
+                          minWidth: "auto",
+                          padding: "4px 8px",
+                          height: "auto",
+                          fontSize: "12px",
+                          color: "#d63638",
+                          border: "1px solid #d63638",
+                          borderRadius: "3px",
+                        }}
+                        aria-label={__("Remove attachment", "tutorpress")}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </PanelRow>
+      )}
     </PluginDocumentSettingPanel>
   );
 };

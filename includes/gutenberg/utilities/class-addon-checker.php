@@ -87,6 +87,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_ENROLLMENTS_VERSION',
             'class' => 'TUTOR_ENROLLMENTS\Init',
         ],
+        'course_attachments' => [
+            'file' => 'tutor-pro/addons/tutor-course-attachments/tutor-course-attachments.php',
+            'basename' => 'tutor-pro/addons/tutor-course-attachments/tutor-course-attachments.php',
+            'constant' => 'TUTOR_CA_VERSION',
+            'class' => 'TUTOR_CA\Init',
+        ],
     ];
 
     /**
@@ -195,6 +201,15 @@ class TutorPress_Addon_Checker {
      */
     public static function is_enrollments_enabled() {
         return self::is_addon_enabled('enrollments');
+    }
+
+    /**
+     * Check if Course Attachments addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_course_attachments_enabled() {
+        return self::is_addon_enabled('course_attachments');
     }
 
 

@@ -22,7 +22,8 @@ export type AddonKey =
   | "content_drip"
   | "prerequisites"
   | "multi_instructors"
-  | "enrollments";
+  | "enrollments"
+  | "course_attachments";
 
 /**
  * Addon status interface
@@ -37,6 +38,7 @@ export interface AddonStatus {
   prerequisites: boolean;
   multi_instructors: boolean;
   enrollments: boolean;
+  course_attachments: boolean;
 }
 
 /**
@@ -70,6 +72,7 @@ export class AddonChecker {
         prerequisites: false,
         multi_instructors: false,
         enrollments: false,
+        course_attachments: false,
       }
     );
   }
@@ -159,6 +162,13 @@ export class AddonChecker {
   }
 
   /**
+   * Check if Course Attachments addon is available
+   */
+  public static isCourseAttachmentsEnabled(): boolean {
+    return this.isAddonEnabled("course_attachments");
+  }
+
+  /**
    * Test method to verify build process
    */
   public static testEnrollmentsMethod(): boolean {
@@ -234,5 +244,6 @@ export const isContentDripEnabled = (): boolean => AddonChecker.isContentDripEna
 export const isPrerequisitesEnabled = (): boolean => AddonChecker.isPrerequisitesEnabled();
 export const isMultiInstructorsEnabled = (): boolean => AddonChecker.isMultiInstructorsEnabled();
 export const isEnrollmentsEnabled = (): boolean => AddonChecker.isEnrollmentsEnabled();
+export const isCourseAttachmentsEnabled = (): boolean => AddonChecker.isCourseAttachmentsEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
