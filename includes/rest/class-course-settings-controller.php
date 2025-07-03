@@ -274,7 +274,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             
             // Course Media Section
             'course_material_includes' => get_post_meta($course_id, '_tutor_course_material_includes', true) ?: '',
-            'intro_video' => $tutor_settings['intro_video'] ?? array(),
+            'intro_video' => get_post_meta($course_id, '_video', true) ?: array(),
             'attachments' => get_post_meta($course_id, '_tutor_attachments', true) ?: array(),
         );
 
@@ -397,6 +397,9 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         if ($request->has_param('intro_video')) {
             $intro_video = $request->get_param('intro_video');
             if (is_array($intro_video)) {
+                // Store as individual meta field (matches Tutor LMS pattern)
+                update_post_meta($course_id, '_video', $intro_video);
+                // Also store in settings array for compatibility
                 $new_settings['intro_video'] = $intro_video;
             }
         }
