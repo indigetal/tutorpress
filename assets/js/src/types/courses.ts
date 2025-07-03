@@ -93,7 +93,7 @@ export interface CourseSettings {
   // Course Media Section
   intro_video: CourseIntroVideo; // Renamed from featured_video
   attachments: number[];
-  materials_included: string;
+  course_material_includes: string; // Match Tutor LMS field name
 
   // Pricing Model Section
   is_free: boolean;
@@ -144,7 +144,7 @@ export const defaultCourseSettings: CourseSettings = {
     poster: "",
   },
   attachments: [],
-  materials_included: "",
+  course_material_includes: "", // Match Tutor LMS field name
 
   // Pricing Model
   is_free: true,

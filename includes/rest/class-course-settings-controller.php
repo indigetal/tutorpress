@@ -111,6 +111,33 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                                 'sanitize_callback' => 'sanitize_text_field',
                                 'description'       => __('Whether enrollment is paused.', 'tutorpress'),
                             ],
+                            'course_material_includes' => [
+                                'type'              => 'string',
+                                'sanitize_callback' => 'sanitize_textarea_field',
+                                'description'       => __('A list of materials included in the course.', 'tutorpress'),
+                            ],
+                            'intro_video' => [
+                                'type'              => 'object',
+                                'properties'        => [
+                                    'source' => ['type' => 'string'],
+                                    'source_video_id' => ['type' => 'integer'],
+                                    'source_youtube' => ['type' => 'string'],
+                                    'source_vimeo' => ['type' => 'string'],
+                                    'source_external_url' => ['type' => 'string'],
+                                    'source_embedded' => ['type' => 'string'],
+                                    'source_shortcode' => ['type' => 'string'],
+                                    'poster' => ['type' => 'string'],
+                                ],
+                                'description'       => __('Course intro video settings.', 'tutorpress'),
+                            ],
+                            'attachments' => [
+                                'type'              => 'array',
+                                'items'             => ['type' => 'integer'],
+                                'sanitize_callback' => function($ids) {
+                                    return array_map('absint', (array) $ids);
+                                },
+                                'description'       => __('Array of attachment IDs for course materials.', 'tutorpress'),
+                            ],
                         ],
                     ],
                 ]
@@ -244,6 +271,11 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
             'pause_enrollment'          => $tutor_settings['pause_enrollment'] ?? 'no',
+            
+            // Course Media Section
+            'course_material_includes' => get_post_meta($course_id, '_tutor_course_material_includes', true) ?: '',
+            'intro_video' => $tutor_settings['intro_video'] ?? array(),
+            'attachments' => get_post_meta($course_id, '_tutor_attachments', true) ?: array(),
         );
 
         return rest_ensure_response(array(
@@ -353,6 +385,30 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             $new_settings['pause_enrollment'] = $pause_value;
             $new_settings['enrollment_status'] = $pause_value;
             update_post_meta($course_id, '_tutor_enrollment_status', $pause_value);
+        }
+
+        // Course Media Section
+        if ($request->has_param('course_material_includes')) {
+            $materials = sanitize_textarea_field($request->get_param('course_material_includes'));
+            $new_settings['course_material_includes'] = $materials;
+            update_post_meta($course_id, '_tutor_course_material_includes', $materials);
+        }
+
+        if ($request->has_param('intro_video')) {
+            $intro_video = $request->get_param('intro_video');
+            if (is_array($intro_video)) {
+                $new_settings['intro_video'] = $intro_video;
+            }
+        }
+
+        if ($request->has_param('attachments')) {
+            $attachments = $request->get_param('attachments');
+            if (is_array($attachments)) {
+                $attachment_ids = array_map('absint', $attachments);
+                $new_settings['attachments'] = $attachment_ids;
+                // Also store in Tutor LMS format for compatibility
+                update_post_meta($course_id, '_tutor_attachments', $attachment_ids);
+            }
         }
 
         // Merge with existing settings

@@ -28,7 +28,6 @@ class TutorPress_Course_Settings {
         'enrollment_ends_at',
         'pause_enrollment',
         'intro_video',
-        'materials_included',
         'is_free',
         'pricing_model',
         'price',
@@ -147,7 +146,7 @@ class TutorPress_Course_Settings {
                             'type'  => 'array',
                             'items' => ['type' => 'integer'],
                         ],
-                        'materials_included' => [
+                        'course_material_includes' => [
                             'type' => 'string',
                         ],
                         'is_free' => [
@@ -214,6 +213,9 @@ class TutorPress_Course_Settings {
         $enable_qna = get_post_meta($post_id, '_tutor_enable_qa', true);
         $course_duration = get_post_meta($post_id, '_course_duration', true);
         
+        // Course Media Section: Read from individual Tutor LMS meta fields
+        $course_material_includes = get_post_meta($post_id, '_tutor_course_material_includes', true);
+        
         // Validate and set defaults for Course Details fields
         if (!is_array($course_duration)) {
             $course_duration = ['hours' => 0, 'minutes' => 0];
@@ -257,7 +259,7 @@ class TutorPress_Course_Settings {
                 'poster' => '',
             ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
-            'materials_included' => $tutor_settings['materials_included'] ?? '',
+            'course_material_includes' => $course_material_includes ?: '',
             'is_free' => $tutor_settings['is_free'] ?? true,
             'pricing_model' => $tutor_settings['pricing_model'] ?? '',
             'price' => $tutor_settings['price'] ?? 0,
@@ -309,6 +311,11 @@ class TutorPress_Course_Settings {
             $results[] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
         }
         
+        // Course Media Section: Update individual Tutor LMS meta fields
+        if (isset($value['course_material_includes'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_material_includes', $value['course_material_includes']);
+        }
+        
         // Handle prerequisites separately (stored in _tutor_course_prerequisites_ids)
         if (isset($value['course_prerequisites'])) {
             $prerequisite_ids = $value['course_prerequisites'];
@@ -355,31 +362,28 @@ class TutorPress_Course_Settings {
         // Extract only the extended fields we're updating
         $settings_to_update = array_intersect_key($value, array_flip(self::EXTENDED_FIELD_NAMES));
         
+
+
         // Special handling for maximum_students and pause_enrollment
         if (isset($settings_to_update['maximum_students'])) {
             $max_students = $settings_to_update['maximum_students'];
-            error_log('TutorPress Debug - Maximum Students Before: ' . var_export($max_students, true));
             // Handle all falsy values (0, '', null, false) as empty string for unlimited students
             $max_students_value = empty($max_students) ? '' : absint($max_students);
             $settings_to_update['maximum_students'] = $max_students_value;
             $settings_to_update['maximum_students_allowed'] = $max_students_value; // Legacy field
-            error_log('TutorPress Debug - Maximum Students After: ' . var_export($max_students_value, true));
         }
         
         if (isset($settings_to_update['pause_enrollment'])) {
             $pause_value = $settings_to_update['pause_enrollment'];
-            error_log('TutorPress Debug - Pause Enrollment Before: ' . var_export($pause_value, true));
             // Ensure we store exactly 'yes' or 'no' strings
             $pause_value_normalized = ($pause_value === true || $pause_value === 'yes') ? 'yes' : 'no';
             $settings_to_update['pause_enrollment'] = $pause_value_normalized;
             $settings_to_update['enrollment_status'] = $pause_value_normalized; // Legacy field
-            error_log('TutorPress Debug - Pause Enrollment After: ' . var_export($pause_value_normalized, true));
         }
 
         // Special handling for enrollment period dates
         if (isset($settings_to_update['course_enrollment_period'])) {
             $period_value = $settings_to_update['course_enrollment_period'];
-            error_log('TutorPress Debug - Course Enrollment Period: ' . var_export($period_value, true));
             $settings_to_update['course_enrollment_period'] = ($period_value === 'yes') ? 'yes' : 'no';
             
             // If enrollment period is disabled, clear the dates
@@ -412,10 +416,7 @@ class TutorPress_Course_Settings {
         
         // Merge with existing settings, preserving any fields we're not updating
         if (!empty($settings_to_update)) {
-            error_log('TutorPress Debug - Existing Settings: ' . var_export($existing_tutor_settings, true));
-            error_log('TutorPress Debug - Updates to Apply: ' . var_export($settings_to_update, true));
             $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
-            error_log('TutorPress Debug - Final Merged Settings: ' . var_export($merged_settings, true));
             $results[] = update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
         }
         
@@ -515,6 +516,11 @@ class TutorPress_Course_Settings {
         if (isset($settings['course_prerequisites'])) {
             update_post_meta($post->ID, '_tutor_course_prerequisites_ids', $settings['course_prerequisites']);
         }
+
+        // Handle course_material_includes field (individual meta field)
+        if (isset($settings['course_material_includes'])) {
+            update_post_meta($post->ID, '_tutor_course_material_includes', $settings['course_material_includes']);
+        }
     }
 
     /**
@@ -538,8 +544,21 @@ class TutorPress_Course_Settings {
             return;
         }
 
+        // Avoid rapid updates
+        $last_sync = get_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', true);
+        if ($last_sync && (time() - $last_sync) < 5) {
+            return;
+        }
+
+        // Set sync flag to prevent infinite loops
+        update_post_meta($post_id, '_tutorpress_syncing_from_tutor', true);
+        update_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', time());
+
         // Update our course_settings field to match
         update_post_meta($post_id, 'course_settings', $meta_value);
+
+        // Clear sync flag
+        delete_post_meta($post_id, '_tutorpress_syncing_from_tutor');
     }
 
     /**
@@ -557,7 +576,8 @@ class TutorPress_Course_Settings {
         $tutor_fields = [
             '_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration',
             '_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
-            '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at'
+            '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
+            '_tutor_course_material_includes'
         ];
         
         if (!in_array($meta_key, $tutor_fields) || get_post_type($post_id) !== 'courses') {
@@ -612,6 +632,9 @@ class TutorPress_Course_Settings {
                 break;
             case '_tutor_enrollment_ends_at':
                 $current_settings['enrollment_ends_at'] = $meta_value;
+                break;
+            case '_tutor_course_material_includes':
+                $current_settings['course_material_includes'] = $meta_value;
                 break;
         }
 
@@ -686,49 +709,37 @@ class TutorPress_Course_Settings {
             update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
             update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
             
-            // DEBUG: Log what we're syncing and set a flag we can check from JavaScript
-            error_log("TutorPress Sync Debug - Post ID: $post_id");
-            error_log("TutorPress Sync Debug - Meta Value: " . print_r($meta_value, true));
-            
-            // Set a flag that JavaScript can check to confirm this method was called
-            update_post_meta($post_id, '_tutorpress_sync_debug_flag', time());
-            
             // Update individual Tutor LMS meta fields for core settings
             if (isset($meta_value['course_level'])) {
                 update_post_meta($post_id, '_tutor_course_level', $meta_value['course_level']);
-                error_log("TutorPress Sync Debug - Updated course_level: " . $meta_value['course_level']);
             }
             
             if (isset($meta_value['is_public_course'])) {
                 $public_value = $meta_value['is_public_course'] ? 'yes' : 'no';
                 update_post_meta($post_id, '_tutor_is_public_course', $public_value);
-                error_log("TutorPress Sync Debug - Updated is_public_course: " . $public_value);
             }
             
             if (isset($meta_value['enable_qna'])) {
                 $qna_value = $meta_value['enable_qna'] ? 'yes' : 'no';
                 update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
-                error_log("TutorPress Sync Debug - Updated enable_qa: " . $qna_value);
             }
             
             // Handle course_duration separately (Tutor LMS stores this in _course_duration meta field)
             if (isset($meta_value['course_duration'])) {
                 update_post_meta($post_id, '_course_duration', $meta_value['course_duration']);
-                error_log("TutorPress Sync Debug - Updated _course_duration: " . print_r($meta_value['course_duration'], true));
+            }
+            
+            // Handle course_material_includes separately (Tutor LMS stores this in _tutor_course_material_includes meta field)
+            if (isset($meta_value['course_material_includes'])) {
+                update_post_meta($post_id, '_tutor_course_material_includes', $meta_value['course_material_includes']);
             }
             
             // Update _tutor_course_settings for other extended fields
             $settings_to_update = array_intersect_key($meta_value, array_flip(self::EXTENDED_FIELD_NAMES));
-            error_log("TutorPress Sync Debug - Extended updates: " . print_r($settings_to_update, true));
             
             if (!empty($settings_to_update)) {
-                error_log("TutorPress Sync Debug - Existing tutor settings: " . print_r($existing_tutor_settings, true));
                 $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
-                error_log("TutorPress Sync Debug - Updated settings: " . print_r($merged_settings, true));
-                $result = update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
-                error_log("TutorPress Sync Debug - Update result: " . ($result ? 'SUCCESS' : 'FAILED'));
-            } else {
-                error_log("TutorPress Sync Debug - No extended updates to process");
+                update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
             }
             
             // Remove sync flag

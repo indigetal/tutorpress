@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner, Button } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, Button, TextareaControl } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
@@ -187,6 +187,23 @@ const CourseMediaPanel: React.FC = () => {
           </div>
         </PanelRow>
       )}
+
+      {/* Materials Included Section */}
+      <PanelRow>
+        <div style={{ width: "100%" }}>
+          <TextareaControl
+            label={__("Materials Included", "tutorpress")}
+            value={settings?.course_material_includes || ""}
+            onChange={(value) => updateSettings({ course_material_includes: value })}
+            placeholder={__(
+              "A list of assets you will be providing for the students in this course (one per line)",
+              "tutorpress"
+            )}
+            help={__("List each material or resource on a separate line for better readability.", "tutorpress")}
+            rows={4}
+          />
+        </div>
+      </PanelRow>
     </PluginDocumentSettingPanel>
   );
 };
