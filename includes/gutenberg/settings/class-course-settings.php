@@ -27,7 +27,6 @@ class TutorPress_Course_Settings {
         'enrollment_starts_at',
         'enrollment_ends_at',
         'pause_enrollment',
-        'intro_video',
         'is_free',
         'pricing_model',
         'price',
@@ -215,6 +214,7 @@ class TutorPress_Course_Settings {
         
         // Course Media Section: Read from individual Tutor LMS meta fields
         $course_material_includes = get_post_meta($post_id, '_tutor_course_material_includes', true);
+        $intro_video = get_post_meta($post_id, '_video', true);
         
         // Validate and set defaults for Course Details fields
         if (!is_array($course_duration)) {
@@ -257,7 +257,7 @@ class TutorPress_Course_Settings {
                 'source_embedded' => '',
                 'source_shortcode' => '',
                 'poster' => '',
-            ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
+            ], is_array($intro_video) ? $intro_video : [], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
             'course_material_includes' => $course_material_includes ?: '',
             'is_free' => $tutor_settings['is_free'] ?? true,
@@ -314,6 +314,14 @@ class TutorPress_Course_Settings {
         // Course Media Section: Update individual Tutor LMS meta fields
         if (isset($value['course_material_includes'])) {
             $results[] = update_post_meta($post_id, '_tutor_course_material_includes', $value['course_material_includes']);
+        }
+        
+        // Handle Video Intro field (stored in _video meta field like Tutor LMS)
+        if (isset($value['intro_video'])) {
+            $intro_video = $value['intro_video'];
+            if (is_array($intro_video)) {
+                $results[] = update_post_meta($post_id, '_video', $intro_video);
+            }
         }
         
         // Handle prerequisites separately (stored in _tutor_course_prerequisites_ids)

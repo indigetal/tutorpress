@@ -7,6 +7,7 @@ import { PanelRow, Notice, Spinner, Button, TextareaControl } from "@wordpress/c
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 import { isCourseAttachmentsEnabled } from "../../utils/addonChecker";
+import VideoIntroSection from "./VideoIntroSection";
 
 const CourseMediaPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -100,6 +101,9 @@ const CourseMediaPanel: React.FC = () => {
           </Notice>
         </PanelRow>
       )}
+
+      {/* Video Intro Section */}
+      <VideoIntroSection />
 
       {/* Course Attachments Section - Only show if addon is available */}
       {isCourseAttachmentsEnabled() && (
