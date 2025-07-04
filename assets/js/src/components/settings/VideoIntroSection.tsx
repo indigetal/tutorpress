@@ -98,7 +98,7 @@ const VideoIntroSection: React.FC = () => {
     mediaFrame.open();
   }, [updateSetting]);
 
-  // Video source options
+  // Video source options (matching Tutor LMS frontend course builder)
   const videoSourceOptions = [
     { label: __("No Video", "tutorpress"), value: "" },
     { label: __("Upload Video", "tutorpress"), value: "html5" },
@@ -108,8 +108,9 @@ const VideoIntroSection: React.FC = () => {
     },
     { label: __("Vimeo", "tutorpress"), value: "vimeo" },
     { label: __("External URL", "tutorpress"), value: "external_url" },
-    { label: __("Embedded Code", "tutorpress"), value: "embedded" },
-    { label: __("Shortcode", "tutorpress"), value: "shortcode" },
+    // Commented out to match Tutor LMS frontend course builder
+    // { label: __("Embedded Code", "tutorpress"), value: "embedded" },
+    // { label: __("Shortcode", "tutorpress"), value: "shortcode" },
   ];
 
   // Check if video is set
@@ -256,8 +257,8 @@ const VideoIntroSection: React.FC = () => {
           </div>
         )}
 
-        {/* Embedded Code */}
-        {settings?.intro_video?.source === "embedded" && (
+        {/* Embedded Code - Commented out to match Tutor LMS frontend course builder */}
+        {/* {settings?.intro_video?.source === "embedded" && (
           <TextareaControl
             label={__("Embedded Video Code", "tutorpress")}
             placeholder="<iframe src=...></iframe>"
@@ -267,10 +268,10 @@ const VideoIntroSection: React.FC = () => {
             help={__("Paste the embed code (iframe, video tag, etc.)", "tutorpress")}
             rows={4}
           />
-        )}
+        )} */}
 
-        {/* Shortcode */}
-        {settings?.intro_video?.source === "shortcode" && (
+        {/* Shortcode - Commented out to match Tutor LMS frontend course builder */}
+        {/* {settings?.intro_video?.source === "shortcode" && (
           <TextControl
             label={__("Video Shortcode", "tutorpress")}
             placeholder="[video src='...']"
@@ -279,7 +280,7 @@ const VideoIntroSection: React.FC = () => {
             disabled={isSaving}
             help={__("Enter a WordPress video shortcode", "tutorpress")}
           />
-        )}
+        )} */}
 
         {/* Video Meta Error */}
         {(videoMetaError || videoError) && (

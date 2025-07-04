@@ -195,6 +195,49 @@
   margin-bottom: var(--space-lg);
 }
 
+/* ============================================================================
+   VIDEO THUMBNAIL COMPONENT
+   ============================================================================ */
+
+/* Video thumbnail container */
+.tutorpress-video-thumbnail {
+  margin-top: var(--space-sm);
+}
+
+/* Video thumbnail image */
+.tutorpress-video-thumbnail img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-300);
+  transition: border-color 0.15s ease-in-out;
+}
+
+/* Video thumbnail hover state */
+.tutorpress-video-thumbnail img:hover {
+  border-color: var(--color-primary);
+}
+
+/* Video thumbnail loading state */
+.tutorpress-video-thumbnail .components-spinner {
+  margin: 0 auto;
+}
+
+/* Video thumbnail error notice */
+.tutorpress-video-thumbnail .components-notice {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--text-xs);
+}
+
+/* Video thumbnail loading text */
+.tutorpress-video-thumbnail p {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
 /* Duration fields side-by-side layout */
 .tutorpress-duration-section .components-h-stack .components-flex-item {
   flex: 1;
