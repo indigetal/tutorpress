@@ -133,52 +133,22 @@ const CourseMediaPanel: React.FC = () => {
 
             {/* Display selected files */}
             {attachmentCount > 0 && (
-              <div style={{ marginTop: "8px" }}>
+              <div className="tutorpress-saved-files-list">
                 {settings?.attachments?.map((attachmentId: number) => {
                   // Find attachment metadata
                   const attachment = attachmentsMetadata.find((meta: any) => meta.id === attachmentId);
                   const displayName = attachment ? attachment.filename : `File ID: ${attachmentId}`;
 
                   return (
-                    <div
-                      key={attachmentId}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        backgroundColor: "#f6f7f7",
-                        border: "1px solid #dcdcde",
-                        borderRadius: "4px",
-                        marginBottom: "6px",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          flex: 1,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          marginRight: "8px",
-                        }}
-                        title={displayName}
-                      >
-                        {attachmentsLoading ? <Spinner style={{ marginRight: "4px" }} /> : null}
+                    <div key={attachmentId} className="tutorpress-saved-file-item">
+                      <span className="file-name" title={displayName}>
+                        {attachmentsLoading ? <Spinner /> : null}
                         {displayName}
                       </span>
                       <Button
                         variant="tertiary"
                         onClick={() => removeCourseAttachment(attachmentId)}
-                        style={{
-                          minWidth: "auto",
-                          padding: "4px 8px",
-                          height: "auto",
-                          fontSize: "12px",
-                          color: "#d63638",
-                          border: "1px solid #d63638",
-                          borderRadius: "3px",
-                        }}
+                        className="delete-button"
                         aria-label={__("Remove attachment", "tutorpress")}
                       >
                         ×

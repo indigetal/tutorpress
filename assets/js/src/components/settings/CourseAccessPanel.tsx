@@ -193,27 +193,20 @@ const CourseAccessPanel: React.FC = () => {
 
             {/* Selected Prerequisites Display */}
             {selectedPrerequisitesWithDetails.length > 0 && (
-              <div style={{ marginTop: "8px" }}>
+              <div className="tutorpress-saved-files-list">
                 <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
                   {__("Selected Prerequisites:", "tutorpress")}
                 </div>
                 {selectedPrerequisitesWithDetails.map((course: Course) => (
-                  <div
-                    key={course.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "4px 8px",
-                      backgroundColor: "#f0f0f0",
-                      borderRadius: "4px",
-                      marginBottom: "4px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <span>{course.title}</span>
-                    <Button isSmall isDestructive onClick={() => removePrerequisite(course.id)}>
-                      {__("Remove", "tutorpress")}
+                  <div key={course.id} className="tutorpress-saved-file-item">
+                    <span className="file-name">{course.title}</span>
+                    <Button
+                      variant="tertiary"
+                      onClick={() => removePrerequisite(course.id)}
+                      className="delete-button"
+                      aria-label={__("Remove prerequisite", "tutorpress")}
+                    >
+                      ×
                     </Button>
                   </div>
                 ))}

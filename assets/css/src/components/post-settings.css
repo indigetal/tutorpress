@@ -410,3 +410,75 @@
     transition: none;
   }
 }
+
+/* ============================================================================
+   SAVED FILE LISTS - REUSABLE STYLING FOR ATTACHMENTS, PREREQUISITES, EXERCISE FILES
+   ============================================================================ */
+
+/* Container for saved file lists */
+.tutorpress-saved-files-list {
+  margin-top: var(--space-sm);
+}
+
+/* Individual file item styling */
+.tutorpress-saved-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--gray-100); /* Grey background */
+  border: 1px solid var(--gray-300); /* Darker grey border */
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-xs); /* Smaller font size */
+  transition: all var(--duration-fast) var(--ease-in-out);
+}
+
+/* File name/text content */
+.tutorpress-saved-file-item .file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--space-sm);
+  color: var(--color-text-primary);
+}
+
+/* Loading spinner in file item */
+.tutorpress-saved-file-item .components-spinner {
+  margin-right: var(--space-xs);
+}
+
+/* Delete button styling */
+.tutorpress-saved-file-item .delete-button {
+  min-width: auto;
+  padding: var(--space-xs) var(--space-sm);
+  height: auto;
+  font-size: var(--text-xs);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: all var(--duration-fast) var(--ease-in-out);
+}
+
+/* Delete button hover state */
+.tutorpress-saved-file-item .delete-button:hover {
+  background-color: var(--color-error);
+  color: var(--white);
+}
+
+/* Delete button focus state */
+.tutorpress-saved-file-item .delete-button:focus {
+  box-shadow: 0 0 0 1px var(--color-error);
+  outline: none;
+}
+
+/* Empty state styling */
+.tutorpress-saved-files-empty {
+  text-align: center;
+  padding: var(--space-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
