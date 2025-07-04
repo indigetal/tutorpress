@@ -16,6 +16,7 @@ import { PanelRow, Notice, Spinner, Button, TextControl, TextareaControl, Select
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 import { useVideoDetection } from "../../hooks/useVideoDetection";
+import VideoThumbnail from "../common/VideoThumbnail";
 
 const VideoIntroSection: React.FC = () => {
   // Get settings from our store
@@ -127,7 +128,7 @@ const VideoIntroSection: React.FC = () => {
   const showVideoDetectionLoading = isDetecting || isLoadingVideoMeta;
 
   return (
-    <PanelRow>
+    <PanelRow data-testid="video-intro-section">
       <div style={{ width: "100%" }}>
         <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Intro Video", "tutorpress")}</div>
 
@@ -173,7 +174,7 @@ const VideoIntroSection: React.FC = () => {
               }}
             >
               {settings?.intro_video?.source_video_id > 0
-                ? __("Change Video (ID: ", "tutorpress") + settings.intro_video.source_video_id + ")"
+                ? __("Change Video", "tutorpress")
                 : __("Select Video", "tutorpress")}
             </Button>
             {showVideoDetectionLoading && (
@@ -194,6 +195,12 @@ const VideoIntroSection: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Video Thumbnail */}
+            <VideoThumbnail
+              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
+              videoData={settings?.intro_video}
+            />
           </div>
         )}
 
@@ -214,6 +221,12 @@ const VideoIntroSection: React.FC = () => {
                 <p style={{ fontSize: "12px", margin: "4px 0 0 0" }}>{__("Processing video…", "tutorpress")}</p>
               </div>
             )}
+
+            {/* Video Thumbnail */}
+            <VideoThumbnail
+              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
+              videoData={settings?.intro_video}
+            />
           </div>
         )}
 
@@ -234,6 +247,12 @@ const VideoIntroSection: React.FC = () => {
                 <p style={{ fontSize: "12px", margin: "4px 0 0 0" }}>{__("Processing video…", "tutorpress")}</p>
               </div>
             )}
+
+            {/* Video Thumbnail */}
+            <VideoThumbnail
+              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
+              videoData={settings?.intro_video}
+            />
           </div>
         )}
 
