@@ -627,7 +627,7 @@ class TutorPress_Lesson_Settings {
         }
 
         // Update lesson preview (only if addon is available)
-        if (isset($value['lesson_preview']['enabled']) && self::is_course_preview_addon_available()) {
+        if (isset($value['lesson_preview']['enabled']) && TutorPress_Addon_Checker::is_course_preview_enabled()) {
             $is_preview = rest_sanitize_boolean($value['lesson_preview']['enabled']);
             update_post_meta($post_id, '_lesson_is_preview', $is_preview);
             

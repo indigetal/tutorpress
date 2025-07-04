@@ -23,6 +23,9 @@ import ContentDripPanel from "./ContentDripPanel";
 import { useCourseId } from "../../hooks/curriculum/useCourseId";
 import type { ContentDripItemSettings } from "../../types/content-drip";
 
+// Import VideoThumbnail component
+import VideoThumbnail from "../common/VideoThumbnail";
+
 interface VideoSettings {
   source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode";
   source_video_id: number;
@@ -396,6 +399,12 @@ const LessonSettingsPanel: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Video Thumbnail */}
+              <VideoThumbnail
+                key={`video-${lessonSettings.video.source}-${lessonSettings.video.source_video_id}-${lessonSettings.video.source_youtube}-${lessonSettings.video.source_vimeo}`}
+                videoData={lessonSettings.video}
+              />
             </div>
           )}
 
@@ -427,6 +436,12 @@ const LessonSettingsPanel: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Video Thumbnail */}
+              <VideoThumbnail
+                key={`video-${lessonSettings.video.source}-${lessonSettings.video.source_video_id}-${lessonSettings.video.source_youtube}-${lessonSettings.video.source_vimeo}`}
+                videoData={lessonSettings.video}
+              />
             </div>
           )}
 
@@ -457,6 +472,12 @@ const LessonSettingsPanel: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Video Thumbnail */}
+              <VideoThumbnail
+                key={`video-${lessonSettings.video.source}-${lessonSettings.video.source_video_id}-${lessonSettings.video.source_youtube}-${lessonSettings.video.source_vimeo}`}
+                videoData={lessonSettings.video}
+              />
             </div>
           )}
 
