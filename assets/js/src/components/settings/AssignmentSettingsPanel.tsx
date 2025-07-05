@@ -39,8 +39,8 @@ const AssignmentSettingsPanel: React.FC = () => {
       postType: getCurrentPostType(),
       assignmentSettings: getEditedPostAttribute("assignment_settings") || {
         time_duration: { value: 0, unit: "hours" },
-        total_points: 100,
-        pass_points: 60,
+        total_points: 10,
+        pass_points: 5,
         file_upload_limit: 1,
         file_size_limit: 2,
         attachments_enabled: true,
@@ -197,7 +197,7 @@ const AssignmentSettingsPanel: React.FC = () => {
 
   // Validation warnings
   const warnings = [];
-  if (assignmentSettings.pass_points > assignmentSettings.total_points) {
+  if (assignmentSettings.total_points > 0 && assignmentSettings.pass_points > assignmentSettings.total_points) {
     warnings.push(__("Passing points cannot exceed total points.", "tutorpress"));
   }
 
@@ -273,7 +273,7 @@ const AssignmentSettingsPanel: React.FC = () => {
             <TextControl
               type="number"
               min="0"
-              value={assignmentSettings.time_duration.value.toString()}
+              value={assignmentSettings.time_duration.value?.toString() || "0"}
               onChange={(value) => updateSetting("time_duration.value", parseInt(value) || 0)}
               disabled={isSaving}
               style={{ flex: 1 }}
@@ -298,10 +298,11 @@ const AssignmentSettingsPanel: React.FC = () => {
         <TextControl
           label={__("Total Points", "tutorpress")}
           type="number"
-          min="1"
-          value={assignmentSettings.total_points.toString()}
-          onChange={(value) => updateSetting("total_points", Math.max(1, parseInt(value) || 1))}
+          min="0"
+          value={assignmentSettings.total_points?.toString() || "0"}
+          onChange={(value) => updateSetting("total_points", Math.max(0, parseInt(value) || 0))}
           disabled={isSaving}
+          help={__("Set to 0 for no points assignment", "tutorpress")}
         />
       </PanelRow>
 
@@ -310,27 +311,29 @@ const AssignmentSettingsPanel: React.FC = () => {
           label={__("Minimum Pass Points", "tutorpress")}
           type="number"
           min="0"
-          max={assignmentSettings.total_points}
-          value={assignmentSettings.pass_points.toString()}
+          max={assignmentSettings.total_points > 0 ? assignmentSettings.total_points : undefined}
+          value={assignmentSettings.pass_points?.toString() || "0"}
           onChange={(value) => {
             const passPoints = parseInt(value) || 0;
-            const maxPoints = Math.min(passPoints, assignmentSettings.total_points);
+            // If total_points is 0, allow any pass_points value (including 0)
+            const maxPoints =
+              assignmentSettings.total_points === 0
+                ? passPoints
+                : Math.min(passPoints, assignmentSettings.total_points);
             updateSetting("pass_points", maxPoints);
           }}
           disabled={isSaving}
+          help={__("Set to 0 for no minimum pass requirement", "tutorpress")}
         />
       </PanelRow>
 
       <PanelRow>
         <TextControl
           label={__("File Upload Limit", "tutorpress")}
-          help={__(
-            "Define the number of files that a student can upload in this assignment. Input 0 to disable the option to upload.",
-            "tutorpress"
-          )}
+          help={__("Set to 0 to disable file uploads for this assignment", "tutorpress")}
           type="number"
           min="0"
-          value={assignmentSettings.file_upload_limit.toString()}
+          value={assignmentSettings.file_upload_limit?.toString() || "0"}
           onChange={(value) => updateSetting("file_upload_limit", parseInt(value) || 0)}
           disabled={isSaving}
         />
@@ -341,7 +344,7 @@ const AssignmentSettingsPanel: React.FC = () => {
           label={__("Maximum File Size Limit (MB)", "tutorpress")}
           type="number"
           min="1"
-          value={assignmentSettings.file_size_limit.toString()}
+          value={assignmentSettings.file_size_limit?.toString() || "1"}
           onChange={(value) => updateSetting("file_size_limit", Math.max(1, parseInt(value) || 1))}
           disabled={isSaving}
         />

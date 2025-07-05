@@ -62,8 +62,8 @@ class TutorPress_Assignment_Settings {
             'type'              => 'integer',
             'description'       => __('Total points for assignment', 'tutorpress'),
             'single'            => true,
-            'default'           => 100,
-            'sanitize_callback' => function($value) { return max(1, absint($value)); },
+            'default'           => 10,
+            'sanitize_callback' => function($value) { return max(0, absint($value)); },
             'show_in_rest'      => true,
         ]);
 
@@ -72,7 +72,7 @@ class TutorPress_Assignment_Settings {
             'type'              => 'integer',
             'description'       => __('Minimum points required to pass assignment', 'tutorpress'),
             'single'            => true,
-            'default'           => 60,
+            'default'           => 5,
             'sanitize_callback' => 'absint',
             'show_in_rest'      => true,
         ]);
@@ -180,7 +180,7 @@ class TutorPress_Assignment_Settings {
 
         // Sync points
         if (isset($assignment_option['total_mark'])) {
-            update_post_meta($post_id, '_assignment_total_points', max(1, absint($assignment_option['total_mark'])));
+            update_post_meta($post_id, '_assignment_total_points', max(0, absint($assignment_option['total_mark'])));
         }
         if (isset($assignment_option['pass_mark'])) {
             update_post_meta($post_id, '_assignment_pass_points', absint($assignment_option['pass_mark']));
@@ -209,8 +209,10 @@ class TutorPress_Assignment_Settings {
         // Get current values from individual meta fields
         $time_duration_value = (int) get_post_meta($post_id, '_assignment_time_duration_value', true);
         $time_duration_unit = get_post_meta($post_id, '_assignment_time_duration_unit', true) ?: 'hours';
-        $total_points = (int) get_post_meta($post_id, '_assignment_total_points', true) ?: 100;
-        $pass_points = (int) get_post_meta($post_id, '_assignment_pass_points', true) ?: 60;
+        $total_points = (int) get_post_meta($post_id, '_assignment_total_points', true);
+        // If total_points is 0, use 10 for Tutor LMS compatibility (Tutor LMS default)
+        $total_points = $total_points === 0 ? 10 : $total_points;
+        $pass_points = (int) get_post_meta($post_id, '_assignment_pass_points', true) ?: 5;
         $file_upload_limit = (int) get_post_meta($post_id, '_assignment_file_upload_limit', true) ?: 1;
         $file_size_limit = (int) get_post_meta($post_id, '_assignment_file_size_limit', true) ?: 2;
 
@@ -261,8 +263,8 @@ class TutorPress_Assignment_Settings {
                 'value' => (int) get_post_meta($post_id, '_assignment_time_duration_value', true),
                 'unit'  => get_post_meta($post_id, '_assignment_time_duration_unit', true) ?: 'hours',
             ],
-            'total_points'         => (int) get_post_meta($post_id, '_assignment_total_points', true) ?: 100,
-            'pass_points'          => (int) get_post_meta($post_id, '_assignment_pass_points', true) ?: 60,
+            'total_points'         => (int) get_post_meta($post_id, '_assignment_total_points', true) ?: 10,
+            'pass_points'          => (int) get_post_meta($post_id, '_assignment_pass_points', true) ?: 5,
             'file_upload_limit'    => (int) get_post_meta($post_id, '_assignment_file_upload_limit', true) ?: 1,
             'file_size_limit'      => (int) get_post_meta($post_id, '_assignment_file_size_limit', true) ?: 2,
             'attachments_enabled'  => (bool) get_post_meta($post_id, '_assignment_attachments_enabled', true),
@@ -303,16 +305,21 @@ class TutorPress_Assignment_Settings {
 
         // Validate and update points
         if (isset($value['total_points'])) {
-            $total_points = max(1, absint($value['total_points']));
+            $total_points = max(0, absint($value['total_points']));
             update_post_meta($post_id, '_assignment_total_points', $total_points);
         }
 
         if (isset($value['pass_points'])) {
             $pass_points = absint($value['pass_points']);
-            $total_points = (int) get_post_meta($post_id, '_assignment_total_points', true) ?: 100;
+            $total_points = (int) get_post_meta($post_id, '_assignment_total_points', true) ?: 10;
             
-            // Ensure pass points don't exceed total points
-            $pass_points = min($pass_points, $total_points);
+            // If total_points is 0, allow any pass_points value
+            if ($total_points === 0) {
+                $pass_points = $pass_points; // Allow any value
+            } else {
+                // Ensure pass points don't exceed total points
+                $pass_points = min($pass_points, $total_points);
+            }
             update_post_meta($post_id, '_assignment_pass_points', $pass_points);
         }
 
@@ -432,7 +439,7 @@ class TutorPress_Assignment_Settings {
                     'total_points' => [
                         'type'        => 'integer',
                         'description' => __('Total points for assignment', 'tutorpress'),
-                        'minimum'     => 1,
+                        'minimum'     => 0,
                     ],
                     'pass_points' => [
                         'type'        => 'integer',
