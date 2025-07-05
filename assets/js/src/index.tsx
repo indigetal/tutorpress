@@ -15,6 +15,7 @@ import "./api"; // Import API module to expose it to window
 
 // Import stores to ensure they are registered
 import "./store/h5p"; // H5P store registration
+import "./store/pricing"; // Pricing store registration
 
 // Conditionally import certificate store only when Certificate addon is enabled
 if (isCertificateEnabled()) {
