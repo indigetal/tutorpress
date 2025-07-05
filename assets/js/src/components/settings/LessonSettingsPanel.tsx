@@ -315,6 +315,8 @@ const LessonSettingsPanel: React.FC = () => {
   };
 
   const openExerciseFilesLibrary = () => {
+    const currentFiles = lessonSettings.exercise_files || [];
+
     const mediaFrame = (window as any).wp.media({
       title: __("Select Exercise Files", "tutorpress"),
       button: {
@@ -324,9 +326,12 @@ const LessonSettingsPanel: React.FC = () => {
     });
 
     mediaFrame.on("select", () => {
-      const attachments = mediaFrame.state().get("selection").toJSON();
-      const attachmentIds = attachments.map((attachment: any) => attachment.id);
-      updateSetting("exercise_files", attachmentIds);
+      const newAttachments = mediaFrame.state().get("selection").toJSON();
+      const newAttachmentIds = newAttachments.map((attachment: any) => attachment.id);
+
+      // Combine existing files with new ones, avoiding duplicates
+      const allAttachmentIds = [...new Set([...currentFiles, ...newAttachmentIds])];
+      updateSetting("exercise_files", allAttachmentIds);
     });
 
     mediaFrame.open();

@@ -1,8 +1,8 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, TextControl, SelectControl, Button, Notice } from "@wordpress/components";
+import { PanelRow, TextControl, SelectControl, Button, Notice, Spinner } from "@wordpress/components";
 
 // Import Content Drip Panel
 import ContentDripPanel from "./ContentDripPanel";
@@ -23,6 +23,9 @@ interface AssignmentSettings {
 }
 
 const AssignmentSettingsPanel: React.FC = () => {
+  const [attachmentsMetadata, setAttachmentsMetadata] = useState<any[]>([]);
+  const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
+
   // Get course ID for content drip context
   const courseId = useCourseId();
 
@@ -55,6 +58,78 @@ const AssignmentSettingsPanel: React.FC = () => {
 
   const { editPost } = useDispatch("core/editor");
 
+  // Fetch attachments metadata when attachments change
+  useEffect(() => {
+    const fetchAttachmentsMetadata = async () => {
+      const attachmentIds = assignmentSettings.instructor_attachments || [];
+      if (attachmentIds.length === 0) {
+        setAttachmentsMetadata([]);
+        return;
+      }
+
+      setIsLoadingAttachments(true);
+      try {
+        // Fetch metadata for each attachment using WordPress REST API
+        const metadataPromises = attachmentIds.map(async (attachmentId: number) => {
+          try {
+            // Use WordPress REST API with proper authentication headers
+            const apiBase = (window as any).wpApiSettings?.root || "/wp-json/";
+            const nonce = (window as any).wpApiSettings?.nonce || "";
+
+            const response = await fetch(`${apiBase}wp/v2/media/${attachmentId}`, {
+              headers: {
+                "X-WP-Nonce": nonce,
+                "Content-Type": "application/json",
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Extract filename with extension
+            let filename =
+              data.title?.rendered || data.media_details?.file?.split("/").pop() || `File ID: ${attachmentId}`;
+
+            // Add file extension if we have mime_type but no extension in filename
+            if (data.mime_type && !filename.includes(".")) {
+              const extension = data.mime_type.split("/")[1];
+              if (extension) {
+                filename = `${filename}.${extension}`;
+              }
+            }
+
+            return {
+              id: attachmentId,
+              filename: filename,
+              url: data.source_url,
+              mime_type: data.mime_type,
+            };
+          } catch (error) {
+            console.error(`Failed to fetch metadata for attachment ${attachmentId}:`, error);
+          }
+          return {
+            id: attachmentId,
+            filename: `File ID: ${attachmentId}`,
+            url: "",
+            mime_type: "",
+          };
+        });
+
+        const metadata = await Promise.all(metadataPromises);
+        setAttachmentsMetadata(metadata.filter(Boolean));
+      } catch (error) {
+        console.error("Failed to fetch attachments metadata:", error);
+      } finally {
+        setIsLoadingAttachments(false);
+      }
+    };
+
+    fetchAttachmentsMetadata();
+  }, [assignmentSettings.instructor_attachments]);
+
   // Only show for assignment post type
   if (postType !== "tutor_assignments") {
     return null;
@@ -77,6 +152,8 @@ const AssignmentSettingsPanel: React.FC = () => {
   };
 
   const openMediaLibrary = () => {
+    const currentAttachments = assignmentSettings.instructor_attachments || [];
+
     // Open WordPress Media Library
     const mediaFrame = (window as any).wp.media({
       title: __("Select Assignment Attachments", "tutorpress"),
@@ -87,9 +164,12 @@ const AssignmentSettingsPanel: React.FC = () => {
     });
 
     mediaFrame.on("select", () => {
-      const attachments = mediaFrame.state().get("selection").toJSON();
-      const attachmentIds = attachments.map((attachment: any) => attachment.id);
-      updateSetting("instructor_attachments", attachmentIds);
+      const newAttachments = mediaFrame.state().get("selection").toJSON();
+      const newAttachmentIds = newAttachments.map((attachment: any) => attachment.id);
+
+      // Combine existing attachments with new ones, avoiding duplicates
+      const allAttachmentIds = [...new Set([...currentAttachments, ...newAttachmentIds])];
+      updateSetting("instructor_attachments", allAttachmentIds);
     });
 
     mediaFrame.open();
@@ -155,32 +235,30 @@ const AssignmentSettingsPanel: React.FC = () => {
 
           {/* Display selected attachments */}
           {attachmentCount > 0 && (
-            <div style={{ marginTop: "8px" }}>
-              {assignmentSettings.instructor_attachments?.map((attachmentId: number) => (
-                <div
-                  key={attachmentId}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "4px 8px",
-                    backgroundColor: "#f0f0f0",
-                    borderRadius: "4px",
-                    marginBottom: "4px",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span>{__(`Attachment ID: ${attachmentId}`, "tutorpress")}</span>
-                  <Button
-                    variant="link"
-                    onClick={() => removeAttachment(attachmentId)}
-                    style={{ color: "#d63638", fontSize: "12px", padding: "0" }}
-                    disabled={isSaving}
-                  >
-                    {__("Remove", "tutorpress")}
-                  </Button>
-                </div>
-              ))}
+            <div className="tutorpress-saved-files-list">
+              {assignmentSettings.instructor_attachments?.map((attachmentId: number) => {
+                // Find attachment metadata
+                const attachment = attachmentsMetadata.find((meta: any) => meta.id === attachmentId);
+                const displayName = attachment ? attachment.filename : `File ID: ${attachmentId}`;
+
+                return (
+                  <div key={attachmentId} className="tutorpress-saved-file-item">
+                    <span className="file-name" title={displayName}>
+                      {isLoadingAttachments ? <Spinner /> : null}
+                      {displayName}
+                    </span>
+                    <Button
+                      variant="tertiary"
+                      onClick={() => removeAttachment(attachmentId)}
+                      className="delete-button"
+                      disabled={isSaving}
+                      aria-label={__("Remove attachment", "tutorpress")}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
