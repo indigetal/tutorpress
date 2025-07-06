@@ -9,7 +9,7 @@
  */
 
 import { createReduxStore, register } from "@wordpress/data";
-import { controls as dataControls } from "@wordpress/data-controls";
+import { controls } from "@wordpress/data-controls";
 import { __ } from "@wordpress/i18n";
 import type { CourseSettings } from "../../types/courses";
 
@@ -94,29 +94,40 @@ const reducer = (state = DEFAULT_STATE, action: PricingAction): PricingState => 
       };
 
     case "SET_PRICING_TYPE":
+      // Sanitize pricing type to ensure valid values
+      const validPricingType =
+        action.payload.pricing_type === "free" || action.payload.pricing_type === "paid"
+          ? action.payload.pricing_type
+          : "free";
       return {
         ...state,
         pricing: {
           ...state.pricing,
-          pricing_type: action.payload.pricing_type,
+          pricing_type: validPricingType,
         },
       };
 
     case "SET_PRICE":
+      // Sanitize price to ensure non-negative values and valid numbers
+      const price = action.payload.price;
+      const validPrice = typeof price === "number" && !isNaN(price) ? Math.max(0, price) : 0;
       return {
         ...state,
         pricing: {
           ...state.pricing,
-          price: action.payload.price,
+          price: validPrice,
         },
       };
 
     case "SET_SALE_PRICE":
+      // Sanitize sale price to ensure non-negative values and valid numbers
+      const salePrice = action.payload.sale_price;
+      const validSalePrice = typeof salePrice === "number" && !isNaN(salePrice) ? Math.max(0, salePrice) : 0;
       return {
         ...state,
         pricing: {
           ...state.pricing,
-          sale_price: action.payload.sale_price,
+          sale_price: validSalePrice,
         },
       };
 
@@ -314,48 +325,7 @@ const actions = {
 // CONTROLS
 // ============================================================================
 
-const controls = {
-  /**
-   * Fetch pricing data from REST API
-   */
-  async FETCH_PRICING({ payload }: { payload: { courseId: number } }) {
-    const response = await fetch(`/wp-json/tutorpress/v1/courses/${payload.courseId}/pricing`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch pricing: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
-  },
-
-  /**
-   * Update pricing data via REST API
-   */
-  async UPDATE_PRICING({ payload }: { payload: { courseId: number; pricing: PricingState["pricing"] } }) {
-    const response = await fetch(`/wp-json/tutorpress/v1/courses/${payload.courseId}/pricing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-WP-Nonce": (window as any).wpApiSettings?.nonce || "",
-      },
-      body: JSON.stringify(payload.pricing),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update pricing: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
-  },
-};
+// Use default WordPress data controls - no custom controls needed
 
 // ============================================================================
 // SELECTORS
@@ -454,18 +424,21 @@ const resolvers = {
         type: "FETCH_PRICING_START",
       };
 
-      const data = yield {
-        type: "FETCH_PRICING",
-        payload: { courseId },
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/pricing`,
+          method: "GET",
+        },
       };
 
-      if ((data as any).success) {
+      if ((response as any).success) {
         yield {
           type: "FETCH_PRICING_SUCCESS",
-          payload: { pricing: (data as any).data },
+          payload: { pricing: (response as any).data },
         };
       } else {
-        throw new Error((data as any).message || "Failed to fetch pricing");
+        throw new Error((response as any).message || "Failed to fetch pricing");
       }
     } catch (error) {
       yield {
@@ -484,18 +457,22 @@ const resolvers = {
         type: "UPDATE_PRICING_START",
       };
 
-      const data = yield {
-        type: "UPDATE_PRICING",
-        payload: { courseId, pricing },
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/pricing`,
+          method: "POST",
+          data: pricing,
+        },
       };
 
-      if ((data as any).success) {
+      if ((response as any).success) {
         yield {
           type: "UPDATE_PRICING_SUCCESS",
-          payload: { pricing: (data as any).data },
+          payload: { pricing: (response as any).data },
         };
       } else {
-        throw new Error((data as any).message || "Failed to update pricing");
+        throw new Error((response as any).message || "Failed to update pricing");
       }
     } catch (error) {
       yield {

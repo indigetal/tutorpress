@@ -138,6 +138,33 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                                 },
                                 'description'       => __('Array of attachment IDs for course materials.', 'tutorpress'),
                             ],
+                            // Pricing Model Section
+                            'pricing_model' => [
+                                'type'              => 'string',
+                                'enum'              => ['free', 'paid'],
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('The pricing model for the course (free or paid).', 'tutorpress'),
+                            ],
+                            'price' => [
+                                'type'              => 'number',
+                                'minimum'           => 0,
+                                'sanitize_callback' => function($value) {
+                                    return max(0, (float) $value);
+                                },
+                                'description'       => __('The regular price of the course.', 'tutorpress'),
+                            ],
+                            'sale_price' => [
+                                'type'              => 'number',
+                                'minimum'           => 0,
+                                'sanitize_callback' => function($value) {
+                                    return max(0, (float) $value);
+                                },
+                                'description'       => __('The sale price of the course.', 'tutorpress'),
+                            ],
+                            'subscription_enabled' => [
+                                'type'              => 'boolean',
+                                'description'       => __('Whether subscription is enabled for the course.', 'tutorpress'),
+                            ],
                         ],
                     ],
                 ]
@@ -276,6 +303,12 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'course_material_includes' => get_post_meta($course_id, '_tutor_course_material_includes', true) ?: '',
             'intro_video' => get_post_meta($course_id, '_video', true) ?: array(),
             'attachments' => get_post_meta($course_id, '_tutor_attachments', true) ?: array(),
+            
+            // Pricing Model Section (individual meta fields)
+            'pricing_model' => get_post_meta($course_id, '_tutor_course_price_type', true) ?: 'free',
+            'price' => (float) get_post_meta($course_id, 'course_price', true) ?: 0,
+            'sale_price' => (float) get_post_meta($course_id, 'course_sale_price', true) ?: 0,
+            'subscription_enabled' => get_post_meta($course_id, '_tutor_course_selling_option', true) === 'subscription',
         );
 
         return rest_ensure_response(array(
@@ -412,6 +445,33 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                 // Also store in Tutor LMS format for compatibility
                 update_post_meta($course_id, '_tutor_attachments', $attachment_ids);
             }
+        }
+
+        // Pricing Model Section
+        if ($request->has_param('pricing_model')) {
+            $pricing_model = sanitize_text_field($request->get_param('pricing_model'));
+            $pricing_type = $pricing_model === 'free' ? 'free' : 'paid';
+            $new_settings['pricing_model'] = $pricing_model;
+            update_post_meta($course_id, '_tutor_course_price_type', $pricing_type);
+        }
+
+        if ($request->has_param('price')) {
+            $price = max(0, (float) $request->get_param('price'));
+            $new_settings['price'] = $price;
+            update_post_meta($course_id, 'course_price', $price);
+        }
+
+        if ($request->has_param('sale_price')) {
+            $sale_price = max(0, (float) $request->get_param('sale_price'));
+            $new_settings['sale_price'] = $sale_price;
+            update_post_meta($course_id, 'course_sale_price', $sale_price);
+        }
+
+        if ($request->has_param('subscription_enabled')) {
+            $subscription_enabled = (bool) $request->get_param('subscription_enabled');
+            $selling_option = $subscription_enabled ? 'subscription' : 'one_time';
+            $new_settings['subscription_enabled'] = $subscription_enabled;
+            update_post_meta($course_id, '_tutor_course_selling_option', $selling_option);
         }
 
         // Merge with existing settings
