@@ -151,9 +151,9 @@ class TutorPress_Scripts {
             'adminUrl' => admin_url(),
         ]);
 
-        // Expose addon availability data to frontend
+        // Expose comprehensive addon and payment engine data to frontend
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorpressAddons', 
-            TutorPress_Addon_Checker::get_all_addon_status()
+            TutorPress_Addon_Checker::get_comprehensive_status()
         );
     }
 

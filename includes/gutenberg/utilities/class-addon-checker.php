@@ -288,5 +288,159 @@ class TutorPress_Addon_Checker {
         return array_keys(self::$addon_configs);
     }
 
+    /**
+     * Check if Tutor Pro is enabled (for non-payment features)
+     *
+     * @return bool True if Tutor Pro is active and licensed
+     */
+    public static function is_tutor_pro_enabled() {
+        // Check if Tutor Pro function exists
+        if (!function_exists('tutor_pro')) {
+            return false;
+        }
+        
+        // Check for Tutor Pro license status
+        $license_info = get_option('tutor_license_info', null);
+        if (!$license_info) {
+            return false;
+        }
+        
+        // Check if license is activated
+        return !empty($license_info['activated']);
+    }
+
+    /**
+     * Check if Paid Memberships Pro is enabled
+     *
+     * @return bool True if PMP is active and functional
+     */
+    public static function is_pmp_enabled() {
+        return class_exists('Paid_Memberships_Pro') && 
+               function_exists('pmpro_getMembershipLevels');
+    }
+
+    /**
+     * Check if SureCart is enabled
+     *
+     * @return bool True if SureCart is active and functional
+     */
+    public static function is_surecart_enabled() {
+        return class_exists('SureCart') && 
+               function_exists('surecart_get_products');
+    }
+
+    /**
+     * Get the current payment engine based on available systems and user preference
+     *
+     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'none')
+     */
+    public static function get_payment_engine() {
+        // Check TutorPress settings first (user preference)
+        $tutorpress_engine = get_option('tutorpress_payment_engine', 'auto');
+        if ($tutorpress_engine !== 'auto') {
+            return $tutorpress_engine;
+        }
+        
+        // Auto-detect with priority order
+        if (self::is_pmp_enabled()) {
+            return 'pmp';
+        }
+        
+        if (self::is_surecart_enabled()) {
+            return 'surecart';
+        }
+        
+        if (self::is_tutor_pro_enabled()) {
+            return 'tutor_pro';
+        }
+        
+        return 'none';
+    }
+
+    /**
+     * Get available payment engines with their display names
+     *
+     * @return array Associative array of available payment engines
+     */
+    public static function get_available_payment_engines() {
+        $engines = [];
+        
+        if (self::is_pmp_enabled()) {
+            $engines['pmp'] = 'Paid Memberships Pro';
+        }
+        
+        if (self::is_surecart_enabled()) {
+            $engines['surecart'] = 'SureCart';
+        }
+        
+        if (self::is_tutor_pro_enabled()) {
+            $engines['tutor_pro'] = 'Tutor LMS Pro';
+        }
+        
+        return $engines;
+    }
+
+    /**
+     * Check if monetization is enabled for the current payment engine
+     *
+     * @return bool True if monetization is enabled
+     */
+    public static function is_monetization_enabled() {
+        $payment_engine = self::get_payment_engine();
+        
+        switch ($payment_engine) {
+            case 'pmp':
+                // PMP is always "monetization enabled" when active
+                return true;
+                
+            case 'surecart':
+                // SureCart is always "monetization enabled" when active
+                return true;
+                
+            case 'tutor_pro':
+                // Check Tutor Pro monetization settings
+                return self::check_tutor_pro_monetization();
+                
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Check Tutor Pro monetization settings
+     *
+     * @return bool True if Tutor Pro monetization is enabled
+     */
+    private static function check_tutor_pro_monetization() {
+        if (!self::is_tutor_pro_enabled()) {
+            return false;
+        }
+        
+        // Check Tutor Pro monetization settings
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        
+        return in_array($monetize_by, ['wc', 'edd', 'tutor']);
+    }
+
+    /**
+     * Get comprehensive addon and payment engine status
+     *
+     * @return array Complete status array including addons and payment engines
+     */
+    public static function get_comprehensive_status() {
+        $status = self::get_all_addon_status();
+        
+        // Add payment engine status
+        $status['tutor_pro'] = self::is_tutor_pro_enabled();
+        $status['paid_memberships_pro'] = self::is_pmp_enabled();
+        $status['surecart'] = self::is_surecart_enabled();
+        $status['payment_engine'] = self::get_payment_engine();
+        $status['monetization_enabled'] = self::is_monetization_enabled();
+        $status['available_payment_engines'] = self::get_available_payment_engines();
+        
+        return $status;
+    }
+
 
 } 

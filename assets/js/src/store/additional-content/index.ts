@@ -21,6 +21,7 @@ import {
   AdditionalContentError,
 } from "../../types/additional-content";
 import type { PrerequisitesByTopic, ContentDripItemSettings } from "../../types/content-drip";
+import { isContentDripEnabled } from "../../utils/addonChecker";
 
 // Import modular content drip functionality
 import {
@@ -665,13 +666,7 @@ const selectors = {
   // Content Drip Specific Selectors
   isContentDripAddonAvailable(state: StoreState) {
     // Check if Content Drip addon is available
-    const addonChecker = (window as any).tutorpress?.AddonChecker;
-    if (addonChecker) {
-      const addonEnabled = addonChecker.isContentDripEnabled();
-      // Handle both boolean and string "1" values from Tutor's addon system
-      return addonEnabled === true || addonEnabled === "1" || addonEnabled === 1;
-    }
-    return false;
+    return isContentDripEnabled();
   },
 
   isContentDripEnabled(state: StoreState) {

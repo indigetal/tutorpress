@@ -26,6 +26,11 @@ export type AddonKey =
   | "course_attachments";
 
 /**
+ * Payment engine types
+ */
+export type PaymentEngine = "pmp" | "surecart" | "tutor_pro" | "none";
+
+/**
  * Addon status interface
  */
 export interface AddonStatus {
@@ -39,6 +44,13 @@ export interface AddonStatus {
   multi_instructors: boolean;
   enrollments: boolean;
   course_attachments: boolean;
+  // Payment engine status
+  tutor_pro: boolean;
+  paid_memberships_pro: boolean;
+  surecart: boolean;
+  payment_engine: PaymentEngine;
+  monetization_enabled: boolean;
+  available_payment_engines: Record<string, string>;
 }
 
 /**
@@ -73,6 +85,13 @@ export class AddonChecker {
         multi_instructors: false,
         enrollments: false,
         course_attachments: false,
+        // Payment engine status
+        tutor_pro: false,
+        paid_memberships_pro: false,
+        surecart: false,
+        payment_engine: "none" as PaymentEngine,
+        monetization_enabled: false,
+        available_payment_engines: {},
       }
     );
   }
@@ -230,6 +249,54 @@ export class AddonChecker {
       "enrollments",
     ];
   }
+
+  /**
+   * Check if Tutor Pro is enabled (for non-payment features)
+   */
+  public static isTutorProEnabled(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.tutor_pro || false;
+  }
+
+  /**
+   * Check if Paid Memberships Pro is enabled
+   */
+  public static isPMPEnabled(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.paid_memberships_pro || false;
+  }
+
+  /**
+   * Check if SureCart is enabled
+   */
+  public static isSureCartEnabled(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.surecart || false;
+  }
+
+  /**
+   * Get the current payment engine
+   */
+  public static getPaymentEngine(): PaymentEngine {
+    const addonData = this.getAddonData();
+    return addonData.payment_engine || "none";
+  }
+
+  /**
+   * Get available payment engines with their display names
+   */
+  public static getAvailablePaymentEngines(): Record<string, string> {
+    const addonData = this.getAddonData();
+    return addonData.available_payment_engines || {};
+  }
+
+  /**
+   * Check if monetization is enabled for the current payment engine
+   */
+  public static isMonetizationEnabled(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.monetization_enabled || false;
+  }
 }
 
 /**
@@ -247,3 +314,11 @@ export const isEnrollmentsEnabled = (): boolean => AddonChecker.isEnrollmentsEna
 export const isCourseAttachmentsEnabled = (): boolean => AddonChecker.isCourseAttachmentsEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
+
+// Payment engine convenience functions
+export const isTutorProEnabled = (): boolean => AddonChecker.isTutorProEnabled();
+export const isPMPEnabled = (): boolean => AddonChecker.isPMPEnabled();
+export const isSureCartEnabled = (): boolean => AddonChecker.isSureCartEnabled();
+export const getPaymentEngine = (): PaymentEngine => AddonChecker.getPaymentEngine();
+export const getAvailablePaymentEngines = (): Record<string, string> => AddonChecker.getAvailablePaymentEngines();
+export const isMonetizationEnabled = (): boolean => AddonChecker.isMonetizationEnabled();
