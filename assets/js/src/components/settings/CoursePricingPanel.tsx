@@ -2,7 +2,7 @@ import React from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, RadioControl, TextControl } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
@@ -44,6 +44,42 @@ const CoursePricingPanel: React.FC = () => {
     );
   }
 
+  // Handle pricing model change
+  const handlePricingModelChange = (value: string) => {
+    if (settings) {
+      updateSettings({
+        ...settings,
+        pricing_model: value,
+        is_free: value === "free",
+        // Reset price fields when switching to free
+        ...(value === "free" && {
+          price: 0,
+          sale_price: 0,
+        }),
+      });
+    }
+  };
+
+  // Handle price change
+  const handlePriceChange = (value: string) => {
+    if (settings) {
+      updateSettings({
+        ...settings,
+        price: parseFloat(value) || 0,
+      });
+    }
+  };
+
+  // Handle sale price change
+  const handleSalePriceChange = (value: string) => {
+    if (settings) {
+      updateSettings({
+        ...settings,
+        sale_price: parseFloat(value) || 0,
+      });
+    }
+  };
+
   return (
     <PluginDocumentSettingPanel
       name="course-pricing-settings"
@@ -58,21 +94,58 @@ const CoursePricingPanel: React.FC = () => {
         </PanelRow>
       )}
 
-      {/* Basic panel structure - UI components will be added in Phase 2 */}
+      {/* Pricing Model Selection */}
       <PanelRow>
-        <div style={{ width: "100%" }}>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "#757575",
-              margin: "0",
-              fontStyle: "italic",
-            }}
-          >
-            {__("Pricing configuration will be available in the next phase.", "tutorpress")}
-          </p>
-        </div>
+        <RadioControl
+          label={__("Pricing Type", "tutorpress")}
+          help={__("Choose whether this course is free or paid.", "tutorpress")}
+          selected={settings?.pricing_model || "free"}
+          options={[
+            {
+              label: __("Free", "tutorpress"),
+              value: "free",
+            },
+            {
+              label: __("Paid", "tutorpress"),
+              value: "paid",
+            },
+          ]}
+          onChange={handlePricingModelChange}
+        />
       </PanelRow>
+
+      {/* Price Fields - Only show when "Paid" is selected */}
+      {settings?.pricing_model === "paid" && (
+        <div className="price-fields">
+          <PanelRow>
+            <div className="price-field">
+              <TextControl
+                label={__("Regular Price", "tutorpress")}
+                help={__("Enter the regular price for this course.", "tutorpress")}
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings?.price?.toString() || "0"}
+                onChange={handlePriceChange}
+              />
+            </div>
+          </PanelRow>
+
+          <PanelRow>
+            <div className="price-field">
+              <TextControl
+                label={__("Sale Price", "tutorpress")}
+                help={__("Enter the sale price (optional). Leave empty for no sale.", "tutorpress")}
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings?.sale_price?.toString() || "0"}
+                onChange={handleSalePriceChange}
+              />
+            </div>
+          </PanelRow>
+        </div>
+      )}
 
       {/* Debug information - will be removed in production */}
       {process.env.NODE_ENV === "development" && (
@@ -83,10 +156,11 @@ const CoursePricingPanel: React.FC = () => {
               <pre style={{ margin: "8px 0", fontSize: "11px" }}>
                 {JSON.stringify(
                   {
-                    pricing_model: settings.pricing_model,
-                    price: settings.price,
-                    sale_price: settings.sale_price,
-                    subscription_enabled: settings.subscription_enabled,
+                    pricing_model: settings?.pricing_model,
+                    is_free: settings?.is_free,
+                    price: settings?.price,
+                    sale_price: settings?.sale_price,
+                    subscription_enabled: settings?.subscription_enabled,
                   },
                   null,
                   2

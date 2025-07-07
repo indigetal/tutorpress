@@ -19,7 +19,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
      * @since 0.1.0
      */
     public function __construct() {
-        $this->rest_base = 'courses/(?P<course_id>[\d]+)/settings';
+        $this->rest_base = 'courses';
     }
 
     /**
@@ -33,7 +33,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             // Get course settings
             register_rest_route(
                 $this->namespace,
-                '/' . $this->rest_base,
+                '/' . $this->rest_base . '/(?P<course_id>[\d]+)/settings',
                 [
                     [
                         'methods'             => WP_REST_Server::READABLE,

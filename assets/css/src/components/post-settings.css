@@ -8,6 +8,7 @@
  * - Lesson Settings (LessonSettingsPanel)
  * - Assignment Settings (AssignmentSettingsPanel)
  * - Live Lesson Modals (Google Meet, Zoom)
+ * - Pricing Model (CoursePricingPanel)
  *
  * Eliminates style duplication across components and provides consistent UX.
  *
@@ -481,4 +482,108 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-style: italic;
+}
+
+/* ============================================================================
+   PRICING MODEL PANEL - COURSE PRICING PANEL
+   ============================================================================ */
+
+/* Pricing panel container */
+.tutorpress-course-pricing-panel {
+  /* Inherits shared post settings panel styles */
+}
+
+/* Pricing model radio control */
+.tutorpress-course-pricing-panel .components-radio-control {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-course-pricing-panel .components-radio-control__option {
+  margin-bottom: var(--space-sm);
+}
+
+.tutorpress-course-pricing-panel .components-radio-control__input {
+  margin-right: var(--space-sm);
+}
+
+.tutorpress-course-pricing-panel .components-radio-control__label {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Price fields - only shown when "Paid" is selected */
+.tutorpress-course-pricing-panel .price-fields {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tutorpress-course-pricing-panel .price-field {
+  margin-bottom: var(--space-md);
+}
+
+.tutorpress-course-pricing-panel .price-field:last-child {
+  margin-bottom: 0;
+}
+
+/* Price input specific styling */
+.tutorpress-course-pricing-panel .price-field .components-text-control__input {
+  font-family: monospace;
+  text-align: right;
+  font-size: var(--text-sm);
+}
+
+/* Price field labels */
+.tutorpress-course-pricing-panel .price-field .components-base-control__label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+/* Price field help text */
+.tutorpress-course-pricing-panel .price-field .components-base-control__help {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* Debug section styling */
+.tutorpress-course-pricing-panel details {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+}
+
+.tutorpress-course-pricing-panel details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tutorpress-course-pricing-panel details pre {
+  background-color: var(--white);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  overflow-x: auto;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  margin-top: var(--space-sm);
+}
+
+/* Responsive adjustments for pricing panel */
+@media (max-width: 782px) {
+  .tutorpress-course-pricing-panel .components-radio-control__option {
+    margin-bottom: var(--space-md);
+  }
+
+  .tutorpress-course-pricing-panel .price-field {
+    margin-bottom: var(--space-lg);
+  }
 }
