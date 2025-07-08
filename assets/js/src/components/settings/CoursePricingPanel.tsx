@@ -6,6 +6,7 @@ import { PanelRow, Notice, Spinner, RadioControl, TextControl } from "@wordpress
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
+import { isMonetizationEnabled } from "../../utils/addonChecker";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -51,6 +52,11 @@ const CoursePricingPanel: React.FC = () => {
         ...settings,
         pricing_model: value,
         is_free: value === "free",
+        // Set defaults when switching to paid (matching Tutor LMS defaults)
+        ...(value === "paid" && {
+          price: 10,
+          sale_price: 0,
+        }),
         // Reset price fields when switching to free
         ...(value === "free" && {
           price: 0,
@@ -105,17 +111,22 @@ const CoursePricingPanel: React.FC = () => {
               label: __("Free", "tutorpress"),
               value: "free",
             },
-            {
-              label: __("Paid", "tutorpress"),
-              value: "paid",
-            },
+            // Only show "Paid" option if monetization is enabled
+            ...(isMonetizationEnabled()
+              ? [
+                  {
+                    label: __("Paid", "tutorpress"),
+                    value: "paid",
+                  },
+                ]
+              : []),
           ]}
           onChange={handlePricingModelChange}
         />
       </PanelRow>
 
-      {/* Price Fields - Only show when "Paid" is selected */}
-      {settings?.pricing_model === "paid" && (
+      {/* Price Fields - Only show when "Paid" is selected AND monetization is enabled */}
+      {settings?.pricing_model === "paid" && isMonetizationEnabled() && (
         <div className="price-fields">
           <PanelRow>
             <div className="price-field">
@@ -145,30 +156,6 @@ const CoursePricingPanel: React.FC = () => {
             </div>
           </PanelRow>
         </div>
-      )}
-
-      {/* Debug information - will be removed in production */}
-      {process.env.NODE_ENV === "development" && (
-        <PanelRow>
-          <div style={{ width: "100%" }}>
-            <details style={{ fontSize: "12px", color: "#666" }}>
-              <summary>Debug: Current Pricing Settings</summary>
-              <pre style={{ margin: "8px 0", fontSize: "11px" }}>
-                {JSON.stringify(
-                  {
-                    pricing_model: settings?.pricing_model,
-                    is_free: settings?.is_free,
-                    price: settings?.price,
-                    sale_price: settings?.sale_price,
-                    subscription_enabled: settings?.subscription_enabled,
-                  },
-                  null,
-                  2
-                )}
-              </pre>
-            </details>
-          </div>
-        </PanelRow>
       )}
     </PluginDocumentSettingPanel>
   );

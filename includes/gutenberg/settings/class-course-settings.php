@@ -263,8 +263,8 @@ class TutorPress_Course_Settings {
             // Pricing Model Section: Read from individual Tutor LMS meta fields
             'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
             'pricing_model' => get_post_meta($post_id, '_tutor_course_price_type', true) ?: 'free',
-            'price' => (float) get_post_meta($post_id, 'course_price', true) ?: 0,
-            'sale_price' => (float) get_post_meta($post_id, 'course_sale_price', true) ?: 0,
+            'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
+            'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
             'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: false,
             'instructors' => $tutor_settings['instructors'] ?? [],
             'additional_instructors' => $tutor_settings['additional_instructors'] ?? [],
@@ -367,12 +367,12 @@ class TutorPress_Course_Settings {
         
         if (isset($value['price'])) {
             $price = (float) $value['price'];
-            $results[] = update_post_meta($post_id, 'course_price', $price);
+            $results[] = update_post_meta($post_id, 'tutor_course_price', $price);
         }
         
         if (isset($value['sale_price'])) {
             $sale_price = (float) $value['sale_price'];
-            $results[] = update_post_meta($post_id, 'course_sale_price', $sale_price);
+            $results[] = update_post_meta($post_id, 'tutor_course_sale_price', $sale_price);
         }
         
         if (isset($value['subscription_enabled'])) {
@@ -559,11 +559,11 @@ class TutorPress_Course_Settings {
         }
         
         if (isset($settings['price'])) {
-            update_post_meta($post->ID, 'course_price', (float) $settings['price']);
+            update_post_meta($post->ID, 'tutor_course_price', (float) $settings['price']);
         }
         
         if (isset($settings['sale_price'])) {
-            update_post_meta($post->ID, 'course_sale_price', (float) $settings['sale_price']);
+            update_post_meta($post->ID, 'tutor_course_sale_price', (float) $settings['sale_price']);
         }
         
         if (isset($settings['subscription_enabled'])) {
@@ -626,7 +626,7 @@ class TutorPress_Course_Settings {
             '_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration',
             '_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
             '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
-            '_tutor_course_material_includes', '_tutor_course_price_type', 'course_price', 'course_sale_price',
+            '_tutor_course_material_includes', '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price',
             '_tutor_course_selling_option'
         ];
         
@@ -690,10 +690,10 @@ class TutorPress_Course_Settings {
                 $current_settings['pricing_model'] = $meta_value ?: 'free';
                 $current_settings['is_free'] = $meta_value === 'free';
                 break;
-            case 'course_price':
+            case 'tutor_course_price':
                 $current_settings['price'] = (float) $meta_value ?: 0;
                 break;
-            case 'course_sale_price':
+            case 'tutor_course_sale_price':
                 $current_settings['sale_price'] = (float) $meta_value ?: 0;
                 break;
             case '_tutor_course_selling_option':
@@ -804,11 +804,11 @@ class TutorPress_Course_Settings {
             }
             
             if (isset($meta_value['price'])) {
-                update_post_meta($post_id, 'course_price', (float) $meta_value['price']);
+                update_post_meta($post_id, 'tutor_course_price', (float) $meta_value['price']);
             }
             
             if (isset($meta_value['sale_price'])) {
-                update_post_meta($post_id, 'course_sale_price', (float) $meta_value['sale_price']);
+                update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
             }
             
             if (isset($meta_value['subscription_enabled'])) {

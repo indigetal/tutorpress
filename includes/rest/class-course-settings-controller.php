@@ -306,8 +306,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             
             // Pricing Model Section (individual meta fields)
             'pricing_model' => get_post_meta($course_id, '_tutor_course_price_type', true) ?: 'free',
-            'price' => (float) get_post_meta($course_id, 'course_price', true) ?: 0,
-            'sale_price' => (float) get_post_meta($course_id, 'course_sale_price', true) ?: 0,
+            'price' => (float) get_post_meta($course_id, 'tutor_course_price', true) ?: 0,
+            'sale_price' => (float) get_post_meta($course_id, 'tutor_course_sale_price', true) ?: 0,
             'subscription_enabled' => get_post_meta($course_id, '_tutor_course_selling_option', true) === 'subscription',
         );
 
@@ -458,13 +458,13 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         if ($request->has_param('price')) {
             $price = max(0, (float) $request->get_param('price'));
             $new_settings['price'] = $price;
-            update_post_meta($course_id, 'course_price', $price);
+            update_post_meta($course_id, 'tutor_course_price', $price);
         }
 
         if ($request->has_param('sale_price')) {
             $sale_price = max(0, (float) $request->get_param('sale_price'));
             $new_settings['sale_price'] = $sale_price;
-            update_post_meta($course_id, 'course_sale_price', $sale_price);
+            update_post_meta($course_id, 'tutor_course_sale_price', $sale_price);
         }
 
         if ($request->has_param('subscription_enabled')) {
