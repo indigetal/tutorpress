@@ -2,11 +2,12 @@ import React from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner, RadioControl, TextControl } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button } from "@wordpress/components";
+import { plus } from "@wordpress/icons";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
-import { isMonetizationEnabled } from "../../utils/addonChecker";
+import { isMonetizationEnabled, isSubscriptionEnabled } from "../../utils/addonChecker";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -156,6 +157,25 @@ const CoursePricingPanel: React.FC = () => {
             </div>
           </PanelRow>
         </div>
+      )}
+
+      {/* Subscription Button - Only show when conditions are met */}
+      {settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled() && (
+        <PanelRow>
+          <div className="subscription-section">
+            <Button
+              icon={plus}
+              variant="secondary"
+              onClick={() => {
+                // TODO: Open subscription modal in Step 1.3
+                console.log("TutorPress: Add Subscription button clicked");
+              }}
+            >
+              {__("Add Subscription", "tutorpress")}
+            </Button>
+            <p className="description">{__("Create subscription plans for this course.", "tutorpress")}</p>
+          </div>
+        </PanelRow>
       )}
     </PluginDocumentSettingPanel>
   );
