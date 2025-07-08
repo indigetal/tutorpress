@@ -93,6 +93,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_CA_VERSION',
             'class' => 'TUTOR_CA\Init',
         ],
+        'subscription' => [
+            'file' => 'tutor-pro/addons/subscription/subscription.php',
+            'basename' => 'tutor-pro/addons/subscription/subscription.php',
+            'constant' => 'TUTOR_SUBSCRIPTION_FILE',
+            'class' => 'TutorPro\Subscription\Subscription',
+        ],
     ];
 
     /**
@@ -212,6 +218,14 @@ class TutorPress_Addon_Checker {
         return self::is_addon_enabled('course_attachments');
     }
 
+    /**
+     * Check if Subscription addon is available
+     *
+     * @return bool True if addon is available and enabled
+     */
+    public static function is_subscription_enabled() {
+        return self::is_addon_enabled('subscription');
+    }
 
 
     /**

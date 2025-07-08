@@ -23,7 +23,8 @@ export type AddonKey =
   | "prerequisites"
   | "multi_instructors"
   | "enrollments"
-  | "course_attachments";
+  | "course_attachments"
+  | "subscription";
 
 /**
  * Payment engine types
@@ -44,6 +45,7 @@ export interface AddonStatus {
   multi_instructors: boolean;
   enrollments: boolean;
   course_attachments: boolean;
+  subscription: boolean;
   // Payment engine status
   tutor_pro: boolean;
   paid_memberships_pro: boolean;
@@ -85,6 +87,7 @@ export class AddonChecker {
         multi_instructors: false,
         enrollments: false,
         course_attachments: false,
+        subscription: false,
         // Payment engine status
         tutor_pro: false,
         paid_memberships_pro: false,
@@ -185,6 +188,13 @@ export class AddonChecker {
    */
   public static isCourseAttachmentsEnabled(): boolean {
     return this.isAddonEnabled("course_attachments");
+  }
+
+  /**
+   * Check if Subscription addon is available
+   */
+  public static isSubscriptionEnabled(): boolean {
+    return this.isAddonEnabled("subscription");
   }
 
   /**
@@ -312,6 +322,7 @@ export const isPrerequisitesEnabled = (): boolean => AddonChecker.isPrerequisite
 export const isMultiInstructorsEnabled = (): boolean => AddonChecker.isMultiInstructorsEnabled();
 export const isEnrollmentsEnabled = (): boolean => AddonChecker.isEnrollmentsEnabled();
 export const isCourseAttachmentsEnabled = (): boolean => AddonChecker.isCourseAttachmentsEnabled();
+export const isSubscriptionEnabled = (): boolean => AddonChecker.isSubscriptionEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
 
