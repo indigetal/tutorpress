@@ -298,6 +298,52 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                             ],
                         ],
                     ],
+                    [
+                        'methods'             => WP_REST_Server::DELETABLE,
+                        'callback'            => [$this, 'delete_subscription_plan'],
+                        'permission_callback' => [$this, 'check_write_permission'],
+                        'args'               => [
+                            'id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the subscription plan to delete.', 'tutorpress'),
+                            ],
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
+            // Duplicate subscription plan
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<id>[\d]+)/duplicate',
+                [
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'duplicate_subscription_plan'],
+                        'permission_callback' => [$this, 'check_write_permission'],
+                        'args'               => [
+                            'id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the subscription plan to duplicate.', 'tutorpress'),
+                            ],
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
                 ]
             );
 
@@ -490,6 +536,135 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             return new WP_Error(
                 'subscription_plan_update_error',
                 __('Failed to update subscription plan.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Delete a subscription plan.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function delete_subscription_plan($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $plan_id = (int) $request->get_param('id');
+            $course_id = (int) $request->get_param('course_id');
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Validate plan exists and belongs to the course
+            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            if (is_wp_error($plan_validation)) {
+                return $plan_validation;
+            }
+
+            // Delete the plan
+            $delete_result = $this->delete_subscription_plan_in_db($plan_id);
+
+            if (is_wp_error($delete_result)) {
+                return $delete_result;
+            }
+
+            return rest_ensure_response(
+                $this->format_response(
+                    null,
+                    __('Subscription plan deleted successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: delete_subscription_plan error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plan_delete_error',
+                __('Failed to delete subscription plan.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Duplicate a subscription plan.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function duplicate_subscription_plan($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $plan_id = (int) $request->get_param('id');
+            $course_id = (int) $request->get_param('course_id');
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Validate plan exists and belongs to the course
+            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            if (is_wp_error($plan_validation)) {
+                return $plan_validation;
+            }
+
+            // Duplicate the plan
+            $duplicate_result = $this->duplicate_subscription_plan_in_db($plan_id, $course_id);
+
+            if (is_wp_error($duplicate_result)) {
+                return $duplicate_result;
+            }
+
+            // Get the duplicated plan
+            $plan = $this->get_plan_by_id($duplicate_result);
+
+            return rest_ensure_response(
+                $this->format_response(
+                    $plan,
+                    __('Subscription plan duplicated successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: duplicate_subscription_plan error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plan_duplicate_error',
+                __('Failed to duplicate subscription plan.', 'tutorpress'),
                 ['status' => 500]
             );
         }
@@ -1043,5 +1218,176 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         }
         
         return true;
+    }
+
+    /**
+     * Delete subscription plan from database.
+     *
+     * @param int $plan_id The plan ID.
+     * @return bool|WP_Error True on success, error on failure.
+     */
+    private function delete_subscription_plan_in_db($plan_id) {
+        global $wpdb;
+        
+        // Check if plan has active subscriptions
+        $active_subscriptions = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}tutor_subscriptions WHERE plan_id = %d AND status IN ('active', 'pending')",
+                $plan_id
+            )
+        );
+        
+        if ($active_subscriptions > 0) {
+            return new WP_Error(
+                'plan_has_active_subscriptions',
+                __('Cannot delete plan with active subscriptions.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        // Delete plan (cascade will handle plan_items)
+        $result = $wpdb->delete(
+            $wpdb->prefix . 'tutor_subscription_plans',
+            ['id' => $plan_id],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error(
+                'database_error',
+                __('Failed to delete subscription plan from database.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+        
+        return true;
+    }
+
+    /**
+     * Duplicate subscription plan in database.
+     *
+     * @param int $plan_id The plan ID to duplicate.
+     * @param int $course_id The course ID.
+     * @return int|WP_Error New plan ID on success, error on failure.
+     */
+    private function duplicate_subscription_plan_in_db($plan_id, $course_id) {
+        global $wpdb;
+        
+        // Get the original plan
+        $original_plan = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}tutor_subscription_plans WHERE id = %d",
+                $plan_id
+            )
+        );
+        
+        if (!$original_plan) {
+            return new WP_Error(
+                'plan_not_found',
+                __('Original plan not found.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+        
+        // Prepare duplicate data
+        $duplicate_data = [
+            'payment_type' => $original_plan->payment_type,
+            'plan_type' => $original_plan->plan_type,
+            'restriction_mode' => $original_plan->restriction_mode,
+            'plan_name' => $original_plan->plan_name . ' (Copy)',
+            'short_description' => $original_plan->short_description,
+            'description' => $original_plan->description,
+            'is_featured' => 0, // Reset featured status
+            'featured_text' => '', // Clear featured text
+            'recurring_value' => $original_plan->recurring_value,
+            'recurring_interval' => $original_plan->recurring_interval,
+            'recurring_limit' => $original_plan->recurring_limit,
+            'regular_price' => $original_plan->regular_price,
+            'sale_price' => null, // Clear sale price
+            'sale_price_from' => null, // Clear sale dates
+            'sale_price_to' => null,
+            'provide_certificate' => $original_plan->provide_certificate,
+            'enrollment_fee' => $original_plan->enrollment_fee,
+            'trial_value' => $original_plan->trial_value,
+            'trial_interval' => $original_plan->trial_interval,
+            'trial_fee' => $original_plan->trial_fee,
+            'is_enabled' => 1, // Enable the duplicate
+            'plan_order' => $original_plan->plan_order + 1, // Increment order
+        ];
+        
+        // Filter out non-database fields
+        $db_fields = [
+            'payment_type', 'plan_type', 'restriction_mode', 'plan_name', 
+            'short_description', 'description', 'is_featured', 'featured_text',
+            'recurring_value', 'recurring_interval', 'recurring_limit',
+            'regular_price', 'sale_price', 'sale_price_from', 'sale_price_to',
+            'provide_certificate', 'enrollment_fee', 'trial_value', 
+            'trial_interval', 'trial_fee', 'is_enabled', 'plan_order'
+        ];
+        
+        $filtered_data = array_intersect_key($duplicate_data, array_flip($db_fields));
+        
+        // Insert duplicate plan
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'tutor_subscription_plans',
+            $filtered_data,
+            [
+                '%s', // payment_type
+                '%s', // plan_type
+                '%s', // restriction_mode (can be null)
+                '%s', // plan_name
+                '%s', // short_description
+                '%s', // description
+                '%d', // is_featured
+                '%s', // featured_text
+                '%d', // recurring_value
+                '%s', // recurring_interval
+                '%d', // recurring_limit
+                '%f', // regular_price
+                '%f', // sale_price
+                '%s', // sale_price_from
+                '%s', // sale_price_to
+                '%d', // provide_certificate
+                '%f', // enrollment_fee
+                '%d', // trial_value
+                '%s', // trial_interval (can be null)
+                '%f', // trial_fee
+                '%d', // is_enabled
+                '%d', // plan_order
+            ]
+        );
+        
+        if ($result === false) {
+            return new WP_Error(
+                'database_error',
+                __('Failed to duplicate subscription plan in database.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+        
+        $new_plan_id = $wpdb->insert_id;
+        
+        // Associate duplicate plan with course
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'tutor_subscription_plan_items',
+            [
+                'plan_id' => $new_plan_id,
+                'object_name' => $duplicate_data['plan_type'],
+                'object_id' => $course_id,
+            ],
+            ['%d', '%s', '%d']
+        );
+        
+        if ($result === false) {
+            // Rollback plan creation if association fails
+            $wpdb->delete($wpdb->prefix . 'tutor_subscription_plans', ['id' => $new_plan_id], ['%d']);
+            return new WP_Error(
+                'database_error',
+                __('Failed to associate duplicated subscription plan with course.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+        
+        return $new_plan_id;
     }
 } 
