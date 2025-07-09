@@ -83,6 +83,12 @@ class TutorPress_REST {
                 $controllers['content_drip'] = new TutorPress_REST_Content_Drip_Controller();
             }
 
+            // Conditionally load Subscriptions controller only if Subscription addon is available
+            if (TutorPress_Addon_Checker::is_subscription_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-subscriptions-controller.php';
+                $controllers['subscriptions'] = new TutorPress_REST_Subscriptions_Controller();
+            }
+
             // Register routes for each controller
             foreach ($controllers as $name => $controller) {
                 try {
