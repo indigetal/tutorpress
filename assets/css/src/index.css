@@ -19,6 +19,7 @@
 
 /* Post Settings Panels */
 @import "./components/post-settings.css";
+@import "./components/subscriptions-modal.css";
 
 /* Content Drip Feature */
 @import "./components/content-drip-panel.css";

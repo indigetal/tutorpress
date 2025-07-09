@@ -8,6 +8,8 @@ import { plus } from "@wordpress/icons";
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 import { isMonetizationEnabled, isSubscriptionEnabled } from "../../utils/addonChecker";
+import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
+import { useState } from "react";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -23,6 +25,10 @@ const CoursePricingPanel: React.FC = () => {
 
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
+
+  // NOTE: This is the AI's third attempt at implementing the Subscription Modal trigger. If the error persists, check for missing context providers or other required setup for modals in this environment.
+  const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const handleSubscriptionModalClose = () => setSubscriptionModalOpen(false);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -136,6 +142,8 @@ const CoursePricingPanel: React.FC = () => {
       title={__("Pricing Model", "tutorpress")}
       className="tutorpress-course-pricing-panel"
     >
+      {/* Render the SubscriptionModal at the root of the panel, not inside the button container */}
+      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={handleSubscriptionModalClose} />
       {error && (
         <PanelRow>
           <Notice status="error" isDismissible={false}>
@@ -228,14 +236,7 @@ const CoursePricingPanel: React.FC = () => {
           settings?.selling_option === "all") && (
           <PanelRow>
             <div className="subscription-section">
-              <Button
-                icon={plus}
-                variant="secondary"
-                onClick={() => {
-                  // TODO: Open subscription modal in Step 1.4
-                  console.log("TutorPress: Add Subscription button clicked");
-                }}
-              >
+              <Button icon={plus} variant="secondary" onClick={() => setSubscriptionModalOpen(true)}>
                 {__("Add Subscription", "tutorpress")}
               </Button>
               <p className="description">{__("Create subscription plans for this course.", "tutorpress")}</p>

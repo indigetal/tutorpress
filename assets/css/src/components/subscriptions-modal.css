@@ -1,0 +1,57 @@
+/* Subscriptions Modal Styles - header matches Quiz Modal exactly */
+
+.subscription-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg) var(--space-2xl);
+  border-bottom: 1px solid var(--gray-300);
+  background: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.subscription-modal-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.subscription-modal-header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.subscription-modal-header-actions .components-button.is-secondary {
+  border: 1px solid var(--gray-500);
+  color: var(--gray-500);
+  background: var(--white);
+  min-height: 36px;
+  padding: 0 var(--space-lg);
+}
+
+.subscription-modal-header-actions .components-button.is-secondary:hover:not(:disabled) {
+  border-color: var(--gray-700);
+  color: var(--gray-700);
+}
+
+.subscription-modal-header-actions .components-button.is-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--white);
+  min-height: 36px;
+  padding: 0 var(--space-lg);
+}
+
+.subscription-modal-header-actions .components-button.is-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.subscription-modal-header-actions .components-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
