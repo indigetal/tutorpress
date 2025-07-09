@@ -173,6 +173,134 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 ]
             );
 
+            // Update existing subscription plan
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<id>[\d]+)',
+                [
+                    [
+                        'methods'             => WP_REST_Server::EDITABLE,
+                        'callback'            => [$this, 'update_subscription_plan'],
+                        'permission_callback' => [$this, 'check_write_permission'],
+                        'args'               => [
+                            'id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the subscription plan to update.', 'tutorpress'),
+                            ],
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                            ],
+                            'plan_name' => [
+                                'required'          => true,
+                                'type'             => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('The name of the subscription plan.', 'tutorpress'),
+                            ],
+                            'regular_price' => [
+                                'required'          => true,
+                                'type'             => 'number',
+                                'minimum'           => 0,
+                                'description'       => __('The regular price of the plan.', 'tutorpress'),
+                            ],
+                            'recurring_value' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'minimum'           => 1,
+                                'description'       => __('The recurring value (e.g., 1 for monthly).', 'tutorpress'),
+                            ],
+                            'recurring_interval' => [
+                                'required'          => true,
+                                'type'             => 'string',
+                                'enum'              => ['day', 'week', 'month', 'year'],
+                                'description'       => __('The recurring interval (day, week, month, year).', 'tutorpress'),
+                            ],
+                            'payment_type' => [
+                                'required'          => true,
+                                'type'             => 'string',
+                                'enum'              => ['recurring'],
+                                'default'           => 'recurring',
+                                'description'       => __('The payment type (currently only recurring supported).', 'tutorpress'),
+                            ],
+                            'plan_type' => [
+                                'required'          => true,
+                                'type'             => 'string',
+                                'enum'              => ['course'],
+                                'default'           => 'course',
+                                'description'       => __('The plan type (currently only course supported).', 'tutorpress'),
+                            ],
+                            'recurring_limit' => [
+                                'type'             => 'integer',
+                                'minimum'           => 0,
+                                'default'           => 0,
+                                'description'       => __('How many times the plan can recur (0 = until cancelled).', 'tutorpress'),
+                            ],
+                            'sale_price' => [
+                                'type'             => 'number',
+                                'minimum'           => 0,
+                                'description'       => __('The sale price of the plan.', 'tutorpress'),
+                            ],
+                            'sale_price_from' => [
+                                'type'             => 'string',
+                                'format'            => 'date-time',
+                                'description'       => __('When the sale price starts (ISO 8601 format).', 'tutorpress'),
+                            ],
+                            'sale_price_to' => [
+                                'type'             => 'string',
+                                'format'            => 'date-time',
+                                'description'       => __('When the sale price ends (ISO 8601 format).', 'tutorpress'),
+                            ],
+                            'enrollment_fee' => [
+                                'type'             => 'number',
+                                'minimum'           => 0,
+                                'default'           => 0,
+                                'description'       => __('The enrollment fee for the plan.', 'tutorpress'),
+                            ],
+                            'provide_certificate' => [
+                                'type'             => 'boolean',
+                                'default'           => true,
+                                'description'       => __('Whether the plan provides certificates.', 'tutorpress'),
+                            ],
+                            'is_featured' => [
+                                'type'             => 'boolean',
+                                'default'           => false,
+                                'description'       => __('Whether the plan is featured.', 'tutorpress'),
+                            ],
+                            'featured_text' => [
+                                'type'             => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('Featured badge text for the plan.', 'tutorpress'),
+                            ],
+                            'trial_value' => [
+                                'type'             => 'integer',
+                                'minimum'           => 0,
+                                'default'           => 0,
+                                'description'       => __('Trial period value.', 'tutorpress'),
+                            ],
+                            'trial_interval' => [
+                                'type'             => 'string',
+                                'enum'              => ['day', 'week', 'month', 'year'],
+                                'description'       => __('Trial period interval.', 'tutorpress'),
+                            ],
+                            'short_description' => [
+                                'type'             => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('Short description of the plan.', 'tutorpress'),
+                            ],
+                            'description' => [
+                                'type'             => 'string',
+                                'sanitize_callback' => 'sanitize_textarea_field',
+                                'description'       => __('Full description of the plan.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
         } catch (Exception $e) {
             error_log('TutorPress Subscriptions Controller: Failed to register routes - ' . $e->getMessage());
         }
@@ -287,6 +415,81 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             return new WP_Error(
                 'subscription_plan_create_error',
                 __('Failed to create subscription plan.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Update an existing subscription plan.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function update_subscription_plan($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $plan_id = (int) $request->get_param('id');
+            $course_id = (int) $request->get_param('course_id');
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Validate plan exists and belongs to the course
+            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            if (is_wp_error($plan_validation)) {
+                return $plan_validation;
+            }
+
+            // Validate plan data
+            $validation_result = $this->validate_plan_data($request);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Prepare plan data
+            $plan_data = $this->prepare_plan_data($request);
+            
+            // Update the plan
+            $update_result = $this->update_subscription_plan_in_db($plan_id, $plan_data);
+
+            if (is_wp_error($update_result)) {
+                return $update_result;
+            }
+
+            // Get the updated plan
+            $plan = $this->get_plan_by_id($plan_id);
+
+            return rest_ensure_response(
+                $this->format_response(
+                    $plan,
+                    __('Subscription plan updated successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: update_subscription_plan error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plan_update_error',
+                __('Failed to update subscription plan.', 'tutorpress'),
                 ['status' => 500]
             );
         }
@@ -637,5 +840,208 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             'plan_order' => (int) $plan->plan_order,
             'in_sale_price' => $this->in_sale_price($plan),
         ];
+    }
+
+    /**
+     * Validate that a plan exists and belongs to the specified course.
+     *
+     * @param int $plan_id The plan ID.
+     * @param int $course_id The course ID.
+     * @return bool|WP_Error True if valid, error otherwise.
+     */
+    private function validate_plan_belongs_to_course($plan_id, $course_id) {
+        global $wpdb;
+        
+        $plan = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT plan.* FROM {$wpdb->prefix}tutor_subscription_plans AS plan
+                INNER JOIN {$wpdb->prefix}tutor_subscription_plan_items AS item
+                ON item.plan_id = plan.id
+                WHERE plan.id = %d AND item.object_id = %d",
+                $plan_id,
+                $course_id
+            )
+        );
+        
+        if (!$plan) {
+            return new WP_Error(
+                'plan_not_found',
+                __('Subscription plan not found or does not belong to this course.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+        
+        return true;
+    }
+
+    /**
+     * Validate plan data according to Tutor LMS rules.
+     *
+     * @param WP_REST_Request $request The request object.
+     * @return bool|WP_Error True if valid, error otherwise.
+     */
+    private function validate_plan_data($request) {
+        $data = $request->get_params();
+        
+        // Required fields validation
+        if (empty($data['plan_name'])) {
+            return new WP_Error(
+                'invalid_plan_name',
+                __('Plan name is required.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        if (!isset($data['regular_price']) || $data['regular_price'] < 0) {
+            return new WP_Error(
+                'invalid_regular_price',
+                __('Regular price must be a positive number.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        if (!isset($data['recurring_value']) || $data['recurring_value'] < 1) {
+            return new WP_Error(
+                'invalid_recurring_value',
+                __('Recurring value must be at least 1.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        $valid_intervals = ['day', 'week', 'month', 'year'];
+        if (!isset($data['recurring_interval']) || !in_array($data['recurring_interval'], $valid_intervals)) {
+            return new WP_Error(
+                'invalid_recurring_interval',
+                __('Recurring interval must be one of: day, week, month, year.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        // Sale price validation
+        if (!empty($data['sale_price'])) {
+            if ($data['sale_price'] < 0) {
+                return new WP_Error(
+                    'invalid_sale_price',
+                    __('Sale price must be a positive number.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+            
+            if ($data['sale_price'] >= $data['regular_price']) {
+                return new WP_Error(
+                    'invalid_sale_price',
+                    __('Sale price must be less than regular price.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+        }
+        
+        // Trial validation
+        if (!empty($data['trial_value']) && $data['trial_value'] > 0) {
+            if (empty($data['trial_interval']) || !in_array($data['trial_interval'], $valid_intervals)) {
+                return new WP_Error(
+                    'invalid_trial_interval',
+                    __('Trial interval must be one of: day, week, month, year.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+        }
+        
+        // Date validation
+        if (!empty($data['sale_price_from']) && !empty($data['sale_price_to'])) {
+            $from_date = strtotime($data['sale_price_from']);
+            $to_date = strtotime($data['sale_price_to']);
+            
+            if ($from_date === false || $to_date === false) {
+                return new WP_Error(
+                    'invalid_date_format',
+                    __('Sale price dates must be in valid format.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+            
+            if ($from_date >= $to_date) {
+                return new WP_Error(
+                    'invalid_date_range',
+                    __('Sale price start date must be before end date.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Update subscription plan in database.
+     *
+     * @param int $plan_id The plan ID.
+     * @param array $plan_data The plan data.
+     * @return bool|WP_Error True on success, error on failure.
+     */
+    private function update_subscription_plan_in_db($plan_id, $plan_data) {
+        global $wpdb;
+        
+        // Filter out non-database fields
+        $db_fields = [
+            'payment_type', 'plan_type', 'restriction_mode', 'plan_name', 
+            'short_description', 'description', 'is_featured', 'featured_text',
+            'recurring_value', 'recurring_interval', 'recurring_limit',
+            'regular_price', 'sale_price', 'sale_price_from', 'sale_price_to',
+            'provide_certificate', 'enrollment_fee', 'trial_value', 
+            'trial_interval', 'trial_fee', 'is_enabled', 'plan_order'
+        ];
+        
+        $filtered_data = array_intersect_key($plan_data, array_flip($db_fields));
+        
+        // Debug: Log the filtered plan data being updated
+        error_log('TutorPress Subscriptions: Filtered plan data for update: ' . print_r($filtered_data, true));
+        
+        // Update plan
+        $result = $wpdb->update(
+            $wpdb->prefix . 'tutor_subscription_plans',
+            $filtered_data,
+            ['id' => $plan_id],
+            [
+                '%s', // payment_type
+                '%s', // plan_type
+                '%s', // restriction_mode (can be null)
+                '%s', // plan_name
+                '%s', // short_description
+                '%s', // description
+                '%d', // is_featured
+                '%s', // featured_text
+                '%d', // recurring_value
+                '%s', // recurring_interval
+                '%d', // recurring_limit
+                '%f', // regular_price
+                '%f', // sale_price
+                '%s', // sale_price_from
+                '%s', // sale_price_to
+                '%d', // provide_certificate
+                '%f', // enrollment_fee
+                '%d', // trial_value
+                '%s', // trial_interval (can be null)
+                '%f', // trial_fee
+                '%d', // is_enabled
+                '%d', // plan_order
+            ],
+            ['%d']
+        );
+        
+        // Debug: Log any database errors
+        if ($result === false) {
+            error_log('TutorPress Subscriptions: Database update error: ' . $wpdb->last_error);
+        }
+        
+        if ($result === false) {
+            return new WP_Error(
+                'database_error',
+                __('Failed to update subscription plan in database.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+        
+        return true;
     }
 } 
