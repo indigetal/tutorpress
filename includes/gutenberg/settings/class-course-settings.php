@@ -31,7 +31,7 @@ class TutorPress_Course_Settings {
         'pricing_model',
         'price',
         'sale_price',
-        'subscription_enabled',
+        'selling_option',
         'instructors',
         'additional_instructors'
     ];
@@ -162,8 +162,9 @@ class TutorPress_Course_Settings {
                             'type'    => 'number',
                             'minimum' => 0,
                         ],
-                        'subscription_enabled' => [
-                            'type' => 'boolean',
+                        'selling_option' => [
+                            'type' => 'string',
+                            'enum' => ['one_time', 'subscription', 'both', 'membership', 'all'],
                         ],
                         'instructors' => [
                             'type'  => 'array',
@@ -177,6 +178,86 @@ class TutorPress_Course_Settings {
                 ],
             ],
         ]);
+        
+        // Register individual meta fields for Gutenberg access
+        $individual_meta_fields = [
+            '_tutor_course_level' => [
+                'type' => 'string',
+                'description' => __('Course difficulty level', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_is_public_course' => [
+                'type' => 'string',
+                'description' => __('Whether the course is public', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_enable_qa' => [
+                'type' => 'string',
+                'description' => __('Whether Q&A is enabled', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_course_duration' => [
+                'type' => 'object',
+                'description' => __('Course duration', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_price_type' => [
+                'type' => 'string',
+                'description' => __('Course pricing type', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            'tutor_course_price' => [
+                'type' => 'number',
+                'description' => __('Course price', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            'tutor_course_sale_price' => [
+                'type' => 'number',
+                'description' => __('Course sale price', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_selling_option' => [
+                'type' => 'string',
+                'description' => __('Course selling option', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_prerequisites_ids' => [
+                'type' => 'array',
+                'description' => __('Course prerequisites', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_material_includes' => [
+                'type' => 'string',
+                'description' => __('Course materials', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_video' => [
+                'type' => 'object',
+                'description' => __('Course intro video', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_attachments' => [
+                'type' => 'array',
+                'description' => __('Course attachments', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+        ];
+        
+        foreach ($individual_meta_fields as $meta_key => $config) {
+            register_post_meta('courses', $meta_key, $config);
+        }
     }
 
     /**
@@ -235,9 +316,9 @@ class TutorPress_Course_Settings {
             'enable_qna' => $enable_qna !== 'no',
             'course_duration' => $course_duration,
             
-                    // Future sections (will be implemented in Steps 3-6)
-        'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
-        'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
+            // Future sections (will be implemented in Steps 3-6)
+            'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
+            'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
             'schedule' => $tutor_settings['schedule'] ?? [
                 'enabled' => false,
                 'start_date' => '',
@@ -260,15 +341,19 @@ class TutorPress_Course_Settings {
             ], is_array($intro_video) ? $intro_video : [], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
             'course_material_includes' => $course_material_includes ?: '',
+            
             // Pricing Model Section: Read from individual Tutor LMS meta fields
             'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
             'pricing_model' => get_post_meta($post_id, '_tutor_course_price_type', true) ?: 'free',
             'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
             'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
-            'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: false,
-            'instructors' => $tutor_settings['instructors'] ?? [],
-            'additional_instructors' => $tutor_settings['additional_instructors'] ?? [],
+            'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
+            'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
         ];
+        
+        // Update the course_settings meta field with the complete settings structure
+        // This ensures Gutenberg can access all settings through the meta field
+        update_post_meta($post_id, 'course_settings', $settings);
         
         return $settings;
     }
@@ -375,8 +460,13 @@ class TutorPress_Course_Settings {
             $results[] = update_post_meta($post_id, 'tutor_course_sale_price', $sale_price);
         }
         
-        if (isset($value['subscription_enabled'])) {
-            $selling_option = $value['subscription_enabled'] ? 'subscription' : 'one_time';
+        if (isset($value['selling_option'])) {
+            $selling_option = sanitize_text_field($value['selling_option']);
+            // Validate the selling option
+            $valid_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
+            if (!in_array($selling_option, $valid_options)) {
+                $selling_option = 'one_time'; // Default fallback
+            }
             $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
         }
         
@@ -449,6 +539,11 @@ class TutorPress_Course_Settings {
             $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
             $results[] = update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
         }
+        
+        // Update the course_settings meta field with the complete settings structure
+        // This ensures Gutenberg can access all settings through the meta field
+        $complete_settings = self::get_course_settings(['id' => $post_id]);
+        $results[] = update_post_meta($post_id, 'course_settings', $complete_settings);
         
         // Remove sync flag
         delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
@@ -566,8 +661,8 @@ class TutorPress_Course_Settings {
             update_post_meta($post->ID, 'tutor_course_sale_price', (float) $settings['sale_price']);
         }
         
-        if (isset($settings['subscription_enabled'])) {
-            $selling_option = $settings['subscription_enabled'] ? 'subscription' : 'one_time';
+        if (isset($settings['selling_option'])) {
+            $selling_option = $settings['selling_option'];
             update_post_meta($post->ID, '_tutor_course_selling_option', $selling_option);
         }
     }
@@ -697,7 +792,7 @@ class TutorPress_Course_Settings {
                 $current_settings['sale_price'] = (float) $meta_value ?: 0;
                 break;
             case '_tutor_course_selling_option':
-                $current_settings['subscription_enabled'] = $meta_value === 'subscription';
+                $current_settings['selling_option'] = $meta_value;
                 break;
         }
 
@@ -811,8 +906,8 @@ class TutorPress_Course_Settings {
                 update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
             }
             
-            if (isset($meta_value['subscription_enabled'])) {
-                $selling_option = $meta_value['subscription_enabled'] ? 'subscription' : 'one_time';
+            if (isset($meta_value['selling_option'])) {
+                $selling_option = $meta_value['selling_option'];
                 update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
             }
             
@@ -844,17 +939,84 @@ class TutorPress_Course_Settings {
             return;
         }
 
-        // Ensure both meta fields are in sync
+        // Get course settings from the course_settings meta field
         $course_settings = get_post_meta($post_id, 'course_settings', true);
-        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
-
+        
         if (is_array($course_settings) && !empty($course_settings)) {
-            if (!is_array($tutor_settings)) {
-                $tutor_settings = [];
+            // Set sync flag to prevent infinite loops
+            update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
+            
+            // Sync individual meta fields
+            if (isset($course_settings['course_level'])) {
+                update_post_meta($post_id, '_tutor_course_level', $course_settings['course_level']);
             }
             
-            $merged_settings = array_merge($tutor_settings, $course_settings);
-            update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
+            if (isset($course_settings['is_public_course'])) {
+                $public_value = $course_settings['is_public_course'] ? 'yes' : 'no';
+                update_post_meta($post_id, '_tutor_is_public_course', $public_value);
+            }
+            
+            if (isset($course_settings['enable_qna'])) {
+                $qna_value = $course_settings['enable_qna'] ? 'yes' : 'no';
+                update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
+            }
+            
+            if (isset($course_settings['course_duration'])) {
+                update_post_meta($post_id, '_course_duration', $course_settings['course_duration']);
+            }
+            
+            if (isset($course_settings['course_material_includes'])) {
+                update_post_meta($post_id, '_tutor_course_material_includes', $course_settings['course_material_includes']);
+            }
+            
+            // Sync pricing fields
+            if (isset($course_settings['pricing_model'])) {
+                $pricing_type = $course_settings['pricing_model'] === 'free' ? 'free' : 'paid';
+                update_post_meta($post_id, '_tutor_course_price_type', $pricing_type);
+            }
+            
+            if (isset($course_settings['price'])) {
+                update_post_meta($post_id, 'tutor_course_price', (float) $course_settings['price']);
+            }
+            
+            if (isset($course_settings['sale_price'])) {
+                update_post_meta($post_id, 'tutor_course_sale_price', (float) $course_settings['sale_price']);
+            }
+            
+            if (isset($course_settings['selling_option'])) {
+                update_post_meta($post_id, '_tutor_course_selling_option', $course_settings['selling_option']);
+            }
+            
+            // Sync prerequisites
+            if (isset($course_settings['course_prerequisites'])) {
+                update_post_meta($post_id, '_tutor_course_prerequisites_ids', $course_settings['course_prerequisites']);
+            }
+            
+            // Sync intro video
+            if (isset($course_settings['intro_video'])) {
+                update_post_meta($post_id, '_video', $course_settings['intro_video']);
+            }
+            
+            // Sync attachments
+            if (isset($course_settings['attachments'])) {
+                update_post_meta($post_id, '_tutor_course_attachments', $course_settings['attachments']);
+            }
+            
+            // Sync extended fields to _tutor_course_settings
+            $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+            if (!is_array($existing_tutor_settings)) {
+                $existing_tutor_settings = [];
+            }
+            
+            $settings_to_update = array_intersect_key($course_settings, array_flip(self::EXTENDED_FIELD_NAMES));
+            
+            if (!empty($settings_to_update)) {
+                $merged_settings = array_merge($existing_tutor_settings, $settings_to_update);
+                update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
+            }
+            
+            // Remove sync flag
+            delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
         }
     }
 
@@ -959,8 +1121,9 @@ class TutorPress_Course_Settings {
             $sanitized['sale_price'] = max(0, (float) $settings['sale_price']);
         }
 
-        if (isset($settings['subscription_enabled'])) {
-            $sanitized['subscription_enabled'] = (bool) $settings['subscription_enabled'];
+        if (isset($settings['selling_option'])) {
+            $allowed_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
+            $sanitized['selling_option'] = in_array($settings['selling_option'], $allowed_options) ? $settings['selling_option'] : 'one_time';
         }
 
         return $sanitized;

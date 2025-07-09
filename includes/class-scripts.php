@@ -11,20 +11,26 @@ defined('ABSPATH') || exit;
 class TutorPress_Scripts {
 
     /**
-     * Initialize script and style handlers.
+     * Initialize the class.
      *
      * @since 0.1.0
      * @return void
      */
     public static function init() {
-        // Frontend scripts
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_common_assets']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_lesson_assets']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_dashboard_assets']);
-        add_action('wp_enqueue_scripts', [__CLASS__, 'localize_script_data']);
-
-        // Admin scripts
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
+        add_action('wp_enqueue_scripts', [__CLASS__, 'localize_script_data']);
+        
+        // Add course selling option to Tutor LMS's course details response
+        add_filter('tutor_course_details_response', [__CLASS__, 'add_course_selling_option_to_response']);
+        
+        // Sync data from Tutor LMS frontend to TutorPress
+        add_action('save_post', [__CLASS__, 'sync_from_tutor_lms'], 10, 3);
+
+		// Hook into Tutor LMS's course update process to handle selling_option
+		add_action('tutor_after_prepare_update_post_meta', [__CLASS__, 'save_course_selling_option_from_tutor_update'], 10, 2);
     }
 
     /**
@@ -172,6 +178,77 @@ class TutorPress_Scripts {
             'adminUrl' => admin_url(),
         ]);
     }
+
+    /**
+     * Add course selling option to Tutor LMS's course details response.
+     *
+     * @since 0.1.0
+     * @param array $response The Tutor LMS course details response.
+     * @return array The modified response.
+     */
+    public static function add_course_selling_option_to_response($response) {
+        // Get the course ID from the response
+        $post_id = isset($response['ID']) ? (int) $response['ID'] : 0;
+        
+        if ($post_id > 0) {
+            $selling_option = get_post_meta($post_id, '_tutor_course_selling_option', true);
+            $response['course_selling_option'] = $selling_option ?: 'one_time'; // Default to one_time if empty
+        }
+        
+        return $response;
+    }
+    
+    /**
+     * Sync data from Tutor LMS frontend to TutorPress.
+     *
+     * @since 0.1.0
+     * @param int $post_id The post ID.
+     * @param WP_Post $post The post object.
+     * @param bool $update Whether this is an update.
+     * @return void
+     */
+    public static function sync_from_tutor_lms($post_id, $post, $update) {
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+        
+        // Only handle course posts
+        if (get_post_type($post_id) !== 'courses') {
+            return;
+        }
+        
+        // Check for selling option in various POST formats
+        $selling_option = null;
+        
+        if (isset($_POST['tutor_course_selling_option'])) {
+            $selling_option = sanitize_text_field($_POST['tutor_course_selling_option']);
+        } elseif (isset($_POST['course_selling_option'])) {
+            $selling_option = sanitize_text_field($_POST['course_selling_option']);
+        } else {
+            // Handle JSON payload from React frontend
+            $json_input = file_get_contents('php://input');
+            if (!empty($json_input)) {
+                $json_data = json_decode($json_input, true);
+                if ($json_data && isset($json_data['course_selling_option'])) {
+                    $selling_option = sanitize_text_field($json_data['course_selling_option']);
+                }
+            }
+        }
+        
+        if ($selling_option) {
+            update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+        }
+    }
+
+	/**
+	 * Save course selling option when Tutor LMS updates a course
+	 */
+	public static function save_course_selling_option_from_tutor_update($post_id, $params) {
+		if (isset($params['course_selling_option'])) {
+			$selling_option = sanitize_text_field($params['course_selling_option']);
+			update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+		}
+	}
 }
 
 // Initialize the class

@@ -2,7 +2,7 @@ import React from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
 import { plus } from "@wordpress/icons";
 
 // Import course settings types
@@ -87,6 +87,49 @@ const CoursePricingPanel: React.FC = () => {
     }
   };
 
+  // Handle purchase option change
+  const handlePurchaseOptionChange = (value: string) => {
+    if (settings) {
+      updateSettings({
+        ...settings,
+        selling_option: value,
+        // Let the backend derive subscription_enabled from selling_option
+        subscription_enabled: value === "subscription" || value === "both" || value === "all",
+      });
+    }
+  };
+
+  // Check if purchase options should be shown
+  const shouldShowPurchaseOptions =
+    settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
+
+  // Get purchase options based on available payment engines
+  const getPurchaseOptions = () => {
+    const options = [
+      {
+        label: __("One-time purchase only", "tutorpress"),
+        value: "one_time",
+      },
+      {
+        label: __("Subscription only", "tutorpress"),
+        value: "subscription",
+      },
+      {
+        label: __("Subscription & one-time purchase", "tutorpress"),
+        value: "both",
+      },
+      {
+        label: __("Membership only", "tutorpress"),
+        value: "membership",
+      },
+      {
+        label: __("All", "tutorpress"),
+        value: "all",
+      },
+    ];
+    return options;
+  };
+
   return (
     <PluginDocumentSettingPanel
       name="course-pricing-settings"
@@ -126,57 +169,79 @@ const CoursePricingPanel: React.FC = () => {
         />
       </PanelRow>
 
-      {/* Price Fields - Only show when "Paid" is selected AND monetization is enabled */}
-      {settings?.pricing_model === "paid" && isMonetizationEnabled() && (
-        <div className="price-fields">
-          <PanelRow>
-            <div className="price-field">
-              <TextControl
-                label={__("Regular Price", "tutorpress")}
-                help={__("Enter the regular price for this course.", "tutorpress")}
-                type="number"
-                min="0"
-                step="0.01"
-                value={settings?.price?.toString() || "0"}
-                onChange={handlePriceChange}
-              />
-            </div>
-          </PanelRow>
-
-          <PanelRow>
-            <div className="price-field">
-              <TextControl
-                label={__("Sale Price", "tutorpress")}
-                help={__("Enter the sale price (optional). Leave empty for no sale.", "tutorpress")}
-                type="number"
-                min="0"
-                step="0.01"
-                value={settings?.sale_price?.toString() || "0"}
-                onChange={handleSalePriceChange}
-              />
-            </div>
-          </PanelRow>
-        </div>
-      )}
-
-      {/* Subscription Button - Only show when conditions are met */}
-      {settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled() && (
+      {/* Purchase Options Dropdown - Only show when conditions are met */}
+      {shouldShowPurchaseOptions && (
         <PanelRow>
-          <div className="subscription-section">
-            <Button
-              icon={plus}
-              variant="secondary"
-              onClick={() => {
-                // TODO: Open subscription modal in Step 1.3
-                console.log("TutorPress: Add Subscription button clicked");
-              }}
-            >
-              {__("Add Subscription", "tutorpress")}
-            </Button>
-            <p className="description">{__("Create subscription plans for this course.", "tutorpress")}</p>
-          </div>
+          <SelectControl
+            label={__("Purchase Options", "tutorpress")}
+            help={__("Choose how this course can be purchased.", "tutorpress")}
+            value={settings?.selling_option || "one_time"}
+            options={getPurchaseOptions()}
+            onChange={handlePurchaseOptionChange}
+          />
         </PanelRow>
       )}
+
+      {/* Price Fields - Show based on purchase option selection */}
+      {settings?.pricing_model === "paid" &&
+        isMonetizationEnabled() &&
+        (settings?.selling_option === "one_time" ||
+          settings?.selling_option === "both" ||
+          settings?.selling_option === "all") && (
+          <div className="price-fields">
+            <PanelRow>
+              <div className="price-field">
+                <TextControl
+                  label={__("Regular Price", "tutorpress")}
+                  help={__("Enter the regular price for this course.", "tutorpress")}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settings?.price?.toString() || "0"}
+                  onChange={handlePriceChange}
+                />
+              </div>
+            </PanelRow>
+
+            <PanelRow>
+              <div className="price-field">
+                <TextControl
+                  label={__("Sale Price", "tutorpress")}
+                  help={__("Enter the sale price (optional). Leave empty for no sale.", "tutorpress")}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settings?.sale_price?.toString() || "0"}
+                  onChange={handleSalePriceChange}
+                />
+              </div>
+            </PanelRow>
+          </div>
+        )}
+
+      {/* Subscription Button - Show based on purchase option selection */}
+      {settings?.pricing_model === "paid" &&
+        isMonetizationEnabled() &&
+        isSubscriptionEnabled() &&
+        (settings?.selling_option === "subscription" ||
+          settings?.selling_option === "both" ||
+          settings?.selling_option === "all") && (
+          <PanelRow>
+            <div className="subscription-section">
+              <Button
+                icon={plus}
+                variant="secondary"
+                onClick={() => {
+                  // TODO: Open subscription modal in Step 1.4
+                  console.log("TutorPress: Add Subscription button clicked");
+                }}
+              >
+                {__("Add Subscription", "tutorpress")}
+              </Button>
+              <p className="description">{__("Create subscription plans for this course.", "tutorpress")}</p>
+            </div>
+          </PanelRow>
+        )}
     </PluginDocumentSettingPanel>
   );
 };

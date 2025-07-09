@@ -309,6 +309,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'price' => (float) get_post_meta($course_id, 'tutor_course_price', true) ?: 0,
             'sale_price' => (float) get_post_meta($course_id, 'tutor_course_sale_price', true) ?: 0,
             'subscription_enabled' => get_post_meta($course_id, '_tutor_course_selling_option', true) === 'subscription',
+            'selling_option' => get_post_meta($course_id, '_tutor_course_selling_option', true) ?: 'one_time',
         );
 
         return rest_ensure_response(array(
@@ -469,8 +470,22 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
 
         if ($request->has_param('subscription_enabled')) {
             $subscription_enabled = (bool) $request->get_param('subscription_enabled');
-            $selling_option = $subscription_enabled ? 'subscription' : 'one_time';
             $new_settings['subscription_enabled'] = $subscription_enabled;
+            // Only update meta if selling_option is not provided
+            if (!$request->has_param('selling_option')) {
+                update_post_meta($course_id, '_tutor_course_selling_option', $subscription_enabled ? 'subscription' : 'one_time');
+            }
+        }
+
+        if ($request->has_param('selling_option')) {
+            $selling_option = sanitize_text_field($request->get_param('selling_option'));
+            // Validate the selling option
+            $valid_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
+            if (!in_array($selling_option, $valid_options)) {
+                $selling_option = 'one_time'; // Default fallback
+            }
+            $new_settings['selling_option'] = $selling_option;
+            // Always update meta when selling_option is provided
             update_post_meta($course_id, '_tutor_course_selling_option', $selling_option);
         }
 
@@ -787,5 +802,40 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'data' => $merged_settings,
             'course_id' => $course_id,
         ]);
+    }
+
+    /**
+     * Get the mapping of Tutor LMS meta fields to TutorPress settings
+     *
+     * @return array The meta field mapping
+     */
+    private function get_meta_field_mapping(): array {
+        return [
+            // Pricing fields (exact Tutor LMS format)
+            '_tutor_course_price_type' => 'pricing_model',
+            'tutor_course_price' => 'price', // NO underscore
+            'tutor_course_sale_price' => 'sale_price', // NO underscore
+            '_tutor_course_selling_option' => 'selling_option', // WITH underscore
+            '_tutor_course_product_id' => 'product_id',
+            
+            // Course details fields
+            '_tutor_course_level' => 'course_level',
+            '_tutor_is_public_course' => 'is_public_course',
+            '_tutor_enable_qa' => 'enable_qna',
+            '_course_duration' => 'course_duration',
+            
+            // Course access fields
+            '_tutor_course_prerequisites_ids' => 'course_prerequisites',
+            '_tutor_maximum_students' => 'maximum_students',
+            '_tutor_course_enrollment_period' => 'course_enrollment_period',
+            '_tutor_enrollment_starts_at' => 'enrollment_starts_at',
+            '_tutor_enrollment_ends_at' => 'enrollment_ends_at',
+            '_tutor_enrollment_status' => 'pause_enrollment',
+            
+            // Course media fields
+            '_tutor_course_material_includes' => 'course_material_includes',
+            '_video' => 'intro_video',
+            '_tutor_attachments' => 'attachments',
+        ];
     }
 } 

@@ -101,6 +101,7 @@ export interface CourseSettings {
   price: number;
   sale_price: number;
   subscription_enabled: boolean;
+  selling_option: string; // Purchase option: "one_time", "subscription", "both", "membership", "all"
 
   // Instructors Section
   instructors: number[];
@@ -152,6 +153,7 @@ export const defaultCourseSettings: CourseSettings = {
   price: 0,
   sale_price: 0,
   subscription_enabled: false,
+  selling_option: "one_time",
 
   // Instructors
   instructors: [],
