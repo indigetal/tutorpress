@@ -347,6 +347,35 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 ]
             );
 
+            // Sort subscription plans
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/sort',
+                [
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'sort_subscription_plans'],
+                        'permission_callback' => [$this, 'check_write_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course the plans belong to.', 'tutorpress'),
+                            ],
+                            'plan_order' => [
+                                'required'          => true,
+                                'type'             => 'array',
+                                'description'       => __('Array of plan IDs in the desired order.', 'tutorpress'),
+                                'items'             => [
+                                    'type' => 'integer',
+                                ],
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
         } catch (Exception $e) {
             error_log('TutorPress Subscriptions Controller: Failed to register routes - ' . $e->getMessage());
         }
@@ -665,6 +694,78 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             return new WP_Error(
                 'subscription_plan_duplicate_error',
                 __('Failed to duplicate subscription plan.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Sort subscription plans.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object or error.
+     */
+    public function sort_subscription_plans($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $course_id = (int) $request->get_param('course_id');
+            $plan_order = $request->get_param('plan_order');
+
+            // Validate course
+            $validation_result = $this->validate_course_id($course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Validate plan order array
+            if (!is_array($plan_order) || empty($plan_order)) {
+                return new WP_Error(
+                    'invalid_plan_order',
+                    __('Plan order must be a non-empty array.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+
+            // Validate that all plans belong to the course
+            $validation_result = $this->validate_plans_belong_to_course($plan_order, $course_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Sort the plans
+            $sort_result = $this->sort_subscription_plans_in_db($plan_order);
+
+            if (is_wp_error($sort_result)) {
+                return $sort_result;
+            }
+
+            return rest_ensure_response(
+                $this->format_response(
+                    null,
+                    __('Subscription plans sorted successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: sort_subscription_plans error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plan_sort_error',
+                __('Failed to sort subscription plans.', 'tutorpress'),
                 ['status' => 500]
             );
         }
@@ -1389,5 +1490,104 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         }
         
         return $new_plan_id;
+    }
+
+    /**
+     * Validate that all plans belong to the specified course.
+     *
+     * @param array $plan_ids Array of plan IDs.
+     * @param int $course_id The course ID.
+     * @return bool|WP_Error True if valid, error otherwise.
+     */
+    private function validate_plans_belong_to_course($plan_ids, $course_id) {
+        global $wpdb;
+        
+        if (empty($plan_ids)) {
+            return new WP_Error(
+                'invalid_plan_ids',
+                __('No plan IDs provided.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+        
+        // Convert to integers and create placeholders
+        $plan_ids = array_map('intval', $plan_ids);
+        $placeholders = implode(',', array_fill(0, count($plan_ids), '%d'));
+        
+        // Check if all plans belong to the course
+        $plans = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT plan.id FROM {$wpdb->prefix}tutor_subscription_plans AS plan
+                INNER JOIN {$wpdb->prefix}tutor_subscription_plan_items AS item
+                ON item.plan_id = plan.id
+                WHERE plan.id IN ($placeholders) AND item.object_id = %d",
+                array_merge($plan_ids, [$course_id])
+            )
+        );
+        
+        $found_plan_ids = array_map(function($plan) {
+            return (int) $plan->id;
+        }, $plans);
+        
+        $missing_plans = array_diff($plan_ids, $found_plan_ids);
+        
+        if (!empty($missing_plans)) {
+            return new WP_Error(
+                'plans_not_found',
+                sprintf(
+                    __('Some plans do not belong to this course: %s', 'tutorpress'),
+                    implode(', ', $missing_plans)
+                ),
+                ['status' => 404]
+            );
+        }
+        
+        return true;
+    }
+
+    /**
+     * Sort subscription plans in database.
+     *
+     * @param array $plan_order Array of plan IDs in the desired order.
+     * @return bool|WP_Error True on success, error on failure.
+     */
+    private function sort_subscription_plans_in_db($plan_order) {
+        global $wpdb;
+        
+        // Begin transaction
+        $wpdb->query('START TRANSACTION');
+        
+        try {
+            foreach ($plan_order as $order => $plan_id) {
+                $result = $wpdb->update(
+                    $wpdb->prefix . 'tutor_subscription_plans',
+                    ['plan_order' => $order],
+                    ['id' => $plan_id],
+                    ['%d'],
+                    ['%d']
+                );
+                
+                if ($result === false) {
+                    throw new Exception('Failed to update plan order');
+                }
+            }
+            
+            // Commit transaction
+            $wpdb->query('COMMIT');
+            
+            return true;
+            
+        } catch (Exception $e) {
+            // Rollback transaction
+            $wpdb->query('ROLLBACK');
+            
+            error_log('TutorPress Subscriptions: Sort error - ' . $e->getMessage());
+            
+            return new WP_Error(
+                'database_error',
+                __('Failed to sort subscription plans in database.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
     }
 } 
