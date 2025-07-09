@@ -38,7 +38,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::READABLE,
                         'callback'            => [$this, 'get_course_subscriptions'],
-                        'permission_callback' => [$this, 'check_read_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -59,7 +59,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'create_subscription_plan'],
-                        'permission_callback' => [$this, 'check_write_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -181,7 +181,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::EDITABLE,
                         'callback'            => [$this, 'update_subscription_plan'],
-                        'permission_callback' => [$this, 'check_write_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -301,7 +301,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::DELETABLE,
                         'callback'            => [$this, 'delete_subscription_plan'],
-                        'permission_callback' => [$this, 'check_write_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -328,7 +328,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'duplicate_subscription_plan'],
-                        'permission_callback' => [$this, 'check_write_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -355,7 +355,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'sort_subscription_plans'],
-                        'permission_callback' => [$this, 'check_write_permission'],
+                        'permission_callback' => [$this, 'check_permission'],
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -771,47 +771,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         }
     }
 
-    /**
-     * Check read permissions for subscription endpoints.
-     *
-     * @param WP_REST_Request $request The REST request object.
-     * @return bool|WP_Error True if user has permission, error otherwise.
-     */
-    public function check_read_permission($request) {
-        $course_id = (int) $request->get_param('course_id');
 
-        // Check if user can edit the specific course
-        if (!current_user_can('edit_post', $course_id)) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to view this course\'s subscription plans.', 'tutorpress'),
-                ['status' => 403]
-            );
-        }
-
-        return true;
-    }
-
-    /**
-     * Check write permissions for subscription endpoints.
-     *
-     * @param WP_REST_Request $request The REST request object.
-     * @return bool|WP_Error True if user has permission, error otherwise.
-     */
-    public function check_write_permission($request) {
-        $course_id = (int) $request->get_param('course_id');
-
-        // Check if user can edit the specific course
-        if (!current_user_can('edit_post', $course_id)) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to manage this course\'s subscription plans.', 'tutorpress'),
-                ['status' => 403]
-            );
-        }
-
-        return true;
-    }
 
     /**
      * Validate course ID.
