@@ -38,7 +38,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::READABLE,
                         'callback'            => [$this, 'get_course_subscriptions'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -59,7 +69,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'create_subscription_plan'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -181,7 +201,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::EDITABLE,
                         'callback'            => [$this, 'update_subscription_plan'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -301,7 +331,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::DELETABLE,
                         'callback'            => [$this, 'delete_subscription_plan'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -328,7 +368,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'duplicate_subscription_plan'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'id' => [
                                 'required'          => true,
@@ -355,7 +405,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                     [
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'sort_subscription_plans'],
-                        'permission_callback' => [$this, 'check_permission'],
+                        'permission_callback' => function($request) {
+                            $course_id = (int) $request->get_param('course_id');
+                            
+                            // Check if user can edit the specific course
+                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
                         'args'               => [
                             'course_id' => [
                                 'required'          => true,
@@ -477,6 +537,14 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
 
             // Get the created plan
             $plan = $this->get_plan_by_id($plan_id);
+            
+            if (!$plan) {
+                return new WP_Error(
+                    'plan_retrieval_failed',
+                    __('Failed to retrieve created subscription plan.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
 
             return rest_ensure_response(
                 $this->format_response(
@@ -552,6 +620,14 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
 
             // Get the updated plan
             $plan = $this->get_plan_by_id($plan_id);
+            
+            if (!$plan) {
+                return new WP_Error(
+                    'plan_retrieval_failed',
+                    __('Failed to retrieve updated subscription plan.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
 
             return rest_ensure_response(
                 $this->format_response(

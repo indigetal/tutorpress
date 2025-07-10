@@ -9,7 +9,7 @@
  */
 
 import { createReduxStore, register } from "@wordpress/data";
-import { controls as wpControls } from "@wordpress/data-controls";
+import { controls } from "@wordpress/data-controls";
 import { select } from "@wordpress/data";
 import { __ } from "@wordpress/i18n";
 import {
@@ -412,34 +412,9 @@ const actions = {
     };
   },
 
-  // CRUD Operations
-  createSubscriptionPlan(planData: CreateSubscriptionPlanData) {
-    return {
-      type: "CREATE_SUBSCRIPTION_PLAN" as const,
-      payload: { planData },
-    };
-  },
-
-  updateSubscriptionPlan(planId: number, planData: UpdateSubscriptionPlanData) {
-    return {
-      type: "UPDATE_SUBSCRIPTION_PLAN" as const,
-      payload: { planId, planData },
-    };
-  },
-
-  deleteSubscriptionPlan(planId: number) {
-    return {
-      type: "DELETE_SUBSCRIPTION_PLAN" as const,
-      payload: { planId },
-    };
-  },
-
-  duplicateSubscriptionPlan(planId: number) {
-    return {
-      type: "DUPLICATE_SUBSCRIPTION_PLAN" as const,
-      payload: { planId },
-    };
-  },
+  // CRUD Operations - Remove duplicate action methods, keep only resolvers
+  // createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+  // duplicateSubscriptionPlan, sortSubscriptionPlans are handled by resolvers
 
   // Sorting
   sortSubscriptionPlans(planOrder: number[]) {
@@ -496,13 +471,29 @@ const selectors = {
 };
 
 // ============================================================================
-// CONTROLS
+// RESOLVERS
 // ============================================================================
 
-const controls = {
+const resolvers = {
   // Plan Management
-  *fetchSubscriptionPlans(courseId: number): Generator<unknown, SubscriptionPlansResponse, any> {
+  *getSubscriptionPlans(): Generator<unknown, SubscriptionPlansResponse, any> {
     try {
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "getSubscriptionPlans",
+          "Failed to get course ID"
+        );
+      }
+
+      // Dispatch start action
+      yield {
+        type: "FETCH_SUBSCRIPTION_PLANS_START",
+        payload: { courseId },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
@@ -515,19 +506,25 @@ const controls = {
         throw createCurriculumError(
           response.message || "Failed to fetch subscription plans",
           CurriculumErrorCode.FETCH_FAILED,
-          "fetchSubscriptionPlans",
+          "getSubscriptionPlans",
           "API Error"
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS",
+        payload: { plans: response.data },
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to fetch subscription plans",
-        CurriculumErrorCode.FETCH_FAILED,
-        "fetchSubscriptionPlans",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "FETCH_SUBSCRIPTION_PLANS_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
   },
 
@@ -536,12 +533,32 @@ const controls = {
     planData: CreateSubscriptionPlanData
   ): Generator<unknown, CreateSubscriptionPlanResponse, any> {
     try {
+      // Get course ID from current post
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "createSubscriptionPlan",
+          "Failed to get course ID"
+        );
+      }
+
+      // Dispatch start action
+      yield {
+        type: "CREATE_SUBSCRIPTION_PLAN_START",
+        payload: { planData },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: "/tutorpress/v1/subscriptions",
           method: "POST",
-          data: planData,
+          data: {
+            ...planData,
+            course_id: courseId,
+          },
         },
       };
 
@@ -554,14 +571,20 @@ const controls = {
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "CREATE_SUBSCRIPTION_PLAN_SUCCESS",
+        payload: { plan: response.data },
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to create subscription plan",
-        CurriculumErrorCode.CREATE_FAILED,
-        "createSubscriptionPlan",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "CREATE_SUBSCRIPTION_PLAN_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
   },
 
@@ -570,12 +593,32 @@ const controls = {
     planData: UpdateSubscriptionPlanData
   ): Generator<unknown, UpdateSubscriptionPlanResponse, any> {
     try {
+      // Get course ID from current post
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "updateSubscriptionPlan",
+          "Failed to get course ID"
+        );
+      }
+
+      // Dispatch start action
+      yield {
+        type: "UPDATE_SUBSCRIPTION_PLAN_START",
+        payload: { planId, planData },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}`,
           method: "PUT",
-          data: planData,
+          data: {
+            ...planData,
+            course_id: courseId,
+          },
         },
       };
 
@@ -588,24 +631,50 @@ const controls = {
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "UPDATE_SUBSCRIPTION_PLAN_SUCCESS",
+        payload: { plan: response.data },
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to update subscription plan",
-        CurriculumErrorCode.UPDATE_FAILED,
-        "updateSubscriptionPlan",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "UPDATE_SUBSCRIPTION_PLAN_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
   },
 
   *deleteSubscriptionPlan(planId: number): Generator<unknown, DeleteSubscriptionPlanResponse, any> {
     try {
+      // Get course ID from current post
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "deleteSubscriptionPlan",
+          "Failed to get course ID"
+        );
+      }
+
+      // Dispatch start action
+      yield {
+        type: "DELETE_SUBSCRIPTION_PLAN_START",
+        payload: { planId },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}`,
           method: "DELETE",
+          data: {
+            course_id: courseId,
+          },
         },
       };
 
@@ -618,19 +687,31 @@ const controls = {
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "DELETE_SUBSCRIPTION_PLAN_SUCCESS",
+        payload: { planId },
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to delete subscription plan",
-        CurriculumErrorCode.DELETE_FAILED,
-        "deleteSubscriptionPlan",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "DELETE_SUBSCRIPTION_PLAN_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
   },
 
   *duplicateSubscriptionPlan(planId: number): Generator<unknown, DuplicateSubscriptionPlanResponse, any> {
     try {
+      // Dispatch start action
+      yield {
+        type: "DUPLICATE_SUBSCRIPTION_PLAN_START",
+        payload: { planId },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
@@ -648,26 +729,51 @@ const controls = {
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "DUPLICATE_SUBSCRIPTION_PLAN_SUCCESS",
+        payload: { plan: response.data },
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to duplicate subscription plan",
-        CurriculumErrorCode.CREATE_FAILED,
-        "duplicateSubscriptionPlan",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "DUPLICATE_SUBSCRIPTION_PLAN_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
   },
 
   // Sorting
   *sortSubscriptionPlans(planOrder: number[]): Generator<unknown, SortSubscriptionPlansResponse, any> {
     try {
+      // Get course ID from current post
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "sortSubscriptionPlans",
+          "Failed to get course ID"
+        );
+      }
+
+      // Dispatch start action
+      yield {
+        type: "SORT_SUBSCRIPTION_PLANS_START",
+        payload: { planOrder },
+      };
+
       const response = yield {
         type: "API_FETCH",
         request: {
-          path: "/tutorpress/v1/subscriptions/sort",
-          method: "POST",
-          data: { plan_order: planOrder },
+          path: `/tutorpress/v1/courses/${courseId}/subscriptions/sort`,
+          method: "PUT",
+          data: {
+            plan_order: planOrder,
+          },
         },
       };
 
@@ -680,69 +786,20 @@ const controls = {
         );
       }
 
+      // Dispatch success action
+      yield {
+        type: "SORT_SUBSCRIPTION_PLANS_SUCCESS",
+      };
+
       return response;
     } catch (error: any) {
-      throw createCurriculumError(
-        error.message || "Failed to sort subscription plans",
-        CurriculumErrorCode.UPDATE_FAILED,
-        "sortSubscriptionPlans",
-        error.message
-      );
+      // Dispatch error action
+      yield {
+        type: "SORT_SUBSCRIPTION_PLANS_ERROR",
+        payload: { error: error.message },
+      };
+      throw error;
     }
-  },
-};
-
-// ============================================================================
-// RESOLVERS
-// ============================================================================
-
-const resolvers = {
-  // Plan Management
-  *getSubscriptionPlans(): Generator<unknown, SubscriptionPlansResponse, any> {
-    const courseId = yield select("core/editor").getCurrentPostId();
-    if (!courseId) {
-      throw createCurriculumError(
-        "No course ID available",
-        CurriculumErrorCode.VALIDATION_ERROR,
-        "getSubscriptionPlans",
-        "Failed to get course ID"
-      );
-    }
-
-    const response = yield controls.fetchSubscriptionPlans(courseId);
-    return response;
-  },
-
-  // CRUD Operations
-  *createSubscriptionPlan(
-    planData: CreateSubscriptionPlanData
-  ): Generator<unknown, CreateSubscriptionPlanResponse, any> {
-    const response = yield controls.createSubscriptionPlan(planData);
-    return response;
-  },
-
-  *updateSubscriptionPlan(
-    planId: number,
-    planData: UpdateSubscriptionPlanData
-  ): Generator<unknown, UpdateSubscriptionPlanResponse, any> {
-    const response = yield controls.updateSubscriptionPlan(planId, planData);
-    return response;
-  },
-
-  *deleteSubscriptionPlan(planId: number): Generator<unknown, DeleteSubscriptionPlanResponse, any> {
-    const response = yield controls.deleteSubscriptionPlan(planId);
-    return response;
-  },
-
-  *duplicateSubscriptionPlan(planId: number): Generator<unknown, DuplicateSubscriptionPlanResponse, any> {
-    const response = yield controls.duplicateSubscriptionPlan(planId);
-    return response;
-  },
-
-  // Sorting
-  *sortSubscriptionPlans(planOrder: number[]): Generator<unknown, SortSubscriptionPlansResponse, any> {
-    const response = yield controls.sortSubscriptionPlans(planOrder);
-    return response;
   },
 };
 
@@ -776,10 +833,6 @@ export const {
   setFormData,
   resetForm,
   setFormDirty,
-  createSubscriptionPlan,
-  updateSubscriptionPlan,
-  deleteSubscriptionPlan,
-  duplicateSubscriptionPlan,
   sortSubscriptionPlans,
 } = actions;
 
