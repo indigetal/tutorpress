@@ -132,17 +132,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('How many times the plan can recur (0 = until cancelled).', 'tutorpress'),
                             ],
                             'sale_price' => [
-                                'type'             => 'number',
+                                'type'             => ['number', 'null'],
                                 'minimum'           => 0,
                                 'description'       => __('The sale price of the plan.', 'tutorpress'),
                             ],
                             'sale_price_from' => [
-                                'type'             => 'string',
+                                'type'             => ['string', 'null'],
                                 'format'            => 'date-time',
                                 'description'       => __('When the sale price starts (ISO 8601 format).', 'tutorpress'),
                             ],
                             'sale_price_to' => [
-                                'type'             => 'string',
+                                'type'             => ['string', 'null'],
                                 'format'            => 'date-time',
                                 'description'       => __('When the sale price ends (ISO 8601 format).', 'tutorpress'),
                             ],
@@ -174,8 +174,8 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('Trial period value.', 'tutorpress'),
                             ],
                             'trial_interval' => [
-                                'type'             => 'string',
-                                'enum'              => ['day', 'week', 'month', 'year'],
+                                'type'             => ['string', 'null'],
+                                'enum'              => ['day', 'week', 'month', 'year', null],
                                 'description'       => __('Trial period interval.', 'tutorpress'),
                             ],
                             'short_description' => [
@@ -270,17 +270,17 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('How many times the plan can recur (0 = until cancelled).', 'tutorpress'),
                             ],
                             'sale_price' => [
-                                'type'             => 'number',
+                                'type'             => ['number', 'null'],
                                 'minimum'           => 0,
                                 'description'       => __('The sale price of the plan.', 'tutorpress'),
                             ],
                             'sale_price_from' => [
-                                'type'             => 'string',
+                                'type'             => ['string', 'null'],
                                 'format'            => 'date-time',
                                 'description'       => __('When the sale price starts (ISO 8601 format).', 'tutorpress'),
                             ],
                             'sale_price_to' => [
-                                'type'             => 'string',
+                                'type'             => ['string', 'null'],
                                 'format'            => 'date-time',
                                 'description'       => __('When the sale price ends (ISO 8601 format).', 'tutorpress'),
                             ],
@@ -312,8 +312,8 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('Trial period value.', 'tutorpress'),
                             ],
                             'trial_interval' => [
-                                'type'             => 'string',
-                                'enum'              => ['day', 'week', 'month', 'year'],
+                                'type'             => ['string', 'null'],
+                                'enum'              => ['day', 'week', 'month', 'year', null],
                                 'description'       => __('Trial period interval.', 'tutorpress'),
                             ],
                             'short_description' => [
@@ -968,9 +968,11 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
     private function prepare_plan_data($request) {
         $data = $request->get_params();
         
+        // Process request data
+        
         // Convert boolean fields
-        $data['provide_certificate'] = isset($data['provide_certificate']) ? 1 : 0;
-        $data['is_featured'] = isset($data['is_featured']) ? 1 : 0;
+        $data['provide_certificate'] = (!empty($data['provide_certificate']) && $data['provide_certificate'] !== false) ? 1 : 0;
+        $data['is_featured'] = (!empty($data['is_featured']) && $data['is_featured'] !== false) ? 1 : 0;
         $data['is_enabled'] = 1; // Default to enabled
         
         // Set defaults for all required fields
@@ -990,14 +992,27 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         $data['plan_name'] = $data['plan_name'] ?? '';
         $data['regular_price'] = $data['regular_price'] ?? 0;
         
-        // Convert date formats if provided
-        if (!empty($data['sale_price_from'])) {
+        // Handle null values properly - convert empty strings to null (matching Tutor LMS)
+        $data['short_description'] = (empty($data['short_description']) || $data['short_description'] === '' || $data['short_description'] === '0') ? null : $data['short_description'];
+        $data['description'] = (empty($data['description']) || $data['description'] === '') ? null : $data['description'];
+        $data['featured_text'] = (empty($data['featured_text']) || $data['featured_text'] === '') ? null : $data['featured_text'];
+        $data['trial_interval'] = (empty($data['trial_interval']) || $data['trial_interval'] === '' || $data['trial_interval'] === '0') ? null : $data['trial_interval'];
+        $data['restriction_mode'] = (empty($data['restriction_mode']) || $data['restriction_mode'] === '') ? null : $data['restriction_mode'];
+        
+        // Convert date formats if provided, or set to null if empty (matching Tutor LMS)
+        if (!empty($data['sale_price_from']) && $data['sale_price_from'] !== '0000-00-00 00:00:00') {
             $data['sale_price_from'] = $this->convert_to_mysql_datetime($data['sale_price_from']);
+        } else {
+            $data['sale_price_from'] = null;
         }
         
-        if (!empty($data['sale_price_to'])) {
+        if (!empty($data['sale_price_to']) && $data['sale_price_to'] !== '0000-00-00 00:00:00') {
             $data['sale_price_to'] = $this->convert_to_mysql_datetime($data['sale_price_to']);
+        } else {
+            $data['sale_price_to'] = null;
         }
+        
+        // Return processed data
         
         return $data;
     }
@@ -1035,40 +1050,23 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         
         $filtered_data = array_intersect_key($plan_data, array_flip($db_fields));
         
-        // Debug: Log the filtered plan data being inserted
-        error_log('TutorPress Subscriptions: Filtered plan data for insertion: ' . print_r($filtered_data, true));
+        // Insert plan with explicit data type casting to prevent corruption
+        $insert_data = [];
+        foreach ($filtered_data as $key => $value) {
+            // Force string values for specific fields to prevent type conversion issues
+            if (in_array($key, ['recurring_interval', 'trial_interval', 'payment_type', 'plan_type', 'restriction_mode', 'plan_name', 'short_description', 'description', 'featured_text'])) {
+                $insert_data[$key] = (string) $value;
+            } else {
+                $insert_data[$key] = $value;
+            }
+        }
         
-        // Insert plan
         $result = $wpdb->insert(
             $wpdb->prefix . 'tutor_subscription_plans',
-            $filtered_data,
-            [
-                '%s', // payment_type
-                '%s', // plan_type
-                '%s', // restriction_mode (can be null)
-                '%s', // plan_name
-                '%s', // short_description
-                '%s', // description
-                '%d', // is_featured
-                '%s', // featured_text
-                '%d', // recurring_value
-                '%s', // recurring_interval
-                '%d', // recurring_limit
-                '%f', // regular_price
-                '%f', // sale_price
-                '%s', // sale_price_from
-                '%s', // sale_price_to
-                '%d', // provide_certificate
-                '%f', // enrollment_fee
-                '%d', // trial_value
-                '%s', // trial_interval (can be null)
-                '%f', // trial_fee
-                '%d', // is_enabled
-                '%d', // plan_order
-            ]
+            $insert_data
         );
         
-        // Debug: Log any database errors
+        // Log database errors if any
         if ($result === false) {
             error_log('TutorPress Subscriptions: Database error: ' . $wpdb->last_error);
         }
@@ -1248,8 +1246,8 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
         }
         
-        // Trial validation
-        if (!empty($data['trial_value']) && $data['trial_value'] > 0) {
+        // Trial validation - only validate trial_interval if trial_value is greater than 0
+        if (isset($data['trial_value']) && $data['trial_value'] > 0) {
             if (empty($data['trial_interval']) || !in_array($data['trial_interval'], $valid_intervals)) {
                 return new WP_Error(
                     'invalid_trial_interval',

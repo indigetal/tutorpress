@@ -28,6 +28,7 @@ import {
   displayDate,
   displayTime,
   combineDateTime,
+  convertToGMT,
   generateTimeOptions,
   filterEndTimeOptions,
   validateAndCorrectDateTime,
@@ -106,25 +107,14 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
   // Initialize form data when component mounts or initialData changes
   useEffect(() => {
     if (initialData) {
-      updateFormData({ ...defaultSubscriptionPlan, ...initialData });
+      const mergedData = { ...defaultSubscriptionPlan, ...initialData };
+      updateFormData(mergedData);
     } else {
       resetForm();
     }
     setFormMode(mode);
-  }, [initialData, mode, updateFormData, resetForm, setFormMode]);
-
-  // Reset form when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      updateFormData({
-        ...defaultSubscriptionPlan,
-        ...initialData,
-      });
-    } else {
-      resetForm();
-    }
     setValidationErrors({});
-  }, [initialData, updateFormData, resetForm]);
+  }, [initialData, mode, updateFormData, resetForm, setFormMode]);
 
   /**
    * Validate form data
@@ -181,14 +171,48 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
 
     if (validateForm()) {
       try {
+        // Sanitize form data before submission
+        const sanitizedData = {
+          ...formData,
+          // Ensure proper data types
+          recurring_value: parseInt(String(formData.recurring_value || 1)),
+          recurring_interval: formData.recurring_interval || "month", // Ensure valid interval
+          recurring_limit: parseInt(String(formData.recurring_limit || 0)),
+          regular_price: parseFloat(String(formData.regular_price || 0)),
+          sale_price:
+            formData.sale_price !== null && formData.sale_price !== undefined
+              ? parseFloat(String(formData.sale_price))
+              : null,
+          enrollment_fee: parseFloat(String(formData.enrollment_fee || 0)),
+          trial_value: parseInt(String(formData.trial_value || 0)),
+          trial_fee: parseFloat(String(formData.trial_fee || 0)),
+          plan_order: parseInt(String(formData.plan_order || 0)),
+          // Ensure boolean values
+          provide_certificate: Boolean(formData.provide_certificate),
+          is_featured: Boolean(formData.is_featured),
+          is_enabled: Boolean(formData.is_enabled),
+          // Handle null values properly
+          short_description: formData.short_description || null,
+          description: formData.description || null,
+          featured_text: formData.featured_text || null,
+          trial_interval: formData.trial_value && formData.trial_value > 0 ? formData.trial_interval : null,
+          // Handle date validation
+          sale_price_from:
+            formData.sale_price_from && formData.sale_price_from !== "0000-00-00 00:00:00"
+              ? formData.sale_price_from
+              : null,
+          sale_price_to:
+            formData.sale_price_to && formData.sale_price_to !== "0000-00-00 00:00:00" ? formData.sale_price_to : null,
+        };
+
         if (formMode === "add") {
-          await createSubscriptionPlan(formData as any);
+          await createSubscriptionPlan(sanitizedData as any);
         } else if (formMode === "edit" && initialData?.id) {
-          await updateSubscriptionPlan(initialData.id, formData as any);
+          await updateSubscriptionPlan(initialData.id, sanitizedData as any);
         }
 
-        // Call the onSave callback with the form data
-        onSave(formData);
+        // Call the onSave callback with the sanitized data
+        onSave(sanitizedData);
       } catch (error) {
         console.error("Error saving subscription plan:", error);
       }
@@ -372,7 +396,14 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
 
                   <CheckboxControl
                     label={__("Schedule the Sale Price", "tutorpress")}
-                    checked={!!(formData.sale_price_from && formData.sale_price_to)}
+                    checked={
+                      !!(
+                        formData.sale_price_from &&
+                        formData.sale_price_to &&
+                        formData.sale_price_from !== "0000-00-00 00:00:00" &&
+                        formData.sale_price_to !== "0000-00-00 00:00:00"
+                      )
+                    }
                     onChange={(checked) => {
                       if (checked) {
                         // Set default dates when enabling scheduling
@@ -380,8 +411,8 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
                         const future = new Date();
                         future.setDate(future.getDate() + 7); // 7 days from now
 
-                        updateField("sale_price_from", now.toISOString().slice(0, 19));
-                        updateField("sale_price_to", future.toISOString().slice(0, 19));
+                        updateField("sale_price_from", convertToGMT(now));
+                        updateField("sale_price_to", convertToGMT(future));
                       } else {
                         updateField("sale_price_from", null);
                         updateField("sale_price_to", null);
