@@ -1,15 +1,41 @@
-/* Subscriptions Modal Styles - header matches Quiz Modal exactly */
+/**
+ * Subscription Modal Styles
+ *
+ * Styling for the subscription plan management modal and form components.
+ * Follows TutorPress design patterns and WordPress admin styling.
+ *
+ * @package TutorPress
+ * @since 1.0.0
+ */
+
+/* ============================================================================
+   SUBSCRIPTION MODAL CONTAINER
+   ============================================================================ */
+
+.subscription-modal {
+  /* Modal container styles */
+}
+
+.subscription-modal .components-modal__content {
+  padding: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* ============================================================================
+   SUBSCRIPTION MODAL HEADER
+   ============================================================================ */
 
 .subscription-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-lg) var(--space-2xl);
-  border-bottom: 1px solid var(--gray-300);
-  background: var(--white);
+  padding: var(--space-modal);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-primary);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-modal);
 }
 
 .subscription-modal-title {
@@ -21,29 +47,29 @@
 
 .subscription-modal-header-actions {
   display: flex;
-  gap: var(--space-sm);
+  gap: var(--space-button-gap);
   align-items: center;
 }
 
 .subscription-modal-header-actions .components-button.is-secondary {
-  border: 1px solid var(--gray-500);
-  color: var(--gray-500);
-  background: var(--white);
-  min-height: 36px;
-  padding: 0 var(--space-lg);
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-muted);
+  background: var(--color-bg-primary);
+  min-height: var(--height-button);
+  padding: var(--button-padding);
 }
 
 .subscription-modal-header-actions .components-button.is-secondary:hover:not(:disabled) {
-  border-color: var(--gray-700);
-  color: var(--gray-700);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
 .subscription-modal-header-actions .components-button.is-primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: var(--white);
-  min-height: 36px;
-  padding: 0 var(--space-lg);
+  color: var(--color-text-inverse);
+  min-height: var(--height-button);
+  padding: var(--button-padding);
 }
 
 .subscription-modal-header-actions .components-button.is-primary:hover:not(:disabled) {
@@ -54,4 +80,140 @@
 .subscription-modal-header-actions .components-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ============================================================================
+   SUBSCRIPTION PLAN FORM
+   ============================================================================ */
+
+.tutorpress-subscription-plan-form {
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.tutorpress-subscription-plan-form .components-card__body {
+  padding: var(--space-modal);
+}
+
+/* Form field spacing */
+.tutorpress-subscription-plan-form .components-flex {
+  gap: var(--space-lg);
+}
+
+.tutorpress-subscription-plan-form .components-flex > div {
+  flex: 1;
+}
+
+/* Price and Billing section */
+.tutorpress-subscription-plan-form .price-billing-section {
+  margin-bottom: var(--space-xl);
+}
+
+.tutorpress-subscription-plan-form .price-billing-section .components-flex {
+  align-items: flex-end;
+}
+
+/* Conditional field containers */
+.tutorpress-subscription-plan-form .conditional-field {
+  margin-top: var(--space-lg);
+  padding-left: var(--space-xl);
+  border-left: 2px solid var(--color-primary);
+}
+
+/* Sale price section */
+.tutorpress-subscription-plan-form .sale-price-section {
+  margin-top: var(--space-lg);
+}
+
+.tutorpress-subscription-plan-form .sale-price-section .components-toggle-control {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-subscription-plan-form .sale-price-section .sale-date-time {
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-card);
+}
+
+/* ============================================================================
+   FORM VALIDATION STYLES
+   ============================================================================ */
+
+.tutorpress-subscription-plan-form .has-error .components-base-control__field {
+  border-color: var(--color-error);
+}
+
+.tutorpress-subscription-plan-form .has-error .components-base-control__help {
+  color: var(--color-error);
+}
+
+.tutorpress-subscription-plan-form .error-summary {
+  color: var(--color-error);
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+/* ============================================================================
+   FORM ACTIONS
+   ============================================================================ */
+
+.tutorpress-subscription-plan-form .form-actions {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .subscription-modal-header {
+    flex-direction: column;
+    gap: var(--space-lg);
+    align-items: stretch;
+  }
+
+  .subscription-modal-header-actions {
+    justify-content: flex-end;
+  }
+
+  .tutorpress-subscription-plan-form .price-billing-section .components-flex {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .tutorpress-subscription-plan-form .sale-price-section .sale-date-time .components-flex {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+.tutorpress-subscription-plan-form .components-base-control__label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.tutorpress-subscription-plan-form .components-base-control__help {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.tutorpress-subscription-plan-form .components-checkbox-control__input:focus + .components-checkbox-control__label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tutorpress-subscription-plan-form .components-toggle-control__input:focus + .components-toggle-control__label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
