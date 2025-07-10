@@ -13,8 +13,11 @@ import {
   __experimentalHStack as HStack,
   FlexItem,
   DatePicker,
+  Notice,
+  Spinner,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { useSelect, useDispatch } from "@wordpress/data";
 import { calendar } from "@wordpress/icons";
 import type { SubscriptionPlan, SubscriptionValidationErrors } from "../../../types/subscriptions";
 import { defaultSubscriptionPlan, subscriptionIntervals } from "../../../types/subscriptions";
@@ -69,25 +72,59 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
   isSaving,
   mode = "add",
 }): JSX.Element => {
-  const [formData, setFormData] = useState<Partial<SubscriptionPlan>>({
-    ...defaultSubscriptionPlan,
-    ...initialData,
-  });
+  // Get store state and actions
+  const {
+    formData,
+    formMode,
+    isLoading,
+    error: storeError,
+  } = useSelect(
+    (select: any) => ({
+      formData: select("tutorpress/subscriptions").getFormData(),
+      formMode: select("tutorpress/subscriptions").getFormMode(),
+      isLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
+      error: select("tutorpress/subscriptions").getSubscriptionPlansError(),
+    }),
+    []
+  );
 
-  const [validationErrors, setValidationErrors] = useState<SubscriptionValidationErrors>({});
+  const {
+    setFormData: updateFormData,
+    setFormMode,
+    resetForm,
+    createSubscriptionPlan,
+    updateSubscriptionPlan,
+  } = useDispatch("tutorpress/subscriptions");
 
-  // State for date picker popovers (following CourseAccessPanel pattern)
+  // Local state for date picker popovers (following CourseAccessPanel pattern)
   const [saleStartDatePickerOpen, setSaleStartDatePickerOpen] = useState(false);
   const [saleEndDatePickerOpen, setSaleEndDatePickerOpen] = useState(false);
 
+  // Local validation errors state
+  const [validationErrors, setValidationErrors] = useState<SubscriptionValidationErrors>({});
+
+  // Initialize form data when component mounts or initialData changes
+  useEffect(() => {
+    if (initialData) {
+      updateFormData({ ...defaultSubscriptionPlan, ...initialData });
+    } else {
+      resetForm();
+    }
+    setFormMode(mode);
+  }, [initialData, mode, updateFormData, resetForm, setFormMode]);
+
   // Reset form when initialData changes
   useEffect(() => {
-    setFormData({
-      ...defaultSubscriptionPlan,
-      ...initialData,
-    });
+    if (initialData) {
+      updateFormData({
+        ...defaultSubscriptionPlan,
+        ...initialData,
+      });
+    } else {
+      resetForm();
+    }
     setValidationErrors({});
-  }, [initialData]);
+  }, [initialData, updateFormData, resetForm]);
 
   /**
    * Validate form data
@@ -139,11 +176,22 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
   /**
    * Handle form submission
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (validateForm()) {
-      onSave(formData);
+      try {
+        if (formMode === "add") {
+          await createSubscriptionPlan(formData as any);
+        } else if (formMode === "edit" && initialData?.id) {
+          await updateSubscriptionPlan(initialData.id, formData as any);
+        }
+
+        // Call the onSave callback with the form data
+        onSave(formData);
+      } catch (error) {
+        console.error("Error saving subscription plan:", error);
+      }
     }
   };
 
@@ -151,7 +199,7 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
    * Update form field
    */
   const updateField = (field: keyof SubscriptionPlan, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    updateFormData({ [field]: value });
 
     // Clear validation error for this field
     if (validationErrors[field as keyof SubscriptionValidationErrors]) {
@@ -173,6 +221,19 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
       <form onSubmit={handleSubmit}>
         <CardBody>
           <Flex direction="column" gap={3}>
+            {/* Error Display */}
+            {(error || storeError) && (
+              <Notice status="error" isDismissible={false}>
+                {error || storeError}
+              </Notice>
+            )}
+
+            {/* Loading State */}
+            {isLoading && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <Spinner />
+              </div>
+            )}
             {/* Error Summary */}
             {error && <div style={{ color: "#cc1818", marginBottom: "8px" }}>{error}</div>}
 
@@ -559,11 +620,11 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
 
             {/* Form Actions */}
             <Flex justify="flex-end" gap={2}>
-              <Button variant="secondary" onClick={onCancel}>
+              <Button variant="secondary" onClick={onCancel} disabled={isLoading}>
                 {__("Cancel", "tutorpress")}
               </Button>
-              <Button variant="primary" type="submit" isBusy={isSaving} disabled={!isValid || isSaving}>
-                {mode === "add" ? __("Add Plan", "tutorpress") : __("Save Changes", "tutorpress")}
+              <Button variant="primary" type="submit" isBusy={isLoading} disabled={!isValid || isLoading}>
+                {formMode === "add" ? __("Add Plan", "tutorpress") : __("Save Changes", "tutorpress")}
               </Button>
             </Flex>
           </Flex>
