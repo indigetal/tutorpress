@@ -8,7 +8,7 @@
  * @since 1.0.0
  */
 
-import type { TutorResponse } from "./api";
+import type { APIResponse } from "./api";
 
 // ============================================================================
 // CORE SUBSCRIPTION PLAN INTERFACES
@@ -107,37 +107,37 @@ export interface UpdateSubscriptionPlanData extends Partial<CreateSubscriptionPl
 /**
  * Subscription plans response for a course
  */
-export type SubscriptionPlansResponse = TutorResponse<SubscriptionPlan[]>;
+export type SubscriptionPlansResponse = APIResponse<SubscriptionPlan[]>;
 
 /**
  * Single subscription plan response
  */
-export type SubscriptionPlanResponse = TutorResponse<SubscriptionPlan>;
+export type SubscriptionPlanResponse = APIResponse<SubscriptionPlan>;
 
 /**
  * Subscription plan creation response
  */
-export type CreateSubscriptionPlanResponse = TutorResponse<SubscriptionPlan>;
+export type CreateSubscriptionPlanResponse = APIResponse<SubscriptionPlan>;
 
 /**
  * Subscription plan update response
  */
-export type UpdateSubscriptionPlanResponse = TutorResponse<SubscriptionPlan>;
+export type UpdateSubscriptionPlanResponse = APIResponse<SubscriptionPlan>;
 
 /**
  * Subscription plan deletion response
  */
-export type DeleteSubscriptionPlanResponse = TutorResponse<{ success: boolean }>;
+export type DeleteSubscriptionPlanResponse = APIResponse<{ success: boolean }>;
 
 /**
  * Subscription plan duplication response
  */
-export type DuplicateSubscriptionPlanResponse = TutorResponse<SubscriptionPlan>;
+export type DuplicateSubscriptionPlanResponse = APIResponse<SubscriptionPlan>;
 
 /**
  * Subscription plans sorting response
  */
-export type SortSubscriptionPlansResponse = TutorResponse<{ success: boolean }>;
+export type SortSubscriptionPlansResponse = APIResponse<{ success: boolean }>;
 
 // ============================================================================
 // STORE STATE INTERFACES

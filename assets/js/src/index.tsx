@@ -72,6 +72,7 @@ registerPlugin("tutorpress-course-pricing-settings", {
 // Initialize stores
 import "./store/curriculum";
 import "./store/course-settings";
+import "./store/subscriptions";
 
 // Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {

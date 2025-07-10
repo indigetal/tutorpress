@@ -8,7 +8,16 @@ import { Course } from "./courses";
 import { BaseTopic, BaseContentItem, Topic, ContentItem } from "./curriculum";
 
 /**
- * Generic response type for TutorPress API endpoints
+ * Standardized API response type for TutorPress frontend
+ */
+export interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+/**
+ * Generic response type for TutorPress API endpoints (legacy)
  */
 export interface TutorResponse<T> {
   status_code: number;
