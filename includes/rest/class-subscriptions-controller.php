@@ -1307,36 +1307,22 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         // Debug: Log the filtered plan data being updated
         error_log('TutorPress Subscriptions: Filtered plan data for update: ' . print_r($filtered_data, true));
         
-        // Update plan
+        // Apply explicit type casting to prevent data corruption (same as create method)
+        $update_data = [];
+        foreach ($filtered_data as $key => $value) {
+            // Force string values for specific fields to prevent type conversion issues
+            if (in_array($key, ['recurring_interval', 'trial_interval', 'payment_type', 'plan_type', 'restriction_mode', 'plan_name', 'short_description', 'description', 'featured_text'])) {
+                $update_data[$key] = (string) $value;
+            } else {
+                $update_data[$key] = $value;
+            }
+        }
+        
+        // Update plan (without explicit format specifiers to prevent type conversion issues)
         $result = $wpdb->update(
             $wpdb->prefix . 'tutor_subscription_plans',
-            $filtered_data,
-            ['id' => $plan_id],
-            [
-                '%s', // payment_type
-                '%s', // plan_type
-                '%s', // restriction_mode (can be null)
-                '%s', // plan_name
-                '%s', // short_description
-                '%s', // description
-                '%d', // is_featured
-                '%s', // featured_text
-                '%d', // recurring_value
-                '%s', // recurring_interval
-                '%d', // recurring_limit
-                '%f', // regular_price
-                '%f', // sale_price
-                '%s', // sale_price_from
-                '%s', // sale_price_to
-                '%d', // provide_certificate
-                '%f', // enrollment_fee
-                '%d', // trial_value
-                '%s', // trial_interval (can be null)
-                '%f', // trial_fee
-                '%d', // is_enabled
-                '%d', // plan_order
-            ],
-            ['%d']
+            $update_data,
+            ['id' => $plan_id]
         );
         
         // Debug: Log any database errors
