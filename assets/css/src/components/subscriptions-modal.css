@@ -112,20 +112,6 @@
   border-top: 1px solid var(--color-border-light);
 }
 
-/* Helper Text */
-.subscription-form-helper {
-  margin-top: var(--space-md);
-  text-align: center;
-}
-
-.subscription-form-helper .helper-text {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  font-style: italic;
-  margin: 0;
-  line-height: 1.4;
-}
-
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
@@ -316,4 +302,40 @@
 
 .tutorpress-sortable-subscription-plan--dragging {
   z-index: 1000;
+}
+
+.tutorpress-subscription-plan-grid-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1.1fr;
+  gap: var(--space-lg);
+  align-items: end;
+  margin-bottom: var(--space-xl);
+}
+
+.plan-regular-price {
+  min-width: 0;
+}
+.plan-billing-interval {
+  min-width: 0;
+}
+.plan-interval-type {
+  min-width: 0;
+}
+.plan-billing-cycles {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .tutorpress-subscription-plan-grid-row {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+  }
+}
+
+@media (max-width: 600px) {
+  .tutorpress-subscription-plan-grid-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
 }

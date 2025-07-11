@@ -282,7 +282,7 @@ const CoursePricingPanel: React.FC = () => {
                     <div key={plan.id} className="tutorpress-saved-file-item">
                       <div className="plan-info">
                         <div className="plan-name">
-                          {plan.plan_name.length > 25 ? `${plan.plan_name.substring(0, 25)}...` : plan.plan_name}
+                          {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
                         </div>
                         <div className="plan-details">
                           ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}

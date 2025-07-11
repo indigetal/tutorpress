@@ -8,7 +8,6 @@ import type { SubscriptionPlan } from "../../../types/subscriptions";
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isDirty?: boolean;
   courseId: number;
   initialPlan?: SubscriptionPlan | null;
   shouldShowForm?: boolean;
@@ -17,7 +16,6 @@ interface SubscriptionModalProps {
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   isOpen,
   onClose,
-  isDirty,
   courseId,
   initialPlan,
   shouldShowForm = false,
@@ -37,19 +35,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
   }, [initialPlan, isOpen, shouldShowForm]);
 
-  // Get store state
-  const { isLoading } = useSelect(
-    (select: any) => ({
-      isLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
-    }),
-    []
-  );
-
   const { resetForm } = useDispatch("tutorpress/subscriptions");
 
   // Handle form save
   const handleFormSave = (planData: Partial<SubscriptionPlan>) => {
-    console.log("Saving subscription plan:", planData);
     setEditingPlanId(null);
     setIsNewPlanFormVisible(false);
     resetForm();

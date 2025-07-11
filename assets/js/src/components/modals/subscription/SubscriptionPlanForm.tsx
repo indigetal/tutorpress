@@ -274,58 +274,52 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
             />
 
             {/* Price and Billing Section - 4 fields on same line */}
-            <div>
-              <HStack spacing={3} alignment="flex-end">
-                <FlexItem>
-                  <TextControl
-                    label={__("Regular Price", "tutorpress")}
-                    placeholder="0"
-                    type="number"
-                    value={String(formData.regular_price || 0)}
-                    onChange={(regular_price: string) => updateField("regular_price", parseFloat(regular_price) || 0)}
-                    min={0}
-                    step={0.01}
-                    required
-                    help={validationErrors.regular_price}
-                    className={validationErrors.regular_price ? "has-error" : ""}
-                  />
-                </FlexItem>
-                <FlexItem>
-                  <TextControl
-                    label={__("Billing Interval", "tutorpress")}
-                    placeholder="1"
-                    type="number"
-                    value={String(formData.recurring_value || 1)}
-                    onChange={(recurring_value: string) =>
-                      updateField("recurring_value", parseInt(recurring_value) || 1)
-                    }
-                    min={1}
-                    required
-                    help={validationErrors.recurring_value}
-                    className={validationErrors.recurring_value ? "has-error" : ""}
-                  />
-                </FlexItem>
-                <FlexItem>
-                  <SelectControl
-                    label={__("Interval Type", "tutorpress")}
-                    value={formData.recurring_interval || "month"}
-                    options={subscriptionIntervals}
-                    onChange={(recurring_interval) => updateField("recurring_interval", recurring_interval)}
-                    required
-                  />
-                </FlexItem>
-                <FlexItem>
-                  <SelectControl
-                    label={__("Billing Cycles", "tutorpress")}
-                    value={String(formData.recurring_limit || 0)}
-                    options={billingCycleOptions}
-                    onChange={(recurring_limit: string) =>
-                      updateField("recurring_limit", parseInt(recurring_limit) || 0)
-                    }
-                    required
-                  />
-                </FlexItem>
-              </HStack>
+            <div className="tutorpress-subscription-plan-grid-row">
+              <div className="plan-regular-price">
+                <TextControl
+                  label={__("Regular Price", "tutorpress")}
+                  placeholder="0"
+                  type="number"
+                  value={String(formData.regular_price || 0)}
+                  onChange={(regular_price: string) => updateField("regular_price", parseFloat(regular_price) || 0)}
+                  min={0}
+                  step={0.01}
+                  required
+                  help={validationErrors.regular_price}
+                  className={validationErrors.regular_price ? "has-error" : ""}
+                />
+              </div>
+              <div className="plan-billing-interval">
+                <TextControl
+                  label={__("Billing Interval", "tutorpress")}
+                  placeholder="1"
+                  type="number"
+                  value={String(formData.recurring_value || 1)}
+                  onChange={(recurring_value: string) => updateField("recurring_value", parseInt(recurring_value) || 1)}
+                  min={1}
+                  required
+                  help={validationErrors.recurring_value}
+                  className={validationErrors.recurring_value ? "has-error" : ""}
+                />
+              </div>
+              <div className="plan-interval-type">
+                <SelectControl
+                  label={__("Interval Type", "tutorpress")}
+                  value={formData.recurring_interval || "month"}
+                  options={subscriptionIntervals}
+                  onChange={(recurring_interval) => updateField("recurring_interval", recurring_interval)}
+                  required
+                />
+              </div>
+              <div className="plan-billing-cycles">
+                <SelectControl
+                  label={__("Billing Cycles", "tutorpress")}
+                  value={String(formData.recurring_limit || 0)}
+                  options={billingCycleOptions}
+                  onChange={(recurring_limit: string) => updateField("recurring_limit", parseInt(recurring_limit) || 0)}
+                  required
+                />
+              </div>
             </div>
 
             {/* Enrollment Fee */}
@@ -658,16 +652,6 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
                 {formMode === "add" ? __("Add Plan", "tutorpress") : __("Save Changes", "tutorpress")}
               </Button>
             </Flex>
-
-            {/* Helper Text */}
-            <div className="subscription-form-helper">
-              <p className="helper-text">
-                {__(
-                  "Click Cancel to display a list of existing plans that can be reordered and deleted.",
-                  "tutorpress"
-                )}
-              </p>
-            </div>
           </Flex>
         </CardBody>
       </form>
