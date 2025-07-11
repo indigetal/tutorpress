@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { BaseModalLayout } from "../../common/BaseModalLayout";
-import { Button } from "@wordpress/components";
+import { Modal } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import SubscriptionPlanForm from "./SubscriptionPlanForm";
@@ -20,9 +19,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   const [formMode, setFormMode] = useState<"add" | "edit" | "duplicate">("add");
 
   // Get store state
-  const { formDirty, isLoading } = useSelect(
+  const { isLoading } = useSelect(
     (select: any) => ({
-      formDirty: select("tutorpress/subscriptions").getFormDirty(),
       isLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
     }),
     []
@@ -54,23 +52,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
     resetForm();
   };
 
-  // Header with dynamic actions
-  const header = (
-    <div className="subscription-modal-header">
-      <h1 className="subscription-modal-title">{__("Subscription Plans", "tutorpress")}</h1>
-      <div className="subscription-modal-header-actions tpress-header-actions-group">
-        <Button variant="secondary" onClick={onClose} disabled={isLoading}>
-          {__("Cancel", "tutorpress")}
-        </Button>
-        <Button variant="primary" disabled={!formDirty || isLoading}>
-          {__("Save", "tutorpress")}
-        </Button>
-      </div>
-    </div>
-  );
+  if (!isOpen) return null;
 
   return (
-    <BaseModalLayout isOpen={isOpen} onClose={onClose} isDirty={isDirty} className="subscription-modal" header={header}>
+    <Modal
+      title={__("Subscription Plans", "tutorpress")}
+      onRequestClose={onClose}
+      className="subscription-modal"
+      size="large"
+    >
       <div className="tutorpress-modal-content">
         {/* Plan List Section - Above Form */}
         {!isFormVisible && (
@@ -87,6 +77,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           />
         )}
       </div>
-    </BaseModalLayout>
+    </Modal>
   );
 };

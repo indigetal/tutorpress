@@ -16,8 +16,10 @@
   /* Modal container styles */
 }
 
+/* WordPress Modal header is now visible */
 .subscription-modal .components-modal__content {
-  padding: 0;
+  padding: var(--space-modal);
+  margin: 0;
   max-height: 80vh;
   overflow-y: auto;
 }
@@ -26,61 +28,7 @@
    SUBSCRIPTION MODAL HEADER
    ============================================================================ */
 
-.subscription-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-modal);
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-bg-primary);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-modal);
-}
-
-.subscription-modal-title {
-  margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.subscription-modal-header-actions {
-  display: flex;
-  gap: var(--space-button-gap);
-  align-items: center;
-}
-
-.subscription-modal-header-actions .components-button.is-secondary {
-  border: 1px solid var(--color-border-medium);
-  color: var(--color-text-muted);
-  background: var(--color-bg-primary);
-  min-height: var(--height-button);
-  padding: var(--button-padding);
-}
-
-.subscription-modal-header-actions .components-button.is-secondary:hover:not(:disabled) {
-  border-color: var(--color-border-strong);
-  color: var(--color-text-secondary);
-}
-
-.subscription-modal-header-actions .components-button.is-primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  min-height: var(--height-button);
-  padding: var(--button-padding);
-}
-
-.subscription-modal-header-actions .components-button.is-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-}
-
-.subscription-modal-header-actions .components-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* WordPress Modal provides the header automatically */
 
 /* ============================================================================
    SUBSCRIPTION PLAN FORM
@@ -173,16 +121,6 @@
    ============================================================================ */
 
 @media (max-width: 768px) {
-  .subscription-modal-header {
-    flex-direction: column;
-    gap: var(--space-lg);
-    align-items: stretch;
-  }
-
-  .subscription-modal-header-actions {
-    justify-content: flex-end;
-  }
-
   .tutorpress-subscription-plan-form .price-billing-section .components-flex {
     flex-direction: column;
     gap: var(--space-md);
@@ -198,24 +136,16 @@
    ACCESSIBILITY
    ============================================================================ */
 
-.tutorpress-subscription-plan-form .components-base-control__label {
-  font-weight: 500;
-  color: var(--color-text-primary);
+/* Use general modal styles for form controls */
+/* Subscription-specific spacing for checkbox/toggle controls */
+.subscription-modal .tutorpress-modal-content .components-checkbox-control,
+.subscription-modal .tutorpress-modal-content .components-toggle-control {
+  margin-bottom: var(--space-md);
 }
 
-.tutorpress-subscription-plan-form .components-base-control__help {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-}
-
-.tutorpress-subscription-plan-form .components-checkbox-control__input:focus + .components-checkbox-control__label {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.tutorpress-subscription-plan-form .components-toggle-control__input:focus + .components-toggle-control__label {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+.subscription-modal .tutorpress-modal-content .components-checkbox-control:last-child,
+.subscription-modal .tutorpress-modal-content .components-toggle-control:last-child {
+  margin-bottom: 0;
 }
 
 /* ============================================================================
