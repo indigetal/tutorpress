@@ -86,7 +86,7 @@ export type PersistenceMode = "api" | "local";
 /**
  * Context types for different styling and behavior
  */
-export type SortableContext = "topics" | "options" | "questions";
+export type SortableContext = "topics" | "options" | "questions" | "subscription_plans";
 
 /**
  * Operation states for tracking async operations
@@ -351,6 +351,13 @@ export function useSortableList<T extends SortableItem>({
           if (itemIsDragging || activeId === item.id) {
             // Topics use their existing class for backward compatibility
             classes.push("tutorpress-sortable-topic--dragging");
+          }
+          break;
+        case "subscription_plans":
+          classes.push("tutorpress-subscription-plan");
+          if (itemIsDragging || activeId === item.id) {
+            // Subscription plans use their own dragging class
+            classes.push("tutorpress-subscription-plan--dragging");
           }
           break;
         case "options":

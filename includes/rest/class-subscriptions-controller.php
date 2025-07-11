@@ -400,10 +400,10 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             // Sort subscription plans
             register_rest_route(
                 $this->namespace,
-                '/' . $this->rest_base . '/sort',
+                '/courses/(?P<course_id>[\d]+)/subscriptions/sort',
                 [
                     [
-                        'methods'             => WP_REST_Server::CREATABLE,
+                        'methods'             => WP_REST_Server::EDITABLE,
                         'callback'            => [$this, 'sort_subscription_plans'],
                         'permission_callback' => function($request) {
                             $course_id = (int) $request->get_param('course_id');

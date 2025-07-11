@@ -25,7 +25,7 @@ import React, { type MouseEvent, useState, useEffect } from "react";
 import { Card, CardBody, Button, Icon, Flex, FlexBlock, Spinner, Notice } from "@wordpress/components";
 import { dragHandle, plus, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -157,7 +157,7 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
 
   // Get store state and actions
   const {
-    plans,
+    plans: storePlans,
     isLoading,
     error: storeError,
     sortingLoading,
@@ -172,6 +172,19 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     }),
     []
   );
+
+  // Local state for optimistic updates (following TopicSection pattern)
+  const [localPlansOrder, setLocalPlansOrder] = useState<SubscriptionPlan[]>([]);
+
+  // Update local state when store plans change
+  useEffect(() => {
+    if (storePlans.length > 0) {
+      setLocalPlansOrder(storePlans);
+    }
+  }, [storePlans]);
+
+  // Use local state for display (following TopicSection pattern)
+  const plans = localPlansOrder.length > 0 ? localPlansOrder : storePlans;
 
   const { deleteSubscriptionPlan, duplicateSubscriptionPlan, sortSubscriptionPlans, setSelectedPlan, resetForm } =
     useDispatch(SUBSCRIPTION_STORE);
@@ -207,8 +220,11 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     }
   }, [courseId, getSubscriptionPlans]);
 
-  // Handle plan reordering
+  // Handle plan reordering (following TopicSection pattern)
   const handlePlanReorder = async (newOrder: SubscriptionPlan[]) => {
+    // Immediately update local state for smooth UI (following TopicSection pattern)
+    setLocalPlansOrder(newOrder);
+
     try {
       const planOrder = newOrder.map((plan) => plan.id);
       await sortSubscriptionPlans(planOrder);
@@ -217,6 +233,8 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
       });
       return { success: true };
     } catch (error) {
+      // Revert local state on API failure (following TopicSection pattern)
+      setLocalPlansOrder(storePlans);
       console.error("Error reordering subscription plans:", error);
       return { success: false, error: { code: "reorder_failed", message: String(error) } };
     }
@@ -227,7 +245,7 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     items: plans,
     onReorder: handlePlanReorder,
     persistenceMode: "api",
-    context: "topics", // Reuse topics context for similar styling
+    context: "subscription_plans", // Use subscription plans context for proper styling
   });
 
   // Handle plan edit
@@ -347,15 +365,6 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
                   ))}
                 </div>
               </SortableContext>
-
-              <DragOverlay>
-                {dragState.activeId ? (
-                  <SubscriptionPlanRow
-                    plan={plans.find((plan: SubscriptionPlan) => plan.id === dragState.activeId)!}
-                    className="tutorpress-subscription-plan--dragging"
-                  />
-                ) : null}
-              </DragOverlay>
             </DndContext>
           )}
 
