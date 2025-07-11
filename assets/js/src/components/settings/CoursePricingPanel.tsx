@@ -13,9 +13,10 @@ import { useState } from "react";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading } = useSelect(
+  const { postType, postId, settings, error, isLoading } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
+      postId: select("core/editor").getCurrentPostId(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
@@ -143,7 +144,7 @@ const CoursePricingPanel: React.FC = () => {
       className="tutorpress-course-pricing-panel"
     >
       {/* Render the SubscriptionModal at the root of the panel, not inside the button container */}
-      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={handleSubscriptionModalClose} />
+      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={handleSubscriptionModalClose} courseId={postId} />
       {error && (
         <PanelRow>
           <Notice status="error" isDismissible={false}>

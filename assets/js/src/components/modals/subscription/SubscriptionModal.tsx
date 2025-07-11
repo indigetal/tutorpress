@@ -4,16 +4,18 @@ import { Button } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import SubscriptionPlanForm from "./SubscriptionPlanForm";
+import SubscriptionPlanSection from "./SubscriptionPlanSection";
 import type { SubscriptionPlan } from "../../../types/subscriptions";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDirty?: boolean;
+  courseId: number;
 }
 
-export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, isDirty }) => {
-  const [isFormVisible, setIsFormVisible] = useState(true); // Show form by default
+export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, isDirty, courseId }) => {
+  const [isFormVisible, setIsFormVisible] = useState(false); // Show plan list by default
   const [editingPlan, setEditingPlan] = useState<Partial<SubscriptionPlan> | null>(null);
   const [formMode, setFormMode] = useState<"add" | "edit" | "duplicate">("add");
 
@@ -70,6 +72,12 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   return (
     <BaseModalLayout isOpen={isOpen} onClose={onClose} isDirty={isDirty} className="subscription-modal" header={header}>
       <div className="tutorpress-modal-content">
+        {/* Plan List Section - Above Form */}
+        {!isFormVisible && (
+          <SubscriptionPlanSection courseId={courseId} onFormSave={handleFormSave} onFormCancel={handleFormCancel} />
+        )}
+
+        {/* Form Section - Below Plan List */}
         {isFormVisible && (
           <SubscriptionPlanForm
             initialData={editingPlan || undefined}
@@ -78,13 +86,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             mode={formMode}
           />
         )}
-
-        {/* Add New Plan Button - Bottom Left */}
-        <div className="tutorpress-modal-footer">
-          <Button variant="secondary" onClick={handleAddPlan} disabled={isFormVisible}>
-            {__("Add New Plan", "tutorpress")}
-          </Button>
-        </div>
       </div>
     </BaseModalLayout>
   );

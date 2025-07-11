@@ -130,3 +130,15 @@ if (isH5pEnabled()) {
     (window as any).tutorpress.QuizModal = QuizModal;
   });
 }
+
+// Expose subscription components globally for testing
+import SubscriptionPlanSection from "./components/modals/subscription/SubscriptionPlanSection";
+import { useSortableList } from "./hooks/common/useSortableList";
+import { subscriptionStore } from "./store/subscriptions";
+
+(window as any).tutorpress.components = (window as any).tutorpress.components || {};
+(window as any).tutorpress.components.SubscriptionPlanSection = SubscriptionPlanSection;
+(window as any).tutorpress.hooks = (window as any).tutorpress.hooks || {};
+(window as any).tutorpress.hooks.useSortableList = useSortableList;
+(window as any).tutorpress.stores = (window as any).tutorpress.stores || {};
+(window as any).tutorpress.stores.subscriptions = subscriptionStore;
