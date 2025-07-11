@@ -706,6 +706,17 @@ const resolvers = {
 
   *duplicateSubscriptionPlan(planId: number): Generator<unknown, DuplicateSubscriptionPlanResponse, any> {
     try {
+      // Get course ID from current post
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "duplicateSubscriptionPlan",
+          "Failed to get course ID"
+        );
+      }
+
       // Dispatch start action
       yield {
         type: "DUPLICATE_SUBSCRIPTION_PLAN_START",
@@ -717,6 +728,9 @@ const resolvers = {
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}/duplicate`,
           method: "POST",
+          data: {
+            course_id: courseId,
+          },
         },
       };
 
