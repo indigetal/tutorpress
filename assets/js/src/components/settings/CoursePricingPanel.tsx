@@ -49,7 +49,7 @@ const CoursePricingPanel: React.FC = () => {
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
-    setShouldShowForm(true);
+    setShouldShowForm(false);
     setSubscriptionModalOpen(true);
   };
 

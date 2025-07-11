@@ -22,7 +22,7 @@
  */
 
 import React, { type MouseEvent, useState, useEffect } from "react";
-import { Card, CardBody, Button, Icon, Flex, FlexBlock, Spinner, Notice } from "@wordpress/components";
+import { Card, CardBody, Button, Icon, Flex, FlexBlock, Spinner, Notice, CardHeader } from "@wordpress/components";
 import { dragHandle, plus, chevronDown, chevronRight } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
 import { DndContext } from "@dnd-kit/core";
@@ -134,12 +134,81 @@ const SortableSubscriptionPlan: React.FC<SubscriptionPlanRowProps> = (props): JS
 };
 
 /**
+ * Sortable Card wrapper for subscription plans
+ */
+const SortableSubscriptionPlanCard: React.FC<{
+  plan: SubscriptionPlan;
+  isEditing: boolean;
+  onEditToggle: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onSave: (data: Partial<SubscriptionPlan>) => void;
+  onCancel: () => void;
+  className?: string;
+}> = ({ plan, isEditing, onEditToggle, onDuplicate, onDelete, onSave, onCancel, className }) => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: plan.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const cardClassName = `tutorpress-subscription-plan ${isEditing ? "is-editing" : ""} ${className || ""}`;
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className={cardClassName}>
+        <CardHeader>
+          <Flex align="center" gap={2}>
+            <div className="tutorpress-subscription-plan-icon tpress-flex-shrink-0">
+              <Button
+                icon={dragHandle}
+                label="Drag to reorder"
+                isSmall
+                {...attributes}
+                {...listeners}
+                ref={setActivatorNodeRef}
+              />
+            </div>
+            <FlexBlock style={{ textAlign: "left" }}>
+              {!isEditing && (
+                <div className="tutorpress-subscription-plan-title">
+                  {plan.plan_name}{" "}
+                  <span className="plan-cost-interval">
+                    • ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                  </span>
+                  {plan.sale_price && plan.sale_price > 0 && (
+                    <span className="tutorpress-subscription-plan-sale"> (Sale: ${plan.sale_price})</span>
+                  )}
+                  {plan.is_featured && <span className="tutorpress-subscription-plan-featured"> • Featured</span>}
+                </div>
+              )}
+            </FlexBlock>
+            <div className="tpress-item-actions-right">
+              <ActionButtons onEdit={onEditToggle} onDuplicate={onDuplicate} onDelete={onDelete} />
+            </div>
+          </Flex>
+        </CardHeader>
+        {isEditing ? <SubscriptionPlanForm initialData={plan} onSave={onSave} onCancel={onCancel} mode="edit" /> : null}
+      </Card>
+    </div>
+  );
+};
+
+/**
  * Props for subscription plan section
  */
 interface SubscriptionPlanSectionProps {
   courseId: number;
   onFormSave: (planData: Partial<SubscriptionPlan>) => void;
   onFormCancel: () => void;
+  editingPlanId?: number | null;
+  onPlanEditToggle?: (planId: number) => void;
+  isNewPlanFormVisible?: boolean;
+  onAddNewPlan?: () => void;
 }
 
 /**
@@ -149,12 +218,11 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
   courseId,
   onFormSave,
   onFormCancel,
+  editingPlanId = null,
+  onPlanEditToggle,
+  isNewPlanFormVisible = false,
+  onAddNewPlan,
 }): JSX.Element => {
-  // Form state
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Partial<SubscriptionPlan> | null>(null);
-  const [formMode, setFormMode] = useState<"add" | "edit" | "duplicate">("add");
-
   // Get store state and actions
   const {
     plans: storePlans,
@@ -215,7 +283,6 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
   // Fetch plans on mount
   useEffect(() => {
     if (courseId && getSubscriptionPlans) {
-      // Call the resolver directly to fetch plans
       getSubscriptionPlans();
     }
   }, [courseId, getSubscriptionPlans]);
@@ -245,16 +312,22 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     items: plans,
     onReorder: handlePlanReorder,
     persistenceMode: "api",
-    context: "subscription_plans", // Use subscription plans context for proper styling
+    context: "subscription_plans",
+    onDragStart: () => {
+      // Close all open forms when dragging starts
+      if (onPlanEditToggle) {
+        // Close any editing plan
+        if (editingPlanId !== null) {
+          onPlanEditToggle(editingPlanId);
+        }
+        // Close new plan form if open
+        if (isNewPlanFormVisible && onAddNewPlan) {
+          // We need to trigger the close by calling the cancel handler
+          onFormCancel();
+        }
+      }
+    },
   });
-
-  // Handle plan edit
-  const handlePlanEdit = (plan: SubscriptionPlan) => {
-    setEditingPlan(plan);
-    setFormMode("edit");
-    setSelectedPlan(plan);
-    setIsFormVisible(true);
-  };
 
   // Handle plan duplicate
   const handlePlanDuplicate = async (plan: SubscriptionPlan) => {
@@ -282,28 +355,11 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     }
   };
 
-  // Handle form save
-  const handleFormSave = (planData: Partial<SubscriptionPlan>) => {
-    onFormSave(planData);
-    setIsFormVisible(false);
-    setEditingPlan(null);
-    resetForm();
-  };
-
-  // Handle form cancel
-  const handleFormCancel = () => {
-    setIsFormVisible(false);
-    setEditingPlan(null);
-    setFormMode("add");
-    resetForm();
-  };
-
-  // Handle add new plan
-  const handleAddPlan = () => {
-    setEditingPlan(null);
-    setFormMode("add");
-    setIsFormVisible(true);
-    resetForm();
+  // Handle plan edit toggle
+  const handlePlanEditToggle = (planId: number) => {
+    if (onPlanEditToggle) {
+      onPlanEditToggle(planId);
+    }
   };
 
   // Show store errors as notices
@@ -333,13 +389,13 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
         </div>
       )}
 
-      {/* Plan List */}
-      {!isLoading && !isFormVisible && (
+      {/* Plan List - Always Visible */}
+      {!isLoading && (
         <div className="tutorpress-subscription-plan-list">
           {plans.length === 0 ? (
             <div className="tutorpress-subscription-plan-empty">
               <p>{__("No subscription plans found.", "tutorpress")}</p>
-              <Button variant="primary" onClick={handleAddPlan}>
+              <Button variant="primary" onClick={onAddNewPlan}>
                 {__("Add First Plan", "tutorpress")}
               </Button>
             </div>
@@ -353,41 +409,52 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
             >
               <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
                 <div className="tutorpress-subscription-plan-items">
-                  {plans.map((plan: SubscriptionPlan) => (
-                    <SortableSubscriptionPlan
-                      key={plan.id}
-                      plan={plan}
-                      onEdit={() => handlePlanEdit(plan)}
-                      onDuplicate={() => handlePlanDuplicate(plan)}
-                      onDelete={() => handlePlanDelete(plan)}
-                      className={getItemClasses(plan, dragState.isDragging)}
-                    />
-                  ))}
+                  {plans.map((plan: SubscriptionPlan) => {
+                    const isEditing = editingPlanId === plan.id;
+
+                    return (
+                      <SortableSubscriptionPlanCard
+                        key={plan.id}
+                        plan={plan}
+                        isEditing={isEditing}
+                        onEditToggle={() => handlePlanEditToggle(plan.id)}
+                        onDuplicate={() => handlePlanDuplicate(plan)}
+                        onDelete={() => handlePlanDelete(plan)}
+                        onSave={onFormSave}
+                        onCancel={onFormCancel}
+                        className={getItemClasses(plan, dragState.isDragging)}
+                      />
+                    );
+                  })}
                 </div>
               </SortableContext>
             </DndContext>
           )}
 
-          {/* Add New Plan Button */}
-          {plans.length > 0 && (
+          {/* New Plan Form - Always at bottom when visible */}
+          {isNewPlanFormVisible && (
+            <Card className="tutorpress-subscription-plan-new-form">
+              <CardHeader>
+                <Flex align="center" gap={2}>
+                  <FlexBlock style={{ textAlign: "left" }}>
+                    <div className="tutorpress-subscription-plan-title">{__("Add New Plan", "tutorpress")}</div>
+                  </FlexBlock>
+                </Flex>
+              </CardHeader>
+              <SubscriptionPlanForm initialData={undefined} onSave={onFormSave} onCancel={onFormCancel} mode="add" />
+            </Card>
+          )}
+
+          {/* Add New Plan Button - Always visible unless new form is open */}
+          {plans.length > 0 && !isNewPlanFormVisible && (
             <div className="tutorpress-subscription-plan-actions">
-              <Button variant="secondary" onClick={handleAddPlan}>
+              <Button variant="secondary" onClick={onAddNewPlan} disabled={isNewPlanFormVisible}>
                 <Icon icon={plus} />
                 {__("Add New Plan", "tutorpress")}
               </Button>
             </div>
           )}
         </div>
-      )}
-
-      {/* Form Display */}
-      {isFormVisible && (
-        <SubscriptionPlanForm
-          initialData={editingPlan || undefined}
-          onSave={handleFormSave}
-          onCancel={handleFormCancel}
-          mode={formMode}
-        />
       )}
     </div>
   );

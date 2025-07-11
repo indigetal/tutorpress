@@ -20,6 +20,7 @@
 .subscription-modal .components-modal__content {
   padding: var(--space-modal);
   margin: 0;
+  margin-top: var(--space-lg);
   max-height: 80vh;
   overflow-y: auto;
 }
@@ -43,17 +44,9 @@
   box-shadow: none;
 }
 
-.tutorpress-subscription-plan-form .components-card__body {
-  padding: var(--space-modal);
-}
-
 /* Form field spacing */
 .tutorpress-subscription-plan-form .components-flex {
   gap: var(--space-lg);
-}
-
-.tutorpress-subscription-plan-form .components-flex > div {
-  flex: 1;
 }
 
 /* Price and Billing section */
@@ -174,6 +167,34 @@
   margin-bottom: var(--space-lg);
 }
 
+/* Individual Subscription Plan Card */
+.tutorpress-subscription-plan {
+  position: relative;
+  margin-bottom: var(--space-sm);
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  z-index: 1;
+}
+
+.tutorpress-subscription-plan:hover {
+  background-color: rgb(245, 246, 250);
+  z-index: 2;
+}
+
+.tutorpress-subscription-plan.is-editing {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* Subscription Plan New Form Card */
+.tutorpress-subscription-plan-new-form {
+  margin-top: var(--space-lg);
+  border: 1px solid var(--color-primary);
+  border-left: 3px solid var(--color-primary);
+}
+
 /* Subscription Plan List */
 .tutorpress-subscription-plan-list {
   margin-bottom: var(--space-lg);
@@ -186,22 +207,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
-
-/* Individual Subscription Plan Item */
-.tutorpress-subscription-plan {
-  position: relative;
-  padding: var(--space-lg);
-  transition: all 0.2s ease;
-  background-color: transparent;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  z-index: 1;
-}
-
-.tutorpress-subscription-plan:hover {
-  background-color: rgb(245, 246, 250);
-  z-index: 2;
 }
 
 /* Subscription Plan Icon Container */

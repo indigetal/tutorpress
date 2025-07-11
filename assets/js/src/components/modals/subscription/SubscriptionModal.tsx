@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import SubscriptionPlanForm from "./SubscriptionPlanForm";
 import SubscriptionPlanSection from "./SubscriptionPlanSection";
 import type { SubscriptionPlan } from "../../../types/subscriptions";
 
@@ -23,20 +22,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   initialPlan,
   shouldShowForm = false,
 }) => {
-  const [isFormVisible, setIsFormVisible] = useState(shouldShowForm); // Use prop to set initial state
-  const [editingPlan, setEditingPlan] = useState<Partial<SubscriptionPlan> | null>(null);
-  const [formMode, setFormMode] = useState<"add" | "edit" | "duplicate">("add");
+  // State for managing which plan is being edited (if any)
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [isNewPlanFormVisible, setIsNewPlanFormVisible] = useState(shouldShowForm);
 
-  // Handle initial plan for editing and form visibility
+  // Handle initial plan for editing when modal opens
   useEffect(() => {
     if (initialPlan && isOpen) {
-      setEditingPlan(initialPlan);
-      setFormMode("edit");
-      setIsFormVisible(true);
+      setEditingPlanId(initialPlan.id);
+      setIsNewPlanFormVisible(false);
     } else if (!initialPlan && isOpen) {
-      setEditingPlan(null);
-      setFormMode("add");
-      setIsFormVisible(shouldShowForm);
+      setEditingPlanId(null);
+      setIsNewPlanFormVisible(shouldShowForm);
     }
   }, [initialPlan, isOpen, shouldShowForm]);
 
@@ -53,24 +50,28 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   // Handle form save
   const handleFormSave = (planData: Partial<SubscriptionPlan>) => {
     console.log("Saving subscription plan:", planData);
-    setIsFormVisible(false);
-    setEditingPlan(null);
+    setEditingPlanId(null);
+    setIsNewPlanFormVisible(false);
     resetForm();
   };
 
   // Handle form cancel
   const handleFormCancel = () => {
-    setIsFormVisible(false);
-    setEditingPlan(null);
-    setFormMode("add");
+    setEditingPlanId(null);
+    setIsNewPlanFormVisible(false);
     resetForm();
   };
 
+  // Handle plan edit toggle
+  const handlePlanEditToggle = (planId: number) => {
+    setEditingPlanId(editingPlanId === planId ? null : planId);
+    setIsNewPlanFormVisible(false);
+  };
+
   // Handle add new plan
-  const handleAddPlan = () => {
-    setEditingPlan(null);
-    setFormMode("add");
-    setIsFormVisible(true);
+  const handleAddNewPlan = () => {
+    setEditingPlanId(null);
+    setIsNewPlanFormVisible(true);
     resetForm();
   };
 
@@ -84,20 +85,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       size="large"
     >
       <div className="tutorpress-modal-content">
-        {/* Plan List Section - Above Form */}
-        {!isFormVisible && (
-          <SubscriptionPlanSection courseId={courseId} onFormSave={handleFormSave} onFormCancel={handleFormCancel} />
-        )}
-
-        {/* Form Section - Below Plan List */}
-        {isFormVisible && (
-          <SubscriptionPlanForm
-            initialData={editingPlan || undefined}
-            onSave={handleFormSave}
-            onCancel={handleFormCancel}
-            mode={formMode}
-          />
-        )}
+        <SubscriptionPlanSection
+          courseId={courseId}
+          onFormSave={handleFormSave}
+          onFormCancel={handleFormCancel}
+          editingPlanId={editingPlanId}
+          onPlanEditToggle={handlePlanEditToggle}
+          isNewPlanFormVisible={isNewPlanFormVisible}
+          onAddNewPlan={handleAddNewPlan}
+        />
       </div>
     </Modal>
   );
