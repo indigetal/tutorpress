@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -11,12 +11,34 @@ interface SubscriptionModalProps {
   onClose: () => void;
   isDirty?: boolean;
   courseId: number;
+  initialPlan?: SubscriptionPlan | null;
+  shouldShowForm?: boolean;
 }
 
-export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, isDirty, courseId }) => {
-  const [isFormVisible, setIsFormVisible] = useState(false); // Show plan list by default
+export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
+  isOpen,
+  onClose,
+  isDirty,
+  courseId,
+  initialPlan,
+  shouldShowForm = false,
+}) => {
+  const [isFormVisible, setIsFormVisible] = useState(shouldShowForm); // Use prop to set initial state
   const [editingPlan, setEditingPlan] = useState<Partial<SubscriptionPlan> | null>(null);
   const [formMode, setFormMode] = useState<"add" | "edit" | "duplicate">("add");
+
+  // Handle initial plan for editing and form visibility
+  useEffect(() => {
+    if (initialPlan && isOpen) {
+      setEditingPlan(initialPlan);
+      setFormMode("edit");
+      setIsFormVisible(true);
+    } else if (!initialPlan && isOpen) {
+      setEditingPlan(null);
+      setFormMode("add");
+      setIsFormVisible(shouldShowForm);
+    }
+  }, [initialPlan, isOpen, shouldShowForm]);
 
   // Get store state
   const { isLoading } = useSelect(

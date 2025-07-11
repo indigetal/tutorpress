@@ -441,8 +441,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: var(--space-sm);
+  //margin-right: var(--space-sm);
   color: var(--color-text-primary);
+}
+
+/* Plan info container for subscription plans */
+.tutorpress-saved-file-item .plan-info {
+  flex: 1;
+}
+
+/* Plan name styling */
+.tutorpress-saved-file-item .plan-name {
+  color: var(--color-text-primary);
+  font-size: var(text-xs);
+  line-height: 1.3;
+  margin-bottom: var(--space-xs);
+}
+
+/* Plan details styling */
+.tutorpress-saved-file-item .plan-details {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.2;
 }
 
 /* Loading spinner in file item */
@@ -473,6 +493,41 @@
 .tutorpress-saved-file-item .delete-button:focus {
   box-shadow: 0 0 0 1px var(--color-error);
   outline: none;
+}
+
+/* Edit button styling */
+.tutorpress-saved-file-item .edit-button {
+  min-width: auto;
+  padding: var(--space-xs);
+  height: auto;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: all var(--duration-fast) var(--ease-in-out);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Show edit button on hover */
+.tutorpress-saved-file-item:hover .edit-button {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Edit button hover state */
+.tutorpress-saved-file-item .edit-button:hover {
+  background-color: var(--color-primary);
+  color: var(--white);
+}
+
+/* Edit button focus state */
+.tutorpress-saved-file-item .edit-button:focus {
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Empty state styling */

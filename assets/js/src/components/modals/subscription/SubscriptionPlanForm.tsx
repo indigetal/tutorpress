@@ -658,6 +658,16 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
                 {formMode === "add" ? __("Add Plan", "tutorpress") : __("Save Changes", "tutorpress")}
               </Button>
             </Flex>
+
+            {/* Helper Text */}
+            <div className="subscription-form-helper">
+              <p className="helper-text">
+                {__(
+                  "Click Cancel to display a list of existing plans that can be reordered and deleted.",
+                  "tutorpress"
+                )}
+              </p>
+            </div>
           </Flex>
         </CardBody>
       </form>

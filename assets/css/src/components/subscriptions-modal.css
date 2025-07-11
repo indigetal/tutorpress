@@ -29,6 +29,9 @@
    ============================================================================ */
 
 /* WordPress Modal provides the header automatically */
+.subscription-modal .components-modal__header {
+  background-color: var(--white);
+}
 
 /* ============================================================================
    SUBSCRIPTION PLAN FORM
@@ -114,6 +117,20 @@
   margin-top: var(--space-xl);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--color-border-light);
+}
+
+/* Helper Text */
+.subscription-form-helper {
+  margin-top: var(--space-md);
+  text-align: center;
+}
+
+.subscription-form-helper .helper-text {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-style: italic;
+  margin: 0;
+  line-height: 1.4;
 }
 
 /* ============================================================================

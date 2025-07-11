@@ -1,35 +1,64 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
-import { plus } from "@wordpress/icons";
+import { plus, edit } from "@wordpress/icons";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
+import type { SubscriptionPlan } from "../../types/subscriptions";
 import { isMonetizationEnabled, isSubscriptionEnabled } from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
-import { useState } from "react";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, postId, settings, error, isLoading } = useSelect(
+  const { postType, postId, settings, error, isLoading, subscriptionPlans, subscriptionPlansLoading } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       postId: select("core/editor").getCurrentPostId(),
       settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
+      subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans(),
+      subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
     }),
     []
   );
 
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
+  const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
 
-  // NOTE: This is the AI's third attempt at implementing the Subscription Modal trigger. If the error persists, check for missing context providers or other required setup for modals in this environment.
+  // Modal state
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
-  const handleSubscriptionModalClose = () => setSubscriptionModalOpen(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [shouldShowForm, setShouldShowForm] = useState(false);
+
+  const handleSubscriptionModalClose = () => {
+    setSubscriptionModalOpen(false);
+    setEditingPlan(null);
+    setShouldShowForm(false);
+  };
+
+  const handleAddSubscription = () => {
+    setEditingPlan(null);
+    setShouldShowForm(true);
+    setSubscriptionModalOpen(true);
+  };
+
+  const handleEditPlan = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setShouldShowForm(true);
+    setSubscriptionModalOpen(true);
+  };
+
+  // Fetch subscription plans when component mounts and course ID is available
+  useEffect(() => {
+    if (postId && isSubscriptionEnabled()) {
+      getSubscriptionPlans();
+    }
+  }, [postId, getSubscriptionPlans]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -144,7 +173,13 @@ const CoursePricingPanel: React.FC = () => {
       className="tutorpress-course-pricing-panel"
     >
       {/* Render the SubscriptionModal at the root of the panel, not inside the button container */}
-      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={handleSubscriptionModalClose} courseId={postId} />
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={handleSubscriptionModalClose}
+        courseId={postId}
+        initialPlan={editingPlan}
+        shouldShowForm={shouldShowForm}
+      />
       {error && (
         <PanelRow>
           <Notice status="error" isDismissible={false}>
@@ -228,7 +263,7 @@ const CoursePricingPanel: React.FC = () => {
           </div>
         )}
 
-      {/* Subscription Button - Show based on purchase option selection */}
+      {/* Subscription Section - Show based on purchase option selection */}
       {settings?.pricing_model === "paid" &&
         isMonetizationEnabled() &&
         isSubscriptionEnabled() &&
@@ -237,10 +272,45 @@ const CoursePricingPanel: React.FC = () => {
           settings?.selling_option === "all") && (
           <PanelRow>
             <div className="subscription-section">
-              <Button icon={plus} variant="secondary" onClick={() => setSubscriptionModalOpen(true)}>
+              {/* Existing Plans List */}
+              {subscriptionPlans.length > 0 && (
+                <div className="tutorpress-saved-files-list">
+                  <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
+                    {__("Subscription Plans:", "tutorpress")}
+                  </div>
+                  {subscriptionPlans.map((plan: SubscriptionPlan) => (
+                    <div key={plan.id} className="tutorpress-saved-file-item">
+                      <div className="plan-info">
+                        <div className="plan-name">
+                          {plan.plan_name.length > 25 ? `${plan.plan_name.substring(0, 25)}...` : plan.plan_name}
+                        </div>
+                        <div className="plan-details">
+                          ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                          {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
+                          {plan.is_featured && " • Featured"}
+                        </div>
+                      </div>
+                      <Button
+                        variant="tertiary"
+                        icon={edit}
+                        onClick={() => handleEditPlan(plan)}
+                        className="edit-button"
+                        aria-label={__("Edit subscription plan", "tutorpress")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add/Manage Button */}
+              <Button
+                icon={plus}
+                variant="secondary"
+                onClick={handleAddSubscription}
+                style={{ marginTop: subscriptionPlans.length > 0 ? "12px" : "0" }}
+              >
                 {__("Add Subscription", "tutorpress")}
               </Button>
-              <p className="description">{__("Create subscription plans for this course.", "tutorpress")}</p>
             </div>
           </PanelRow>
         )}
