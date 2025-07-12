@@ -53,6 +53,8 @@ export interface AddonStatus {
   payment_engine: PaymentEngine;
   monetization_enabled: boolean;
   available_payment_engines: Record<string, string>;
+  woocommerce: boolean;
+  woocommerce_monetization: boolean;
 }
 
 /**
@@ -95,6 +97,8 @@ export class AddonChecker {
         payment_engine: "none" as PaymentEngine,
         monetization_enabled: false,
         available_payment_engines: {},
+        woocommerce: false,
+        woocommerce_monetization: false,
       }
     );
   }
@@ -285,6 +289,22 @@ export class AddonChecker {
   }
 
   /**
+   * Check if WooCommerce is enabled
+   */
+  public static isWooCommerceEnabled(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.woocommerce || false;
+  }
+
+  /**
+   * Check if WooCommerce is selected as the monetization engine
+   */
+  public static isWooCommerceMonetization(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.woocommerce_monetization || false;
+  }
+
+  /**
    * Get the current payment engine
    */
   public static getPaymentEngine(): PaymentEngine {
@@ -330,6 +350,8 @@ export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAva
 export const isTutorProEnabled = (): boolean => AddonChecker.isTutorProEnabled();
 export const isPMPEnabled = (): boolean => AddonChecker.isPMPEnabled();
 export const isSureCartEnabled = (): boolean => AddonChecker.isSureCartEnabled();
+export const isWooCommerceEnabled = (): boolean => AddonChecker.isWooCommerceEnabled();
+export const isWooCommerceMonetization = (): boolean => AddonChecker.isWooCommerceMonetization();
 export const getPaymentEngine = (): PaymentEngine => AddonChecker.getPaymentEngine();
 export const getAvailablePaymentEngines = (): Record<string, string> => AddonChecker.getAvailablePaymentEngines();
 export const isMonetizationEnabled = (): boolean => AddonChecker.isMonetizationEnabled();

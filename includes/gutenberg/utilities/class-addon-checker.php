@@ -344,9 +344,43 @@ class TutorPress_Addon_Checker {
     }
 
     /**
+     * Check if WooCommerce is enabled
+     *
+     * @return bool True if WooCommerce is active and functional
+     */
+    public static function is_woocommerce_enabled() {
+        // Ensure plugin.php is loaded for is_plugin_active()
+        if (!function_exists('is_plugin_active')) {
+            include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+        }
+        if (function_exists('is_plugin_active') && is_plugin_active('woocommerce/woocommerce.php')) {
+            return true;
+        }
+        // Fallback for runtime context
+        return class_exists('WooCommerce') && function_exists('wc_get_products');
+    }
+
+    /**
+     * Check if WooCommerce is selected as the monetization engine in Tutor LMS
+     *
+     * @return bool True if WooCommerce is selected as the monetization engine
+     */
+    public static function is_woocommerce_monetization() {
+        if (!self::is_woocommerce_enabled()) {
+            return false;
+        }
+        
+        // Check Tutor LMS monetization settings
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        
+        return $monetize_by === 'wc';
+    }
+
+    /**
      * Get the current payment engine based on available systems and user preference
      *
-     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'none')
+     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'wc', 'none')
      */
     public static function get_payment_engine() {
         // Check TutorPress settings first (user preference)
@@ -362,6 +396,10 @@ class TutorPress_Addon_Checker {
         
         if (self::is_surecart_enabled()) {
             return 'surecart';
+        }
+        
+        if (self::is_woocommerce_monetization()) {
+            return 'wc';
         }
         
         if (self::is_tutor_pro_enabled()) {
@@ -387,6 +425,10 @@ class TutorPress_Addon_Checker {
             $engines['surecart'] = 'SureCart';
         }
         
+        if (self::is_woocommerce_monetization()) {
+            $engines['wc'] = 'WooCommerce';
+        }
+        
         if (self::is_tutor_pro_enabled()) {
             $engines['tutor_pro'] = 'Tutor LMS Pro';
         }
@@ -410,6 +452,10 @@ class TutorPress_Addon_Checker {
             case 'surecart':
                 // SureCart is always "monetization enabled" when active
                 return true;
+                
+            case 'wc':
+                // WooCommerce is "monetization enabled" when active and selected
+                return self::is_woocommerce_monetization();
                 
             case 'tutor_pro':
                 // Check Tutor Pro monetization settings
@@ -449,6 +495,8 @@ class TutorPress_Addon_Checker {
         $status['tutor_pro'] = self::is_tutor_pro_enabled();
         $status['paid_memberships_pro'] = self::is_pmp_enabled();
         $status['surecart'] = self::is_surecart_enabled();
+        $status['woocommerce'] = self::is_woocommerce_enabled();
+        $status['woocommerce_monetization'] = self::is_woocommerce_monetization();
         $status['payment_engine'] = self::get_payment_engine();
         $status['monetization_enabled'] = self::is_monetization_enabled();
         $status['available_payment_engines'] = self::get_available_payment_engines();

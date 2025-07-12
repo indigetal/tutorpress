@@ -139,6 +139,23 @@ const CoursePricingPanel: React.FC = () => {
   const shouldShowPurchaseOptions =
     settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
 
+  // Helper function to determine if price fields should be shown
+  const shouldShowPriceFields = () => {
+    // Don't show if pricing model is not "paid" or monetization is disabled
+    if (settings?.pricing_model !== "paid" || !isMonetizationEnabled()) {
+      return false;
+    }
+
+    // If subscription addon is disabled, always show price fields for "paid" courses
+    if (!isSubscriptionEnabled()) {
+      return true;
+    }
+
+    // If subscription addon is enabled, show based on selling option
+    const sellingOption = settings?.selling_option || "one_time";
+    return ["one_time", "both", "all"].includes(sellingOption);
+  };
+
   // Get purchase options based on available payment engines
   const getPurchaseOptions = () => {
     const options = [
@@ -226,42 +243,38 @@ const CoursePricingPanel: React.FC = () => {
         </PanelRow>
       )}
 
-      {/* Price Fields - Show based on purchase option selection */}
-      {settings?.pricing_model === "paid" &&
-        isMonetizationEnabled() &&
-        (settings?.selling_option === "one_time" ||
-          settings?.selling_option === "both" ||
-          settings?.selling_option === "all") && (
-          <div className="price-fields">
-            <PanelRow>
-              <div className="price-field">
-                <TextControl
-                  label={__("Regular Price", "tutorpress")}
-                  help={__("Enter the regular price for this course.", "tutorpress")}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={settings?.price?.toString() || "0"}
-                  onChange={handlePriceChange}
-                />
-              </div>
-            </PanelRow>
+      {/* Price Fields - Show based on pricing model, subscription addon status, and selling option */}
+      {shouldShowPriceFields() && (
+        <div className="price-fields">
+          <PanelRow>
+            <div className="price-field">
+              <TextControl
+                label={__("Regular Price", "tutorpress")}
+                help={__("Enter the regular price for this course.", "tutorpress")}
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings?.price?.toString() || "0"}
+                onChange={handlePriceChange}
+              />
+            </div>
+          </PanelRow>
 
-            <PanelRow>
-              <div className="price-field">
-                <TextControl
-                  label={__("Sale Price", "tutorpress")}
-                  help={__("Enter the sale price (optional). Leave empty for no sale.", "tutorpress")}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={settings?.sale_price?.toString() || "0"}
-                  onChange={handleSalePriceChange}
-                />
-              </div>
-            </PanelRow>
-          </div>
-        )}
+          <PanelRow>
+            <div className="price-field">
+              <TextControl
+                label={__("Sale Price", "tutorpress")}
+                help={__("Enter the sale price (optional). Leave empty for no sale.", "tutorpress")}
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings?.sale_price?.toString() || "0"}
+                onChange={handleSalePriceChange}
+              />
+            </div>
+          </PanelRow>
+        </div>
+      )}
 
       {/* Subscription Section - Show based on purchase option selection */}
       {settings?.pricing_model === "paid" &&
