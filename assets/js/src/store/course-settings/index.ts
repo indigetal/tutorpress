@@ -42,6 +42,12 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
+  woocommerce: {
+    products: any[];
+    productDetails: any | null;
+    isLoading: boolean;
+    error: string | null;
+  };
 }
 
 const DEFAULT_STATE: State = {
@@ -60,6 +66,12 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
+  woocommerce: {
+    products: [],
+    productDetails: null,
+    isLoading: false,
+    error: null,
+  },
 };
 
 type CourseSettingsAction =
@@ -68,7 +80,10 @@ type CourseSettingsAction =
   | { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }
   | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }
   | { type: "SET_ATTACHMENTS_METADATA"; payload: CourseAttachment[] }
-  | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> };
+  | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }
+  | { type: "SET_WOOCOMMERCE_PRODUCTS"; payload: any[] }
+  | { type: "SET_WOOCOMMERCE_PRODUCT_DETAILS"; payload: any }
+  | { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -109,6 +124,27 @@ const actions = {
   setAttachmentsState(state: Partial<State["attachments"]>) {
     return {
       type: "SET_ATTACHMENTS_STATE" as const,
+      payload: state,
+    };
+  },
+
+  setWooCommerceProducts(products: any[]) {
+    return {
+      type: "SET_WOOCOMMERCE_PRODUCTS" as const,
+      payload: products,
+    };
+  },
+
+  setWooCommerceProductDetails(productDetails: any) {
+    return {
+      type: "SET_WOOCOMMERCE_PRODUCT_DETAILS" as const,
+      payload: productDetails,
+    };
+  },
+
+  setWooCommerceState(state: Partial<State["woocommerce"]>) {
+    return {
+      type: "SET_WOOCOMMERCE_STATE" as const,
       payload: state,
     };
   },
@@ -159,6 +195,104 @@ const actions = {
       yield actions.setAttachmentsState({ isLoading: false, error: null });
     } catch (error: any) {
       yield actions.setAttachmentsState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  // Fetch WooCommerce products for product selection
+  *fetchWooCommerceProducts(
+    params: {
+      exclude_linked_products?: boolean;
+      course_id?: number;
+      search?: string;
+      per_page?: number;
+      page?: number;
+    } = {}
+  ): Generator {
+    try {
+      yield actions.setWooCommerceState({ isLoading: true, error: null });
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params.exclude_linked_products !== undefined) {
+        queryParams.append("exclude_linked_products", params.exclude_linked_products.toString());
+      }
+      if (params.course_id) {
+        queryParams.append("course_id", params.course_id.toString());
+      }
+      if (params.search) {
+        queryParams.append("search", params.search);
+      }
+      if (params.per_page) {
+        queryParams.append("per_page", params.per_page.toString());
+      }
+      if (params.page) {
+        queryParams.append("page", params.page.toString());
+      }
+
+      const queryString = queryParams.toString();
+      const path = `/tutorpress/v1/woocommerce/products${queryString ? `?${queryString}` : ""}`;
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchWooCommerceProducts",
+          "Failed to fetch WooCommerce products"
+        );
+      }
+
+      yield actions.setWooCommerceProducts(response.data);
+      yield actions.setWooCommerceState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setWooCommerceState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  // Fetch WooCommerce product details for price synchronization
+  *fetchWooCommerceProductDetails(productId: string, courseId?: number): Generator {
+    try {
+      yield actions.setWooCommerceState({ isLoading: true, error: null });
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (courseId) {
+        queryParams.append("course_id", courseId.toString());
+      }
+
+      const queryString = queryParams.toString();
+      const path = `/tutorpress/v1/woocommerce/products/${productId}${queryString ? `?${queryString}` : ""}`;
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchWooCommerceProductDetails",
+          "Failed to fetch WooCommerce product details"
+        );
+      }
+
+      yield actions.setWooCommerceProductDetails(response.data);
+      yield actions.setWooCommerceState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setWooCommerceState({ isLoading: false, error: error.message });
       throw error;
     }
   },
@@ -309,6 +443,18 @@ const selectors = {
   getAttachmentsError(state: State) {
     return state.attachments.error;
   },
+  getWooCommerceProducts(state: State) {
+    return state.woocommerce.products;
+  },
+  getWooCommerceProductDetails(state: State) {
+    return state.woocommerce.productDetails;
+  },
+  getWooCommerceLoading(state: State) {
+    return state.woocommerce.isLoading;
+  },
+  getWooCommerceError(state: State) {
+    return state.woocommerce.error;
+  },
 };
 
 const resolvers = {
@@ -417,6 +563,30 @@ const store = createReduxStore("tutorpress/course-settings", {
           attachments: {
             ...state.attachments,
             ...(action as { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }).payload,
+          },
+        };
+      case "SET_WOOCOMMERCE_PRODUCTS":
+        return {
+          ...state,
+          woocommerce: {
+            ...state.woocommerce,
+            products: (action as { type: "SET_WOOCOMMERCE_PRODUCTS"; payload: any[] }).payload,
+          },
+        };
+      case "SET_WOOCOMMERCE_PRODUCT_DETAILS":
+        return {
+          ...state,
+          woocommerce: {
+            ...state.woocommerce,
+            productDetails: (action as { type: "SET_WOOCOMMERCE_PRODUCT_DETAILS"; payload: any }).payload,
+          },
+        };
+      case "SET_WOOCOMMERCE_STATE":
+        return {
+          ...state,
+          woocommerce: {
+            ...state.woocommerce,
+            ...(action as { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> }).payload,
           },
         };
       default:
