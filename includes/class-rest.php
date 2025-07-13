@@ -89,6 +89,12 @@ class TutorPress_REST {
                 $controllers['subscriptions'] = new TutorPress_REST_Subscriptions_Controller();
             }
 
+            // Conditionally load WooCommerce controller only if WooCommerce is enabled
+            if (TutorPress_Addon_Checker::is_woocommerce_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-woocommerce-controller.php';
+                $controllers['woocommerce'] = new TutorPress_WooCommerce_Controller();
+            }
+
             // Register routes for each controller
             foreach ($controllers as $name => $controller) {
                 try {

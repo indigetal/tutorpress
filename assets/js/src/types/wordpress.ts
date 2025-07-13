@@ -165,6 +165,14 @@ export interface TutorPressApi {
   getTopics: (courseId: number) => Promise<any>;
   reorderTopics: (courseId: number, topicIds: number[]) => Promise<any>;
   duplicateTopic: (topicId: number, courseId: number) => Promise<any>;
+  getWcProducts: (params?: {
+    exclude_linked_products?: boolean;
+    course_id?: number;
+    search?: string;
+    per_page?: number;
+    page?: number;
+  }) => Promise<any>;
+  getWcProductDetails: (productId: string, courseId?: number) => Promise<any>;
 }
 
 /**
@@ -246,6 +254,7 @@ declare global {
       quiz: TutorPressQuizUtils;
       utils: any; // Quiz form utilities
       contentDrip?: TutorPressContentDripUtils; // Content drip utilities
+      wc?: any; // WooCommerce service
     };
   }
 }

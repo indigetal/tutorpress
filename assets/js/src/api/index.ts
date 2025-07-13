@@ -1,5 +1,6 @@
 import { getTopics, reorderTopics, duplicateTopic } from "./topics";
 import { quizService, saveQuiz, getQuizDetails, deleteQuiz, duplicateQuiz } from "./quiz";
+import { wcService, getWcProducts, getWcProductDetails } from "./woocommerce";
 import {
   getDefaultQuizSettings,
   getDefaultQuestionSettings,
@@ -32,6 +33,8 @@ const api: TutorPressApi = {
   getTopics,
   reorderTopics,
   duplicateTopic,
+  getWcProducts,
+  getWcProductDetails,
 };
 
 // Export the API object
@@ -43,9 +46,11 @@ if (typeof window.tutorpress === "undefined") {
     api,
     quiz: quizUtils,
     utils: quizFormUtils,
+    wc: wcService,
   };
 } else {
   window.tutorpress.api = api;
   window.tutorpress.quiz = quizUtils;
   window.tutorpress.utils = quizFormUtils;
+  window.tutorpress.wc = wcService;
 }
