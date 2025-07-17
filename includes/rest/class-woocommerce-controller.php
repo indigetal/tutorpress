@@ -238,11 +238,48 @@ class TutorPress_WooCommerce_Controller extends TutorPress_REST_Controller {
                 );
             }
 
+            // Validate product status - only allow published products
+            if ($product->get_status() !== 'publish') {
+                return new WP_Error(
+                    'product_not_published',
+                    __('WooCommerce product is not published and cannot be linked to a course.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+
+            // Check if product is already linked to another course (if course_id provided)
+            if ($course_id) {
+                $linked_products = $this->get_linked_woocommerce_products($course_id);
+                if (in_array((int) $product_id, $linked_products)) {
+                    return new WP_Error(
+                        'product_already_linked',
+                        __('This WooCommerce product is already linked to another course.', 'tutorpress'),
+                        ['status' => 400]
+                    );
+                }
+            }
+
             // Get product details (matching Tutor LMS response format)
+            $regular_price = $product->get_regular_price();
+            $sale_price = $product->get_sale_price();
+            
+            // Validate prices
+            if ($regular_price && (!is_numeric($regular_price) || $regular_price < 0)) {
+                $regular_price = '0';
+            }
+            if ($sale_price && (!is_numeric($sale_price) || $sale_price < 0)) {
+                $sale_price = '0';
+            }
+            
+            // Ensure sale price is not greater than regular price
+            if ($sale_price && $regular_price && $sale_price >= $regular_price) {
+                $sale_price = '0';
+            }
+
             $product_details = [
                 'name' => $product->get_name(),
-                'regular_price' => $product->get_regular_price() ?: '0',
-                'sale_price' => $product->get_sale_price() ?: '0',
+                'regular_price' => $regular_price ?: '0',
+                'sale_price' => $sale_price ?: '0',
                 'price' => $product->get_price() ?: '0',
                 'type' => $product->get_type(),
                 'status' => $product->get_status(),

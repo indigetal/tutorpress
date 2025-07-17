@@ -102,6 +102,7 @@ export interface CourseSettings {
   sale_price: number;
   subscription_enabled: boolean;
   selling_option: string; // Purchase option: "one_time", "subscription", "both", "membership", "all"
+  woocommerce_product_id?: string; // WooCommerce product ID for product linking
 
   // Instructors Section
   instructors: number[];
@@ -154,6 +155,7 @@ export const defaultCourseSettings: CourseSettings = {
   sale_price: 0,
   subscription_enabled: false,
   selling_option: "one_time",
+  woocommerce_product_id: "",
 
   // Instructors
   instructors: [],
@@ -212,3 +214,45 @@ export interface CourseAttachment {
 }
 
 export type CourseAttachmentsResponse = TutorResponse<CourseAttachment[]>;
+
+/**
+ * WooCommerce Product Interfaces
+ * Following Tutor LMS patterns for WooCommerce integration
+ */
+
+/**
+ * WooCommerce product for selection dropdown
+ */
+export interface WcProduct {
+  ID: string;
+  post_title: string;
+}
+
+/**
+ * WooCommerce product details for price synchronization
+ */
+export interface WcProductDetails {
+  name: string;
+  regular_price: string;
+  sale_price: string;
+}
+
+/**
+ * WooCommerce products API response
+ */
+export interface WcProductsResponse {
+  products: WcProduct[];
+  total: number;
+  total_pages: number;
+  current_page: number;
+  per_page: number;
+}
+
+/**
+ * WooCommerce product details API response
+ */
+export interface WcProductDetailsResponse {
+  name: string;
+  regular_price: string;
+  sale_price: string;
+}

@@ -250,7 +250,7 @@ const actions = {
         );
       }
 
-      yield actions.setWooCommerceProducts(response.data);
+      yield actions.setWooCommerceProducts(response.data.products || []);
       yield actions.setWooCommerceState({ isLoading: false, error: null });
     } catch (error: any) {
       yield actions.setWooCommerceState({ isLoading: false, error: error.message });

@@ -6,14 +6,24 @@ import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectCon
 import { plus, edit } from "@wordpress/icons";
 
 // Import course settings types
-import type { CourseSettings } from "../../types/courses";
+import type { CourseSettings, WcProduct } from "../../types/courses";
 import type { SubscriptionPlan } from "../../types/subscriptions";
-import { isMonetizationEnabled, isSubscriptionEnabled } from "../../utils/addonChecker";
+import { isMonetizationEnabled, isSubscriptionEnabled, isWooCommerceMonetization } from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, postId, settings, error, isLoading, subscriptionPlans, subscriptionPlansLoading } = useSelect(
+  const {
+    postType,
+    postId,
+    settings,
+    error,
+    isLoading,
+    subscriptionPlans,
+    subscriptionPlansLoading,
+    woocommerceProducts,
+    woocommerceLoading,
+  } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       postId: select("core/editor").getCurrentPostId(),
@@ -22,6 +32,8 @@ const CoursePricingPanel: React.FC = () => {
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans(),
       subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
+      woocommerceProducts: select("tutorpress/course-settings").getWooCommerceProducts(),
+      woocommerceLoading: select("tutorpress/course-settings").getWooCommerceLoading(),
     }),
     []
   );
@@ -29,11 +41,15 @@ const CoursePricingPanel: React.FC = () => {
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
   const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
+  const { fetchWooCommerceProducts, fetchWooCommerceProductDetails } = useDispatch("tutorpress/course-settings");
 
   // Modal state
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [shouldShowForm, setShouldShowForm] = useState(false);
+
+  // WooCommerce error state
+  const [woocommerceError, setWooCommerceError] = useState<string | null>(null);
 
   const handleSubscriptionModalClose = () => {
     setSubscriptionModalOpen(false);
@@ -59,6 +75,17 @@ const CoursePricingPanel: React.FC = () => {
       getSubscriptionPlans();
     }
   }, [postId, getSubscriptionPlans]);
+
+  // Fetch WooCommerce products when component mounts and WooCommerce is active
+  useEffect(() => {
+    if (postId && isWooCommerceMonetization()) {
+      fetchWooCommerceProducts({
+        exclude_linked_products: true,
+        course_id: postId,
+        per_page: 50,
+      });
+    }
+  }, [postId, fetchWooCommerceProducts]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -135,6 +162,69 @@ const CoursePricingPanel: React.FC = () => {
     }
   };
 
+  // Handle WooCommerce product selection
+  const handleWooCommerceProductChange = async (productId: string) => {
+    if (settings) {
+      // Update the product ID
+      const updatedSettings = {
+        ...settings,
+        woocommerce_product_id: productId,
+      };
+
+      // If a product is selected, fetch its details and sync prices
+      if (productId) {
+        try {
+          const productDetails = await fetchWooCommerceProductDetails(productId, postId);
+          if (productDetails) {
+            // Validate price data before updating
+            const regularPrice = parseFloat(productDetails.regular_price);
+            const salePrice = parseFloat(productDetails.sale_price);
+
+            if (isNaN(regularPrice) || regularPrice < 0) {
+              console.warn("Invalid regular price received from WooCommerce product:", productDetails.regular_price);
+              updatedSettings.price = 0;
+            } else {
+              updatedSettings.price = regularPrice;
+            }
+
+            if (isNaN(salePrice) || salePrice < 0) {
+              console.warn("Invalid sale price received from WooCommerce product:", productDetails.sale_price);
+              updatedSettings.sale_price = 0;
+            } else {
+              updatedSettings.sale_price = salePrice;
+            }
+
+            // Validate sale price is not greater than regular price
+            if (updatedSettings.sale_price > 0 && updatedSettings.sale_price >= updatedSettings.price) {
+              console.warn("Sale price cannot be greater than or equal to regular price. Resetting sale price.");
+              updatedSettings.sale_price = 0;
+            }
+          } else {
+            console.warn("No product details received for product ID:", productId);
+          }
+        } catch (error) {
+          console.error("Error fetching WooCommerce product details:", error);
+          // Show user-friendly error message
+          setWooCommerceError(
+            __("Failed to load product details. Please try selecting the product again.", "tutorpress")
+          );
+          // Don't update prices if there's an error - keep existing values
+        }
+      } else {
+        // Reset prices when no product is selected
+        updatedSettings.price = 0;
+        updatedSettings.sale_price = 0;
+      }
+
+      updateSettings(updatedSettings);
+
+      // Clear any previous errors on successful update
+      if (woocommerceError) {
+        setWooCommerceError(null);
+      }
+    }
+  };
+
   // Check if purchase options should be shown
   const shouldShowPurchaseOptions =
     settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
@@ -143,6 +233,11 @@ const CoursePricingPanel: React.FC = () => {
   const shouldShowPriceFields = () => {
     // Don't show if pricing model is not "paid" or monetization is disabled
     if (settings?.pricing_model !== "paid" || !isMonetizationEnabled()) {
+      return false;
+    }
+
+    // Don't show price fields when WooCommerce monetization is active
+    if (isWooCommerceMonetization()) {
       return false;
     }
 
@@ -229,6 +324,56 @@ const CoursePricingPanel: React.FC = () => {
           onChange={handlePricingModelChange}
         />
       </PanelRow>
+
+      {/* WooCommerce Product Selector - Only show when WooCommerce monetization is active and course is paid */}
+      {isWooCommerceMonetization() && settings?.pricing_model === "paid" && (
+        <PanelRow>
+          <SelectControl
+            label={__("WooCommerce Product", "tutorpress")}
+            help={__(
+              "Select a WooCommerce product to link to this course. The product's price will automatically sync to this course. Only products not already linked to other courses are shown.",
+              "tutorpress"
+            )}
+            value={(() => {
+              // Validate that the selected product is still available in the list
+              const selectedProductId = settings?.woocommerce_product_id || "";
+              if (selectedProductId && woocommerceProducts) {
+                const productExists = woocommerceProducts.some(
+                  (product: WcProduct) => product.ID === selectedProductId
+                );
+                if (!productExists) {
+                  // Product no longer available, clear the selection
+                  console.warn("Selected product no longer available, clearing selection");
+                  setTimeout(() => {
+                    handleWooCommerceProductChange("");
+                  }, 0);
+                  return "";
+                }
+              }
+              return selectedProductId;
+            })()}
+            options={[
+              {
+                label: __("Select a product", "tutorpress"),
+                value: "",
+              },
+              ...(woocommerceProducts || []).map((product: WcProduct) => ({
+                label: product.post_title,
+                value: product.ID,
+              })),
+            ]}
+            onChange={handleWooCommerceProductChange}
+            disabled={woocommerceLoading}
+          />
+          {woocommerceError && (
+            <div style={{ marginTop: "8px" }}>
+              <Notice status="error" isDismissible={false}>
+                {woocommerceError}
+              </Notice>
+            </div>
+          )}
+        </PanelRow>
+      )}
 
       {/* Purchase Options Dropdown - Only show when conditions are met */}
       {shouldShowPurchaseOptions && (

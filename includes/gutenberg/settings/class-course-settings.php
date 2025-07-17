@@ -32,6 +32,7 @@ class TutorPress_Course_Settings {
         'price',
         'sale_price',
         'selling_option',
+        'woocommerce_product_id',
         'instructors',
         'additional_instructors'
     ];
@@ -166,6 +167,10 @@ class TutorPress_Course_Settings {
                             'type' => 'string',
                             'enum' => ['one_time', 'subscription', 'both', 'membership', 'all'],
                         ],
+                        'woocommerce_product_id' => [
+                            'type' => 'string',
+                            'description' => __('WooCommerce product ID for product linking', 'tutorpress'),
+                        ],
                         'instructors' => [
                             'type'  => 'array',
                             'items' => ['type' => 'integer'],
@@ -226,6 +231,12 @@ class TutorPress_Course_Settings {
             '_tutor_course_selling_option' => [
                 'type' => 'string',
                 'description' => __('Course selling option', 'tutorpress'),
+                'single' => true,
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_product_id' => [
+                'type' => 'string',
+                'description' => __('WooCommerce product ID for product linking', 'tutorpress'),
                 'single' => true,
                 'show_in_rest' => true,
             ],
@@ -348,6 +359,7 @@ class TutorPress_Course_Settings {
             'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
             'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
             'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
+            'woocommerce_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
             'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
         ];
         
@@ -468,6 +480,11 @@ class TutorPress_Course_Settings {
                 $selling_option = 'one_time'; // Default fallback
             }
             $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+        }
+        
+        if (isset($value['woocommerce_product_id'])) {
+            $product_id = sanitize_text_field($value['woocommerce_product_id']);
+            $results[] = update_post_meta($post_id, '_tutor_course_product_id', $product_id);
         }
         
         // Extended sections: Update _tutor_course_settings for non-Course Details fields
