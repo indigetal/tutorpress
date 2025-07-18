@@ -35,7 +35,7 @@ import {
   duplicateLesson,
 } from "../../api/lessons";
 import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
-import { TopicRequest } from "../../types/api";
+import { TopicRequest, APIResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
 import {
@@ -1377,15 +1377,60 @@ const resolvers = {
     }
   },
 
-  async reorderTopics(courseId: number, topicIds: number[]) {
+  *reorderTopics(courseId: number, topicIds: number[]): Generator<unknown, void, unknown> {
     try {
-      actions.setReorderState({ status: "reordering" });
+      yield actions.setReorderState({ status: "reordering" });
 
-      await reorderTopics(courseId, topicIds);
+      // Reorder topics using API_FETCH
+      const reorderResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/topics/reorder",
+          method: "POST",
+          data: {
+            course_id: courseId,
+            topic_orders: topicIds.map((id, index) => ({
+              id,
+              order: index,
+            })),
+          },
+        },
+      };
 
-      const updatedTopics = await fetchTopics(courseId);
-      actions.setTopics(updatedTopics);
-      actions.setReorderState({ status: "success" });
+      if (!reorderResponse || typeof reorderResponse !== "object" || !("success" in reorderResponse)) {
+        throw new Error("Invalid reorder response");
+      }
+
+      const reorderResult = reorderResponse as { success: boolean; message?: string };
+      if (!reorderResult.success) {
+        const errorMessage = reorderResult.message || "Failed to reorder topics";
+        throw new Error(errorMessage);
+      }
+
+      // Fetch updated topics using API_FETCH
+      const topicsResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics?course_id=${courseId}`,
+          method: "GET",
+        },
+      };
+
+      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+        throw new Error("Invalid topics response");
+      }
+
+      const topics = topicsResponse as { data: Topic[] };
+
+      // Transform topics to preserve UI state
+      const transformedTopics = topics.data.map((topic) => ({
+        ...topic,
+        isCollapsed: true,
+        contents: topic.contents || [],
+      }));
+
+      yield actions.setTopics(transformedTopics);
+      yield actions.setReorderState({ status: "success" });
     } catch (error) {
       const curriculumError = createCurriculumError(
         error,
@@ -1395,7 +1440,7 @@ const resolvers = {
         { courseId }
       );
 
-      actions.setReorderState({
+      yield actions.setReorderState({
         status: "error",
         error: curriculumError,
       });
