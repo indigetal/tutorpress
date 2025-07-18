@@ -165,10 +165,6 @@ export interface TutorPressApi {
   getTopics: (courseId: number) => Promise<any>;
   reorderTopics: (courseId: number, topicIds: number[]) => Promise<any>;
   duplicateTopic: (topicId: number, courseId: number) => Promise<any>;
-  getWcProducts: (params?: { course_id?: number; search?: string; per_page?: number; page?: number }) => Promise<any>;
-  getWcProductDetails: (productId: string, courseId?: number) => Promise<any>;
-  getEddProducts: (params?: { course_id?: number; search?: string; per_page?: number; page?: number }) => Promise<any>;
-  getEddProductDetails: (productId: string, courseId?: number) => Promise<any>;
 }
 
 /**
