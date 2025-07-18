@@ -361,6 +361,23 @@ class TutorPress_Addon_Checker {
     }
 
     /**
+     * Check if EDD (Easy Digital Downloads) is enabled
+     *
+     * @return bool True if EDD is active and functional
+     */
+    public static function is_edd_enabled() {
+        // Ensure plugin.php is loaded for is_plugin_active()
+        if (!function_exists('is_plugin_active')) {
+            include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+        }
+        if (function_exists('is_plugin_active') && is_plugin_active('easy-digital-downloads/easy-digital-downloads.php')) {
+            return true;
+        }
+        // Fallback for runtime context - check for EDD class and post type
+        return class_exists('Easy_Digital_Downloads') && post_type_exists('download');
+    }
+
+    /**
      * Check if WooCommerce is selected as the monetization engine in Tutor LMS
      *
      * @return bool True if WooCommerce is selected as the monetization engine
@@ -378,9 +395,26 @@ class TutorPress_Addon_Checker {
     }
 
     /**
+     * Check if EDD is selected as the monetization engine in Tutor LMS
+     *
+     * @return bool True if EDD is selected as the monetization engine
+     */
+    public static function is_edd_monetization() {
+        if (!self::is_edd_enabled()) {
+            return false;
+        }
+        
+        // Check Tutor LMS monetization settings
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        
+        return $monetize_by === 'edd';
+    }
+
+    /**
      * Get the current payment engine based on available systems and user preference
      *
-     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'wc', 'none')
+     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'wc', 'edd', 'none')
      */
     public static function get_payment_engine() {
         // Check TutorPress settings first (user preference)
@@ -400,6 +434,10 @@ class TutorPress_Addon_Checker {
         
         if (self::is_woocommerce_monetization()) {
             return 'wc';
+        }
+        
+        if (self::is_edd_monetization()) {
+            return 'edd';
         }
         
         if (self::is_tutor_pro_enabled()) {
@@ -425,8 +463,12 @@ class TutorPress_Addon_Checker {
             $engines['surecart'] = 'SureCart';
         }
         
-        if (self::is_woocommerce_monetization()) {
+        if (self::is_woocommerce_enabled()) {
             $engines['wc'] = 'WooCommerce';
+        }
+        
+        if (self::is_edd_enabled()) {
+            $engines['edd'] = 'Easy Digital Downloads';
         }
         
         if (self::is_tutor_pro_enabled()) {
@@ -456,6 +498,10 @@ class TutorPress_Addon_Checker {
             case 'wc':
                 // WooCommerce is "monetization enabled" when active and selected
                 return self::is_woocommerce_monetization();
+                
+            case 'edd':
+                // EDD is "monetization enabled" when active and selected
+                return self::is_edd_monetization();
                 
             case 'tutor_pro':
                 // Check Tutor Pro monetization settings
@@ -497,6 +543,8 @@ class TutorPress_Addon_Checker {
         $status['surecart'] = self::is_surecart_enabled();
         $status['woocommerce'] = self::is_woocommerce_enabled();
         $status['woocommerce_monetization'] = self::is_woocommerce_monetization();
+        $status['edd'] = self::is_edd_enabled();
+        $status['edd_monetization'] = self::is_edd_monetization();
         $status['payment_engine'] = self::get_payment_engine();
         $status['monetization_enabled'] = self::is_monetization_enabled();
         $status['available_payment_engines'] = self::get_available_payment_engines();

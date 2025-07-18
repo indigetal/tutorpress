@@ -112,6 +112,12 @@ void AddonChecker.isCertificateEnabled;
 void AddonChecker.isContentDripEnabled;
 void AddonChecker.isGoogleMeetEnabled;
 void AddonChecker.isZoomEnabled;
+void AddonChecker.isEddEnabled;
+void AddonChecker.isEddMonetization;
+void AddonChecker.isWooCommerceEnabled;
+void AddonChecker.isWooCommerceMonetization;
+void AddonChecker.getPaymentEngine;
+void AddonChecker.isMonetizationEnabled;
 
 // Expose content drip utilities globally for testing and debugging
 (window as any).tutorpress.contentDrip = {

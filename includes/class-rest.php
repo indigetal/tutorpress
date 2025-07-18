@@ -89,10 +89,19 @@ class TutorPress_REST {
                 $controllers['subscriptions'] = new TutorPress_REST_Subscriptions_Controller();
             }
 
-            // Conditionally load WooCommerce controller only if WooCommerce is enabled
-            if (TutorPress_Addon_Checker::is_woocommerce_enabled()) {
-                require_once TUTORPRESS_PATH . 'includes/rest/class-woocommerce-controller.php';
-                $controllers['woocommerce'] = new TutorPress_WooCommerce_Controller();
+            // Conditionally load product controllers (WooCommerce and EDD)
+            if (TutorPress_Addon_Checker::is_woocommerce_enabled() || TutorPress_Addon_Checker::is_edd_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-product-controller.php';
+                
+                // Load WooCommerce controller if enabled
+                if (TutorPress_Addon_Checker::is_woocommerce_enabled()) {
+                    $controllers['woocommerce'] = new TutorPress_WooCommerce_Controller();
+                }
+                
+                // Load EDD controller if enabled
+                if (TutorPress_Addon_Checker::is_edd_enabled()) {
+                    $controllers['edd'] = new TutorPress_EDD_Controller();
+                }
             }
 
             // Register routes for each controller

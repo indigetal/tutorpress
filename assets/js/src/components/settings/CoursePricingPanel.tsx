@@ -8,7 +8,12 @@ import { plus, edit } from "@wordpress/icons";
 // Import course settings types
 import type { CourseSettings, WcProduct } from "../../types/courses";
 import type { SubscriptionPlan } from "../../types/subscriptions";
-import { isMonetizationEnabled, isSubscriptionEnabled, isWooCommerceMonetization } from "../../utils/addonChecker";
+import {
+  isMonetizationEnabled,
+  isSubscriptionEnabled,
+  isWooCommerceMonetization,
+  isEddMonetization,
+} from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 
 const CoursePricingPanel: React.FC = () => {
@@ -23,6 +28,8 @@ const CoursePricingPanel: React.FC = () => {
     subscriptionPlansLoading,
     woocommerceProducts,
     woocommerceLoading,
+    eddProducts,
+    eddLoading,
   } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
@@ -34,6 +41,8 @@ const CoursePricingPanel: React.FC = () => {
       subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
       woocommerceProducts: select("tutorpress/course-settings").getWooCommerceProducts(),
       woocommerceLoading: select("tutorpress/course-settings").getWooCommerceLoading(),
+      eddProducts: select("tutorpress/course-settings").getEddProducts(),
+      eddLoading: select("tutorpress/course-settings").getEddLoading(),
     }),
     []
   );
@@ -41,15 +50,17 @@ const CoursePricingPanel: React.FC = () => {
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
   const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
-  const { fetchWooCommerceProducts, fetchWooCommerceProductDetails } = useDispatch("tutorpress/course-settings");
+  const { fetchWooCommerceProducts, fetchWooCommerceProductDetails, fetchEddProducts, fetchEddProductDetails } =
+    useDispatch("tutorpress/course-settings");
 
   // Modal state
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [shouldShowForm, setShouldShowForm] = useState(false);
 
-  // WooCommerce error state
+  // Error states
   const [woocommerceError, setWooCommerceError] = useState<string | null>(null);
+  const [eddError, setEddError] = useState<string | null>(null);
 
   const handleSubscriptionModalClose = () => {
     setSubscriptionModalOpen(false);
@@ -80,12 +91,21 @@ const CoursePricingPanel: React.FC = () => {
   useEffect(() => {
     if (postId && isWooCommerceMonetization()) {
       fetchWooCommerceProducts({
-        exclude_linked_products: true,
         course_id: postId,
         per_page: 50,
       });
     }
   }, [postId, fetchWooCommerceProducts]);
+
+  // Fetch EDD products when component mounts and EDD monetization is active
+  useEffect(() => {
+    if (postId && isEddMonetization()) {
+      fetchEddProducts({
+        course_id: postId,
+        per_page: 50,
+      });
+    }
+  }, [postId, fetchEddProducts]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -225,6 +245,67 @@ const CoursePricingPanel: React.FC = () => {
     }
   };
 
+  // Handle EDD product selection
+  const handleEddProductChange = async (productId: string) => {
+    if (settings) {
+      // Update the product ID
+      const updatedSettings = {
+        ...settings,
+        edd_product_id: productId,
+      };
+
+      // If a product is selected, fetch its details and sync prices
+      if (productId) {
+        try {
+          const productDetails = await fetchEddProductDetails(productId, postId);
+          if (productDetails) {
+            // Validate price data before updating
+            const regularPrice = parseFloat(productDetails.regular_price);
+            const salePrice = parseFloat(productDetails.sale_price);
+
+            if (isNaN(regularPrice) || regularPrice < 0) {
+              console.warn("Invalid regular price received from EDD product:", productDetails.regular_price);
+              updatedSettings.price = 0;
+            } else {
+              updatedSettings.price = regularPrice;
+            }
+
+            if (isNaN(salePrice) || salePrice < 0) {
+              console.warn("Invalid sale price received from EDD product:", productDetails.sale_price);
+              updatedSettings.sale_price = 0;
+            } else {
+              updatedSettings.sale_price = salePrice;
+            }
+
+            // Validate sale price is not greater than regular price
+            if (updatedSettings.sale_price > 0 && updatedSettings.sale_price >= updatedSettings.price) {
+              console.warn("Sale price cannot be greater than or equal to regular price. Resetting sale price.");
+              updatedSettings.sale_price = 0;
+            }
+          } else {
+            console.warn("No product details received for product ID:", productId);
+          }
+        } catch (error) {
+          console.error("Error fetching EDD product details:", error);
+          // Show user-friendly error message
+          setEddError(__("Failed to load product details. Please try selecting the product again.", "tutorpress"));
+          // Don't update prices if there's an error - keep existing values
+        }
+      } else {
+        // Reset prices when no product is selected
+        updatedSettings.price = 0;
+        updatedSettings.sale_price = 0;
+      }
+
+      updateSettings(updatedSettings);
+
+      // Clear any previous errors on successful update
+      if (eddError) {
+        setEddError(null);
+      }
+    }
+  };
+
   // Check if purchase options should be shown
   const shouldShowPurchaseOptions =
     settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
@@ -238,6 +319,11 @@ const CoursePricingPanel: React.FC = () => {
 
     // Don't show price fields when WooCommerce monetization is active
     if (isWooCommerceMonetization()) {
+      return false;
+    }
+
+    // Don't show price fields when EDD monetization is active
+    if (isEddMonetization()) {
       return false;
     }
 
@@ -335,19 +421,18 @@ const CoursePricingPanel: React.FC = () => {
               "tutorpress"
             )}
             value={(() => {
-              // Validate that the selected product is still available in the list
+              // Validate that the selected product is still available
               const selectedProductId = settings?.woocommerce_product_id || "";
               if (selectedProductId && woocommerceProducts) {
                 const productExists = woocommerceProducts.some(
                   (product: WcProduct) => product.ID === selectedProductId
                 );
                 if (!productExists) {
-                  // Product no longer available, clear the selection
-                  console.warn("Selected product no longer available, clearing selection");
-                  setTimeout(() => {
-                    handleWooCommerceProductChange("");
-                  }, 0);
-                  return "";
+                  // Product not in dropdown - could be linked to current course or truly unavailable
+                  // Only clear if we can verify the product is truly unavailable (not just linked)
+                  // For now, keep the selection as it might be linked to current course
+                  console.warn("Selected product not in dropdown - may be linked to current course");
+                  return selectedProductId; // Keep the selection
                 }
               }
               return selectedProductId;
@@ -369,6 +454,53 @@ const CoursePricingPanel: React.FC = () => {
             <div style={{ marginTop: "8px" }}>
               <Notice status="error" isDismissible={false}>
                 {woocommerceError}
+              </Notice>
+            </div>
+          )}
+        </PanelRow>
+      )}
+
+      {/* EDD Product Selector - Only show when EDD monetization is active and course is paid */}
+      {isEddMonetization() && settings?.pricing_model === "paid" && (
+        <PanelRow>
+          <SelectControl
+            label={__("EDD Product", "tutorpress")}
+            help={__(
+              "Select an EDD product to link to this course. The product's price will automatically sync to this course. Only products not already linked to other courses are shown.",
+              "tutorpress"
+            )}
+            value={(() => {
+              // Validate that the selected product is still available
+              const selectedProductId = settings?.edd_product_id || "";
+              if (selectedProductId && eddProducts) {
+                const productExists = eddProducts.some((product: any) => product.ID === selectedProductId);
+                if (!productExists) {
+                  // Product not in dropdown - could be linked to current course or truly unavailable
+                  // Only clear if we can verify the product is truly unavailable (not just linked)
+                  // For now, keep the selection as it might be linked to current course
+                  console.warn("Selected EDD product not in dropdown - may be linked to current course");
+                  return selectedProductId; // Keep the selection
+                }
+              }
+              return selectedProductId;
+            })()}
+            options={[
+              {
+                label: __("Select a product", "tutorpress"),
+                value: "",
+              },
+              ...(eddProducts || []).map((product: any) => ({
+                label: product.post_title,
+                value: product.ID,
+              })),
+            ]}
+            onChange={handleEddProductChange}
+            disabled={eddLoading}
+          />
+          {eddError && (
+            <div style={{ marginTop: "8px" }}>
+              <Notice status="error" isDismissible={false}>
+                {eddError}
               </Notice>
             </div>
           )}

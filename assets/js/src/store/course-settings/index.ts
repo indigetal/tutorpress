@@ -48,6 +48,12 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
+  edd: {
+    products: any[];
+    productDetails: any | null;
+    isLoading: boolean;
+    error: string | null;
+  };
 }
 
 const DEFAULT_STATE: State = {
@@ -72,6 +78,12 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
+  edd: {
+    products: [],
+    productDetails: null,
+    isLoading: false,
+    error: null,
+  },
 };
 
 type CourseSettingsAction =
@@ -83,7 +95,10 @@ type CourseSettingsAction =
   | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }
   | { type: "SET_WOOCOMMERCE_PRODUCTS"; payload: any[] }
   | { type: "SET_WOOCOMMERCE_PRODUCT_DETAILS"; payload: any }
-  | { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> };
+  | { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> }
+  | { type: "SET_EDD_PRODUCTS"; payload: any[] }
+  | { type: "SET_EDD_PRODUCT_DETAILS"; payload: any }
+  | { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -149,6 +164,27 @@ const actions = {
     };
   },
 
+  setEddProducts(products: any[]) {
+    return {
+      type: "SET_EDD_PRODUCTS" as const,
+      payload: products,
+    };
+  },
+
+  setEddProductDetails(productDetails: any) {
+    return {
+      type: "SET_EDD_PRODUCT_DETAILS" as const,
+      payload: productDetails,
+    };
+  },
+
+  setEddState(state: Partial<State["edd"]>) {
+    return {
+      type: "SET_EDD_STATE" as const,
+      payload: state,
+    };
+  },
+
   // Fetch attachment metadata for display
   *fetchAttachmentsMetadata(attachmentIds: number[]): Generator {
     try {
@@ -202,7 +238,6 @@ const actions = {
   // Fetch WooCommerce products for product selection
   *fetchWooCommerceProducts(
     params: {
-      exclude_linked_products?: boolean;
       course_id?: number;
       search?: string;
       per_page?: number;
@@ -214,9 +249,6 @@ const actions = {
 
       // Build query parameters
       const queryParams = new URLSearchParams();
-      if (params.exclude_linked_products !== undefined) {
-        queryParams.append("exclude_linked_products", params.exclude_linked_products.toString());
-      }
       if (params.course_id) {
         queryParams.append("course_id", params.course_id.toString());
       }
@@ -258,6 +290,103 @@ const actions = {
     }
   },
 
+  // Fetch EDD products for product selection
+  *fetchEddProducts(
+    params: {
+      course_id?: number;
+      search?: string;
+      per_page?: number;
+      page?: number;
+    } = {}
+  ): Generator {
+    try {
+      yield actions.setEddState({ isLoading: true, error: null });
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params.course_id) {
+        queryParams.append("course_id", params.course_id.toString());
+      }
+      if (params.search) {
+        queryParams.append("search", params.search);
+      }
+      if (params.per_page) {
+        queryParams.append("per_page", params.per_page.toString());
+      }
+      if (params.page) {
+        queryParams.append("page", params.page.toString());
+      }
+
+      const queryString = queryParams.toString();
+      const path = `/tutorpress/v1/edd/products${queryString ? `?${queryString}` : ""}`;
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchEddProducts",
+          "Failed to fetch EDD products"
+        );
+      }
+
+      yield actions.setEddProducts(response.data.products || []);
+      yield actions.setEddState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setEddState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  // Fetch EDD product details for price synchronization
+  *fetchEddProductDetails(productId: string, courseId?: number): Generator {
+    try {
+      yield actions.setEddState({ isLoading: true, error: null });
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (courseId) {
+        queryParams.append("course_id", courseId.toString());
+      }
+
+      const queryString = queryParams.toString();
+      const path = `/tutorpress/v1/edd/products/${productId}${queryString ? `?${queryString}` : ""}`;
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "fetchEddProductDetails",
+          "Failed to fetch EDD product details"
+        );
+      }
+
+      yield actions.setEddProductDetails(response.data);
+      yield actions.setEddState({ isLoading: false, error: null });
+
+      // Return the product details for immediate use
+      return response.data;
+    } catch (error: any) {
+      yield actions.setEddState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
   // Fetch WooCommerce product details for price synchronization
   *fetchWooCommerceProductDetails(productId: string, courseId?: number): Generator {
     try {
@@ -291,6 +420,9 @@ const actions = {
 
       yield actions.setWooCommerceProductDetails(response.data);
       yield actions.setWooCommerceState({ isLoading: false, error: null });
+
+      // Return the product details for immediate use
+      return response.data;
     } catch (error: any) {
       yield actions.setWooCommerceState({ isLoading: false, error: error.message });
       throw error;
@@ -455,6 +587,18 @@ const selectors = {
   getWooCommerceError(state: State) {
     return state.woocommerce.error;
   },
+  getEddProducts(state: State) {
+    return state.edd.products;
+  },
+  getEddProductDetails(state: State) {
+    return state.edd.productDetails;
+  },
+  getEddLoading(state: State) {
+    return state.edd.isLoading;
+  },
+  getEddError(state: State) {
+    return state.edd.error;
+  },
 };
 
 const resolvers = {
@@ -587,6 +731,30 @@ const store = createReduxStore("tutorpress/course-settings", {
           woocommerce: {
             ...state.woocommerce,
             ...(action as { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> }).payload,
+          },
+        };
+      case "SET_EDD_PRODUCTS":
+        return {
+          ...state,
+          edd: {
+            ...state.edd,
+            products: (action as { type: "SET_EDD_PRODUCTS"; payload: any[] }).payload,
+          },
+        };
+      case "SET_EDD_PRODUCT_DETAILS":
+        return {
+          ...state,
+          edd: {
+            ...state.edd,
+            productDetails: (action as { type: "SET_EDD_PRODUCT_DETAILS"; payload: any }).payload,
+          },
+        };
+      case "SET_EDD_STATE":
+        return {
+          ...state,
+          edd: {
+            ...state.edd,
+            ...(action as { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> }).payload,
           },
         };
       default:

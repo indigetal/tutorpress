@@ -103,6 +103,7 @@ export interface CourseSettings {
   subscription_enabled: boolean;
   selling_option: string; // Purchase option: "one_time", "subscription", "both", "membership", "all"
   woocommerce_product_id?: string; // WooCommerce product ID for product linking
+  edd_product_id?: string; // EDD product ID for product linking
 
   // Instructors Section
   instructors: number[];
@@ -156,6 +157,7 @@ export const defaultCourseSettings: CourseSettings = {
   subscription_enabled: false,
   selling_option: "one_time",
   woocommerce_product_id: "",
+  edd_product_id: "",
 
   // Instructors
   instructors: [],

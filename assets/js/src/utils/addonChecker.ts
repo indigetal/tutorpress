@@ -24,12 +24,13 @@ export type AddonKey =
   | "multi_instructors"
   | "enrollments"
   | "course_attachments"
-  | "subscription";
+  | "subscription"
+  | "edd";
 
 /**
  * Payment engine types
  */
-export type PaymentEngine = "pmp" | "surecart" | "tutor_pro" | "none";
+export type PaymentEngine = "pmp" | "surecart" | "tutor_pro" | "wc" | "edd" | "none";
 
 /**
  * Addon status interface
@@ -46,6 +47,7 @@ export interface AddonStatus {
   enrollments: boolean;
   course_attachments: boolean;
   subscription: boolean;
+  edd: boolean;
   // Payment engine status
   tutor_pro: boolean;
   paid_memberships_pro: boolean;
@@ -55,6 +57,7 @@ export interface AddonStatus {
   available_payment_engines: Record<string, string>;
   woocommerce: boolean;
   woocommerce_monetization: boolean;
+  edd_monetization: boolean;
 }
 
 /**
@@ -90,6 +93,7 @@ export class AddonChecker {
         enrollments: false,
         course_attachments: false,
         subscription: false,
+        edd: false,
         // Payment engine status
         tutor_pro: false,
         paid_memberships_pro: false,
@@ -99,6 +103,7 @@ export class AddonChecker {
         available_payment_engines: {},
         woocommerce: false,
         woocommerce_monetization: false,
+        edd_monetization: false,
       }
     );
   }
@@ -199,6 +204,13 @@ export class AddonChecker {
    */
   public static isSubscriptionEnabled(): boolean {
     return this.isAddonEnabled("subscription");
+  }
+
+  /**
+   * Check if EDD (Easy Digital Downloads) is available
+   */
+  public static isEddEnabled(): boolean {
+    return this.isAddonEnabled("edd");
   }
 
   /**
@@ -305,6 +317,14 @@ export class AddonChecker {
   }
 
   /**
+   * Check if EDD is selected as the monetization engine
+   */
+  public static isEddMonetization(): boolean {
+    const addonData = this.getAddonData();
+    return addonData.edd_monetization || false;
+  }
+
+  /**
    * Get the current payment engine
    */
   public static getPaymentEngine(): PaymentEngine {
@@ -343,6 +363,7 @@ export const isMultiInstructorsEnabled = (): boolean => AddonChecker.isMultiInst
 export const isEnrollmentsEnabled = (): boolean => AddonChecker.isEnrollmentsEnabled();
 export const isCourseAttachmentsEnabled = (): boolean => AddonChecker.isCourseAttachmentsEnabled();
 export const isSubscriptionEnabled = (): boolean => AddonChecker.isSubscriptionEnabled();
+export const isEddEnabled = (): boolean => AddonChecker.isEddEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
 
@@ -352,6 +373,7 @@ export const isPMPEnabled = (): boolean => AddonChecker.isPMPEnabled();
 export const isSureCartEnabled = (): boolean => AddonChecker.isSureCartEnabled();
 export const isWooCommerceEnabled = (): boolean => AddonChecker.isWooCommerceEnabled();
 export const isWooCommerceMonetization = (): boolean => AddonChecker.isWooCommerceMonetization();
+export const isEddMonetization = (): boolean => AddonChecker.isEddMonetization();
 export const getPaymentEngine = (): PaymentEngine => AddonChecker.getPaymentEngine();
 export const getAvailablePaymentEngines = (): Record<string, string> => AddonChecker.getAvailablePaymentEngines();
 export const isMonetizationEnabled = (): boolean => AddonChecker.isMonetizationEnabled();

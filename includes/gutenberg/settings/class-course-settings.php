@@ -33,6 +33,7 @@ class TutorPress_Course_Settings {
         'sale_price',
         'selling_option',
         'woocommerce_product_id',
+        'edd_product_id',
         'instructors',
         'additional_instructors'
     ];
@@ -170,6 +171,10 @@ class TutorPress_Course_Settings {
                         'woocommerce_product_id' => [
                             'type' => 'string',
                             'description' => __('WooCommerce product ID for product linking', 'tutorpress'),
+                        ],
+                        'edd_product_id' => [
+                            'type' => 'string',
+                            'description' => __('EDD product ID for product linking', 'tutorpress'),
                         ],
                         'instructors' => [
                             'type'  => 'array',
@@ -360,6 +365,7 @@ class TutorPress_Course_Settings {
             'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
             'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
             'woocommerce_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
+            'edd_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
             'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
         ];
         
@@ -482,8 +488,15 @@ class TutorPress_Course_Settings {
             $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
         }
         
-        if (isset($value['woocommerce_product_id'])) {
+        // Handle product IDs - only save for the active monetization engine
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        
+        if ($monetize_by === 'wc' && isset($value['woocommerce_product_id'])) {
             $product_id = sanitize_text_field($value['woocommerce_product_id']);
+            $results[] = update_post_meta($post_id, '_tutor_course_product_id', $product_id);
+        } elseif ($monetize_by === 'edd' && isset($value['edd_product_id'])) {
+            $product_id = sanitize_text_field($value['edd_product_id']);
             $results[] = update_post_meta($post_id, '_tutor_course_product_id', $product_id);
         }
         
@@ -682,6 +695,8 @@ class TutorPress_Course_Settings {
             $selling_option = $settings['selling_option'];
             update_post_meta($post->ID, '_tutor_course_selling_option', $selling_option);
         }
+        
+
     }
 
     /**
