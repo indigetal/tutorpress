@@ -24,7 +24,7 @@ import {
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
-import { getTopics, createTopic } from "../../api/topics";
+import { getTopics } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";
@@ -155,6 +155,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     deleteTopic,
     duplicateTopic,
     updateTopic,
+    createTopic,
     fetchTopics,
   } = useDispatch(curriculumStore);
 
@@ -498,16 +499,13 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       try {
         createSnapshot("edit");
 
-        // Create topic using store action
-        const newTopic = await createTopic({
+        // Create topic using store action (handles state updates internally)
+        await createTopic({
           title: data.title,
           content: data.summary,
           course_id: courseId,
           // menu_order will be calculated by the backend
         });
-
-        // Update local state with new topic
-        setTopics((currentTopics) => [...currentTopics, newTopic]);
 
         // Reset form state
         setTopicCreationState({ status: "idle" });
