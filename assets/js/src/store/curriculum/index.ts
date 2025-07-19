@@ -176,6 +176,12 @@ export type CurriculumAction =
   | { type: "UPDATE_ASSIGNMENT_START"; payload: { assignmentId: number } }
   | { type: "UPDATE_ASSIGNMENT_SUCCESS"; payload: { assignment: Assignment } }
   | { type: "UPDATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DUPLICATE_ASSIGNMENT_START"; payload: { assignmentId: number; topicId: number; courseId: number } }
+  | {
+      type: "DUPLICATE_ASSIGNMENT_SUCCESS";
+      payload: { assignment: Assignment; sourceAssignmentId: number; courseId: number };
+    }
+  | { type: "DUPLICATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError; assignmentId: number } }
   | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
@@ -196,6 +202,7 @@ export type CurriculumAction =
     }
   | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
+  | { type: "DUPLICATE_ASSIGNMENT"; payload: { assignmentId: number; topicId: number; courseId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
   | { type: "SAVE_QUIZ_START"; payload: { quizData: any; courseId: number; topicId: number } }
   | { type: "SAVE_QUIZ_SUCCESS"; payload: { quiz: any; courseId: number } }
@@ -585,6 +592,12 @@ export const actions = {
     return {
       type: "UPDATE_ASSIGNMENT",
       payload: { assignmentId, data },
+    };
+  },
+  duplicateAssignment(assignmentId: number, topicId: number, courseId: number) {
+    return {
+      type: "DUPLICATE_ASSIGNMENT",
+      payload: { assignmentId, topicId, courseId },
     };
   },
 };
@@ -1072,6 +1085,14 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         assignmentState: {
           status: "loading",
           activeAssignmentId: action.payload.assignmentId,
+        },
+      };
+    case "DUPLICATE_ASSIGNMENT":
+      return {
+        ...state,
+        assignmentDuplicationState: {
+          status: "duplicating",
+          sourceAssignmentId: action.payload.assignmentId,
         },
       };
     case "DELETE_TOPIC":
@@ -2045,6 +2066,15 @@ const resolvers = {
   *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, Lesson, unknown> {
     const duplicatedLesson = yield* duplicateResolvers.lesson(lessonId, topicId);
     return duplicatedLesson;
+  },
+
+  *duplicateAssignment(
+    assignmentId: number,
+    topicId: number,
+    courseId: number
+  ): Generator<unknown, Assignment, unknown> {
+    const duplicatedAssignment = yield* duplicateResolvers.assignment(assignmentId, topicId, courseId);
+    return duplicatedAssignment;
   },
 
   *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {

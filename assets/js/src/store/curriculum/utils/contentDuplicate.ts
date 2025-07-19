@@ -2,6 +2,7 @@ import { __ } from "@wordpress/i18n";
 import { CurriculumErrorCode, ContentItem } from "../../../types/curriculum";
 import { LiveLesson, LiveLessonCreateResponse } from "../../../types/liveLessons";
 import { Lesson } from "../../../types/lessons";
+import { Assignment } from "../../../types/assignments";
 import { createDuplicateContentPayload, resolveContentType } from "./topicsUpdate";
 
 /**
@@ -148,6 +149,11 @@ export const responseDataExtractors = {
     id: response.data.id,
     title: response.data.title,
   }),
+
+  assignment: (response: { data: Assignment }) => ({
+    id: response.data.id,
+    title: response.data.title,
+  }),
 };
 
 /**
@@ -187,6 +193,17 @@ export const duplicateResolvers = {
       id: response.data.id,
       title: response.data.title,
     }),
+    requiresCourseId: true,
+  }),
+
+  assignment: createStandardDuplicateResolver({
+    type: "standard",
+    apiPath: "/tutorpress/v1/assignments",
+    contentType: "assignment",
+    entityName: "assignment",
+    sourceIdField: "assignmentId",
+    targetIdField: "topic_id",
+    responseDataExtractor: responseDataExtractors.assignment,
     requiresCourseId: true,
   }),
 
