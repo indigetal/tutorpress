@@ -24,7 +24,7 @@ import {
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
-import { getTopics, updateTopic, createTopic } from "../../api/topics";
+import { getTopics, createTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";
@@ -154,6 +154,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     setActiveOperation,
     deleteTopic,
     duplicateTopic,
+    updateTopic,
     fetchTopics,
   } = useDispatch(curriculumStore);
 
