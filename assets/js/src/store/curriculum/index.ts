@@ -23,7 +23,6 @@ import type { Assignment } from "../../types/assignments";
 import { QuizForm } from "../../types/quiz";
 import { apiService } from "../../api/service";
 
-import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
 import { TopicRequest, APIResponse, TopicResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
