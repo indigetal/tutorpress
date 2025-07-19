@@ -582,6 +582,127 @@
   margin-bottom: 0;
 }
 
+/* ============================================================================
+   COURSE INSTRUCTORS PANEL
+   ============================================================================ */
+
+.tutorpress-instructors-panel {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-instructors-section {
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-instructors-section:last-child {
+  margin-bottom: 0;
+}
+
+.tutorpress-instructors-section-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.tutorpress-instructors-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.tutorpress-instructor-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+  transition: all var(--duration-fast) var(--ease-in-out);
+}
+
+.tutorpress-instructor-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tutorpress-instructor-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorpress-instructor-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tutorpress-instructor-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--color-primary);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.tutorpress-instructor-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.tutorpress-instructor-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.tutorpress-instructor-name {
+  font-weight: 400;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tutorpress-instructor-email {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tutorpress-instructors-empty {
+  padding: var(--space-lg);
+  text-align: center;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+}
+
+.tutorpress-instructors-empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 /* Price input specific styling */
 .tutorpress-course-pricing-panel .price-field .components-text-control__input {
   font-family: monospace;

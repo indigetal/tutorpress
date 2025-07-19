@@ -11,6 +11,7 @@ import CourseDetailsPanel from "./components/settings/CourseDetailsPanel";
 import CourseAccessPanel from "./components/settings/CourseAccessPanel";
 import CourseMediaPanel from "./components/settings/CourseMediaPanel";
 import CoursePricingPanel from "./components/settings/CoursePricingPanel";
+import CourseInstructorsPanel from "./components/settings/CourseInstructorsPanel";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
 
 // Import stores to ensure they are registered
@@ -66,6 +67,11 @@ registerPlugin("tutorpress-course-media-settings", {
 // Register the course pricing settings plugin for Gutenberg sidebar
 registerPlugin("tutorpress-course-pricing-settings", {
   render: CoursePricingPanel,
+});
+
+// Register the course instructors panel plugin for Gutenberg sidebar
+registerPlugin("tutorpress-course-instructors-panel", {
+  render: CourseInstructorsPanel,
 });
 
 // Initialize stores
