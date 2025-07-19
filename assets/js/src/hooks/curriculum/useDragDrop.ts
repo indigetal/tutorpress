@@ -7,14 +7,10 @@ import {
   OperationResult,
   ReorderOperationState,
 } from "../../types/curriculum";
-import apiFetch from "@wordpress/api-fetch";
 import { __ } from "@wordpress/i18n";
 import { useSortableList, type SortableItem } from "../common/useSortableList";
-
-// Type guard for WP REST API response
-const isWpRestResponse = (response: unknown): response is { success: boolean; message: string; data: unknown } => {
-  return typeof response === "object" && response !== null && "success" in response && "data" in response;
-};
+import { useDispatch } from "@wordpress/data";
+import { curriculumStore } from "../../store/curriculum";
 
 export interface UseDragDropOptions {
   courseId: number;
@@ -47,34 +43,20 @@ export function useDragDrop({
   setEditState,
   setReorderState,
 }: UseDragDropOptions): UseDragDropReturn {
-  /** Handle topic reordering with API persistence */
+  // Get the store's reorderTopics function
+  const { reorderTopics } = useDispatch(curriculumStore);
+
+  /** Handle topic reordering with API persistence using store function */
   const handleReorderTopics = useCallback(
     async (newOrder: Topic[]): Promise<OperationResult<void>> => {
       setReorderState({ status: "reordering" });
 
       try {
-        const res = await apiFetch<unknown>({
-          path: `/tutorpress/v1/topics/reorder`,
-          method: "POST",
-          data: {
-            course_id: courseId,
-            topic_orders: newOrder.map((t, idx) => ({ id: t.id, order: idx })),
-          },
-        });
-
-        if (!isWpRestResponse(res)) {
-          throw {
-            code: CurriculumErrorCode.INVALID_RESPONSE,
-            message: __("Invalid response format from server", "tutorpress"),
-          };
-        }
-
-        if (!res.success) {
-          throw {
-            code: CurriculumErrorCode.SERVER_ERROR,
-            message: res.message || __("Server returned an error", "tutorpress"),
-          };
-        }
+        // Use the store's reorderTopics function (uses API_FETCH control type)
+        await reorderTopics(
+          courseId,
+          newOrder.map((t) => t.id)
+        );
 
         setReorderState({ status: "success" });
         return { success: true };
@@ -97,7 +79,7 @@ export function useDragDrop({
         return { success: false, error };
       }
     },
-    [courseId, setReorderState]
+    [courseId, setReorderState, reorderTopics]
   );
 
   /** Handle drag start: cancel edit mode and close all topics */
