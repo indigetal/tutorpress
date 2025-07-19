@@ -1789,7 +1789,10 @@ const resolvers = {
 
   deleteAssignment: deleteResolvers.assignment,
 
-  duplicateLesson: duplicateResolvers.lesson,
+  *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, Lesson, unknown> {
+    const duplicatedLesson = yield* duplicateResolvers.lesson(lessonId, topicId);
+    return duplicatedLesson;
+  },
 
   *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {
     try {

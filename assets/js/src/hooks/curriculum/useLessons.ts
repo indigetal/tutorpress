@@ -8,7 +8,7 @@
 import { useCallback } from "react";
 import { LessonDuplicationState, CurriculumError, CurriculumErrorCode } from "../../types/curriculum";
 import type { Lesson } from "../../types/lessons";
-import { duplicateLesson } from "../../api/lessons";
+
 import { __ } from "@wordpress/i18n";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
@@ -37,7 +37,7 @@ export interface UseLessonsReturn {
  */
 export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessonsReturn {
   const { createNotice } = useDispatch(noticesStore);
-  const { setLessonDuplicationState, deleteLesson } = useDispatch("tutorpress/curriculum");
+  const { setLessonDuplicationState, deleteLesson, duplicateLesson } = useDispatch("tutorpress/curriculum");
 
   // Get lesson duplication state from store
   const lessonDuplicationState = useSelect((select) => {
@@ -65,7 +65,7 @@ export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessons
           sourceLessonId: lessonId,
         });
 
-        // Call the API directly to duplicate the lesson
+        // Call the store function to duplicate the lesson (returns lesson data)
         const duplicatedLesson = await duplicateLesson(lessonId, targetTopicId);
 
         // Set duplication state to success

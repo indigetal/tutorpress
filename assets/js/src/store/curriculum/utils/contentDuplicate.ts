@@ -36,7 +36,7 @@ export type DuplicateConfig = StandardDuplicateConfig | TopicDuplicateConfig;
  * Creates a duplicate resolver for standard content types (lessons, quizzes, live lessons)
  */
 export function createStandardDuplicateResolver(config: StandardDuplicateConfig) {
-  return function* (sourceId: number, targetId: number, courseId?: number): Generator<unknown, void, unknown> {
+  return function* (sourceId: number, targetId: number, courseId?: number): Generator<unknown, any, unknown> {
     try {
       const startPayload: any = { [config.sourceIdField]: sourceId };
       if (config.requiresCourseId && courseId !== undefined) {
@@ -90,6 +90,9 @@ export function createStandardDuplicateResolver(config: StandardDuplicateConfig)
         type: "SET_TOPICS",
         payload: createDuplicateContentPayload(targetId, entityData.id, entityData.title, config.contentType),
       };
+
+      // Return the duplicated entity data for immediate use (e.g., redirects)
+      return response.data;
     } catch (error) {
       const errorPayload: any = {
         error: {
