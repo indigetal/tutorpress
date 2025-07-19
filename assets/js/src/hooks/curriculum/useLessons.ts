@@ -75,21 +75,14 @@ export function useLessons({ courseId, topicId }: UseLessonsOptions): UseLessons
           duplicatedLessonId: duplicatedLesson.id,
         });
 
-        // Show success notice
-        createNotice("success", __("Lesson duplicated successfully. Redirecting to editor...", "tutorpress"), {
-          type: "snackbar",
-        });
-
-        // Redirect to the duplicate lesson editor
+        // Redirect to the duplicate lesson editor immediately
         const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
         const url = new URL("post.php", adminUrl);
         url.searchParams.append("post", duplicatedLesson.id.toString());
         url.searchParams.append("action", "edit");
 
-        // Small delay to show the success message before redirect
-        setTimeout(() => {
-          window.location.href = url.toString();
-        }, 500);
+        // Redirect immediately - success is shown by the redirect itself
+        window.location.href = url.toString();
       } catch (error) {
         // Set duplication state to error
         setLessonDuplicationState({

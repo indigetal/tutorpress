@@ -85,21 +85,14 @@ export function useAssignments({ courseId, topicId }: UseAssignmentsOptions): Us
           duplicatedAssignmentId: duplicatedAssignment.id,
         });
 
-        // Show success notice
-        createNotice("success", __("Assignment duplicated successfully. Redirecting to editor...", "tutorpress"), {
-          type: "snackbar",
-        });
-
-        // Redirect to the duplicate assignment editor
+        // Redirect to the duplicate assignment editor immediately
         const adminUrl = window.tutorPressCurriculum?.adminUrl || "";
         const url = new URL("post.php", adminUrl);
         url.searchParams.append("post", duplicatedAssignment.id.toString());
         url.searchParams.append("action", "edit");
 
-        // Small delay to show the success message before redirect
-        setTimeout(() => {
-          window.location.href = url.toString();
-        }, 500);
+        // Redirect immediately - success is shown by the redirect itself
+        window.location.href = url.toString();
       } catch (error) {
         // Set duplication state to error
         setAssignmentDuplicationState({
