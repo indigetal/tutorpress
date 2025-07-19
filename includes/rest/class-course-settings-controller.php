@@ -1031,7 +1031,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'orderby' => 'display_name',
             'order' => 'ASC',
             'exclude' => $current_instructor_ids,
-            'role__in' => ['administrator', 'editor', 'author', 'instructor'], // Include common instructor roles
+            'role__in' => ['administrator', 'editor', 'author', 'tutor_instructor'], // Include Tutor LMS instructor role
         ];
 
         // Add search functionality
@@ -1100,7 +1100,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         $valid_instructor_ids = [];
         foreach ($instructor_ids as $instructor_id) {
             $user = get_user_by('id', $instructor_id);
-            if ($user && user_can($instructor_id, 'edit_posts')) {
+            if ($user && (user_can($instructor_id, 'edit_posts') || user_can($instructor_id, 'tutor_instructor'))) {
                 $valid_instructor_ids[] = $instructor_id;
             }
         }
