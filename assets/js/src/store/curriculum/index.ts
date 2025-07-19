@@ -22,12 +22,6 @@ import type { Lesson } from "../../types/lessons";
 import { QuizForm } from "../../types/quiz";
 import { apiService } from "../../api/service";
 
-import {
-  createLesson as apiCreateLesson,
-  updateLesson as apiUpdateLesson,
-  deleteLesson as apiDeleteLesson,
-  duplicateLesson,
-} from "../../api/lessons";
 import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
 import { TopicRequest, APIResponse, TopicResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
