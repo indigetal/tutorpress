@@ -24,7 +24,7 @@ import {
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
-import { getTopics } from "../../api/topics";
+
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";

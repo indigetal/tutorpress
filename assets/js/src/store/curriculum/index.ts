@@ -21,14 +21,7 @@ import {
 import type { Lesson } from "../../types/lessons";
 import { QuizForm } from "../../types/quiz";
 import { apiService } from "../../api/service";
-import {
-  getTopics as fetchTopics,
-  reorderTopics,
-  duplicateTopic,
-  createTopic as apiCreateTopic,
-  updateTopic,
-  deleteTopic as apiDeleteTopic,
-} from "../../api/topics";
+
 import {
   createLesson as apiCreateLesson,
   updateLesson as apiUpdateLesson,
@@ -1000,6 +993,11 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           error: action.payload.error,
         },
       };
+    case "DELETE_TOPIC":
+      return {
+        ...state,
+        activeOperation: { type: "delete", topicId: action.payload.topicId },
+      };
     case "DELETE_TOPIC_START":
       return {
         ...state,
@@ -1015,6 +1013,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           status: "success",
           topicId: action.payload.topicId,
         },
+        activeOperation: { type: "none" },
       };
     case "DELETE_TOPIC_ERROR":
       return {
@@ -1023,6 +1022,7 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           status: "error",
           error: action.payload.error,
         },
+        activeOperation: { type: "none" },
       };
     case "DUPLICATE_LESSON_START":
       return {

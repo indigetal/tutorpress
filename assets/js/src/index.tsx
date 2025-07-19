@@ -12,7 +12,6 @@ import CourseAccessPanel from "./components/settings/CourseAccessPanel";
 import CourseMediaPanel from "./components/settings/CourseMediaPanel";
 import CoursePricingPanel from "./components/settings/CoursePricingPanel";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
-import "./api"; // Import API module to expose it to window
 
 // Import stores to ensure they are registered
 import "./store/h5p"; // H5P store registration
