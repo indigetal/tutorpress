@@ -185,6 +185,82 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                 ]
             );
 
+            // Instructor management endpoints
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<course_id>[\d]+)/settings/instructors',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_course_instructors'],
+                        'permission_callback' => [$this, 'check_instructor_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course to get instructors for.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'update_course_instructors'],
+                        'permission_callback' => [$this, 'check_instructor_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course to update instructors for.', 'tutorpress'),
+                            ],
+                            'instructor_ids' => [
+                                'type'              => 'array',
+                                'items'             => ['type' => 'integer'],
+                                'sanitize_callback' => function($ids) {
+                                    return array_map('absint', (array) $ids);
+                                },
+                                'description'       => __('Array of instructor user IDs to assign to the course.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
+            // Instructor search endpoint
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<course_id>[\d]+)/settings/instructors/search',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'search_instructors'],
+                        'permission_callback' => [$this, 'check_instructor_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course to search instructors for.', 'tutorpress'),
+                            ],
+                            'search' => [
+                                'type'              => 'string',
+                                'sanitize_callback' => 'sanitize_text_field',
+                                'description'       => __('Search term for instructor names or emails.', 'tutorpress'),
+                            ],
+                            'per_page' => [
+                                'type'              => 'integer',
+                                'default'           => 10,
+                                'minimum'           => 1,
+                                'maximum'           => 50,
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('Number of results per page.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
                     // Add endpoint for course selection (prerequisites dropdown)
         register_rest_route($this->namespace, '/courses/prerequisites', array(
             array(
@@ -565,6 +641,25 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
     }
 
     /**
+     * Check permissions for instructor management endpoints
+     *
+     * @param WP_REST_Request $request The REST request object
+     * @return bool|WP_Error True if user has permission, error otherwise
+     */
+    public function check_instructor_permission($request) {
+        // Allow any user who can edit posts to manage instructors (same as prerequisites)
+        if (!current_user_can('edit_posts')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to manage course instructors.', 'tutorpress'),
+                array('status' => 403)
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Get attachment metadata for course attachments
      *
      * @param WP_REST_Request $request The REST request object
@@ -837,5 +932,235 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             '_video' => 'intro_video',
             '_tutor_attachments' => 'attachments',
         ];
+    }
+
+    /**
+     * Get course instructors (author + co-instructors)
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function get_course_instructors($request) {
+        $course_id = $request->get_param('course_id');
+
+        // Verify course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'courses') {
+            return new WP_Error(
+                'invalid_course',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get course author (main instructor)
+        $author = get_user_by('id', $course->post_author);
+        $author_data = null;
+        if ($author) {
+            $author_data = [
+                'id' => $author->ID,
+                'name' => $author->display_name,
+                'email' => $author->user_email,
+                'avatar' => get_avatar_url($author->ID, ['size' => 96]),
+                'role' => 'author',
+            ];
+        }
+
+        // Get co-instructors from improved data model
+        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
+        if (!is_array($co_instructor_ids)) {
+            $co_instructor_ids = [];
+        }
+
+        $co_instructors = [];
+        foreach ($co_instructor_ids as $instructor_id) {
+            $instructor = get_user_by('id', $instructor_id);
+            if ($instructor) {
+                $co_instructors[] = [
+                    'id' => $instructor->ID,
+                    'name' => $instructor->display_name,
+                    'email' => $instructor->user_email,
+                    'avatar' => get_avatar_url($instructor->ID, ['size' => 96]),
+                    'role' => 'instructor',
+                ];
+            }
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => [
+                'author' => $author_data,
+                'co_instructors' => $co_instructors,
+                'total_instructors' => count($co_instructors) + ($author_data ? 1 : 0),
+            ],
+            'course_id' => $course_id,
+        ]);
+    }
+
+    /**
+     * Search for available instructors to add
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function search_instructors($request) {
+        $course_id = $request->get_param('course_id');
+        $search = $request->get_param('search');
+        $per_page = $request->get_param('per_page');
+
+        // Verify course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'courses') {
+            return new WP_Error(
+                'invalid_course',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get current instructors to exclude from search
+        $current_instructor_ids = [$course->post_author]; // Include author
+        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
+        if (is_array($co_instructor_ids)) {
+            $current_instructor_ids = array_merge($current_instructor_ids, $co_instructor_ids);
+        }
+
+        // Build user query
+        $args = [
+            'number' => $per_page,
+            'orderby' => 'display_name',
+            'order' => 'ASC',
+            'exclude' => $current_instructor_ids,
+            'role__in' => ['administrator', 'editor', 'author', 'instructor'], // Include common instructor roles
+        ];
+
+        // Add search functionality
+        if (!empty($search)) {
+            $args['search'] = '*' . $search . '*';
+            $args['search_columns'] = ['user_login', 'user_email', 'display_name'];
+        }
+
+        $users = get_users($args);
+        $instructors = [];
+
+        foreach ($users as $user) {
+            $instructors[] = [
+                'id' => $user->ID,
+                'name' => $user->display_name,
+                'email' => $user->user_email,
+                'avatar' => get_avatar_url($user->ID, ['size' => 96]),
+                'role' => $user->roles[0] ?? 'subscriber',
+            ];
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $instructors,
+            'total_found' => count($instructors),
+            'search_term' => $search,
+            'course_id' => $course_id,
+        ]);
+    }
+
+    /**
+     * Update course instructors (co-instructors only, not author)
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function update_course_instructors($request) {
+        $course_id = $request->get_param('course_id');
+        $instructor_ids = $request->get_param('instructor_ids');
+
+        // Verify course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'courses') {
+            return new WP_Error(
+                'invalid_course',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Check if user can edit this specific course
+        if (!current_user_can('edit_post', $course_id)) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to edit this course.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        // Ensure instructor_ids is an array
+        if (!is_array($instructor_ids)) {
+            $instructor_ids = [];
+        }
+
+        // Validate instructor IDs
+        $valid_instructor_ids = [];
+        foreach ($instructor_ids as $instructor_id) {
+            $user = get_user_by('id', $instructor_id);
+            if ($user && user_can($instructor_id, 'edit_posts')) {
+                $valid_instructor_ids[] = $instructor_id;
+            }
+        }
+
+        // Try to update the meta field with fallback approach
+        $result = update_post_meta($course_id, '_tutor_course_instructors', $valid_instructor_ids);
+        
+        if ($result === false) {
+            // Try alternative approach - delete and add
+            delete_post_meta($course_id, '_tutor_course_instructors');
+            $result = add_post_meta($course_id, '_tutor_course_instructors', $valid_instructor_ids, true);
+            
+            if ($result === false) {
+                return new WP_Error(
+                    'update_failed',
+                    __('Failed to update course instructors. Database error.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+        }
+
+        // Sync to Tutor LMS compatibility (user meta)
+        try {
+            $this->sync_instructors_to_tutor_lms($course_id, $valid_instructor_ids);
+        } catch (Exception $e) {
+            // Don't fail the request if sync fails
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => __('Course instructors updated successfully.', 'tutorpress'),
+            'data' => [
+                'instructor_ids' => $valid_instructor_ids,
+                'total_instructors' => count($valid_instructor_ids),
+            ],
+            'course_id' => $course_id,
+        ]);
+    }
+
+    /**
+     * Sync instructors to Tutor LMS compatibility format
+     *
+     * @param int $course_id The course ID
+     * @param array $instructor_ids Array of instructor user IDs
+     * @return void
+     */
+    private function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
+        // Remove old instructor associations
+        global $wpdb;
+        $wpdb->delete(
+            $wpdb->usermeta,
+            [
+                'meta_key' => '_tutor_instructor_course_id',
+                'meta_value' => $course_id,
+            ]
+        );
+
+        // Add new instructor associations
+        foreach ($instructor_ids as $instructor_id) {
+            add_user_meta($instructor_id, '_tutor_instructor_course_id', $course_id);
+        }
     }
 } 
