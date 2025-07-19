@@ -19,6 +19,7 @@ import {
   BaseContentItem,
 } from "../../types/curriculum";
 import type { Lesson } from "../../types/lessons";
+import type { Assignment } from "../../types/assignments";
 import { QuizForm } from "../../types/quiz";
 import { apiService } from "../../api/service";
 
@@ -80,6 +81,11 @@ export interface CurriculumState {
     error?: CurriculumError;
     activeLessonId?: number;
   };
+  assignmentState: {
+    status: "idle" | "loading" | "error" | "success";
+    error?: CurriculumError;
+    activeAssignmentId?: number;
+  };
   liveLessonState: {
     status: "idle" | "saving" | "loading" | "deleting" | "duplicating" | "error" | "success";
     error?: CurriculumError;
@@ -116,6 +122,7 @@ const DEFAULT_STATE: CurriculumState = {
   quizDuplicationState: { status: "idle" },
   reorderState: { status: "idle" },
   lessonState: { status: "idle" },
+  assignmentState: { status: "idle" },
   liveLessonState: { status: "idle" },
   liveLessonDuplicationState: { status: "idle" },
   contentReorderState: { status: "idle" },
@@ -163,6 +170,9 @@ export type CurriculumAction =
   | { type: "DELETE_ASSIGNMENT_START"; payload: { assignmentId: number } }
   | { type: "DELETE_ASSIGNMENT_SUCCESS"; payload: { assignmentId: number } }
   | { type: "DELETE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
+  | { type: "CREATE_ASSIGNMENT_START"; payload: { topicId: number } }
+  | { type: "CREATE_ASSIGNMENT_SUCCESS"; payload: { assignment: Assignment } }
+  | { type: "CREATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
   | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
@@ -176,6 +186,7 @@ export type CurriculumAction =
     }
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
   | { type: "DELETE_ASSIGNMENT"; payload: { assignmentId: number } }
+  | { type: "CREATE_ASSIGNMENT"; payload: { title: string; content: string; topic_id: number } }
   | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
@@ -557,6 +568,12 @@ export const actions = {
       payload: { assignmentId },
     };
   },
+  createAssignment(data: { title: string; content: string; topic_id: number }) {
+    return {
+      type: "CREATE_ASSIGNMENT",
+      payload: data,
+    };
+  },
 };
 
 // Selectors
@@ -626,6 +643,23 @@ const selectors = {
   isLessonLoading: namedLessonSelectors.isLessonLoading,
   hasLessonError: namedLessonSelectors.hasLessonError,
   getLessonError: namedLessonSelectors.getLessonError,
+
+  // Assignment selectors
+  getAssignmentState(state: CurriculumState) {
+    return state.assignmentState;
+  },
+  getActiveAssignmentId(state: CurriculumState) {
+    return state.assignmentState.activeAssignmentId;
+  },
+  isAssignmentLoading(state: CurriculumState) {
+    return state.assignmentState.status === "loading";
+  },
+  hasAssignmentError(state: CurriculumState) {
+    return state.assignmentState.status === "error" && !!state.assignmentState.error;
+  },
+  getAssignmentError(state: CurriculumState) {
+    return state.assignmentState.status === "error" ? state.assignmentState.error : null;
+  },
 
   // Quiz selectors - Factory-generated
   getQuizState: namedQuizSelectors.getQuizState,
@@ -985,6 +1019,38 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         lessonState: {
           status: "error",
           error: action.payload.error,
+        },
+      };
+    case "CREATE_ASSIGNMENT_START":
+      return {
+        ...state,
+        assignmentState: {
+          status: "loading",
+          activeAssignmentId: action.payload.topicId,
+        },
+      };
+    case "CREATE_ASSIGNMENT_SUCCESS":
+      return {
+        ...state,
+        assignmentState: {
+          status: "success",
+          activeAssignmentId: action.payload.assignment.id,
+        },
+      };
+    case "CREATE_ASSIGNMENT_ERROR":
+      return {
+        ...state,
+        assignmentState: {
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+    case "CREATE_ASSIGNMENT":
+      return {
+        ...state,
+        assignmentState: {
+          status: "loading",
+          activeAssignmentId: undefined,
         },
       };
     case "DELETE_TOPIC":
@@ -1782,6 +1848,84 @@ const resolvers = {
   deleteLesson: deleteResolvers.lesson,
 
   deleteAssignment: deleteResolvers.assignment,
+
+  *createAssignment(data: {
+    title: string;
+    content: string;
+    topic_id: number;
+  }): Generator<unknown, Assignment, unknown> {
+    try {
+      yield {
+        type: "CREATE_ASSIGNMENT_START",
+        payload: { topicId: data.topic_id },
+      };
+
+      // Create the assignment
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/assignments",
+          method: "POST",
+          data,
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("data" in response)) {
+        throw new Error("Invalid assignment creation response");
+      }
+
+      const assignment = response.data as Assignment;
+
+      yield {
+        type: "CREATE_ASSIGNMENT_SUCCESS",
+        payload: { assignment },
+      };
+
+      // Update topics directly to add the new assignment (preserves toggle states)
+      yield {
+        type: "SET_TOPICS",
+        payload: (currentTopics: Topic[]) => {
+          return currentTopics.map((topic) => {
+            if (topic.id === data.topic_id) {
+              return {
+                ...topic,
+                contents: [
+                  ...(topic.contents || []),
+                  {
+                    id: assignment.id,
+                    title: assignment.title,
+                    type: "tutor_assignments",
+                    topic_id: data.topic_id,
+                    order: (topic.contents?.length || 0) + 1,
+                    menu_order: (topic.contents?.length || 0) + 1,
+                    status: "publish",
+                  },
+                ],
+              };
+            }
+            return topic;
+          });
+        },
+      };
+
+      return assignment;
+    } catch (error) {
+      yield {
+        type: "CREATE_ASSIGNMENT_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.SAVE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to create assignment", "tutorpress"),
+            context: {
+              action: "createAssignment",
+              details: `Failed to create assignment for topic ${data.topic_id}`,
+            },
+          },
+        },
+      };
+      throw error;
+    }
+  },
 
   *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, Lesson, unknown> {
     const duplicatedLesson = yield* duplicateResolvers.lesson(lessonId, topicId);
