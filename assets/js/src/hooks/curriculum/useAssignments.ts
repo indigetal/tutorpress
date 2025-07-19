@@ -8,7 +8,6 @@
 import { useCallback } from "react";
 import { AssignmentDuplicationState, CurriculumError, CurriculumErrorCode } from "../../types/curriculum";
 import type { Assignment } from "../../types/assignments";
-import { duplicateAssignment } from "../../api/assignments";
 import { __ } from "@wordpress/i18n";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
@@ -38,7 +37,7 @@ export interface UseAssignmentsReturn {
  */
 export function useAssignments({ courseId, topicId }: UseAssignmentsOptions): UseAssignmentsReturn {
   const { createNotice } = useDispatch(noticesStore);
-  const { setAssignmentDuplicationState, deleteAssignment } = useDispatch("tutorpress/curriculum");
+  const { deleteAssignment, duplicateAssignment } = useDispatch("tutorpress/curriculum");
 
   // Get assignment duplication state from store
   const assignmentDuplicationState = useSelect((select) => {
@@ -69,20 +68,12 @@ export function useAssignments({ courseId, topicId }: UseAssignmentsOptions): Us
       }
 
       try {
-        // Set duplication state to loading
-        setAssignmentDuplicationState({
-          status: "duplicating",
-          sourceAssignmentId: assignmentId,
-        });
+        // Call the store function to duplicate the assignment (returns assignment data)
+        const duplicatedAssignment = await duplicateAssignment(assignmentId, targetTopicId, courseId);
 
-        // Call the API directly to duplicate the assignment
-        const duplicatedAssignment = await duplicateAssignment(assignmentId, targetTopicId);
-
-        // Set duplication state to success
-        setAssignmentDuplicationState({
-          status: "success",
-          sourceAssignmentId: assignmentId,
-          duplicatedAssignmentId: duplicatedAssignment.id,
+        // Show success notice
+        createNotice("success", __("Assignment duplicated successfully. Redirecting to editor...", "tutorpress"), {
+          type: "snackbar",
         });
 
         // Redirect to the duplicate assignment editor immediately
@@ -91,23 +82,9 @@ export function useAssignments({ courseId, topicId }: UseAssignmentsOptions): Us
         url.searchParams.append("post", duplicatedAssignment.id.toString());
         url.searchParams.append("action", "edit");
 
-        // Redirect immediately - success is shown by the redirect itself
+        // Redirect immediately - no delay needed
         window.location.href = url.toString();
       } catch (error) {
-        // Set duplication state to error
-        setAssignmentDuplicationState({
-          status: "error",
-          error: {
-            code: CurriculumErrorCode.DUPLICATE_FAILED,
-            message: error instanceof Error ? error.message : __("Failed to duplicate assignment.", "tutorpress"),
-            context: {
-              action: "duplicateAssignment",
-              details: `Failed to duplicate assignment ${assignmentId}`,
-            },
-          },
-          sourceAssignmentId: assignmentId,
-        });
-
         // Handle error
         const errorMessage =
           error instanceof Error ? error.message : __("Failed to duplicate assignment.", "tutorpress");
@@ -116,7 +93,7 @@ export function useAssignments({ courseId, topicId }: UseAssignmentsOptions): Us
         });
       }
     },
-    [courseId, createNotice, setAssignmentDuplicationState]
+    [courseId, createNotice, duplicateAssignment]
   );
 
   /** Handle assignment deletion */
