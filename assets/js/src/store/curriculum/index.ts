@@ -173,6 +173,9 @@ export type CurriculumAction =
   | { type: "CREATE_ASSIGNMENT_START"; payload: { topicId: number } }
   | { type: "CREATE_ASSIGNMENT_SUCCESS"; payload: { assignment: Assignment } }
   | { type: "CREATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
+  | { type: "UPDATE_ASSIGNMENT_START"; payload: { assignmentId: number } }
+  | { type: "UPDATE_ASSIGNMENT_SUCCESS"; payload: { assignment: Assignment } }
+  | { type: "UPDATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError } }
   | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
@@ -187,6 +190,10 @@ export type CurriculumAction =
   | { type: "DELETE_LESSON"; payload: { lessonId: number } }
   | { type: "DELETE_ASSIGNMENT"; payload: { assignmentId: number } }
   | { type: "CREATE_ASSIGNMENT"; payload: { title: string; content: string; topic_id: number } }
+  | {
+      type: "UPDATE_ASSIGNMENT";
+      payload: { assignmentId: number; data: Partial<{ title: string; content: string; topic_id: number }> };
+    }
   | { type: "DELETE_TOPIC"; payload: { topicId: number; courseId: number } }
   | { type: "DUPLICATE_LESSON"; payload: { lessonId: number; topicId: number } }
   | { type: "SET_LESSON_STATE"; payload: CurriculumState["lessonState"] }
@@ -572,6 +579,12 @@ export const actions = {
     return {
       type: "CREATE_ASSIGNMENT",
       payload: data,
+    };
+  },
+  updateAssignment(assignmentId: number, data: Partial<{ title: string; content: string; topic_id: number }>) {
+    return {
+      type: "UPDATE_ASSIGNMENT",
+      payload: { assignmentId, data },
     };
   },
 };
@@ -1051,6 +1064,14 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
         assignmentState: {
           status: "loading",
           activeAssignmentId: undefined,
+        },
+      };
+    case "UPDATE_ASSIGNMENT":
+      return {
+        ...state,
+        assignmentState: {
+          status: "loading",
+          activeAssignmentId: action.payload.assignmentId,
         },
       };
     case "DELETE_TOPIC":
@@ -1926,6 +1947,100 @@ const resolvers = {
       throw error;
     }
   },
+
+  // Wrapped updateAssignment with automatic START/SUCCESS/ERROR dispatching
+  updateAssignment: createOperationWrapper(
+    OPERATION_CONFIGS.updateAssignment,
+    function* (
+      assignmentId: number,
+      data: Partial<{ title: string; content: string; topic_id: number }>
+    ): Generator<unknown, { assignment: Assignment }, unknown> {
+      // Update the assignment
+      const assignmentResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/assignments/${assignmentId}`,
+          method: "PATCH",
+          data,
+        },
+      };
+
+      if (!assignmentResponse || typeof assignmentResponse !== "object" || !("data" in assignmentResponse)) {
+        throw new Error("Invalid assignment response");
+      }
+
+      const assignment = assignmentResponse.data as Assignment;
+
+      // If topic_id changed, we need to refresh topics
+      if (data.topic_id) {
+        // Get parent info to get the course ID
+        const parentInfoResponse = yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/assignments/${assignment.id}/parent-info`,
+            method: "GET",
+          },
+        };
+
+        if (!parentInfoResponse || typeof parentInfoResponse !== "object" || !("data" in parentInfoResponse)) {
+          throw new Error("Invalid parent info response");
+        }
+
+        const parentInfo = parentInfoResponse as { data: { course_id: number } };
+
+        // Fetch updated topics
+        const topicsResponse = yield {
+          type: "API_FETCH",
+          request: {
+            path: `/tutorpress/v1/topics?course_id=${parentInfo.data.course_id}`,
+            method: "GET",
+          },
+        };
+
+        if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
+          throw new Error("Invalid topics response");
+        }
+
+        const topics = topicsResponse as { data: Topic[] };
+
+        // Transform topics to preserve UI state - set to collapsed to avoid toggle issues
+        const transformedTopics = topics.data.map((topic) => ({
+          ...topic,
+          isCollapsed: true,
+          contents: topic.contents || [],
+        }));
+
+        yield {
+          type: "SET_TOPICS",
+          payload: transformedTopics,
+        };
+      } else {
+        // Update topics directly to reflect the updated assignment (preserves toggle states)
+        yield {
+          type: "SET_TOPICS",
+          payload: (currentTopics: Topic[]) => {
+            return currentTopics.map((topic) => {
+              const assignmentIndex = topic.contents?.findIndex((item) => item.id === assignmentId) ?? -1;
+              if (assignmentIndex >= 0) {
+                const updatedContents = [...(topic.contents || [])];
+                updatedContents[assignmentIndex] = {
+                  ...updatedContents[assignmentIndex],
+                  title: assignment.title,
+                };
+                return {
+                  ...topic,
+                  contents: updatedContents,
+                };
+              }
+              return topic;
+            });
+          },
+        };
+      }
+
+      return { assignment };
+    }
+  ),
 
   *duplicateLesson(lessonId: number, topicId: number): Generator<unknown, Lesson, unknown> {
     const duplicatedLesson = yield* duplicateResolvers.lesson(lessonId, topicId);

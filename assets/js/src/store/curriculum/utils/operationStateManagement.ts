@@ -324,6 +324,12 @@ export const OPERATION_CONFIGS = {
     statePath: "lessonState", // Note: assignments use lessonState
     entityIdField: "assignmentId",
   } as OperationConfig,
+
+  updateAssignment: {
+    operationType: "updateAssignment",
+    statePath: "assignmentState",
+    entityIdField: "assignmentId",
+  } as OperationConfig,
 };
 
 /**
