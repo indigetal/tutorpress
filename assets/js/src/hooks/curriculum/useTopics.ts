@@ -24,7 +24,7 @@ import {
 } from "../../types/curriculum";
 import type { CurriculumSnapshot } from "./useSnapshot";
 import { useSnapshot } from "./useSnapshot";
-import { getTopics, duplicateTopic, updateTopic, createTopic } from "../../api/topics";
+import { getTopics, updateTopic, createTopic } from "../../api/topics";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";
@@ -153,6 +153,7 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     setIsAddingTopic,
     setActiveOperation,
     deleteTopic,
+    duplicateTopic,
     fetchTopics,
   } = useDispatch(curriculumStore);
 
@@ -639,16 +640,11 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
           sourceTopicId: topicId,
         });
 
-        // Duplicate topic
-        const duplicatedTopic = await duplicateTopic(topicId, courseId);
+        // Use the store's duplicateTopic function (uses API_FETCH control type)
+        await duplicateTopic(topicId, courseId);
 
-        // Update state with the new topic
-        setTopics((currentTopics) => [...currentTopics, duplicatedTopic]);
-        setDuplicationState({
-          status: "success",
-          sourceTopicId: topicId,
-          duplicatedTopicId: duplicatedTopic.id,
-        });
+        // The store function handles updating the topics list and duplication state
+        // No need to manually update state here
 
         // Cleanup and show success notice
         handleOperationSuccess();

@@ -16,6 +16,7 @@ import {
   OperationResult,
   TopicActiveOperation,
   CurriculumErrorCode,
+  BaseContentItem,
 } from "../../types/curriculum";
 import type { Lesson } from "../../types/lessons";
 import { QuizForm } from "../../types/quiz";
@@ -35,7 +36,7 @@ import {
   duplicateLesson,
 } from "../../api/lessons";
 import { deleteAssignment as apiDeleteAssignment } from "../../api/assignments";
-import { TopicRequest, APIResponse } from "../../types/api";
+import { TopicRequest, APIResponse, TopicResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
 import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
 import {
@@ -1448,18 +1449,54 @@ const resolvers = {
     }
   },
 
-  async duplicateTopic(topicId: number, courseId: number) {
+  *duplicateTopic(topicId: number, courseId: number): Generator<unknown, void, unknown> {
     try {
-      actions.setDuplicationState({
+      yield actions.setDuplicationState({
         status: "duplicating",
         sourceTopicId: topicId,
       });
 
-      const newTopic = await duplicateTopic(topicId, courseId);
+      // Duplicate topic using API_FETCH
+      const duplicateResponse = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics/${topicId}/duplicate`,
+          method: "POST",
+          data: {
+            course_id: courseId,
+          },
+        },
+      };
 
-      const updatedTopics = await fetchTopics(courseId);
-      actions.setTopics(updatedTopics);
-      actions.setDuplicationState({
+      if (!duplicateResponse || typeof duplicateResponse !== "object" || !("success" in duplicateResponse)) {
+        throw new Error("Invalid duplicate response");
+      }
+
+      const duplicateResult = duplicateResponse as { success: boolean; message?: string; data?: TopicResponse };
+      if (!duplicateResult.success || !duplicateResult.data) {
+        const errorMessage = duplicateResult.message || "Failed to duplicate topic";
+        throw new Error(errorMessage);
+      }
+
+      const topicData = duplicateResult.data; // Now TypeScript knows this is defined
+
+      // Transform the duplicated topic to match the frontend Topic interface
+      const newTopic: Topic = {
+        id: topicData.id,
+        title: topicData.title,
+        content: topicData.content || "",
+        menu_order: topicData.menu_order || 0,
+        isCollapsed: true,
+        contents: (topicData.contents || []).map((item: BaseContentItem) => ({
+          ...item,
+          topic_id: topicData.id,
+          order: 0,
+        })),
+      };
+
+      // Add the new topic to the existing topics list (efficient single-API-call approach)
+      yield actions.setTopics((currentTopics) => [...currentTopics, newTopic]);
+      yield actions.setDuplicationState({
         status: "success",
         sourceTopicId: topicId,
         duplicatedTopicId: newTopic.id,
@@ -1467,13 +1504,13 @@ const resolvers = {
     } catch (error) {
       const curriculumError = createCurriculumError(
         error,
-        CurriculumErrorCode.CREATION_FAILED,
+        CurriculumErrorCode.DUPLICATE_FAILED,
         "duplicateTopic",
         "Failed to duplicate topic",
         { topicId, courseId }
       );
 
-      actions.setDuplicationState({
+      yield actions.setDuplicationState({
         status: "error",
         error: curriculumError,
         sourceTopicId: topicId,
