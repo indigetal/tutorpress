@@ -6,6 +6,7 @@ import { __ } from "@wordpress/i18n";
 
 // Import course settings types
 import type { CourseInstructors } from "../../types/courses";
+import { isMultiInstructorsEnabled } from "../../utils/addonChecker";
 
 const CourseInstructorsPanel: React.FC = () => {
   // Get instructor data from our store
@@ -33,6 +34,9 @@ const CourseInstructorsPanel: React.FC = () => {
   if (postType !== "courses") {
     return null;
   }
+
+  // Check if Multi Instructors addon is enabled
+  const isMultiInstructorsAddonEnabled = isMultiInstructorsEnabled();
 
   // Show loading state while fetching instructors
   if (isLoading) {
@@ -116,7 +120,7 @@ const CourseInstructorsPanel: React.FC = () => {
           </div>
         )}
 
-        {instructors.co_instructors && instructors.co_instructors.length > 0 && (
+        {isMultiInstructorsAddonEnabled && instructors.co_instructors && instructors.co_instructors.length > 0 && (
           <div className="tutorpress-saved-files-list">
             <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
               {__("Co-Instructors:", "tutorpress")} ({instructors.co_instructors.length})
@@ -143,11 +147,27 @@ const CourseInstructorsPanel: React.FC = () => {
           </div>
         )}
 
-        {!instructors.author && (!instructors.co_instructors || instructors.co_instructors.length === 0) && (
-          <div className="tutorpress-instructors-empty">
-            <p>{__("No instructors assigned to this course.", "tutorpress")}</p>
+        {isMultiInstructorsAddonEnabled && (!instructors.co_instructors || instructors.co_instructors.length === 0) && (
+          <div className="tutorpress-saved-files-list">
+            <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
+              {__("Co-Instructors:", "tutorpress")}
+            </div>
+            <div className="tutorpress-instructors-empty">
+              <p>
+                {__("No co-instructors assigned. Add co-instructors using the Multi Instructors addon.", "tutorpress")}
+              </p>
+            </div>
           </div>
         )}
+
+        {!instructors.author &&
+          (!isMultiInstructorsAddonEnabled ||
+            !instructors.co_instructors ||
+            instructors.co_instructors.length === 0) && (
+            <div className="tutorpress-instructors-empty">
+              <p>{__("No instructors assigned to this course.", "tutorpress")}</p>
+            </div>
+          )}
       </div>
     </PluginDocumentSettingPanel>
   );
