@@ -73,6 +73,39 @@ export interface CourseIntroVideo {
 }
 
 /**
+ * Instructor user data for display and management
+ */
+export interface InstructorUser {
+  id: number;
+  display_name: string;
+  user_email: string;
+  user_login: string;
+  avatar_url: string;
+}
+
+/**
+ * Course instructors data structure
+ * Includes author and co-instructors with full user objects
+ */
+export interface CourseInstructors {
+  author_id: number;
+  author: InstructorUser | null;
+  instructor_ids: number[];
+  instructors: InstructorUser[];
+}
+
+/**
+ * Instructor search result for user selection
+ */
+export interface InstructorSearchResult {
+  id: number;
+  display_name: string;
+  user_email: string;
+  user_login: string;
+  avatar_url: string;
+}
+
+/**
  * Complete course settings interface matching Tutor LMS _tutor_course_settings structure
  */
 export interface CourseSettings {
@@ -108,6 +141,7 @@ export interface CourseSettings {
   // Instructors Section
   instructors: number[];
   additional_instructors: number[];
+  course_instructors?: CourseInstructors; // Enhanced instructor data with user objects
 
   // Content Drip (existing)
   enable_content_drip?: boolean;
@@ -162,6 +196,12 @@ export const defaultCourseSettings: CourseSettings = {
   // Instructors
   instructors: [],
   additional_instructors: [],
+  course_instructors: {
+    author_id: 0,
+    author: null,
+    instructor_ids: [],
+    instructors: [],
+  },
 };
 
 /**

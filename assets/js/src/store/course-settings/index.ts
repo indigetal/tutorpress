@@ -10,7 +10,13 @@
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { select, dispatch as wpDispatch } from "@wordpress/data";
-import type { CourseSettings, PrerequisiteCourse, CourseAttachment } from "../../types/courses";
+import type {
+  CourseSettings,
+  PrerequisiteCourse,
+  CourseAttachment,
+  CourseInstructors,
+  InstructorSearchResult,
+} from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
@@ -54,6 +60,14 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
+  instructors: {
+    courseInstructors: CourseInstructors | null;
+    searchResults: InstructorSearchResult[];
+    isLoading: boolean;
+    isSearching: boolean;
+    error: string | null;
+    searchError: string | null;
+  };
 }
 
 const DEFAULT_STATE: State = {
@@ -84,6 +98,14 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
+  instructors: {
+    courseInstructors: null,
+    searchResults: [],
+    isLoading: false,
+    isSearching: false,
+    error: null,
+    searchError: null,
+  },
 };
 
 type CourseSettingsAction =
@@ -98,7 +120,10 @@ type CourseSettingsAction =
   | { type: "SET_WOOCOMMERCE_STATE"; payload: Partial<State["woocommerce"]> }
   | { type: "SET_EDD_PRODUCTS"; payload: any[] }
   | { type: "SET_EDD_PRODUCT_DETAILS"; payload: any }
-  | { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> };
+  | { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> }
+  | { type: "SET_COURSE_INSTRUCTORS"; payload: CourseInstructors }
+  | { type: "SET_INSTRUCTOR_SEARCH_RESULTS"; payload: InstructorSearchResult[] }
+  | { type: "SET_INSTRUCTORS_STATE"; payload: Partial<State["instructors"]> };
 
 const actions = {
   setSettings(settings: CourseSettings) {
@@ -181,6 +206,27 @@ const actions = {
   setEddState(state: Partial<State["edd"]>) {
     return {
       type: "SET_EDD_STATE" as const,
+      payload: state,
+    };
+  },
+
+  setCourseInstructors(instructors: CourseInstructors) {
+    return {
+      type: "SET_COURSE_INSTRUCTORS" as const,
+      payload: instructors,
+    };
+  },
+
+  setInstructorSearchResults(results: InstructorSearchResult[]) {
+    return {
+      type: "SET_INSTRUCTOR_SEARCH_RESULTS" as const,
+      payload: results,
+    };
+  },
+
+  setInstructorsState(state: Partial<State["instructors"]>) {
+    return {
+      type: "SET_INSTRUCTORS_STATE" as const,
       payload: state,
     };
   },
@@ -599,6 +645,24 @@ const selectors = {
   getEddError(state: State) {
     return state.edd.error;
   },
+  getInstructors(state: State) {
+    return state.instructors.courseInstructors;
+  },
+  getInstructorSearchResults(state: State) {
+    return state.instructors.searchResults;
+  },
+  getInstructorsLoading(state: State) {
+    return state.instructors.isLoading;
+  },
+  getInstructorsSearching(state: State) {
+    return state.instructors.isSearching;
+  },
+  getInstructorsError(state: State) {
+    return state.instructors.error;
+  },
+  getInstructorSearchError(state: State) {
+    return state.instructors.searchError;
+  },
 };
 
 const resolvers = {
@@ -656,6 +720,144 @@ const resolvers = {
       yield actions.setFetchState({ isLoading: false, error: null });
     } catch (error: any) {
       yield actions.setFetchState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  /**
+   * Get course instructors (author + co-instructors)
+   */
+  *getCourseInstructors(): Generator<unknown, void, APIResponse<CourseInstructors>> {
+    try {
+      yield actions.setInstructorsState({ isLoading: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "getCourseInstructors",
+          "Failed to get course ID"
+        );
+      }
+
+      // Get instructors through our API wrapper
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/settings/instructors`,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "getCourseInstructors",
+          "Failed to fetch course instructors"
+        );
+      }
+
+      yield actions.setCourseInstructors(response.data);
+      yield actions.setInstructorsState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setInstructorsState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  /**
+   * Search for available instructors to add
+   */
+  *searchInstructors(search: string): Generator<unknown, void, APIResponse<InstructorSearchResult[]>> {
+    try {
+      yield actions.setInstructorsState({ isSearching: true, searchError: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "searchInstructors",
+          "Failed to get course ID"
+        );
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (search.trim()) {
+        queryParams.append("search", search.trim());
+      }
+
+      // Search instructors through our API wrapper
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/settings/instructors/search?${queryParams.toString()}`,
+          method: "GET",
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "searchInstructors",
+          "Failed to search instructors"
+        );
+      }
+
+      yield actions.setInstructorSearchResults(response.data);
+      yield actions.setInstructorsState({ isSearching: false, searchError: null });
+    } catch (error: any) {
+      yield actions.setInstructorsState({ isSearching: false, searchError: error.message });
+      throw error;
+    }
+  },
+
+  /**
+   * Update course instructors (co-instructors only, not author)
+   */
+  *updateCourseInstructors(instructorIds: number[]): Generator<unknown, void, APIResponse<void>> {
+    try {
+      yield actions.setInstructorsState({ isLoading: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "updateCourseInstructors",
+          "Failed to get course ID"
+        );
+      }
+
+      // Update instructors through our API wrapper
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/settings/instructors`,
+          method: "POST",
+          data: {
+            instructor_ids: instructorIds,
+          },
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "updateCourseInstructors",
+          "Failed to update course instructors"
+        );
+      }
+
+      // Refresh instructor data after update
+      yield resolvers.getCourseInstructors();
+    } catch (error: any) {
+      yield actions.setInstructorsState({ isLoading: false, error: error.message });
       throw error;
     }
   },
@@ -757,13 +959,40 @@ const store = createReduxStore("tutorpress/course-settings", {
             ...(action as { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> }).payload,
           },
         };
+      case "SET_COURSE_INSTRUCTORS":
+        return {
+          ...state,
+          instructors: {
+            ...state.instructors,
+            courseInstructors: (action as { type: "SET_COURSE_INSTRUCTORS"; payload: CourseInstructors }).payload,
+          },
+        };
+      case "SET_INSTRUCTOR_SEARCH_RESULTS":
+        return {
+          ...state,
+          instructors: {
+            ...state.instructors,
+            searchResults: (action as { type: "SET_INSTRUCTOR_SEARCH_RESULTS"; payload: InstructorSearchResult[] })
+              .payload,
+          },
+        };
+      case "SET_INSTRUCTORS_STATE":
+        return {
+          ...state,
+          instructors: {
+            ...state.instructors,
+            ...(action as { type: "SET_INSTRUCTORS_STATE"; payload: Partial<State["instructors"]> }).payload,
+          },
+        };
       default:
         return state;
     }
   },
-  actions,
+  actions: {
+    ...actions,
+    ...resolvers,
+  },
   selectors,
-  resolvers,
   controls,
 });
 
