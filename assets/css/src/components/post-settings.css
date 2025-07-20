@@ -771,3 +771,52 @@
     margin-bottom: var(--space-lg);
   }
 }
+
+/* ============================================================================
+   EDIT COURSE BUTTON - PHASE 1 SCAFFOLDING
+   ============================================================================ */
+
+/**
+ * Edit Course Button Styles - Phase 1
+ * 
+ * Basic styling for the EditCourseButton component during Phase 1 scaffolding.
+ * This provides basic visual styling for testing the component structure.
+ * 
+ * Future phases will add: positioning, responsive design, enhanced styling
+ */
+
+.tutorpress-edit-course-panel {
+  /* Phase 1: Panel styling for Document Settings sidebar */
+  margin-bottom: var(--space-lg);
+}
+
+.tutorpress-edit-course-button {
+  /* Phase 1: Basic container styling for testing */
+  display: block;
+  width: 100%;
+  padding: var(--space-sm);
+}
+
+.tutorpress-edit-course-btn {
+  /* Phase 1: Basic button styling for testing */
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0073aa;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.tutorpress-edit-course-btn:hover {
+  background-color: #f0f6fc;
+  color: #005a87;
+}
+
+.tutorpress-edit-course-btn .components-icon {
+  width: 16px;
+  height: 16px;
+}

@@ -41,4 +41,6 @@ export { BaseModalLayout, type BaseModalLayoutProps } from "./BaseModalLayout";
 
 export { BaseModalHeader, type BaseModalHeaderProps } from "./BaseModalHeader";
 
+export { default as EditCourseButton } from "./EditCourseButton";
+
 export { default } from "./SortableList";
