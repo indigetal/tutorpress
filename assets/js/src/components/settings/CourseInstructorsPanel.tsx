@@ -1,27 +1,35 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { Spinner, Notice } from "@wordpress/components";
+import { Spinner, Notice, FormTokenField, Button } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 
 // Import course settings types
-import type { CourseInstructors } from "../../types/courses";
+import type { CourseInstructors, InstructorSearchResult } from "../../types/courses";
 import { isMultiInstructorsEnabled } from "../../utils/addonChecker";
 
 const CourseInstructorsPanel: React.FC = () => {
+  // State for search functionality
+  const [searchValue, setSearchValue] = useState("");
+  const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+
   // Get instructor data from our store
-  const { postType, instructors, error, isLoading } = useSelect(
+  const { postType, instructors, error, isLoading, searchResults, isSearching, searchError } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       instructors: select("tutorpress/course-settings").getInstructors(),
       error: select("tutorpress/course-settings").getInstructorsError(),
       isLoading: select("tutorpress/course-settings").getInstructorsLoading(),
+      searchResults: select("tutorpress/course-settings").getInstructorSearchResults(),
+      isSearching: select("tutorpress/course-settings").getInstructorsSearching(),
+      searchError: select("tutorpress/course-settings").getInstructorSearchError(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { getCourseInstructors } = useDispatch("tutorpress/course-settings");
+  const { getCourseInstructors, searchInstructors, updateCourseInstructors } =
+    useDispatch("tutorpress/course-settings");
 
   // Load instructors when component mounts
   useEffect(() => {
@@ -38,13 +46,95 @@ const CourseInstructorsPanel: React.FC = () => {
   // Check if Multi Instructors addon is enabled
   const isMultiInstructorsAddonEnabled = isMultiInstructorsEnabled();
 
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (searchTerm: string) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          if (searchTerm.trim().length >= 2) {
+            searchInstructors(searchTerm);
+          }
+        }, 500); // Increased debounce time
+      };
+    })(),
+    [searchInstructors]
+  );
+
+  // Handle search input change
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchValue(value);
+      // Only search if we have enough characters and not currently searching
+      if (value.trim().length >= 2 && !isSearching) {
+        debouncedSearch(value);
+      }
+    },
+    [debouncedSearch, isSearching]
+  );
+
+  // Handle instructor selection
+  const handleInstructorSelection = useCallback(
+    (tokens: (string | { value: string })[]) => {
+      const tokenStrings = tokens.map((token) => (typeof token === "string" ? token : token.value));
+      setSelectedTokens(tokenStrings);
+
+      // Find the instructor IDs for the selected tokens
+      const selectedInstructors = searchResults.filter((instructor: any) =>
+        tokenStrings.includes(
+          `${instructor.name || instructor.display_name} (${instructor.email || instructor.user_email})`
+        )
+      );
+
+      if (selectedInstructors.length > 0) {
+        const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
+        const newInstructorIds = selectedInstructors.map((i: any) => i.id);
+        const updatedInstructorIds = [...new Set([...currentInstructorIds, ...newInstructorIds])];
+
+        updateCourseInstructors(updatedInstructorIds);
+        setSearchValue("");
+        setSelectedTokens([]);
+      }
+    },
+    [searchResults, instructors, updateCourseInstructors]
+  );
+
+  // Handle instructor removal
+  const handleRemoveInstructor = useCallback(
+    (instructorId: number) => {
+      if (window.confirm(__("Are you sure you want to remove this instructor from the course?", "tutorpress"))) {
+        const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
+        const updatedInstructorIds = currentInstructorIds.filter((id: number) => id !== instructorId);
+        updateCourseInstructors(updatedInstructorIds);
+      }
+    },
+    [instructors, updateCourseInstructors]
+  );
+
+  // Generate suggestions for FormTokenField
+  const getSuggestions = useCallback(() => {
+    if (!searchResults || searchResults.length === 0) return [];
+
+    // Filter out already selected instructors
+    const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
+    const availableInstructors = searchResults.filter(
+      (instructor: any) => !currentInstructorIds.includes(instructor.id)
+    );
+
+    return availableInstructors.map(
+      (instructor: any) =>
+        `${instructor.name || instructor.display_name} (${instructor.email || instructor.user_email})`
+    );
+  }, [searchResults, instructors]);
+
   // Show loading state while fetching instructors
   if (isLoading) {
     return (
       <PluginDocumentSettingPanel
         name="tutorpress-course-instructors"
         title={__("Course Instructors", "tutorpress")}
-        className="tutorpress-settings-section"
+        className="tutorpress-course-instructors-panel"
       >
         <div className="tutorpress-settings-loading">
           <Spinner />
@@ -60,7 +150,7 @@ const CourseInstructorsPanel: React.FC = () => {
       <PluginDocumentSettingPanel
         name="tutorpress-course-instructors"
         title={__("Course Instructors", "tutorpress")}
-        className="tutorpress-settings-section"
+        className="tutorpress-course-instructors-panel"
       >
         <Notice status="error" isDismissible={false}>
           {error}
@@ -75,7 +165,7 @@ const CourseInstructorsPanel: React.FC = () => {
       <PluginDocumentSettingPanel
         name="tutorpress-course-instructors"
         title={__("Course Instructors", "tutorpress")}
-        className="tutorpress-settings-section"
+        className="tutorpress-course-instructors-panel"
       >
         <div className="tutorpress-instructors-empty">
           <p>{__("No instructors assigned to this course.", "tutorpress")}</p>
@@ -88,7 +178,7 @@ const CourseInstructorsPanel: React.FC = () => {
     <PluginDocumentSettingPanel
       name="tutorpress-course-instructors"
       title={__("Course Instructors", "tutorpress")}
-      className="tutorpress-settings-section"
+      className="tutorpress-course-instructors-panel"
     >
       <div className="tutorpress-instructors-panel">
         {instructors.author && (
@@ -120,54 +210,77 @@ const CourseInstructorsPanel: React.FC = () => {
           </div>
         )}
 
-        {isMultiInstructorsAddonEnabled && instructors.co_instructors && instructors.co_instructors.length > 0 && (
-          <div className="tutorpress-saved-files-list">
-            <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
-              {__("Co-Instructors:", "tutorpress")} ({instructors.co_instructors.length})
-            </div>
-            {instructors.co_instructors.map((instructor: any) => (
-              <div key={instructor.id} className="tutorpress-saved-file-item">
-                <div className="tutorpress-instructor-info">
-                  <div className="tutorpress-instructor-avatar">
-                    {instructor.avatar ? (
-                      <img src={instructor.avatar} alt={instructor.name} className="tutorpress-instructor-avatar-img" />
-                    ) : (
-                      <div className="tutorpress-instructor-avatar-placeholder">
-                        {instructor.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="tutorpress-instructor-details">
-                    <div className="tutorpress-instructor-name">{instructor.name}</div>
-                    <div className="tutorpress-instructor-email">{instructor.email}</div>
-                  </div>
+        {/* Co-Instructors Section with Search */}
+        {isMultiInstructorsAddonEnabled && (
+          <div className="tutorpress-saved-files-list" style={{ marginTop: "24px" }}>
+            {/* Search Field */}
+            <div style={{ marginBottom: "12px" }}>
+              <FormTokenField
+                label={`${__("Co-Instructors:", "tutorpress")} ${instructors.co_instructors ? `(${instructors.co_instructors.length})` : ""}`}
+                value={selectedTokens}
+                suggestions={getSuggestions()}
+                onChange={handleInstructorSelection}
+                onInputChange={handleSearchChange}
+                placeholder={__("Search for instructors...", "tutorpress")}
+                __experimentalExpandOnFocus={true}
+                __experimentalAutoSelectFirstMatch={false}
+                __experimentalShowHowTo={false}
+              />
+              {isSearching && (
+                <div style={{ marginTop: "4px", fontSize: "12px", color: "#757575" }}>
+                  <Spinner style={{ marginRight: "4px" }} />
+                  {__("Searching...", "tutorpress")}
                 </div>
+              )}
+              {searchError && <div style={{ marginTop: "4px", fontSize: "12px", color: "#d63638" }}>{searchError}</div>}
+            </div>
+
+            {/* Co-Instructors List with Delete Buttons */}
+            {instructors.co_instructors && instructors.co_instructors.length > 0 ? (
+              instructors.co_instructors.map((instructor: any) => (
+                <div key={instructor.id} className="tutorpress-saved-file-item">
+                  <div className="tutorpress-instructor-info">
+                    <div className="tutorpress-instructor-avatar">
+                      {instructor.avatar ? (
+                        <img
+                          src={instructor.avatar}
+                          alt={instructor.name}
+                          className="tutorpress-instructor-avatar-img"
+                        />
+                      ) : (
+                        <div className="tutorpress-instructor-avatar-placeholder">
+                          {instructor.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="tutorpress-instructor-details">
+                      <div className="tutorpress-instructor-name">{instructor.name}</div>
+                      <div className="tutorpress-instructor-email">{instructor.email}</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="tertiary"
+                    onClick={() => handleRemoveInstructor(instructor.id)}
+                    className="delete-button"
+                    aria-label={__("Remove instructor", "tutorpress")}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="tutorpress-instructors-empty">
+                <p>{__("No co-instructors added.", "tutorpress")}</p>
               </div>
-            ))}
+            )}
           </div>
         )}
 
-        {isMultiInstructorsAddonEnabled && (!instructors.co_instructors || instructors.co_instructors.length === 0) && (
-          <div className="tutorpress-saved-files-list">
-            <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
-              {__("Co-Instructors:", "tutorpress")}
-            </div>
-            <div className="tutorpress-instructors-empty">
-              <p>
-                {__("No co-instructors assigned. Add co-instructors using the Multi Instructors addon.", "tutorpress")}
-              </p>
-            </div>
+        {!instructors.author && !isMultiInstructorsAddonEnabled && (
+          <div className="tutorpress-instructors-empty">
+            <p>{__("No instructors assigned to this course.", "tutorpress")}</p>
           </div>
         )}
-
-        {!instructors.author &&
-          (!isMultiInstructorsAddonEnabled ||
-            !instructors.co_instructors ||
-            instructors.co_instructors.length === 0) && (
-            <div className="tutorpress-instructors-empty">
-              <p>{__("No instructors assigned to this course.", "tutorpress")}</p>
-            </div>
-          )}
       </div>
     </PluginDocumentSettingPanel>
   );

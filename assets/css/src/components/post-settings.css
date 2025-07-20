@@ -481,6 +481,14 @@
   border-radius: var(--radius-sm);
   background: transparent;
   transition: all var(--duration-fast) var(--ease-in-out);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Show delete button on hover */
+.tutorpress-saved-file-item:hover .delete-button {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Delete button hover state */
