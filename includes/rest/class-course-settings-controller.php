@@ -261,7 +261,34 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                 ]
             );
 
-                    // Add endpoint for course selection (prerequisites dropdown)
+            // Update post author endpoint
+            register_rest_route(
+                $this->namespace,
+                '/' . $this->rest_base . '/(?P<course_id>[\d]+)/settings/author',
+                [
+                    [
+                        'methods'             => WP_REST_Server::CREATABLE,
+                        'callback'            => [$this, 'update_course_author'],
+                        'permission_callback' => [$this, 'check_instructor_permission'],
+                        'args'               => [
+                            'course_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the course to update author for.', 'tutorpress'),
+                            ],
+                            'author_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The user ID of the new author.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
+            // Add endpoint for course selection (prerequisites dropdown)
         register_rest_route($this->namespace, '/courses/prerequisites', array(
             array(
                 'methods'  => WP_REST_Server::READABLE,
@@ -959,9 +986,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         if ($author) {
             $author_data = [
                 'id' => $author->ID,
-                'name' => $author->display_name,
-                'email' => $author->user_email,
-                'avatar' => get_avatar_url($author->ID, ['size' => 96]),
+                'display_name' => $author->display_name,
+                'user_email' => $author->user_email,
+                'user_login' => $author->user_login,
+                'avatar_url' => get_avatar_url($author->ID, ['size' => 96]),
                 'role' => 'author',
             ];
         }
@@ -978,9 +1006,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             if ($instructor) {
                 $co_instructors[] = [
                     'id' => $instructor->ID,
-                    'name' => $instructor->display_name,
-                    'email' => $instructor->user_email,
-                    'avatar' => get_avatar_url($instructor->ID, ['size' => 96]),
+                    'display_name' => $instructor->display_name,
+                    'user_email' => $instructor->user_email,
+                    'user_login' => $instructor->user_login,
+                    'avatar_url' => get_avatar_url($instructor->ID, ['size' => 96]),
                     'role' => 'instructor',
                 ];
             }
@@ -1046,9 +1075,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         foreach ($users as $user) {
             $instructors[] = [
                 'id' => $user->ID,
-                'name' => $user->display_name,
-                'email' => $user->user_email,
-                'avatar' => get_avatar_url($user->ID, ['size' => 96]),
+                'display_name' => $user->display_name,
+                'user_email' => $user->user_email,
+                'user_login' => $user->user_login,
+                'avatar_url' => get_avatar_url($user->ID, ['size' => 96]),
                 'role' => $user->roles[0] ?? 'subscriber',
             ];
         }
@@ -1162,5 +1192,88 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         foreach ($instructor_ids as $instructor_id) {
             add_user_meta($instructor_id, '_tutor_instructor_course_id', $course_id);
         }
+    }
+
+    /**
+     * Update course author (post_author)
+     *
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function update_course_author($request) {
+        $course_id = $request->get_param('course_id');
+        $author_id = $request->get_param('author_id');
+
+        // Verify course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'courses') {
+            return new WP_Error(
+                'invalid_course',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Check if user can edit this specific course
+        if (!current_user_can('edit_post', $course_id)) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to edit this course.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        // Verify the new author exists and has appropriate permissions
+        $new_author = get_user_by('id', $author_id);
+        if (!$new_author) {
+            return new WP_Error(
+                'invalid_author',
+                __('Invalid author ID.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Check if the new author has appropriate capabilities
+        if (!user_can($author_id, 'edit_posts') && !user_can($author_id, 'tutor_instructor')) {
+            return new WP_Error(
+                'invalid_author_capabilities',
+                __('The selected user does not have appropriate permissions to be a course author.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Check if the author is already the current author
+        if ($course->post_author == $author_id) {
+            return new WP_Error(
+                'author_already_assigned',
+                __('The selected user is already the course author.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Update the post author using wp_update_post
+        $result = wp_update_post([
+            'ID' => $course_id,
+            'post_author' => $author_id,
+        ]);
+
+        if (is_wp_error($result)) {
+            return new WP_Error(
+                'update_failed',
+                __('Failed to update course author.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => __('Course author updated successfully.', 'tutorpress'),
+            'data' => [
+                'course_id' => $course_id,
+                'author_id' => $author_id,
+                'author_name' => $new_author->display_name,
+                'author_email' => $new_author->user_email,
+            ],
+        ]);
     }
 } 

@@ -1,17 +1,20 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
-import { useSelect, useDispatch } from "@wordpress/data";
-import { Spinner, Notice, FormTokenField, Button } from "@wordpress/components";
+import { useSelect, useDispatch, select } from "@wordpress/data";
+import { Spinner, Notice, FormTokenField, Button, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { chevronDown, chevronUp } from "@wordpress/icons";
 
 // Import course settings types
-import type { CourseInstructors, InstructorSearchResult } from "../../types/courses";
+import type { CourseInstructors, InstructorSearchResult, InstructorUser } from "../../types/courses";
 import { isMultiInstructorsEnabled } from "../../utils/addonChecker";
 
 const CourseInstructorsPanel: React.FC = () => {
   // State for search functionality
   const [searchValue, setSearchValue] = useState("");
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [authorSearchValue, setAuthorSearchValue] = useState("");
+  const [isAuthorExpanded, setIsAuthorExpanded] = useState(false);
 
   // Get instructor data from our store
   const { postType, instructors, error, isLoading, searchResults, isSearching, searchError } = useSelect(
@@ -28,8 +31,9 @@ const CourseInstructorsPanel: React.FC = () => {
   );
 
   // Get dispatch actions
-  const { getCourseInstructors, searchInstructors, updateCourseInstructors } =
+  const { getCourseInstructors, searchInstructors, updateCourseInstructors, updateCourseAuthor } =
     useDispatch("tutorpress/course-settings");
+  const { editPost } = useDispatch("core/editor");
 
   // Load instructors when component mounts
   useEffect(() => {
@@ -74,6 +78,68 @@ const CourseInstructorsPanel: React.FC = () => {
     [debouncedSearch, isSearching]
   );
 
+  // Handle author search input change
+  const handleAuthorSearchChange = useCallback(
+    (value: string) => {
+      setAuthorSearchValue(value);
+      // Only search if we have enough characters and not currently searching
+      if (value.trim().length >= 2 && !isSearching) {
+        debouncedSearch(value);
+      }
+    },
+    [debouncedSearch, isSearching]
+  );
+
+  // Handle author selection
+  const handleAuthorSelection = useCallback(
+    async (tokens: (string | { value: string })[]) => {
+      const tokenStrings = tokens.map((token) => (typeof token === "string" ? token : token.value));
+
+      // Find the instructor ID for the selected token
+      const selectedInstructor = searchResults.find((instructor: InstructorSearchResult) =>
+        tokenStrings.includes(`${instructor.display_name} (${instructor.user_email})`)
+      );
+
+      if (selectedInstructor) {
+        // Check if the selected instructor is already the current author
+        if (instructors?.author?.id === selectedInstructor.id) {
+          // Already the current author, just close the search
+          setAuthorSearchValue("");
+          setIsAuthorExpanded(false);
+          return;
+        }
+
+        try {
+          // Update the post author using our REST API
+          await updateCourseAuthor(selectedInstructor.id);
+
+          // Update the local editor state
+          editPost({ post_author: selectedInstructor.id });
+          setAuthorSearchValue("");
+          setIsAuthorExpanded(false);
+        } catch (error) {
+          console.error("Error updating author:", error);
+          // Could add user notification here in the future
+        }
+      }
+    },
+    [searchResults, editPost, updateCourseAuthor]
+  );
+
+  // Generate suggestions for author search (exclude current author)
+  const getAuthorSuggestions = useCallback(() => {
+    if (!searchResults || searchResults.length === 0) return [];
+
+    const currentAuthorId = instructors?.author?.id;
+    const availableInstructors = searchResults.filter(
+      (instructor: InstructorSearchResult) => instructor.id !== currentAuthorId
+    );
+
+    return availableInstructors.map(
+      (instructor: InstructorSearchResult) => `${instructor.display_name} (${instructor.user_email})`
+    );
+  }, [searchResults, instructors]);
+
   // Handle instructor selection
   const handleInstructorSelection = useCallback(
     (tokens: (string | { value: string })[]) => {
@@ -81,15 +147,13 @@ const CourseInstructorsPanel: React.FC = () => {
       setSelectedTokens(tokenStrings);
 
       // Find the instructor IDs for the selected tokens
-      const selectedInstructors = searchResults.filter((instructor: any) =>
-        tokenStrings.includes(
-          `${instructor.name || instructor.display_name} (${instructor.email || instructor.user_email})`
-        )
+      const selectedInstructors = searchResults.filter((instructor: InstructorSearchResult) =>
+        tokenStrings.includes(`${instructor.display_name} (${instructor.user_email})`)
       );
 
       if (selectedInstructors.length > 0) {
-        const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
-        const newInstructorIds = selectedInstructors.map((i: any) => i.id);
+        const currentInstructorIds = instructors?.co_instructors?.map((i: InstructorUser) => i.id) || [];
+        const newInstructorIds = selectedInstructors.map((i: InstructorSearchResult) => i.id);
         const updatedInstructorIds = [...new Set([...currentInstructorIds, ...newInstructorIds])];
 
         updateCourseInstructors(updatedInstructorIds);
@@ -104,7 +168,7 @@ const CourseInstructorsPanel: React.FC = () => {
   const handleRemoveInstructor = useCallback(
     (instructorId: number) => {
       if (window.confirm(__("Are you sure you want to remove this instructor from the course?", "tutorpress"))) {
-        const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
+        const currentInstructorIds = instructors?.co_instructors?.map((i: InstructorUser) => i.id) || [];
         const updatedInstructorIds = currentInstructorIds.filter((id: number) => id !== instructorId);
         updateCourseInstructors(updatedInstructorIds);
       }
@@ -117,14 +181,13 @@ const CourseInstructorsPanel: React.FC = () => {
     if (!searchResults || searchResults.length === 0) return [];
 
     // Filter out already selected instructors
-    const currentInstructorIds = instructors?.co_instructors?.map((i: any) => i.id) || [];
+    const currentInstructorIds = instructors?.co_instructors?.map((i: InstructorUser) => i.id) || [];
     const availableInstructors = searchResults.filter(
-      (instructor: any) => !currentInstructorIds.includes(instructor.id)
+      (instructor: InstructorSearchResult) => !currentInstructorIds.includes(instructor.id)
     );
 
     return availableInstructors.map(
-      (instructor: any) =>
-        `${instructor.name || instructor.display_name} (${instructor.email || instructor.user_email})`
+      (instructor: InstructorSearchResult) => `${instructor.display_name} (${instructor.user_email})`
     );
   }, [searchResults, instructors]);
 
@@ -189,24 +252,58 @@ const CourseInstructorsPanel: React.FC = () => {
             <div className="tutorpress-saved-file-item">
               <div className="tutorpress-instructor-info">
                 <div className="tutorpress-instructor-avatar">
-                  {instructors.author.avatar ? (
+                  {instructors.author.avatar_url ? (
                     <img
-                      src={instructors.author.avatar}
-                      alt={instructors.author.name}
+                      src={instructors.author.avatar_url}
+                      alt={instructors.author.display_name}
                       className="tutorpress-instructor-avatar-img"
                     />
                   ) : (
                     <div className="tutorpress-instructor-avatar-placeholder">
-                      {instructors.author.name.charAt(0).toUpperCase()}
+                      {instructors.author.display_name.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="tutorpress-instructor-details">
-                  <div className="tutorpress-instructor-name">{instructors.author.name}</div>
-                  <div className="tutorpress-instructor-email">{instructors.author.email}</div>
+                  <div className="tutorpress-instructor-name">{instructors.author.display_name}</div>
+                  <div className="tutorpress-instructor-email">{instructors.author.user_email}</div>
                 </div>
               </div>
+              <Button
+                variant="tertiary"
+                onClick={() => setIsAuthorExpanded(!isAuthorExpanded)}
+                className="edit-button"
+                aria-label={__("Change author", "tutorpress")}
+              >
+                <Icon icon={isAuthorExpanded ? chevronUp : chevronDown} size={16} />
+              </Button>
             </div>
+
+            {/* Author Search Field - Expanded */}
+            {isAuthorExpanded && (
+              <div style={{ marginTop: "12px" }}>
+                <FormTokenField
+                  label={__("Change Author", "tutorpress")}
+                  value={[]}
+                  suggestions={getAuthorSuggestions()}
+                  onChange={handleAuthorSelection}
+                  onInputChange={handleAuthorSearchChange}
+                  placeholder={__("Search for new author...", "tutorpress")}
+                  __experimentalExpandOnFocus={true}
+                  __experimentalAutoSelectFirstMatch={false}
+                  __experimentalShowHowTo={false}
+                />
+                {isSearching && (
+                  <div style={{ marginTop: "4px", fontSize: "12px", color: "#757575" }}>
+                    <Spinner style={{ marginRight: "4px" }} />
+                    {__("Searching...", "tutorpress")}
+                  </div>
+                )}
+                {searchError && (
+                  <div style={{ marginTop: "4px", fontSize: "12px", color: "#d63638" }}>{searchError}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -237,25 +334,25 @@ const CourseInstructorsPanel: React.FC = () => {
 
             {/* Co-Instructors List with Delete Buttons */}
             {instructors.co_instructors && instructors.co_instructors.length > 0 ? (
-              instructors.co_instructors.map((instructor: any) => (
+              instructors.co_instructors.map((instructor: InstructorUser) => (
                 <div key={instructor.id} className="tutorpress-saved-file-item">
                   <div className="tutorpress-instructor-info">
                     <div className="tutorpress-instructor-avatar">
-                      {instructor.avatar ? (
+                      {instructor.avatar_url ? (
                         <img
-                          src={instructor.avatar}
-                          alt={instructor.name}
+                          src={instructor.avatar_url}
+                          alt={instructor.display_name}
                           className="tutorpress-instructor-avatar-img"
                         />
                       ) : (
                         <div className="tutorpress-instructor-avatar-placeholder">
-                          {instructor.name.charAt(0).toUpperCase()}
+                          {instructor.display_name.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="tutorpress-instructor-details">
-                      <div className="tutorpress-instructor-name">{instructor.name}</div>
-                      <div className="tutorpress-instructor-email">{instructor.email}</div>
+                      <div className="tutorpress-instructor-name">{instructor.display_name}</div>
+                      <div className="tutorpress-instructor-email">{instructor.user_email}</div>
                     </div>
                   </div>
                   <Button

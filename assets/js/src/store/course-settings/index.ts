@@ -817,6 +817,55 @@ const resolvers = {
   },
 
   /**
+   * Update course author
+   */
+  *updateCourseAuthor(authorId: number): Generator<unknown, void, APIResponse<void>> {
+    try {
+      yield actions.setInstructorsState({ isLoading: true, error: null });
+
+      const courseId = yield select("core/editor").getCurrentPostId();
+      if (!courseId) {
+        throw createCurriculumError(
+          "No course ID available",
+          CurriculumErrorCode.VALIDATION_ERROR,
+          "updateCourseAuthor",
+          "Failed to get course ID"
+        );
+      }
+
+      // Update author through our API wrapper
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/${courseId}/settings/author`,
+          method: "POST",
+          data: {
+            author_id: authorId,
+          },
+        },
+      };
+
+      if (!response.success) {
+        throw createCurriculumError(
+          response.message || "API Error",
+          CurriculumErrorCode.FETCH_FAILED,
+          "updateCourseAuthor",
+          "Failed to update course author"
+        );
+      }
+
+      // Refresh instructor data after update
+      yield resolvers.getCourseInstructors();
+
+      // Reset loading state on success
+      yield actions.setInstructorsState({ isLoading: false, error: null });
+    } catch (error: any) {
+      yield actions.setInstructorsState({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  /**
    * Update course instructors (co-instructors only, not author)
    */
   *updateCourseInstructors(instructorIds: number[]): Generator<unknown, void, APIResponse<void>> {
