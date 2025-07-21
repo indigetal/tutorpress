@@ -23,6 +23,7 @@ export interface BaseContentItem {
     | "tutor_assignments"
     | "meet_lesson"
     | "zoom_lesson";
+  status: string; // WordPress post status: 'publish', 'draft', 'private', 'pending', 'future'
 }
 
 /**

@@ -17,7 +17,6 @@ export const CONTENT_TYPE_MAP = {
  */
 export interface ExtendedContentItem extends ContentItem {
   menu_order?: number;
-  status?: string;
 }
 
 /**

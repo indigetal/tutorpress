@@ -99,6 +99,36 @@ const contentTypeIcons = {
 } as const;
 
 /**
+ * Content status icon mapping
+ */
+const statusIcons = {
+  draft: "edit",
+  pending: "clock",
+  private: "lock",
+  future: "calendar-alt",
+} as const;
+
+/**
+ * Content status color mapping
+ */
+const statusColors = {
+  draft: "var(--color-text-muted)", // Light grey - subtle indicator
+  pending: "var(--color-text-muted)", // Light grey - subtle indicator
+  private: "var(--color-text-muted)", // Light grey - subtle indicator
+  future: "var(--color-text-muted)", // Light grey - subtle indicator
+} as const;
+
+/**
+ * Content status tooltip mapping
+ */
+const statusTooltips = {
+  draft: "Draft - Content is saved but not published",
+  pending: "Pending Review - Content is awaiting approval",
+  private: "Private - Content is only visible to administrators",
+  future: "Scheduled - Content will be published on a future date",
+} as const;
+
+/**
  * Renders a single content item
  * @param {ContentItemRowProps} props - Component props
  * @param {ContentItem} props.item - The content item to display
@@ -125,7 +155,21 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
         <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
         <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
       </div>
-      <FlexBlock style={{ textAlign: "left" }}>{item.title}</FlexBlock>
+      <FlexBlock style={{ textAlign: "left" }}>
+        {item.title}
+        {item.status && item.status !== "publish" && (
+          <span title={statusTooltips[item.status as keyof typeof statusTooltips]} style={{ display: "inline-block" }}>
+            <Icon
+              icon={statusIcons[item.status as keyof typeof statusIcons]}
+              style={{
+                color: statusColors[item.status as keyof typeof statusColors],
+                marginLeft: "var(--space-sm)",
+                verticalAlign: "middle",
+              }}
+            />
+          </span>
+        )}
+      </FlexBlock>
       <div className="tpress-item-actions-right">
         <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
       </div>

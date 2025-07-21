@@ -391,7 +391,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             'posts_per_page' => -1,
             'orderby'        => 'menu_order',
             'order'          => 'ASC',
-            'post_status'    => ['publish', 'draft', 'private'],
+            'post_status'    => ['publish', 'draft', 'private', 'pending', 'future'],
         ]);
 
         return array_map(function($item) {

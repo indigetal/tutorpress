@@ -95,3 +95,15 @@
 .tutorpress-content-item-icon .item-icon.dashicon-media-interactive {
   transform: scale(1.15);
 }
+
+/* Status icon styling */
+.tutorpress-content-item .components-flex-block .components-icon {
+  font-size: var(--text-sm);
+  width: var(--text-sm);
+  height: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.tutorpress-content-item .components-flex-block .components-icon:hover {
+  opacity: 0.8;
+}
