@@ -26,6 +26,7 @@ export {
   isGoogleMeetEnabled,
   isZoomEnabled,
   isH5pEnabled,
+  isH5pPluginActive,
   isCertificateEnabled,
   isContentDripEnabled,
   isPrerequisitesEnabled,

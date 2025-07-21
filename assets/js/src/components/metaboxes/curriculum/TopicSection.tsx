@@ -58,7 +58,7 @@ import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { useSortableList } from "../../../hooks/common/useSortableList";
 import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
-import { isH5pEnabled, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
+import { isH5pPluginActive, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { useError } from "../../../hooks/useError";
@@ -66,7 +66,7 @@ const CURRICULUM_STORE = "tutorpress/curriculum";
 
 // Conditionally import Interactive Quiz components only when H5P is enabled
 let InteractiveQuizModal: React.ComponentType<any> | null = null;
-if (isH5pEnabled()) {
+if (isH5pPluginActive()) {
   // Use dynamic import to prevent loading when H5P is not available
   const { InteractiveQuizModal: ImportedInteractiveQuizModal } = require("../../modals/InteractiveQuizModal");
   InteractiveQuizModal = ImportedInteractiveQuizModal;
@@ -385,14 +385,14 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   // Handle Interactive Quiz modal open - only when H5P is enabled
   const handleInteractiveQuizModalOpen = () => {
-    if (!isH5pEnabled()) return;
+    if (!isH5pPluginActive()) return;
     setEditingInteractiveQuizId(undefined);
     setIsInteractiveQuizModalOpen(true);
   };
 
   // Handle Interactive Quiz modal close - only when H5P is enabled
   const handleInteractiveQuizModalClose = () => {
-    if (!isH5pEnabled()) return;
+    if (!isH5pPluginActive()) return;
     setIsInteractiveQuizModalOpen(false);
     setEditingInteractiveQuizId(undefined);
     // TODO: Refresh curriculum if Interactive Quiz was created/updated
@@ -528,7 +528,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                             ? () => handleQuizEditModal(item.id)
                             : item.type === "interactive_quiz"
                               ? () => {
-                                  if (!isH5pEnabled()) {
+                                  if (!isH5pPluginActive()) {
                                     showH5pDisabledNotice();
                                     return;
                                   }
@@ -564,7 +564,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                             ? () => handleQuizDuplicate(item.id, topic.id)
                             : item.type === "interactive_quiz"
                               ? () => {
-                                  if (!isH5pEnabled()) {
+                                  if (!isH5pPluginActive()) {
                                     showH5pDisabledNotice();
                                     return;
                                   }
@@ -583,7 +583,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                             ? () => handleQuizDelete(item.id, topic.id)
                             : item.type === "interactive_quiz"
                               ? () => {
-                                  if (!isH5pEnabled()) {
+                                  if (!isH5pPluginActive()) {
                                     showH5pDisabledNotice();
                                     return;
                                   }
@@ -662,7 +662,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               </Button>
 
               {/* Extended content buttons - responsive visibility */}
-              {isH5pEnabled() && (
+              {isH5pPluginActive() && (
                 <Button
                   variant="secondary"
                   isSmall
@@ -718,7 +718,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
               renderContent={({ onClose }) => (
                 <MenuGroup label={__("Add Content", "tutorpress")}>
                   {/* H5P option in overflow */}
-                  {isH5pEnabled() && (
+                  {isH5pPluginActive() && (
                     <MenuItem
                       icon={plus}
                       onClick={() => {

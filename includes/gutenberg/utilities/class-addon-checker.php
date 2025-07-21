@@ -156,12 +156,36 @@ class TutorPress_Addon_Checker {
     }
 
     /**
-     * Check if H5P addon is available
+     * Check if H5P addon is available (Tutor Pro addon)
      *
      * @return bool True if addon is available and enabled
      */
     public static function is_h5p_enabled() {
         return self::is_addon_enabled('h5p');
+    }
+
+    /**
+     * Check if H5P plugin is active (independent of Tutor Pro)
+     *
+     * @return bool True if H5P plugin is active
+     */
+    public static function is_h5p_plugin_active() {
+        // Check if H5P plugin is active
+        if (!function_exists('is_plugin_active')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        
+        // Check if H5P plugin is active
+        if (is_plugin_active('h5p/h5p.php')) {
+            return true;
+        }
+        
+        // Also check if H5P plugin class exists (for cases where plugin might be loaded differently)
+        if (class_exists('H5PContentQuery')) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -549,8 +573,161 @@ class TutorPress_Addon_Checker {
         $status['monetization_enabled'] = self::is_monetization_enabled();
         $status['available_payment_engines'] = self::get_available_payment_engines();
         
+        // Add H5P plugin status (independent of Tutor Pro)
+        $status['h5p_plugin_active'] = self::is_h5p_plugin_active();
+        
         return $status;
     }
 
+    /**
+     * Override Tutor Pro H5P addon filtering to allow interactive quizzes
+     * to display in Tutor LMS frontend even when Tutor Pro H5P addon is disabled.
+     *
+     * @since 1.4.0
+     */
+    public static function override_h5p_addon_filtering() {
+        // Only run if H5P plugin is active
+        if (!self::is_h5p_plugin_active()) {
+            return;
+        }
+
+        // Add our own filtering that allows interactive quizzes when H5P plugin is active
+        // Use priority 15 (higher than Tutor Pro's 10) to override their filters
+        add_filter('tutor_filter_course_content', array(__CLASS__, 'allow_h5p_quiz_content'), 15, 1);
+        add_filter('tutor_filter_lesson_sidebar', array(__CLASS__, 'allow_h5p_sidebar_contents'), 15, 2);
+        add_filter('tutor_filter_attempt_answers', array(__CLASS__, 'allow_h5p_attempt_answers'), 15, 1);
+        
+        // Add debug logging when WP_DEBUG is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_action('wp_footer', array(__CLASS__, 'debug_h5p_filtering'));
+        }
+    }
+
+    /**
+     * Allow H5P quiz content in course display when H5P plugin is active.
+     *
+     * @param array $current_topic The topic array.
+     * @return array
+     */
+    public static function allow_h5p_quiz_content($current_topic) {
+        // If H5P plugin is active, allow all content including H5P quizzes
+        if (self::is_h5p_plugin_active()) {
+            return $current_topic;
+        }
+
+        // If H5P plugin is not active, filter out H5P quizzes
+        $contents = $current_topic['contents'];
+        if (is_array($contents) && count($contents)) {
+            $topic_contents = array();
+            foreach ($contents as $post) {
+                $quiz_option = get_post_meta($post->ID, 'tutor_quiz_option', true);
+                if (isset($quiz_option['quiz_type']) && 'tutor_h5p_quiz' === $quiz_option['quiz_type']) {
+                    // Skip H5P quizzes if H5P plugin is not active
+                    continue;
+                }
+                array_push($topic_contents, $post);
+            }
+
+            if (count($topic_contents)) {
+                $current_topic['contents'] = $topic_contents;
+            }
+        }
+        return $current_topic;
+    }
+
+    /**
+     * Allow H5P content in sidebar when H5P plugin is active.
+     *
+     * @param object $query The content query object.
+     * @param int $topic_id The topic id.
+     * @return \WP_Query
+     */
+    public static function allow_h5p_sidebar_contents($query, $topic_id) {
+        // If H5P plugin is active, recreate the original query (no filtering)
+        if (self::is_h5p_plugin_active()) {
+            $topics_id = tutor_utils()->get_post_id($topic_id);
+            $lesson_post_type = tutor()->lesson_post_type;
+            $post_type = array_unique(apply_filters('tutor_course_contents_post_types', array($lesson_post_type, 'tutor_quiz')));
+
+            $args = array(
+                'post_type' => $post_type,
+                'post_parent' => $topics_id,
+                'posts_per_page' => -1,
+                'orderby' => 'menu_order',
+                'order' => 'ASC',
+                // No meta_query to exclude H5P quizzes - include everything
+            );
+
+            return new \WP_Query($args);
+        }
+
+        // If H5P plugin is not active, filter out H5P quizzes
+        $topics_id = tutor_utils()->get_post_id($topic_id);
+        $lesson_post_type = tutor()->lesson_post_type;
+        $post_type = array_unique(apply_filters('tutor_course_contents_post_types', array($lesson_post_type, 'tutor_quiz')));
+
+        $args = array(
+            'post_type' => $post_type,
+            'post_parent' => $topics_id,
+            'posts_per_page' => -1,
+            'orderby' => 'menu_order',
+            'order' => 'ASC',
+            'meta_query' => array(
+                'relation' => 'OR',
+                array(
+                    'key' => 'tutor_quiz_option',
+                    'value' => 's:9:"quiz_type";s:14:"tutor_h5p_quiz";',
+                    'compare' => 'NOT LIKE',
+                ),
+                array(
+                    'key' => 'tutor_quiz_option',
+                    'compare' => 'NOT EXISTS',
+                ),
+            ),
+        );
+
+        return new \WP_Query($args);
+    }
+
+    /**
+     * Allow H5P attempt answers when H5P plugin is active.
+     *
+     * @param array $answers The attempt answers to filter.
+     * @return array
+     */
+    public static function allow_h5p_attempt_answers($answers) {
+        // If H5P plugin is active, allow all answers including H5P
+        if (self::is_h5p_plugin_active()) {
+            return $answers;
+        }
+
+        // If H5P plugin is not active, filter out H5P answers
+        return array_filter(
+            $answers,
+            function ($answer) {
+                return 'h5p' !== $answer->question_type;
+            }
+        );
+    }
+
+    /**
+     * Debug method to log H5P filtering status.
+     */
+    public static function debug_h5p_filtering() {
+        if (!is_user_logged_in() || !current_user_can('administrator')) {
+            return;
+        }
+        
+        echo '<script>
+            console.log("TutorPress H5P Filtering Debug:");
+            console.log("- H5P Plugin Active:", ' . (self::is_h5p_plugin_active() ? 'true' : 'false') . ');
+            console.log("- Tutor Pro H5P Addon Enabled:", ' . (self::is_h5p_enabled() ? 'true' : 'false') . ');
+            console.log("- Current Filters:", {
+                "tutor_filter_course_content": ' . (has_filter('tutor_filter_course_content') ? 'true' : 'false') . ',
+                "tutor_filter_lesson_sidebar": ' . (has_filter('tutor_filter_lesson_sidebar') ? 'true' : 'false') . ',
+                "tutor_filter_attempt_answers": ' . (has_filter('tutor_filter_attempt_answers') ? 'true' : 'false') . '
+            });
+        </script>';
+    }
 
 } 

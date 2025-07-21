@@ -58,6 +58,7 @@ export interface AddonStatus {
   woocommerce: boolean;
   woocommerce_monetization: boolean;
   edd_monetization: boolean;
+  h5p_plugin_active: boolean; // Added for H5P plugin status
 }
 
 /**
@@ -104,6 +105,7 @@ export class AddonChecker {
         woocommerce: false,
         woocommerce_monetization: false,
         edd_monetization: false,
+        h5p_plugin_active: false, // Added for H5P plugin status
       }
     );
   }
@@ -151,10 +153,19 @@ export class AddonChecker {
   }
 
   /**
-   * Check if H5P addon is available
+   * Check if H5P addon is available (Tutor Pro addon)
    */
   public static isH5pEnabled(): boolean {
     return this.isAddonEnabled("h5p");
+  }
+
+  /**
+   * Check if H5P plugin is active (independent of Tutor Pro)
+   */
+  public static isH5pPluginActive(): boolean {
+    // This will be populated by the server-side data
+    // The server will check if H5P plugin is active directly
+    return this.getAddonData().h5p_plugin_active || false;
   }
 
   /**
@@ -356,6 +367,7 @@ export const isCoursePreviewEnabled = (): boolean => AddonChecker.isCoursePrevie
 export const isGoogleMeetEnabled = (): boolean => AddonChecker.isGoogleMeetEnabled();
 export const isZoomEnabled = (): boolean => AddonChecker.isZoomEnabled();
 export const isH5pEnabled = (): boolean => AddonChecker.isH5pEnabled();
+export const isH5pPluginActive = (): boolean => AddonChecker.isH5pPluginActive();
 export const isCertificateEnabled = (): boolean => AddonChecker.isCertificateEnabled();
 export const isContentDripEnabled = (): boolean => AddonChecker.isContentDripEnabled();
 export const isPrerequisitesEnabled = (): boolean => AddonChecker.isPrerequisitesEnabled();

@@ -31,6 +31,9 @@ class TutorPress_Scripts {
 
 		// Hook into Tutor LMS's course update process to handle selling_option
 		add_action('tutor_after_prepare_update_post_meta', [__CLASS__, 'save_course_selling_option_from_tutor_update'], 10, 2);
+        
+        // Override Tutor Pro H5P addon filtering for frontend display
+        add_action('init', [TutorPress_Addon_Checker::class, 'override_h5p_addon_filtering'], 100);
     }
 
     /**
