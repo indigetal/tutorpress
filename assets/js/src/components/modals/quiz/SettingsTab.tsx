@@ -71,6 +71,7 @@ import {
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import type { TimeUnit, FeedbackMode, QuestionLayoutView, QuestionOrder } from "../../../types/quiz";
+import { isTutorProEnabled } from "../../../utils/addonChecker";
 
 interface SettingsTabProps {
   // Core settings (required for both Quiz and Interactive Quiz)
@@ -165,6 +166,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   // Determine if this is Interactive Quiz mode
   // Interactive Quiz mode is when showAllSettings handler is provided (indicating this is InteractiveQuizModal)
   const isInteractiveQuizMode = !!onShowAllSettingsChange;
+  const tutorProActive = isTutorProEnabled();
 
   const timeUnitOptions = [
     { label: __("Seconds", "tutorpress"), value: "seconds" },
@@ -409,110 +411,113 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             )}
           </div>
 
-          <div className="quiz-modal-advanced-settings">
-            <h4>{__("Advanced Settings", "tutorpress")}</h4>
+          {/* Advanced Settings - Tutor Pro only */}
+          {tutorProActive && (
+            <div className="quiz-modal-advanced-settings">
+              <h4>{__("Advanced Settings", "tutorpress")}</h4>
 
-            {/* Quiz Auto Start - Always visible */}
-            <div className="quiz-modal-setting-group">
-              <ToggleControl
-                label={__("Quiz Auto Start", "tutorpress")}
-                checked={quizAutoStart}
-                onChange={(checked) => onSettingChange({ quiz_auto_start: checked })}
-                disabled={isSaving}
-                help={__("When enabled, the quiz begins immediately as soon as the page loads", "tutorpress")}
-              />
-            </div>
+              {/* Quiz Auto Start - Always visible */}
+              <div className="quiz-modal-setting-group">
+                <ToggleControl
+                  label={__("Quiz Auto Start", "tutorpress")}
+                  checked={quizAutoStart}
+                  onChange={(checked) => onSettingChange({ quiz_auto_start: checked })}
+                  disabled={isSaving}
+                  help={__("When enabled, the quiz begins immediately as soon as the page loads", "tutorpress")}
+                />
+              </div>
 
-            {/* Question Layout and Question Order */}
-            <div className="quiz-modal-setting-group">
-              <div className="quiz-modal-two-column-layout">
-                {/* Question Layout - Quiz Modal always, Interactive Quiz when showAllSettings */}
-                {(!isInteractiveQuizMode || showAllSettings) && (
-                  <div className="quiz-modal-setting-column">
+              {/* Question Layout and Question Order */}
+              <div className="quiz-modal-setting-group">
+                <div className="quiz-modal-two-column-layout">
+                  {/* Question Layout - Quiz Modal always, Interactive Quiz when showAllSettings */}
+                  {(!isInteractiveQuizMode || showAllSettings) && (
+                    <div className="quiz-modal-setting-column">
+                      <SelectControl
+                        label={__("Question Layout", "tutorpress")}
+                        value={questionLayoutView}
+                        options={[
+                          { label: __("Select an option", "tutorpress"), value: "" },
+                          { label: __("Single question", "tutorpress"), value: "single_question" },
+                          { label: __("Question pagination", "tutorpress"), value: "question_pagination" },
+                          { label: __("Question below each other", "tutorpress"), value: "question_below_each_other" },
+                        ]}
+                        onChange={(value) => onSettingChange({ question_layout_view: value as QuestionLayoutView })}
+                        disabled={isSaving}
+                      />
+                    </div>
+                  )}
+
+                  {/* Question Order - Always visible, full width for Interactive Quiz when basic mode */}
+                  <div
+                    className={
+                      isInteractiveQuizMode && !showAllSettings
+                        ? "quiz-modal-setting-full-width"
+                        : "quiz-modal-setting-column"
+                    }
+                  >
                     <SelectControl
-                      label={__("Question Layout", "tutorpress")}
-                      value={questionLayoutView}
+                      label={__("Question Order", "tutorpress")}
+                      value={questionsOrder}
                       options={[
-                        { label: __("Select an option", "tutorpress"), value: "" },
-                        { label: __("Single question", "tutorpress"), value: "single_question" },
-                        { label: __("Question pagination", "tutorpress"), value: "question_pagination" },
-                        { label: __("Question below each other", "tutorpress"), value: "question_below_each_other" },
+                        { label: __("Random", "tutorpress"), value: "rand" },
+                        { label: __("Sorting", "tutorpress"), value: "sorting" },
+                        { label: __("Ascending", "tutorpress"), value: "asc" },
+                        { label: __("Descending", "tutorpress"), value: "desc" },
                       ]}
-                      onChange={(value) => onSettingChange({ question_layout_view: value as QuestionLayoutView })}
+                      onChange={(value) => onSettingChange({ questions_order: value as QuestionOrder })}
                       disabled={isSaving}
                     />
                   </div>
-                )}
+                </div>
+              </div>
 
-                {/* Question Order - Always visible, full width for Interactive Quiz when basic mode */}
-                <div
-                  className={
-                    isInteractiveQuizMode && !showAllSettings
-                      ? "quiz-modal-setting-full-width"
-                      : "quiz-modal-setting-column"
-                  }
-                >
-                  <SelectControl
-                    label={__("Question Order", "tutorpress")}
-                    value={questionsOrder}
-                    options={[
-                      { label: __("Random", "tutorpress"), value: "rand" },
-                      { label: __("Sorting", "tutorpress"), value: "sorting" },
-                      { label: __("Ascending", "tutorpress"), value: "asc" },
-                      { label: __("Descending", "tutorpress"), value: "desc" },
-                    ]}
-                    onChange={(value) => onSettingChange({ questions_order: value as QuestionOrder })}
+              {/* Hide Question Number - Quiz Modal always, Interactive Quiz when showAllSettings */}
+              {(!isInteractiveQuizMode || showAllSettings) && (
+                <div className="quiz-modal-setting-group">
+                  <ToggleControl
+                    label={__("Hide Question Number", "tutorpress")}
+                    checked={hideQuestionNumberOverview}
+                    onChange={(checked) => onSettingChange({ hide_question_number_overview: checked })}
                     disabled={isSaving}
                   />
                 </div>
-              </div>
+              )}
+
+              {/* Character Limits - Quiz Modal always, Interactive Quiz when showAllSettings */}
+              {(!isInteractiveQuizMode || showAllSettings) && (
+                <>
+                  <div className="quiz-modal-setting-group">
+                    <NumberControl
+                      label={__("Short Answer Character Limit", "tutorpress")}
+                      value={shortAnswerCharactersLimit}
+                      onChange={(value) =>
+                        onSettingChange({ short_answer_characters_limit: parseInt(value as string) || 200 })
+                      }
+                      min={1}
+                      max={10000}
+                      step={1}
+                      disabled={isSaving}
+                    />
+                  </div>
+
+                  <div className="quiz-modal-setting-group">
+                    <NumberControl
+                      label={__("Essay Answer Character Limit", "tutorpress")}
+                      value={openEndedAnswerCharactersLimit}
+                      onChange={(value) =>
+                        onSettingChange({ open_ended_answer_characters_limit: parseInt(value as string) || 500 })
+                      }
+                      min={1}
+                      max={50000}
+                      step={1}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </>
+              )}
             </div>
-
-            {/* Hide Question Number - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && (
-              <div className="quiz-modal-setting-group">
-                <ToggleControl
-                  label={__("Hide Question Number", "tutorpress")}
-                  checked={hideQuestionNumberOverview}
-                  onChange={(checked) => onSettingChange({ hide_question_number_overview: checked })}
-                  disabled={isSaving}
-                />
-              </div>
-            )}
-
-            {/* Character Limits - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && (
-              <>
-                <div className="quiz-modal-setting-group">
-                  <NumberControl
-                    label={__("Short Answer Character Limit", "tutorpress")}
-                    value={shortAnswerCharactersLimit}
-                    onChange={(value) =>
-                      onSettingChange({ short_answer_characters_limit: parseInt(value as string) || 200 })
-                    }
-                    min={1}
-                    max={10000}
-                    step={1}
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <div className="quiz-modal-setting-group">
-                  <NumberControl
-                    label={__("Essay Answer Character Limit", "tutorpress")}
-                    value={openEndedAnswerCharactersLimit}
-                    onChange={(value) =>
-                      onSettingChange({ open_ended_answer_characters_limit: parseInt(value as string) || 500 })
-                    }
-                    min={1}
-                    max={50000}
-                    step={1}
-                    disabled={isSaving}
-                  />
-                </div>
-              </>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
