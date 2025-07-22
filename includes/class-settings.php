@@ -33,8 +33,8 @@ class TutorPress_Settings {
 
         add_settings_section('tutorpress_main_section', __('Enable or Disable Features', 'tutorpress'), null, 'tutorpress-settings');
 
+        // Register toggle settings
         $settings = self::get_defined_settings();
-
         foreach ($settings as $key => $setting) {
             add_settings_field(
                 $key,
@@ -45,6 +45,15 @@ class TutorPress_Settings {
                 ['key' => $key, 'helper' => $setting['helper']]
             );
         }
+        
+        // Register checkbox settings for template hierarchy
+        add_settings_field(
+            'template_overrides',
+            __('Use WordPress Template Hierarchy for Tutor LMS Templates', 'tutorpress'),
+            [__CLASS__, 'render_template_override_checkboxes'],
+            'tutorpress-settings',
+            'tutorpress_main_section'
+        );
     }
 
     /**
@@ -57,21 +66,27 @@ class TutorPress_Settings {
         $sanitized = [];
         $defined_settings = self::get_defined_settings();
         
-        // Only process defined settings
+        // Sanitize toggle settings
         foreach ($defined_settings as $key => $setting) {
-            // Checkboxes: store '1' if checked, omit if unchecked
             if (isset($input[$key]) && $input[$key] === '1') {
                 $sanitized[$key] = '1';
             }
-            // Note: unchecked checkboxes are not sent in the form data,
-            // so we don't need to explicitly set them to false/empty
         }
         
+        // Sanitize template override checkboxes
+        if (isset($input['template_overrides']) && is_array($input['template_overrides'])) {
+            $sanitized['template_overrides'] = [];
+            // For now, only check for course_archive
+            if (isset($input['template_overrides']['course_archive']) && '1' === $input['template_overrides']['course_archive']) {
+                $sanitized['template_overrides']['course_archive'] = '1';
+            }
+        }
+
         return $sanitized;
     }
 
     /**
-     * Get the defined settings configuration
+     * Get the defined settings configuration for toggles
      * 
      * @return array Array of setting configurations
      */
@@ -85,12 +100,12 @@ class TutorPress_Settings {
                 'label' => __('Redirect Backend Course Editing to Gutenberg', 'tutorpress'),
                 'helper' => ''
             ],
-            'enable_dashboard_redirects' => [
-                'label' => __('Redirect Frontend Dashboard Editing to Gutenberg', 'tutorpress'),
+            'remove_frontend_builder_button' => [
+                'label' => __('Remove Button to Frontend Builder in Course Editor', 'tutorpress'),
                 'helper' => ''
             ],
-            'enable_template_loader' => [
-                'label' => __('Use WordPress Template Hierarchy for Course Archives', 'tutorpress'),
+            'enable_dashboard_redirects' => [
+                'label' => __('Redirect Frontend Dashboard Editing to Gutenberg', 'tutorpress'),
                 'helper' => ''
             ],
             'enable_extra_dashboard_links' => [
@@ -102,7 +117,6 @@ class TutorPress_Settings {
 
     public static function render_toggle($args) {
         $options = get_option('tutorpress_settings', []);
-        // Check for '1' as the stored value (proper checkbox handling)
         $checked = isset($options[$args['key']]) && $options[$args['key']] === '1' ? 'checked' : '';
         echo "<label class='tutorpress-switch'>
                 <input type='checkbox' name='tutorpress_settings[{$args['key']}]' value='1' $checked />
@@ -111,6 +125,22 @@ class TutorPress_Settings {
         if (!empty($args['helper'])) {
             echo "<p class='description' style='max-width: 600px; margin-top: 0;'>{$args['helper']}</p>";
         }
+    }
+    
+    public static function render_template_override_checkboxes() {
+        $options = get_option('tutorpress_settings', []);
+        $template_overrides = isset($options['template_overrides']) ? $options['template_overrides'] : [];
+        
+        $course_archive_checked = isset($template_overrides['course_archive']) && '1' === $template_overrides['course_archive'] ? 'checked' : '';
+        ?>
+        <div class="tutorpress-checkbox-group">
+            <label>
+                <input type="checkbox" name="tutorpress_settings[template_overrides][course_archive]" value="1" <?php echo $course_archive_checked; ?> />
+                <?php _e('Course Archive', 'tutorpress'); ?>
+            </label>
+            <!-- Future checkboxes can be added here -->
+        </div>
+        <?php
     }
 
     public static function render_settings_page() {
@@ -159,6 +189,10 @@ class TutorPress_Settings {
                 }
                 input:checked + .tutorpress-slider:before {
                     transform: translateX(14px);
+                }
+                .tutorpress-checkbox-group label {
+                    display: inline-block;
+                    margin-right: 20px;
                 }
             </style>
         </div>

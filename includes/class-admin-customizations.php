@@ -18,6 +18,41 @@ class TutorPress_Admin_Customizations {
         add_action('admin_menu', [__CLASS__, 'reorder_tutor_submenus'], 100);
         add_action('tutor_admin_after_course_list_action', [__CLASS__, 'override_course_edit_redirect']);
         add_action('admin_init', [__CLASS__, 'override_add_new_redirect']);
+        add_action('init', [__CLASS__, 'conditionally_hide_builder_button']);
+    }
+
+    /**
+     * Conditionally hides the "Edit with Course Builder" button via CSS.
+     */
+    public static function conditionally_hide_builder_button() {
+        $options = get_option('tutorpress_settings', []);
+        
+        if (!empty($options['remove_frontend_builder_button']) && '1' === $options['remove_frontend_builder_button']) {
+            add_action('admin_head', [__CLASS__, 'hide_builder_button_css']);
+        }
+    }
+
+    /**
+     * Injects CSS to hide the frontend builder button from the Gutenberg editor header.
+     */
+    public static function hide_builder_button_css() {
+        echo '<style>#tutor-frontend-builder-trigger { display: none !important; }</style>';
+    }
+
+    /**
+     * Remove the "Edit with Course Builder" button action from Tutor LMS.
+     * This prevents the button from being added to the admin bar.
+     */
+    public static function remove_tutor_admin_bar_button_action() {
+        $options = get_option('tutorpress_settings', []);
+        
+        if (empty($options['remove_frontend_builder_button']) || '1' !== $options['remove_frontend_builder_button']) {
+            return;
+        }
+
+        if (function_exists('tutor_lms') && !empty(tutor_lms()->admin)) {
+            remove_action('admin_bar_menu', [tutor_lms()->admin, 'add_toolbar_items'], 100);
+        }
     }
 
     /**
