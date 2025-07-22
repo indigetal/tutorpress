@@ -97,10 +97,6 @@ class TutorPress_Settings {
                 'label' => __('Add Media Library & H5P Links to Instructor Dashboard', 'tutorpress'),
                 'helper' => ''
             ],
-            'disable_frontend_course_builder' => [
-                'label' => __('Disable Tutor LMS Frontend Course Builder', 'tutorpress'),
-                'helper' => __('Significantly reduces resource usage on your site and ensures that all course editing is handled exclusively in the Gutenberg editor. Instructors will no longer be able to access the Tutor LMS course builder, preventing accidental changes that could affect existing Gutenberg blocks in lessons and assignments.', 'tutorpress')
-            ],
         ];
     }
 
