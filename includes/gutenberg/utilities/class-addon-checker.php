@@ -99,6 +99,13 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_SUBSCRIPTION_FILE',
             'class' => 'TutorPro\Subscription\Subscription',
         ],
+        // ADD BELOW: Tutor LMS Certificate Builder plugin detection
+        'certificate_builder' => [
+            'file' => 'tutor-lms-certificate-builder/tutor-lms-certificate-builder.php',
+            'basename' => 'tutor-lms-certificate-builder/tutor-lms-certificate-builder.php',
+            'constant' => 'TUTOR_CB_VERSION',
+            'class' => 'Tutor\Certificate\Builder\Init',
+        ],
     ];
 
     /**
@@ -251,6 +258,15 @@ class TutorPress_Addon_Checker {
         return self::is_addon_enabled('subscription');
     }
 
+    /**
+     * Check if Certificate Builder plugin is available
+     *
+     * @return bool True if plugin is available and enabled
+     */
+    public static function is_certificate_builder_enabled() {
+        return self::is_addon_enabled('certificate_builder');
+    }
+
 
     /**
      * Get availability status for all supported addons
@@ -272,6 +288,19 @@ class TutorPress_Addon_Checker {
      * @return bool True if addon is available and enabled
      */
     private static function check_addon_availability($config) {
+        // Special case for certificate_builder: check plugin active or class exists (like H5P)
+        if ($config['file'] === 'tutor-lms-certificate-builder/tutor-lms-certificate-builder.php') {
+            if (!function_exists('is_plugin_active')) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+            if (is_plugin_active('tutor-lms-certificate-builder/tutor-lms-certificate-builder.php')) {
+                return true;
+            }
+            if (class_exists('Tutor\Certificate\Builder\Init')) {
+                return true;
+            }
+            return false;
+        }
         // Primary check: Look for the specific addon file
         $addon_file = WP_PLUGIN_DIR . '/' . $config['file'];
         
@@ -575,7 +604,8 @@ class TutorPress_Addon_Checker {
         
         // Add H5P plugin status (independent of Tutor Pro)
         $status['h5p_plugin_active'] = self::is_h5p_plugin_active();
-        
+        // Add Certificate Builder plugin status
+        $status['certificate_builder'] = self::is_certificate_builder_enabled();
         return $status;
     }
 

@@ -25,7 +25,7 @@ import CertificatePreviewModal from "../modals/certificate/CertificatePreviewMod
 
 // Types
 import type { CertificateTemplate, CertificateFilters } from "../../types/certificate";
-import { isCertificateEnabled } from "../../utils/addonChecker";
+import { isCertificateEnabled, isCertificateBuilderEnabled } from "../../utils/addonChecker";
 
 // Store constant
 const CERTIFICATE_STORE = "tutorpress/certificate";
@@ -221,7 +221,21 @@ const Certificate: React.FC = (): JSX.Element | null => {
       {/* Metabox Header - Title removed as it's redundant with WordPress metabox title */}
       <div className="tutorpress-certificate__header">
         <p className="tutorpress-certificate__description">
-          {__("Select a certificate to award your learners", "tutorpress")}
+          {__("Select a certificate for the course below", "tutorpress")}
+          {isCertificateBuilderEnabled() && (
+            <>
+              {__(" or ", "tutorpress")}
+              <a
+                href="?action=tutor_certificate_builder"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginLeft: 2 }}
+              >
+                {__("create a new certificate here", "tutorpress")}
+              </a>
+              {__(".", "tutorpress")}
+            </>
+          )}
         </p>
       </div>
 

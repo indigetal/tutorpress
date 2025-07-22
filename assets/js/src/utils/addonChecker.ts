@@ -25,7 +25,8 @@ export type AddonKey =
   | "enrollments"
   | "course_attachments"
   | "subscription"
-  | "edd";
+  | "edd"
+  | "certificate_builder";
 
 /**
  * Payment engine types
@@ -59,6 +60,7 @@ export interface AddonStatus {
   woocommerce_monetization: boolean;
   edd_monetization: boolean;
   h5p_plugin_active: boolean; // Added for H5P plugin status
+  certificate_builder: boolean; // Added for Certificate Builder plugin status
 }
 
 /**
@@ -106,6 +108,7 @@ export class AddonChecker {
         woocommerce_monetization: false,
         edd_monetization: false,
         h5p_plugin_active: false, // Added for H5P plugin status
+        certificate_builder: false, // Added for Certificate Builder plugin status
       }
     );
   }
@@ -222,6 +225,13 @@ export class AddonChecker {
    */
   public static isEddEnabled(): boolean {
     return this.isAddonEnabled("edd");
+  }
+
+  /**
+   * Check if Certificate Builder plugin is enabled
+   */
+  public static isCertificateBuilderEnabled(): boolean {
+    return !!this.getAddonData().certificate_builder;
   }
 
   /**
@@ -378,6 +388,7 @@ export const isSubscriptionEnabled = (): boolean => AddonChecker.isSubscriptionE
 export const isEddEnabled = (): boolean => AddonChecker.isEddEnabled();
 export const isAnyLiveLessonEnabled = (): boolean => AddonChecker.isAnyLiveLessonEnabled();
 export const getAvailableLiveLessonTypes = (): AddonKey[] => AddonChecker.getAvailableLiveLessonTypes();
+export const isCertificateBuilderEnabled = (): boolean => AddonChecker.isCertificateBuilderEnabled();
 
 // Payment engine convenience functions
 export const isTutorProEnabled = (): boolean => AddonChecker.isTutorProEnabled();
