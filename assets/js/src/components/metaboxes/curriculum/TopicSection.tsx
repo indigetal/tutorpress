@@ -472,7 +472,25 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             )}
           </FlexBlock>
           <div className="tpress-item-actions-right tpress-button-group tpress-button-group-xs">
-            <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+            <ActionButtons
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onDelete={() => {
+                if (
+                  topic.contents &&
+                  topic.contents.length > 0 &&
+                  !window.confirm(
+                    __(
+                      "Deleting the topic will permanently delete all its associated content (Lessons, Assignments, etc.). Are you sure you want to continue?",
+                      "tutorpress"
+                    )
+                  )
+                ) {
+                  return;
+                }
+                onDelete?.();
+              }}
+            />
             <Button
               icon={topic.isCollapsed ? chevronRight : chevronDown}
               label={topic.isCollapsed ? __("Expand", "tutorpress") : __("Collapse", "tutorpress")}

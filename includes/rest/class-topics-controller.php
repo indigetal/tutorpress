@@ -630,7 +630,6 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             }
 
             $topic_id = (int) $request->get_param('id');
-            
             // Validate topic
             $topic = get_post($topic_id);
             if (!$topic || $topic->post_type !== 'topics') {
@@ -641,7 +640,43 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 );
             }
 
-            // Delete topic and its contents
+            // Cascade delete all associated content-items
+            $content_items = $this->get_topic_contents($topic_id);
+            $errors = [];
+            foreach ($content_items as $item) {
+                $item_id = $item['id'];
+                $item_type = $item['type'];
+                $delete_result = null;
+                $fake_request = new WP_REST_Request('DELETE');
+                $fake_request->set_param('id', $item_id);
+
+                if ($item_type === 'lesson') {
+                    require_once __DIR__ . '/class-lessons-controller.php';
+                    $controller = new TutorPress_REST_Lessons_Controller();
+                    $delete_result = $controller->delete_item($fake_request);
+                } elseif ($item_type === 'tutor_assignments') {
+                    require_once __DIR__ . '/class-assignments-controller.php';
+                    $controller = new TutorPress_REST_Assignments_Controller();
+                    $delete_result = $controller->delete_item($fake_request);
+                } elseif ($item_type === 'tutor_quiz' || $item_type === 'interactive_quiz') {
+                    require_once __DIR__ . '/class-quizzes-controller.php';
+                    $controller = new TutorPress_REST_Quizzes_Controller();
+                    $delete_result = $controller->delete_item($fake_request);
+                } elseif ($item_type === 'meet_lesson' || $item_type === 'zoom_lesson') {
+                    require_once __DIR__ . '/class-live-lessons-controller.php';
+                    $controller = new TutorPress_REST_Live_Lessons_Controller();
+                    $delete_result = $controller->delete_item($fake_request);
+                } else {
+                    // Fallback: try to hard delete
+                    $delete_result = wp_delete_post($item_id, true);
+                }
+
+                if (is_wp_error($delete_result)) {
+                    $errors[] = $delete_result->get_error_message();
+                }
+            }
+
+            // Delete topic itself
             $result = wp_delete_post($topic_id, true);
 
             if (!$result) {
@@ -649,6 +684,14 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'topic_deletion_failed',
                     __('Failed to delete topic.', 'tutorpress'),
                     ['status' => 500]
+                );
+            }
+
+            if (!empty($errors)) {
+                return new WP_Error(
+                    'topic_content_deletion_partial',
+                    __('Topic deleted, but some content-items could not be deleted: ', 'tutorpress') . implode('; ', $errors),
+                    ['status' => 207]
                 );
             }
 
@@ -850,13 +893,14 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 }
             }
 
-            // Get content items
+            // Get content items (now includes live lessons and all statuses)
             $content_items = get_posts([
                 'post_parent'    => $topic_id,
-                'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments'],
+                'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting'],
                 'posts_per_page' => -1,
                 'orderby'        => 'menu_order',
                 'order'          => 'ASC',
+                'post_status'    => ['publish', 'draft', 'private', 'pending', 'future'],
             ]);
 
             // Duplicate content items
