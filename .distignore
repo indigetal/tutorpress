@@ -11,8 +11,7 @@ tsconfig.json
 memory-bank/
 tutor-master/
 tutor-pro/
-h5p-plugin
-h5p-plugin/
+sensei-trunk/
 .git/
 .cursor/
 gutenberg-original.css

@@ -221,7 +221,7 @@ const Certificate: React.FC = (): JSX.Element | null => {
       {/* Metabox Header - Title removed as it's redundant with WordPress metabox title */}
       <div className="tutorpress-certificate__header">
         <p className="tutorpress-certificate__description">
-          {__("Select a certificate for the course below", "tutorpress")}
+          {__("Select a certificate below for the course", "tutorpress")}
           {isCertificateBuilderEnabled() && (
             <>
               {__(" or ", "tutorpress")}
