@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.12.14
+ * Version: 1.13.0
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  *
@@ -30,7 +30,6 @@ if ( ! function_exists( 'tutorpress_fs' ) ) {
                 'type'                => 'plugin',
                 'public_key'          => 'pk_703b19a55bb9391b8f8dabb350543',
                 'is_premium'          => true,
-                'premium_suffix'      => 'Pro',
                 // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
                 'has_addons'          => false,
@@ -74,10 +73,9 @@ require_once TUTORPRESS_PATH . 'includes/class-settings.php';
 require_once TUTORPRESS_PATH . 'includes/class-template-loader.php';
 require_once TUTORPRESS_PATH . 'includes/class-metadata-handler.php';
 require_once TUTORPRESS_PATH . 'includes/class-admin-customizations.php';
-require_once TUTORPRESS_PATH . 'includes/class-dashboard-customizations.php';
-require_once TUTORPRESS_PATH . 'includes/class-sidebar-tabs.php';
 require_once TUTORPRESS_PATH . 'includes/class-scripts.php';
 require_once TUTORPRESS_PATH . 'includes/class-rest.php';
+require_once TUTORPRESS_PATH . 'includes/class-frontend-customizations.php';
 
 require_once TUTORPRESS_PATH . 'includes/gutenberg/utilities/class-addon-checker.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';

@@ -43,18 +43,36 @@ class TutorPress_Scripts {
      * @return void
      */
     public static function enqueue_common_assets() {
+        // Empty - we now handle frontend overrides in enqueue_dashboard_assets()
+    }
+
+    /**
+     * Enqueue JavaScript for the Tutor LMS frontend dashboard.
+     *
+     * @since 0.1.0
+     * @return void
+     */
+    public static function enqueue_dashboard_assets() {
+        // Only load if setting is enabled
         $options = get_option('tutorpress_settings', []);
-        
-        // Conditionally load override-tutorlms.js
-        if (!empty($options['enable_sidebar_tabs']) || !empty($options['enable_dashboard_redirects'])) {
-            wp_enqueue_script(
-                'tutorpress-override-tutorlms',
-                TUTORPRESS_URL . 'assets/js/override-tutorlms.js',
-                ['jquery'],
-                filemtime(TUTORPRESS_PATH . 'assets/js/override-tutorlms.js'),
-                true
-            );
+        if (empty($options['enable_dashboard_redirects'])) {
+            return;
         }
+
+        // Enqueue the standalone override script for frontend "New Course" button
+        wp_enqueue_script(
+            'tutorpress-override-tutorlms',
+            TUTORPRESS_URL . 'assets/js/override-tutorlms.js',
+            ['jquery'],
+            filemtime(TUTORPRESS_PATH . 'assets/js/override-tutorlms.js'),
+            true
+        );
+
+        // Add TutorPressData for overrides
+        wp_localize_script('tutorpress-override-tutorlms', 'TutorPressData', [
+            'enableDashboardRedirects' => true,  // We're already inside the if(enabled) check
+            'adminUrl' => admin_url(),
+        ]);
     }
 
     /**
@@ -91,29 +109,6 @@ class TutorPress_Scripts {
     }
 
     /**
-     * Enqueue JavaScript for the Tutor LMS frontend dashboard.
-     *
-     * @since 0.1.0
-     * @return void
-     */
-    public static function enqueue_dashboard_assets() {
-        if (!is_page('dashboard')) { // Ensure we are on the Tutor LMS dashboard
-            return;
-        }
-
-        $options = get_option('tutorpress_settings', []);
-        if (!empty($options['enable_dashboard_redirects'])) {
-            wp_enqueue_script(
-                'tutorpress-override-tutorlms',
-                TUTORPRESS_URL . 'assets/js/override-tutorlms.js',
-                ['jquery'],
-                filemtime(TUTORPRESS_PATH . 'assets/js/override-tutorlms.js'),
-                true
-            );
-        }
-    }
-
-    /**
      * Enqueue admin-specific assets.
      *
      * @since 0.1.0
@@ -126,7 +121,7 @@ class TutorPress_Scripts {
         }
 
         $screen = get_current_screen();
-        if (!$screen || !in_array($screen->post_type, ['courses', 'lesson', 'tutor_assignments'], true)) {
+        if (!$screen || !in_array($screen->post_type, ['courses', 'lesson', 'tutor_assignments', 'course-bundle'], true)) {
             return;
         }
 
@@ -137,7 +132,7 @@ class TutorPress_Scripts {
         wp_enqueue_style(
             'tutorpress-gutenberg',
             TUTORPRESS_URL . 'assets/js/build/index.css',
-            ['wp-components'], // Depend on Gutenberg styles
+            ['wp-components'],
             $asset_file['version'],
             'all'
         );
@@ -146,10 +141,20 @@ class TutorPress_Scripts {
         wp_enqueue_script(
             'tutorpress-curriculum-metabox',
             TUTORPRESS_URL . 'assets/js/build/index.js',
-            array_merge(['wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-plugins', 'wp-edit-post', 'wp-i18n'], $asset_file['dependencies']),
+            array_merge(['jquery', 'wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-plugins', 'wp-edit-post', 'wp-i18n'], $asset_file['dependencies']),
             $asset_file['version'],
             true
         );
+
+        // Get settings for localization
+        $options = get_option('tutorpress_settings', []);
+
+        // Add TutorPressData for overrides
+        wp_localize_script('tutorpress-curriculum-metabox', 'TutorPressData', [
+            'enableDashboardRedirects' => !empty($options['enable_dashboard_redirects']),
+            'enableAdminRedirects' => !empty($options['enable_admin_redirects']),
+            'adminUrl' => admin_url(),
+        ]);
 
         // Localize script with necessary data
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorPressCurriculum', [
@@ -173,13 +178,7 @@ class TutorPress_Scripts {
      * @return void
      */
     public static function localize_script_data() {
-        $options = get_option('tutorpress_settings', []);
-        
-        wp_localize_script('tutorpress-override-tutorlms', 'TutorPressData', [
-            'enableSidebarTabs' => !empty($options['enable_sidebar_tabs']),
-            'enableDashboardRedirects' => !empty($options['enable_dashboard_redirects']),
-            'adminUrl' => admin_url(),
-        ]);
+        // Moved to enqueue_common_assets()
     }
 
     /**

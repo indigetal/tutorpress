@@ -1,36 +1,81 @@
-# Development files and directories to exclude from production build
-# Node.js
-node_modules/
+# Development files and directories
+.git
+.github
+.gitignore
+.distignore
+.editorconfig
+.eslintrc
+.eslintignore
+.prettierrc
+.stylelintrc
+.vscode
+.idea
+.DS_Store
+.env*
+node_modules
 package.json
 package-lock.json
-webpack.config.js
-postcss.config.js
+composer.json
+composer.lock
+phpunit.xml*
+phpcs.xml*
+*.config.js
+*.config.ts
 tsconfig.json
+webpack.config.js
+jest.config.js
+babel.config.js
+postcss.config.js
 
-# Development directories
-memory-bank/
-tutor-master/
-tutor-pro/
-sensei-trunk/
-.git/
-.cursor/
-gutenberg-original.css
+# Source files (already compiled)
+assets/js/src
+assets/css/src
+assets/scss
+__tests__
+tests
+test
+coverage
 
-# Source files (already compiled to build/)
-assets/js/src/
-assets/css/src/
+# Development scripts and tools
+bin
+scripts
+tools
+.github
+.husky
+.cursor
+memory-bank
 
-# OS files
-.DS_Store
-Thumbs.db
+# Build artifacts
+/build
+/dist
+/tutorpress-build
+*.zip
+*.tar.gz
+*.tgz
 
-# IDE files
-.vscode/
-.idea/
+# Documentation
+docs
+*.md
+!README.md
+!CHANGELOG.md
+!LICENSE.md
 
-# Development scripts
-.distignore
+# Development plugins/themes used for testing
+tutor-master
+tutor-pro
+sensei-lms
+sensei-trunk
 
-# Distribution files
-dist/
-tutorpress.zip 
+# Debug files
+*.log
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+.cache 

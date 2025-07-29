@@ -14,6 +14,7 @@ import CoursePricingPanel from "./components/settings/CoursePricingPanel";
 import CourseInstructorsPanel from "./components/settings/CourseInstructorsPanel";
 import EditCourseButton from "./components/common/EditCourseButton";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
+import "./utils/overrides";
 
 // Import stores to ensure they are registered
 import "./store/h5p"; // H5P store registration

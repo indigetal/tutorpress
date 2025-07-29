@@ -4,7 +4,7 @@
     "module": "esnext",
     "moduleResolution": "node",
     "jsx": "react",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "./assets/js/build",

@@ -1,26 +1,27 @@
 <?php
 /**
- * Adds extra menu items and customizations to the Tutor LMS Instructor Dashboard.
+ * Handles frontend customizations for TutorPress, including:
+ * - Instructor dashboard navigation and functionality
+ * - Frontend course editing redirects
+ * - Additional frontend UI/UX enhancements
  */
 
 defined( 'ABSPATH' ) || exit;
 
-class TutorPress_Dashboard_Customizations {
+class TutorPress_Frontend_Customizations {
 
     public static function init() {
         $options = get_option('tutorpress_settings', []);
         
-        if (!isset($options['enable_extra_dashboard_links']) || !$options['enable_extra_dashboard_links']) {
-            return;
+        // Extra dashboard links
+        if (!empty($options['enable_extra_dashboard_links'])) {
+            add_filter('tutor_dashboard/instructor_nav_items', [__CLASS__, 'add_extra_dashboard_links']);
         }
         
-        add_filter('tutor_dashboard/instructor_nav_items', [__CLASS__, 'add_extra_dashboard_links']);
-        
-        if (!isset($options['enable_dashboard_redirects']) || !$options['enable_dashboard_redirects']) {
-            return;
+        // Dashboard redirects
+        if (!empty($options['enable_dashboard_redirects'])) {
+            add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
         }
-        
-        add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
     }
 
     public static function add_extra_dashboard_links($nav_items) {
@@ -54,4 +55,4 @@ class TutorPress_Dashboard_Customizations {
 }
 
 // Initialize the class
-TutorPress_Dashboard_Customizations::init();
+TutorPress_Frontend_Customizations::init();

@@ -205,7 +205,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
       <TextControl
         label={__("Meeting Title", "tutorpress") + " *"}
         value={formData.title}
-        onChange={(value) => updateField("title", value)}
+        onChange={(value: string) => updateField("title", value)}
         placeholder={__("Enter meeting title", "tutorpress")}
         disabled={disabled}
         required
@@ -215,7 +215,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
       <TextareaControl
         label={__("Meeting Summary", "tutorpress") + " *"}
         value={formData.summary}
-        onChange={(value) => updateField("summary", value)}
+        onChange={(value: string) => updateField("summary", value)}
         placeholder={__("Enter meeting description or agenda", "tutorpress")}
         rows={4}
         disabled={disabled}
@@ -255,7 +255,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
           label={__("Start Time", "tutorpress") + " *"}
           value={formData.time}
           options={timeOptions}
-          onChange={(value) => updateField("time", value)}
+          onChange={(value: string) => updateField("time", value)}
           disabled={disabled}
           required
         />
@@ -269,7 +269,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
           <FlexItem>
             <NumberControl
               value={formData.duration}
-              onChange={(value) => updateField("duration", parseInt(value as string) || 40)}
+              onChange={(value: string) => updateField("duration", parseInt(value as string) || 40)}
               min={1}
               max={480} // 8 hours max
               disabled={disabled}
@@ -280,7 +280,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
             <SelectControl
               value={formData.durationUnit}
               options={durationUnitOptions}
-              onChange={(value) => updateField("durationUnit", value)}
+              onChange={(value: string) => updateField("durationUnit", value)}
               disabled={disabled}
             />
           </FlexItem>
@@ -292,7 +292,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         label={__("Timezone", "tutorpress") + " *"}
         value={formData.timezone}
         options={timezoneOptions}
-        onChange={(value) => updateField("timezone", value)}
+        onChange={(value: string) => updateField("timezone", value)}
         disabled={disabled}
         help={__("Select the timezone for this meeting", "tutorpress")}
         required
@@ -303,7 +303,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         label={__("Auto Recording", "tutorpress")}
         value={formData.autoRecording}
         options={autoRecordingOptions}
-        onChange={(value) => updateField("autoRecording", value)}
+        onChange={(value: string) => updateField("autoRecording", value)}
         disabled={disabled}
         help={__("Choose whether to automatically record this meeting", "tutorpress")}
       />
@@ -341,7 +341,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         label={__("Meeting Host", "tutorpress") + " *"}
         value={formData.host}
         options={hostOptions}
-        onChange={(value) => updateField("host", value)}
+        onChange={(value: string) => updateField("host", value)}
         disabled={disabled || loadingUsers}
         help={
           usersError

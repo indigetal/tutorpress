@@ -1,24 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
-  // Check if the sidebar tabs feature is enabled before modifying lesson tabs
-  if (typeof TutorPressData !== "undefined" && TutorPressData.enableSidebarTabs) {
-    // Remove the tabs in the main content area of the lesson pages
-    let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
-    tabsToRemove.forEach((selector) => {
-      let tab = document.querySelector(selector);
-      if (tab) {
-        tab.remove();
-      }
-    });
-  }
-
   // Function to override "Create A New Course" button
   function overrideCreateCourseButton() {
+    // Check setting FIRST - before touching the button
     if (typeof TutorPressData === "undefined" || !TutorPressData.enableDashboardRedirects) {
-      return;
+      return; // Exit before we modify anything
     }
 
     let createCourseButton = document.querySelector(".tutor-dashboard-create-course");
-
     if (!createCourseButton) {
       return; // If button is missing, do nothing
     }
@@ -30,13 +18,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Add our custom click event
     createCourseButton.addEventListener("click", function (event) {
-      event.preventDefault(); // Prevent default Tutor LMS behavior
-      event.stopPropagation(); // Stop AJAX request
+      event.preventDefault();
+      event.stopPropagation();
 
       // Kill any pending AJAX requests to prevent errors
       if (window.fetch) {
         window.fetch = function () {
-          return new Promise(() => {}); // Return a fake promise to block AJAX
+          return new Promise(() => {});
         };
       }
 

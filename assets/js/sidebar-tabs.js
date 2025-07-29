@@ -1,4 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
+  // Remove unnecessary tabs in lesson pages
+  let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
+  tabsToRemove.forEach((selector) => {
+    let tab = document.querySelector(selector);
+    if (tab) {
+      tab.remove();
+    }
+  });
+
   let tabs = document.querySelectorAll(".tutorpress-tab");
   let contents = document.querySelectorAll(".tutorpress-tab-content");
   let sidebar = document.querySelector(".tutor-course-single-content-wrapper");
