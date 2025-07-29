@@ -99,6 +99,12 @@ class TutorPress_Addon_Checker {
             'constant' => 'TUTOR_SUBSCRIPTION_FILE',
             'class' => 'TutorPro\Subscription\Subscription',
         ],
+        'course_bundle' => [
+            'file' => 'tutor-pro/addons/course-bundle/course-bundle.php',
+            'basename' => 'tutor-pro/addons/course-bundle/course-bundle.php',
+            'constant' => 'TUTOR_BUNDLE_VERSION',
+            'class' => 'TutorPro\CourseBundle\CourseBundle',
+        ],
         // ADD BELOW: Tutor LMS Certificate Builder plugin detection
         'certificate_builder' => [
             'file' => 'tutor-lms-certificate-builder/tutor-lms-certificate-builder.php',
@@ -256,6 +262,10 @@ class TutorPress_Addon_Checker {
      */
     public static function is_subscription_enabled() {
         return self::is_addon_enabled('subscription');
+    }
+
+    public static function is_course_bundle_enabled() {
+        return self::is_addon_enabled('course_bundle');
     }
 
     /**

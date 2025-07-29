@@ -89,6 +89,12 @@ class TutorPress_REST {
                 $controllers['subscriptions'] = new TutorPress_REST_Subscriptions_Controller();
             }
 
+            // Conditionally load Bundle Settings controller only if Course Bundle addon is available
+            if (TutorPress_Addon_Checker::is_course_bundle_enabled()) {
+                require_once TUTORPRESS_PATH . 'includes/rest/class-bundle-settings-controller.php';
+                $controllers['bundle_settings'] = new TutorPress_REST_Bundle_Settings_Controller();
+            }
+
             // Conditionally load product controllers (WooCommerce and EDD)
             if (TutorPress_Addon_Checker::is_woocommerce_enabled() || TutorPress_Addon_Checker::is_edd_enabled()) {
                 require_once TUTORPRESS_PATH . 'includes/rest/class-product-controller.php';
