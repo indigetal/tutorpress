@@ -269,7 +269,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
           <FlexItem>
             <NumberControl
               value={formData.duration}
-              onChange={(value: string) => updateField("duration", parseInt(value as string) || 40)}
+              onChange={(value: string | undefined) => updateField("duration", parseInt(value || "40") || 40)}
               min={1}
               max={480} // 8 hours max
               disabled={disabled}
