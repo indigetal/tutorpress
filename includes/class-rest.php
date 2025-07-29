@@ -91,8 +91,8 @@ class TutorPress_REST {
 
             // Conditionally load Bundle Settings controller only if Course Bundle addon is available
             if (TutorPress_Addon_Checker::is_course_bundle_enabled()) {
-                require_once TUTORPRESS_PATH . 'includes/rest/class-bundle-settings-controller.php';
-                $controllers['bundle_settings'] = new TutorPress_REST_Bundle_Settings_Controller();
+                require_once TUTORPRESS_PATH . 'includes/rest/class-course-bundles-controller.php';
+                $controllers['course_bundles'] = new TutorPress_REST_Course_Bundles_Controller();
             }
 
             // Conditionally load product controllers (WooCommerce and EDD)

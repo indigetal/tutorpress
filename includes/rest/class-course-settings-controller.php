@@ -316,6 +316,40 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                 ),
             ));
 
+            // Add general course search endpoint
+        register_rest_route($this->namespace, '/courses/search', array(
+            array(
+                'methods'  => WP_REST_Server::READABLE,
+                'callback' => array($this, 'get_courses_for_search'),
+                'permission_callback' => array($this, 'check_prerequisites_permission'),
+                    'args'     => array(
+                        'exclude' => array(
+                            'description' => __('Course IDs to exclude from results (comma-separated).', 'tutorpress'),
+                            'type'        => 'string',
+                            'required'    => false,
+                        ),
+                        'search' => array(
+                            'description' => __('Search term to filter courses.', 'tutorpress'),
+                            'type'        => 'string',
+                            'required'    => false,
+                        ),
+                        'per_page' => array(
+                            'description' => __('Number of courses per page.', 'tutorpress'),
+                            'type'        => 'integer',
+                            'default'     => 20,
+                            'minimum'     => 1,
+                            'maximum'     => 100,
+                        ),
+                        'status' => array(
+                            'description' => __('Course status to filter by.', 'tutorpress'),
+                            'type'        => 'string',
+                            'default'     => 'publish',
+                            'enum'        => array('publish', 'draft', 'private'),
+                        ),
+                    ),
+                ),
+            ));
+
             // Add endpoint for fetching attachment metadata
             register_rest_route(
                 $this->namespace,
@@ -800,6 +834,90 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'data' => $formatted_courses,
             'total_found' => count($formatted_courses),
             'search_term' => $search,
+        ));
+    }
+
+    /**
+     * Get courses for general search (reusable for bundles, prerequisites, etc.)
+     *
+     * @param WP_REST_Request $request The REST request object
+     * @return WP_REST_Response|WP_Error Response object or error
+     */
+    public function get_courses_for_search($request) {
+        $exclude = $request->get_param('exclude');
+        $search = $request->get_param('search');
+        $per_page = $request->get_param('per_page') ?: 20;
+        $status = $request->get_param('status') ?: 'publish';
+
+        $args = array(
+            'post_type' => 'courses',
+            'post_status' => $status,
+            'posts_per_page' => $per_page,
+            'meta_query' => array(
+                array(
+                    'key' => '_tutor_course_price_type',
+                    'compare' => 'EXISTS',
+                ),
+            ),
+        );
+
+        // Exclude specific courses (comma-separated string)
+        if ($exclude) {
+            $exclude_ids = array_map('intval', explode(',', $exclude));
+            $exclude_ids = array_filter($exclude_ids); // Remove empty values
+            if (!empty($exclude_ids)) {
+                $args['post__not_in'] = $exclude_ids;
+            }
+        }
+
+        // Add search functionality
+        if ($search) {
+            $args['s'] = sanitize_text_field($search);
+        }
+
+        $courses = get_posts($args);
+        $formatted_courses = array();
+
+        foreach ($courses as $course) {
+            // Get additional course data for bundles
+            $course_duration = get_post_meta($course->ID, '_course_duration', true);
+            $lesson_count = get_post_meta($course->ID, '_lesson_count', true);
+            $quiz_count = get_post_meta($course->ID, '_quiz_count', true);
+            $resource_count = get_post_meta($course->ID, '_resource_count', true);
+            
+            // Get course price
+            $price_type = get_post_meta($course->ID, '_tutor_course_price_type', true);
+            $price = '';
+            if ($price_type === 'free') {
+                $price = __('Free', 'tutorpress');
+            } else {
+                $regular_price = get_post_meta($course->ID, '_tutor_course_price', true);
+                $sale_price = get_post_meta($course->ID, '_tutor_course_sale_price', true);
+                $price = $sale_price ? $sale_price : $regular_price;
+                $price = $price ? '$' . $price : '';
+            }
+
+            $formatted_courses[] = array(
+                'id' => $course->ID,
+                'title' => $course->post_title,
+                'permalink' => get_permalink($course->ID),
+                'featured_image' => get_the_post_thumbnail_url($course->ID, 'thumbnail'),
+                'author' => get_the_author_meta('display_name', $course->post_author),
+                'date_created' => $course->post_date,
+                'price' => $price,
+                'duration' => $course_duration ? $course_duration : '',
+                'lesson_count' => $lesson_count ? (int) $lesson_count : 0,
+                'quiz_count' => $quiz_count ? (int) $quiz_count : 0,
+                'resource_count' => $resource_count ? (int) $resource_count : 0,
+            );
+        }
+
+        return rest_ensure_response(array(
+            'success' => true,
+            'data' => $formatted_courses,
+            'total_found' => count($formatted_courses),
+            'search_term' => $search,
+            'status' => $status,
         ));
     }
 

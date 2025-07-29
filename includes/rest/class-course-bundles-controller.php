@@ -10,7 +10,7 @@
 
 defined('ABSPATH') || exit;
 
-class TutorPress_REST_Bundle_Settings_Controller extends TutorPress_REST_Controller {
+class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controller {
 
     /**
      * Constructor.

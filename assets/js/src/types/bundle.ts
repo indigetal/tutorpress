@@ -90,6 +90,21 @@ export interface BundleCourse {
   status: string;
 }
 
+// Available Course Types (for course selection)
+export interface AvailableCourse {
+  id: number;
+  title: string;
+  permalink: string;
+  featured_image?: string;
+  author: string;
+  date_created: string;
+  price?: string;
+  duration?: string;
+  lesson_count?: number;
+  quiz_count?: number;
+  resource_count?: number;
+}
+
 export interface BundleCourseSearch {
   search?: string;
   per_page?: number;
@@ -197,5 +212,10 @@ export interface CourseBundlesState {
     isLoading: boolean;
     error: BundleError | null;
     lastFetchedBundleId: number | null;
+  };
+  courseSelection: {
+    availableCourses: AvailableCourse[];
+    isLoading: boolean;
+    error: BundleError | null;
   };
 }

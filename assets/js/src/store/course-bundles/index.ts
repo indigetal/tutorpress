@@ -19,6 +19,7 @@ import type {
   BundlePricing,
   BundleError,
   BundleCourseSearch,
+  AvailableCourse,
 } from "../../types/bundle";
 import { BundleErrorCode } from "../../types/bundle";
 
@@ -35,6 +36,11 @@ const initialState: CourseBundlesState = {
     error: null,
     lastFetchedBundleId: null,
   },
+  courseSelection: {
+    availableCourses: [],
+    isLoading: false,
+    error: null,
+  },
 };
 
 // Action types
@@ -45,6 +51,8 @@ const ACTION_TYPES = {
   SET_CURRENT_BUNDLE: "SET_CURRENT_BUNDLE",
   SET_OPERATION_STATE: "SET_OPERATION_STATE",
   CLEAR_ERROR: "CLEAR_ERROR",
+  SET_AVAILABLE_COURSES: "SET_AVAILABLE_COURSES",
+  SET_COURSE_SELECTION_STATE: "SET_COURSE_SELECTION_STATE",
 } as const;
 
 // Define action types for TypeScript
@@ -54,7 +62,9 @@ export type CourseBundlesAction =
   | { type: "SET_BUNDLES"; payload: BundleListResponse }
   | { type: "SET_CURRENT_BUNDLE"; payload: BundleResponse }
   | { type: "SET_OPERATION_STATE"; payload: Partial<BundleOperationState> }
-  | { type: "CLEAR_ERROR" };
+  | { type: "CLEAR_ERROR" }
+  | { type: "SET_AVAILABLE_COURSES"; payload: AvailableCourse[] }
+  | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<CourseBundlesState["courseSelection"]> };
 
 // Action creators
 const actions = {
@@ -124,15 +134,71 @@ const actions = {
     return { bundle: { id, ...data } as Bundle };
   },
 
+  // Course selection actions for Setting 1
+  *fetchAvailableCourses(params?: { search?: string; per_page?: number; page?: number }) {
+    yield { type: "SET_COURSE_SELECTION_STATE", payload: { isLoading: true, error: null } };
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.search) queryParams.append("search", params.search);
+      if (params?.per_page) queryParams.append("per_page", params.per_page.toString());
+      if (params?.page) queryParams.append("page", params.page.toString());
+
+      const response: { courses: AvailableCourse[] } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/courses/available?${queryParams.toString()}`,
+          method: "GET",
+        },
+      };
+
+      yield { type: "SET_AVAILABLE_COURSES", payload: response.courses };
+      return response;
+    } catch (error) {
+      const bundleError: BundleError = {
+        code: BundleErrorCode.NETWORK_ERROR,
+        message: error instanceof Error ? error.message : "Failed to fetch available courses",
+        context: { action: "fetchAvailableCourses", details: "Failed to fetch available courses" },
+      };
+      yield { type: "SET_COURSE_SELECTION_STATE", payload: { error: bundleError } };
+      throw bundleError;
+    } finally {
+      yield { type: "SET_COURSE_SELECTION_STATE", payload: { isLoading: false } };
+    }
+  },
+
+  *updateBundleCourses(id: number, courseIds: number[]) {
+    yield { type: "SET_OPERATION_STATE", payload: { status: "saving" } };
+
+    try {
+      const response: { message: string } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/bundles/${id}/courses`,
+          method: "PATCH",
+          data: { course_ids: courseIds },
+        },
+      };
+
+      yield { type: "SET_OPERATION_STATE", payload: { status: "success", data: response as any } };
+      return response;
+    } catch (error) {
+      const bundleError: BundleError = {
+        code: BundleErrorCode.NETWORK_ERROR,
+        message: error instanceof Error ? error.message : "Failed to update bundle courses",
+        context: { action: "updateBundleCourses", bundleId: id, details: `Failed to update bundle ${id} courses` },
+      };
+      yield { type: "SET_OPERATION_STATE", payload: { status: "error", error: bundleError } };
+      throw bundleError;
+    } finally {
+      yield { type: "SET_OPERATION_STATE", payload: { status: "idle" } };
+    }
+  },
+
   // Placeholder actions for future settings - will be expanded incrementally
   *getBundleCourses(id: number) {
     // Placeholder - will be expanded in Setting 1
     return { courses: [] };
-  },
-
-  *updateBundleCourses(id: number, courseIds: number[]) {
-    // Placeholder - will be expanded in Setting 1
-    return { message: "Updated" };
   },
 
   *getBundleBenefits(id: number) {
@@ -174,6 +240,7 @@ const resolvers = {
   getBundleBenefits: actions.getBundleBenefits,
   getBundlePricing: actions.getBundlePricing,
   getBundleInstructors: actions.getBundleInstructors,
+  fetchAvailableCourses: actions.fetchAvailableCourses,
 };
 
 // Selectors
@@ -184,6 +251,10 @@ const selectors = {
   getError: (state: CourseBundlesState) => state.fetchState.error,
   getBundleById: (state: CourseBundlesState, id: number) => state.bundles.find((bundle) => bundle.id === id) || null,
   getOperationState: (state: CourseBundlesState) => state.operationState,
+  // Course selection selectors
+  getAvailableCourses: (state: CourseBundlesState) => state.courseSelection.availableCourses,
+  getCourseSelectionLoading: (state: CourseBundlesState) => state.courseSelection.isLoading,
+  getCourseSelectionError: (state: CourseBundlesState) => state.courseSelection.error,
 };
 
 // Create and register the store
@@ -237,6 +308,24 @@ const store = createReduxStore("tutorpress/course-bundles", {
           operationState: { status: "idle" },
         };
 
+      case ACTION_TYPES.SET_AVAILABLE_COURSES:
+        return {
+          ...state,
+          courseSelection: {
+            ...state.courseSelection,
+            availableCourses: (action as { type: "SET_AVAILABLE_COURSES"; payload: AvailableCourse[] }).payload,
+          },
+        };
+
+      case ACTION_TYPES.SET_COURSE_SELECTION_STATE:
+        return {
+          ...state,
+          courseSelection: {
+            ...state.courseSelection,
+            ...(action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<CourseBundlesState["courseSelection"]> }).payload,
+          },
+        };
+
       default:
         return state;
     }
@@ -265,6 +354,7 @@ export const {
   getBundlePricing,
   updateBundlePricing,
   getBundleInstructors,
+  fetchAvailableCourses,
   clearError,
 } = actions;
 
@@ -275,6 +365,9 @@ export const {
   getError,
   getBundleById,
   getOperationState,
+  getAvailableCourses,
+  getCourseSelectionLoading,
+  getCourseSelectionError,
 } = selectors;
 
 // Export types for components
