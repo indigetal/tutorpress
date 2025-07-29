@@ -41,14 +41,24 @@ class TutorPress_Frontend_Customizations {
         return array_merge($nav_items, $extra_links);
     }
 
-    // Redirect "Edit Course" button icons in Dashboard to Gutenberg
+    // Redirect "Edit Course" and "Edit Bundle" button icons in Dashboard to Gutenberg
     public static function override_dashboard_edit_buttons($url, $sub_url) {
+        // Course edit link override
         if (strpos($sub_url, 'create-course?course_id=') !== false) {
             parse_str(parse_url($sub_url, PHP_URL_QUERY), $query);
             if (isset($query['course_id'])) {
                 return admin_url('post.php?post=' . intval($query['course_id']) . '&action=edit');
             }
         }
+        
+        // Bundle edit link override
+        if (strpos($sub_url, 'create-bundle?action=edit&id=') !== false) {
+            parse_str(parse_url($sub_url, PHP_URL_QUERY), $query);
+            if (isset($query['id'])) {
+                return admin_url('post.php?post=' . intval($query['id']) . '&action=edit');
+            }
+        }
+        
         return $url;
     }
 

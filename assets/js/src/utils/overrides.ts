@@ -50,6 +50,14 @@ function overrideFrontendEditIcons(): void {
         item.setAttribute("href", "post.php?post=" + postId + "&action=edit");
       }
     }
+
+    // Bundle edit link override
+    if (href.includes("dashboard/create-bundle?action=edit&id=")) {
+      const bundleId = href.split("id=")[1].split("#")[0];
+      if (bundleId) {
+        item.setAttribute("href", "post.php?post=" + bundleId + "&action=edit");
+      }
+    }
   });
 }
 
