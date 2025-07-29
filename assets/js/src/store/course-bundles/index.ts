@@ -135,7 +135,7 @@ const actions = {
   },
 
   // Course selection actions for Setting 1
-  *fetchAvailableCourses(params?: { search?: string; per_page?: number; page?: number }) {
+  *fetchAvailableCourses(params?: { search?: string; per_page?: number; page?: number; exclude?: string }) {
     yield { type: "SET_COURSE_SELECTION_STATE", payload: { isLoading: true, error: null } };
 
     try {
@@ -143,16 +143,17 @@ const actions = {
       if (params?.search) queryParams.append("search", params.search);
       if (params?.per_page) queryParams.append("per_page", params.per_page.toString());
       if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.exclude) queryParams.append("exclude", params.exclude);
 
-      const response: { courses: AvailableCourse[] } = yield {
+      const response: { data: AvailableCourse[]; total_found: number; search_term?: string; status: string } = yield {
         type: "API_FETCH",
         request: {
-          path: `/tutorpress/v1/courses/available?${queryParams.toString()}`,
+          path: `/tutorpress/v1/courses/search?${queryParams.toString()}`,
           method: "GET",
         },
       };
 
-      yield { type: "SET_AVAILABLE_COURSES", payload: response.courses };
+      yield { type: "SET_AVAILABLE_COURSES", payload: response.data };
       return response;
     } catch (error) {
       const bundleError: BundleError = {
