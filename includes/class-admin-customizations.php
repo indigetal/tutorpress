@@ -167,7 +167,7 @@ class TutorPress_Admin_Customizations {
             wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
         }
 
-        // Check if this is from backend source and we should redirect
+        // Only process backend requests (frontend requests handled by class-frontend-customizations.php)
         $source = isset($_POST['source']) ? $_POST['source'] : '';
         if ($source === 'backend') {
             // Create a new course bundle and return the Gutenberg edit URL

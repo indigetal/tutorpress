@@ -51,6 +51,8 @@ class TutorPress_Frontend_Customizations {
         }
         return $url;
     }
+
+
     
 }
 
