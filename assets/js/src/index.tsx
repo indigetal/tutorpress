@@ -85,7 +85,7 @@ registerPlugin("tutorpress-edit-course-button", {
 import "./store/curriculum";
 import "./store/course-settings";
 import "./store/subscriptions";
-import "./store/bundle-settings";
+import "./store/course-bundles";
 
 // Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {

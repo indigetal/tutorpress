@@ -10,7 +10,7 @@
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import type {
-  BundleSettingsState,
+  CourseBundlesState,
   BundleOperationState,
   Bundle,
   BundleListResponse,
@@ -23,7 +23,7 @@ import type {
 import { BundleErrorCode } from "../../types/bundle";
 
 // Initial state
-const initialState: BundleSettingsState = {
+const initialState: CourseBundlesState = {
   bundles: [],
   currentBundle: null,
   operationState: { status: "idle" },
@@ -48,7 +48,7 @@ const ACTION_TYPES = {
 } as const;
 
 // Define action types for TypeScript
-export type BundleSettingsAction =
+export type CourseBundlesAction =
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: BundleError }
   | { type: "SET_BUNDLES"; payload: BundleListResponse }
@@ -178,17 +178,17 @@ const resolvers = {
 
 // Selectors
 const selectors = {
-  getBundles: (state: BundleSettingsState) => state.bundles,
-  getCurrentBundle: (state: BundleSettingsState) => state.currentBundle,
-  isLoading: (state: BundleSettingsState) => state.fetchState.isLoading,
-  getError: (state: BundleSettingsState) => state.fetchState.error,
-  getBundleById: (state: BundleSettingsState, id: number) => state.bundles.find((bundle) => bundle.id === id) || null,
-  getOperationState: (state: BundleSettingsState) => state.operationState,
+  getBundles: (state: CourseBundlesState) => state.bundles,
+  getCurrentBundle: (state: CourseBundlesState) => state.currentBundle,
+  isLoading: (state: CourseBundlesState) => state.fetchState.isLoading,
+  getError: (state: CourseBundlesState) => state.fetchState.error,
+  getBundleById: (state: CourseBundlesState, id: number) => state.bundles.find((bundle) => bundle.id === id) || null,
+  getOperationState: (state: CourseBundlesState) => state.operationState,
 };
 
 // Create and register the store
-const store = createReduxStore("tutorpress/bundle-settings", {
-  reducer(state = initialState, action: BundleSettingsAction | { type: string }) {
+const store = createReduxStore("tutorpress/course-bundles", {
+  reducer(state = initialState, action: CourseBundlesAction | { type: string }) {
     switch (action.type) {
       case ACTION_TYPES.SET_LOADING:
         return {
@@ -279,7 +279,7 @@ export const {
 
 // Export types for components
 export type {
-  BundleSettingsState,
+  CourseBundlesState,
   BundleOperationState,
   BundleCreationState,
   BundleEditState,

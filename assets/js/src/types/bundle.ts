@@ -186,7 +186,7 @@ export interface BundleEditState {
 /**
  * Main bundle settings state following TutorPress patterns
  */
-export interface BundleSettingsState {
+export interface CourseBundlesState {
   bundles: Bundle[];
   currentBundle: Bundle | null;
   operationState: BundleOperationState;
