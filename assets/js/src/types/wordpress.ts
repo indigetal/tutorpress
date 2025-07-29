@@ -117,6 +117,16 @@ export interface CoreNoticesActions {
   removeNotice(id: string): void;
 }
 
+/**
+ * WordPress Data Store Dispatch Function Type
+ */
+export type WordPressDispatch<T = any> = (storeKey: string) => T;
+
+/**
+ * WordPress Data Store Select Function Type
+ */
+export type WordPressSelect<T = any> = (storeKey: string) => T;
+
 // ============================================================================
 // WordPress Data Controls (for API_FETCH)
 // ============================================================================
@@ -209,8 +219,8 @@ declare global {
     wp: {
       apiFetch: (options: ApiFetchOptions) => Promise<any>;
       data?: {
-        select: (storeKey: string) => any;
-        dispatch: (storeKey: string) => any;
+        select: WordPressSelect;
+        dispatch: WordPressDispatch;
         subscribe: (listener: () => void) => () => void;
         use: (plugin: any, options?: any) => void;
       };
