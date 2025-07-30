@@ -1,0 +1,356 @@
+/**
+ * Course Selection Modal Styles
+ *
+ * @description Styles for the course selection modal used in bundle course management.
+ *              Follows the established TutorPress modal patterns and design system.
+ *
+ * @package TutorPress
+ * @subpackage Components/CourseBundles
+ * @since 1.0.0
+ */
+
+/* ========================================================================
+   COURSE SELECTION MODAL BASE STYLES
+   ======================================================================== */
+
+.tutorpress-course-selection-modal {
+  /* Inherit base modal styles */
+}
+
+.tutorpress-course-selection-modal .components-modal__frame {
+  max-width: 800px;
+  width: 90vw;
+  max-height: 80vh;
+}
+
+.tutorpress-course-selection-modal .components-modal__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tutorpress-course-selection-modal .components-modal__header-heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/* ========================================================================
+   SEARCH SECTION STYLES
+   ======================================================================== */
+
+.tutorpress-search-section {
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--gray-300);
+}
+
+.tutorpress-search-section .components-base-control {
+  margin-bottom: 0;
+}
+
+.tutorpress-search-section .components-text-control__input {
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  width: 100%;
+  background: var(--white);
+}
+
+.tutorpress-search-section .components-text-control__input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+}
+
+/* ========================================================================
+   COURSE TABLE STYLES
+   ======================================================================== */
+
+.tutorpress-course-table-header {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tutorpress-course-table-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--gray-300);
+  min-height: 60px;
+}
+
+.tutorpress-course-table-header .tutorpress-course-table-row {
+  font-weight: 600;
+  color: var(--gray-700);
+  background: var(--gray-100);
+}
+
+.tutorpress-course-table-row:hover {
+  background: var(--gray-50);
+}
+
+.tutorpress-course-table-row:last-child {
+  border-bottom: none;
+}
+
+/* Checkbox column */
+.tutorpress-course-checkbox {
+  flex: 0 0 200px;
+  display: flex;
+  align-items: center;
+}
+
+.tutorpress-course-checkbox .components-checkbox-control {
+  margin-bottom: 0;
+}
+
+.tutorpress-course-checkbox .components-checkbox-control__label {
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+/* Course info column */
+.tutorpress-course-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.tutorpress-course-thumbnail {
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorpress-course-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tutorpress-course-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--gray-300);
+  color: var(--gray-600);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorpress-course-title {
+  flex: 1;
+  font-weight: 500;
+  color: var(--gray-900);
+  line-height: 1.4;
+}
+
+/* Price column */
+.tutorpress-course-price-header {
+  flex: 0 0 100px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.tutorpress-course-price {
+  flex: 0 0 100px;
+  text-align: right;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+/* ========================================================================
+   COURSE LIST STYLES
+   ======================================================================== */
+
+.tutorpress-course-list {
+  flex: 1;
+  border: 1px solid var(--gray-300);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tutorpress-no-courses {
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--gray-500);
+}
+
+.tutorpress-no-courses p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* ========================================================================
+   PAGINATION STYLES
+   ======================================================================== */
+
+.tutorpress-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--gray-300);
+}
+
+.tutorpress-page-info {
+  font-size: var(--text-sm);
+  color: var(--gray-600);
+  font-weight: 500;
+}
+
+/* ========================================================================
+   MODAL ACTIONS STYLES
+   ======================================================================== */
+
+.tutorpress-modal-actions {
+  padding: var(--space-lg) 0 0 0;
+  border-top: 1px solid var(--gray-300);
+  margin-top: var(--space-lg);
+}
+
+.tutorpress-modal-actions .components-button {
+  margin-left: var(--space-sm);
+}
+
+/* ========================================================================
+   LOADING AND ERROR STATES
+   ======================================================================== */
+
+.tutorpress-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  color: var(--gray-500);
+}
+
+.tutorpress-modal-loading .components-spinner {
+  margin-bottom: var(--space-md);
+}
+
+.tutorpress-modal-loading p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* ========================================================================
+   RESPONSIVE DESIGN
+   ======================================================================== */
+
+@media (max-width: 768px) {
+  .tutorpress-course-selection-modal .components-modal__frame {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .tutorpress-course-table-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+
+  .tutorpress-course-checkbox {
+    flex: none;
+    width: 100%;
+  }
+
+  .tutorpress-course-info {
+    flex: none;
+    width: 100%;
+  }
+
+  .tutorpress-course-price-header,
+  .tutorpress-course-price {
+    flex: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .tutorpress-pagination {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .tutorpress-course-selection-modal .components-modal__frame {
+    width: 100vw;
+    height: 100vh;
+    max-height: none;
+  }
+
+  .tutorpress-modal-content {
+    padding: var(--space-lg);
+  }
+
+  .tutorpress-course-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .tutorpress-course-thumbnail {
+    align-self: flex-start;
+  }
+}
+
+/* ========================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ======================================================================== */
+
+.tutorpress-course-table-row:focus-within {
+  background: var(--color-primary-light);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.tutorpress-course-checkbox .components-checkbox-control__input:focus + .components-checkbox-control__label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tutorpress-course-table-row {
+    border-bottom: 2px solid var(--gray-900);
+  }
+
+  .tutorpress-course-table-header {
+    background: var(--gray-900);
+    color: var(--white);
+  }
+
+  .tutorpress-course-table-header .tutorpress-course-table-row {
+    color: var(--white);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-course-table-row {
+    transition: none;
+  }
+
+  .tutorpress-course-table-row:hover {
+    background: var(--gray-100);
+  }
+} 

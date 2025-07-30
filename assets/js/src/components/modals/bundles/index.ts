@@ -1,10 +1,11 @@
 /**
  * Bundle Modals Index
  *
- * Exports for bundle-related modal components.
+ * @description Exports for bundle-related modal components.
  *
  * @package TutorPress
- * @since 0.1.0
+ * @subpackage Components/Modals/Bundles
+ * @since 1.0.0
  */
 
-export { default as CourseSelectionModal } from "./CourseSelectionModal";
+export { CourseSelectionModal } from "./CourseSelectionModal";

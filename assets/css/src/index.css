@@ -27,6 +27,9 @@
 /* Live Lessons Feature */
 @import "./components/live-lessons.css";
 
+/* Course Bundles Feature */
+@import "./components/course-bundles/course-selection-modal.css";
+
 /* Quiz Feature */
 @import "./components/quiz/quiz-modal.css";
 @import "./components/quiz/quiz-options.css";
