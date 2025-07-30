@@ -77,6 +77,49 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 ],
             ]
         );
+
+        // Bundle courses endpoints
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/(?P<id>[\d]+)/courses',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_bundle_courses'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The bundle ID.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+                [
+                    'methods'             => 'PATCH',
+                    'callback'            => [$this, 'update_bundle_courses'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The bundle ID.', 'tutorpress'),
+                        ],
+                        'course_ids' => [
+                            'required'          => true,
+                            'type'             => 'array',
+                            'items'            => ['type' => 'integer'],
+                            'sanitize_callback' => function($ids) {
+                                return array_map('absint', (array) $ids);
+                            },
+                            'description'       => __('Array of course IDs to assign to the bundle.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
@@ -217,6 +260,135 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
         }
 
         return $this->get_bundle($request);
+    }
+
+    /**
+     * Get courses for a specific bundle.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object.
+     */
+    public function get_bundle_courses($request) {
+        $bundle_id = (int) $request->get_param('id');
+        
+        // Validate bundle exists
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return new WP_Error(
+                'bundle_not_found',
+                __('Bundle not found.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get bundle course IDs from meta
+        $course_ids = get_post_meta($bundle_id, '_tutor_bundle_course_ids', true);
+        if (!is_array($course_ids)) {
+            $course_ids = [];
+        }
+
+        // Get course details for each course ID
+        $courses = [];
+        foreach ($course_ids as $course_id) {
+            $course = get_post($course_id);
+            if ($course && $course->post_type === 'courses') {
+                // Get additional course data
+                $course_duration = get_post_meta($course_id, '_course_duration', true);
+                $lesson_count = get_post_meta($course_id, '_lesson_count', true);
+                $quiz_count = get_post_meta($course_id, '_quiz_count', true);
+                $resource_count = get_post_meta($course_id, '_resource_count', true);
+                
+                // Get course price
+                $price_type = get_post_meta($course_id, '_tutor_course_price_type', true);
+                $price = '';
+                if ($price_type === 'free') {
+                    $price = __('Free', 'tutorpress');
+                } else {
+                    $regular_price = get_post_meta($course_id, '_tutor_course_price', true);
+                    $sale_price = get_post_meta($course_id, '_tutor_course_sale_price', true);
+                    $price = $sale_price ? $sale_price : $regular_price;
+                    $price = $price ? '$' . $price : '';
+                }
+
+                $courses[] = [
+                    'id' => $course_id,
+                    'title' => $course->post_title,
+                    'permalink' => get_permalink($course_id),
+                    'featured_image' => get_the_post_thumbnail_url($course_id, 'thumbnail'),
+                    'author' => get_the_author_meta('display_name', $course->post_author),
+                    'date_created' => $course->post_date,
+                    'price' => $price,
+                    'duration' => $course_duration ? $course_duration : '',
+                    'lesson_count' => $lesson_count ? (int) $lesson_count : 0,
+                    'quiz_count' => $quiz_count ? (int) $quiz_count : 0,
+                    'resource_count' => $resource_count ? (int) $resource_count : 0,
+                ];
+            }
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $courses,
+            'total_found' => count($courses),
+        ]);
+    }
+
+    /**
+     * Update courses for a specific bundle.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object.
+     */
+    public function update_bundle_courses($request) {
+        $bundle_id = (int) $request->get_param('id');
+        $course_ids = $request->get_param('course_ids');
+        
+        // Validate bundle exists
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return new WP_Error(
+                'bundle_not_found',
+                __('Bundle not found.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Validate course IDs
+        if (!is_array($course_ids)) {
+            return new WP_Error(
+                'invalid_course_ids',
+                __('Course IDs must be an array.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Validate each course exists and is accessible
+        $valid_course_ids = [];
+        foreach ($course_ids as $course_id) {
+            $course = get_post($course_id);
+            if ($course && $course->post_type === 'courses') {
+                // Check if user has permission to access this course
+                if (current_user_can('edit_post', $course_id)) {
+                    $valid_course_ids[] = $course_id;
+                }
+            }
+        }
+
+        // Update bundle course IDs meta
+        $result = update_post_meta($bundle_id, '_tutor_bundle_course_ids', $valid_course_ids);
+        
+        if ($result === false) {
+            return new WP_Error(
+                'update_failed',
+                __('Failed to update bundle courses.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        // Return updated courses
+        return $this->get_bundle_courses($request);
     }
 
 

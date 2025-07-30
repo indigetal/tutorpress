@@ -198,8 +198,30 @@ const actions = {
 
   // Placeholder actions for future settings - will be expanded incrementally
   *getBundleCourses(id: number) {
-    // Placeholder - will be expanded in Setting 1
-    return { courses: [] };
+    yield { type: "SET_OPERATION_STATE", payload: { status: "loading" } };
+
+    try {
+      const response: { data: AvailableCourse[]; total_found: number } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/bundles/${id}/courses`,
+          method: "GET",
+        },
+      };
+
+      yield { type: "SET_OPERATION_STATE", payload: { status: "success", data: response } };
+      return response;
+    } catch (error) {
+      const bundleError: BundleError = {
+        code: BundleErrorCode.NETWORK_ERROR,
+        message: error instanceof Error ? error.message : "Failed to fetch bundle courses",
+        context: { action: "getBundleCourses", bundleId: id, details: `Failed to fetch bundle ${id} courses` },
+      };
+      yield { type: "SET_OPERATION_STATE", payload: { status: "error", error: bundleError } };
+      throw bundleError;
+    } finally {
+      yield { type: "SET_OPERATION_STATE", payload: { status: "idle" } };
+    }
   },
 
   *getBundleBenefits(id: number) {
