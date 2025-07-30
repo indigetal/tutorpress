@@ -288,33 +288,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                 ]
             );
 
-            // Add endpoint for course selection (prerequisites dropdown)
-        register_rest_route($this->namespace, '/courses/prerequisites', array(
-            array(
-                'methods'  => WP_REST_Server::READABLE,
-                'callback' => array($this, 'get_courses_for_prerequisites'),
-                'permission_callback' => array($this, 'check_prerequisites_permission'),
-                    'args'     => array(
-                        'exclude' => array(
-                            'description' => __('Course ID to exclude from results (typically the current course).', 'tutorpress'),
-                            'type'        => 'integer',
-                            'required'    => false,
-                        ),
-                        'search' => array(
-                            'description' => __('Search term to filter courses.', 'tutorpress'),
-                            'type'        => 'string',
-                            'required'    => false,
-                        ),
-                        'per_page' => array(
-                            'description' => __('Number of courses per page.', 'tutorpress'),
-                            'type'        => 'integer',
-                            'default'     => 20,
-                            'minimum'     => 1,
-                            'maximum'     => 100,
-                        ),
-                    ),
-                ),
-            ));
+
 
             // Add general course search endpoint
         register_rest_route($this->namespace, '/courses/search', array(
@@ -782,60 +756,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         ]);
     }
 
-    /**
-     * Get courses for prerequisites dropdown
-     *
-     * @param WP_REST_Request $request The REST request object
-     * @return WP_REST_Response|WP_Error Response object or error
-     */
-    public function get_courses_for_prerequisites($request) {
-        $exclude = $request->get_param('exclude');
-        $search = $request->get_param('search');
-        $per_page = $request->get_param('per_page') ?: 20;
 
-        $args = array(
-            'post_type' => 'courses',
-            'post_status' => 'publish',
-            'posts_per_page' => $per_page,
-            'meta_query' => array(
-                array(
-                    'key' => '_tutor_course_price_type',
-                    'compare' => 'EXISTS',
-                ),
-            ),
-        );
-
-        // Exclude specific course (typically the current course)
-        if ($exclude) {
-            $args['post__not_in'] = array((int) $exclude);
-        }
-
-        // Add search functionality
-        if ($search) {
-            $args['s'] = sanitize_text_field($search);
-        }
-
-        $courses = get_posts($args);
-        $formatted_courses = array();
-
-        foreach ($courses as $course) {
-            $formatted_courses[] = array(
-                'id' => $course->ID,
-                'title' => $course->post_title,
-                'permalink' => get_permalink($course->ID),
-                'featured_image' => get_the_post_thumbnail_url($course->ID, 'thumbnail'),
-                'author' => get_the_author_meta('display_name', $course->post_author),
-                'date_created' => $course->post_date,
-            );
-        }
-
-        return rest_ensure_response(array(
-            'success' => true,
-            'data' => $formatted_courses,
-            'total_found' => count($formatted_courses),
-            'search_term' => $search,
-        ));
-    }
 
     /**
      * Get courses for general search (reusable for bundles, prerequisites, etc.)

@@ -239,6 +239,16 @@ export interface PrerequisiteCourse {
   id: number;
   title: string;
   status: string;
+  // Enhanced fields from new search endpoint (optional for backward compatibility)
+  permalink?: string;
+  featured_image?: string;
+  author?: string;
+  date_created?: string;
+  price?: string;
+  duration?: string;
+  lesson_count?: number;
+  quiz_count?: number;
+  resource_count?: number;
 }
 
 export type PrerequisiteCoursesResponse = TutorResponse<PrerequisiteCourse[]>;

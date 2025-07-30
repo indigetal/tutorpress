@@ -42,6 +42,12 @@ interface Course {
   featured_image?: string;
   author: string;
   date_created: string;
+  // Enhanced fields from new search endpoint (optional for backward compatibility)
+  price?: string;
+  duration?: string;
+  lesson_count?: number;
+  quiz_count?: number;
+  resource_count?: number;
 }
 
 interface CourseOption {

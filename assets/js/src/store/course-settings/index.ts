@@ -493,7 +493,7 @@ const actions = {
       const response = yield {
         type: "API_FETCH",
         request: {
-          path: `/tutorpress/v1/courses/prerequisites?exclude=${courseId}&per_page=50`,
+          path: `/tutorpress/v1/courses/search?exclude=${courseId}&per_page=50&status=publish`,
           method: "GET",
         },
       };
