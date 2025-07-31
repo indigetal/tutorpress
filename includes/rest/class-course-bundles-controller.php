@@ -120,6 +120,55 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 ],
             ]
         );
+
+        // Bundle benefits endpoints (following Additional Content pattern)
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/(?P<id>[\d]+)/benefits',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_bundle_benefits'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The bundle ID.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        // Save bundle benefits endpoint (following Additional Content pattern)
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/benefits/save',
+            [
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'callback'            => [$this, 'save_bundle_benefits'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'bundle_id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The bundle ID.', 'tutorpress'),
+                        ],
+                        'benefits' => [
+                            'type'              => 'string',
+                            'description'       => __('What students will learn from this bundle', 'tutorpress'),
+                            'default'           => '',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+
     }
 
     /**
@@ -421,5 +470,96 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
         return $this->get_bundle_courses($request);
     }
 
+    /**
+     * Get bundle benefits (What Will I Learn field).
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object.
+     */
+    public function get_bundle_benefits($request) {
+        $bundle_id = (int) $request->get_param('id');
+
+        // Validate bundle exists
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return new WP_Error(
+                'bundle_not_found',
+                __('Bundle not found', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get data from Tutor LMS compatible meta fields
+        $benefits = get_post_meta($bundle_id, '_tutor_course_benefits', true);
+
+        // Ensure we return strings, not false
+        $benefits = is_string($benefits) ? $benefits : '';
+
+        // Prepare response data (following Additional Content pattern)
+        $response_data = [
+            'benefits' => $benefits,
+            'bundle_id' => $bundle_id,
+        ];
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $response_data,
+        ]);
+    }
+
+    /**
+     * Save bundle benefits (What Will I Learn field).
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object.
+     */
+    public function save_bundle_benefits($request) {
+        $bundle_id = (int) $request->get_param('bundle_id');
+        $benefits = $request->get_param('benefits');
+
+        // Validate bundle exists
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return new WP_Error(
+                'bundle_not_found',
+                __('Bundle not found', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get parameters with proper defaults
+        $benefits = sanitize_textarea_field($benefits ?? '');
+
+        // Save data to Tutor LMS compatible meta fields
+        try {
+            $benefits_saved = update_post_meta($bundle_id, '_tutor_course_benefits', $benefits);
+
+            if ($benefits_saved === false) {
+                return new WP_Error(
+                    'meta_save_failed',
+                    __('Failed to save bundle benefits', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+        } catch (Exception $e) {
+            error_log('TutorPress: Failed to save bundle benefits meta fields: ' . $e->getMessage());
+            return new WP_Error(
+                'meta_save_failed',
+                __('Failed to save bundle benefits: ' . $e->getMessage(), 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => __('Bundle benefits saved successfully', 'tutorpress'),
+            'data' => [
+                'bundle_id' => $bundle_id,
+                'benefits_saved' => $benefits_saved !== false,
+            ],
+        ]);
+    }
 
 } 

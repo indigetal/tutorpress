@@ -218,4 +218,13 @@ export interface CourseBundlesState {
     isLoading: boolean;
     error: BundleError | null;
   };
+  // Bundle Benefits state (following Additional Content pattern)
+  bundleBenefits: {
+    data: { benefits: string };
+    isLoading: boolean;
+    isSaving: boolean;
+    isDirty: boolean;
+    error: string | null;
+    lastSaved: number | null;
+  };
 }

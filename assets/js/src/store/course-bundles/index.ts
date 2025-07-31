@@ -41,6 +41,15 @@ const initialState: CourseBundlesState = {
     isLoading: false,
     error: null,
   },
+  // Bundle Benefits state
+  bundleBenefits: {
+    data: { benefits: "" },
+    isLoading: false,
+    isSaving: false,
+    isDirty: false,
+    error: null,
+    lastSaved: null,
+  },
 };
 
 // Action types
@@ -53,6 +62,18 @@ const ACTION_TYPES = {
   CLEAR_ERROR: "CLEAR_ERROR",
   SET_AVAILABLE_COURSES: "SET_AVAILABLE_COURSES",
   SET_COURSE_SELECTION_STATE: "SET_COURSE_SELECTION_STATE",
+  // Bundle Benefits actions
+  FETCH_BUNDLE_BENEFITS: "FETCH_BUNDLE_BENEFITS",
+  FETCH_BUNDLE_BENEFITS_START: "FETCH_BUNDLE_BENEFITS_START",
+  FETCH_BUNDLE_BENEFITS_SUCCESS: "FETCH_BUNDLE_BENEFITS_SUCCESS",
+  FETCH_BUNDLE_BENEFITS_ERROR: "FETCH_BUNDLE_BENEFITS_ERROR",
+  SAVE_BUNDLE_BENEFITS: "SAVE_BUNDLE_BENEFITS",
+  SAVE_BUNDLE_BENEFITS_START: "SAVE_BUNDLE_BENEFITS_START",
+  SAVE_BUNDLE_BENEFITS_SUCCESS: "SAVE_BUNDLE_BENEFITS_SUCCESS",
+  SAVE_BUNDLE_BENEFITS_ERROR: "SAVE_BUNDLE_BENEFITS_ERROR",
+  SET_BUNDLE_BENEFITS_DATA: "SET_BUNDLE_BENEFITS_DATA",
+  UPDATE_BUNDLE_BENEFITS: "UPDATE_BUNDLE_BENEFITS",
+  SET_DIRTY_STATE: "SET_DIRTY_STATE",
 } as const;
 
 // Define action types for TypeScript
@@ -224,16 +245,6 @@ const actions = {
     }
   },
 
-  *getBundleBenefits(id: number) {
-    // Placeholder - will be expanded in Setting 2
-    return { benefits: "" };
-  },
-
-  *updateBundleBenefits(id: number, benefits: string) {
-    // Placeholder - will be expanded in Setting 2
-    return { message: "Updated" };
-  },
-
   *getBundlePricing(id: number) {
     // Placeholder - will be expanded in Setting 3
     return { pricing: { regular_price: 0, sale_price: 0, ribbon_type: "none" } };
@@ -253,6 +264,97 @@ const actions = {
   clearError() {
     return { type: ACTION_TYPES.CLEAR_ERROR };
   },
+
+  // Bundle Benefits actions (following Additional Content pattern)
+  *fetchBundleBenefits(bundleId: number) {
+    yield { type: ACTION_TYPES.FETCH_BUNDLE_BENEFITS_START, payload: { bundleId } };
+
+    try {
+      const response: {
+        success: boolean;
+        data: {
+          benefits: string;
+          bundle_id: number;
+        };
+      } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/bundles/${bundleId}/benefits`,
+          method: "GET",
+        },
+      };
+
+      if (response.success) {
+        yield {
+          type: ACTION_TYPES.FETCH_BUNDLE_BENEFITS_SUCCESS,
+          payload: {
+            data: { benefits: response.data.benefits || "" },
+          },
+        };
+      } else {
+        yield {
+          type: ACTION_TYPES.FETCH_BUNDLE_BENEFITS_ERROR,
+          payload: { error: "Failed to load bundle benefits" },
+        };
+      }
+    } catch (error) {
+      yield {
+        type: ACTION_TYPES.FETCH_BUNDLE_BENEFITS_ERROR,
+        payload: {
+          error: error instanceof Error ? error.message : "Unknown error occurred",
+        },
+      };
+    }
+  },
+
+  *saveBundleBenefits(bundleId: number, data: { benefits: string }) {
+    yield { type: ACTION_TYPES.SAVE_BUNDLE_BENEFITS_START };
+
+    try {
+      const response: { success: boolean; message: string } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/bundles/benefits/save`,
+          method: "POST",
+          data: {
+            bundle_id: bundleId,
+            benefits: data.benefits,
+          },
+        },
+      };
+
+      if (response.success) {
+        yield {
+          type: ACTION_TYPES.SAVE_BUNDLE_BENEFITS_SUCCESS,
+          payload: { timestamp: Date.now() },
+        };
+      } else {
+        yield {
+          type: ACTION_TYPES.SAVE_BUNDLE_BENEFITS_ERROR,
+          payload: { error: response.message || "Failed to save bundle benefits" },
+        };
+      }
+    } catch (error) {
+      yield {
+        type: ACTION_TYPES.SAVE_BUNDLE_BENEFITS_ERROR,
+        payload: {
+          error: error instanceof Error ? error.message : "Unknown error occurred",
+        },
+      };
+    }
+  },
+
+  setBundleBenefitsData(data: { benefits: string }) {
+    return { type: ACTION_TYPES.SET_BUNDLE_BENEFITS_DATA, payload: { data } };
+  },
+
+  updateBundleBenefits(value: string) {
+    return { type: ACTION_TYPES.UPDATE_BUNDLE_BENEFITS, payload: { value } };
+  },
+
+  setDirtyState(isDirty: boolean) {
+    return { type: ACTION_TYPES.SET_DIRTY_STATE, payload: { isDirty } };
+  },
 };
 
 // Resolvers (for async operations)
@@ -260,7 +362,6 @@ const resolvers = {
   getBundles: actions.getBundles,
   getBundle: actions.getBundle,
   getBundleCourses: actions.getBundleCourses,
-  getBundleBenefits: actions.getBundleBenefits,
   getBundlePricing: actions.getBundlePricing,
   getBundleInstructors: actions.getBundleInstructors,
   fetchAvailableCourses: actions.fetchAvailableCourses,
@@ -278,6 +379,16 @@ const selectors = {
   getAvailableCourses: (state: CourseBundlesState) => state.courseSelection.availableCourses,
   getCourseSelectionLoading: (state: CourseBundlesState) => state.courseSelection.isLoading,
   getCourseSelectionError: (state: CourseBundlesState) => state.courseSelection.error,
+  // Bundle Benefits selectors (following Additional Content pattern)
+  getBundleBenefitsData: (state: CourseBundlesState) => state.bundleBenefits.data,
+  getBundleBenefitsLoading: (state: CourseBundlesState) => state.bundleBenefits.isLoading,
+  getBundleBenefitsSaving: (state: CourseBundlesState) => state.bundleBenefits.isSaving,
+  getBundleBenefitsDirty: (state: CourseBundlesState) => state.bundleBenefits.isDirty,
+  getBundleBenefitsError: (state: CourseBundlesState) => state.bundleBenefits.error,
+  getBundleBenefitsLastSaved: (state: CourseBundlesState) => state.bundleBenefits.lastSaved,
+  hasBundleBenefitsUnsavedChanges: (state: CourseBundlesState) => state.bundleBenefits.isDirty,
+  canSaveBundleBenefits: (state: CourseBundlesState) =>
+    !state.bundleBenefits.isLoading && !state.bundleBenefits.isSaving && state.bundleBenefits.isDirty,
 };
 
 // Create and register the store
@@ -345,7 +456,107 @@ const store = createReduxStore("tutorpress/course-bundles", {
           ...state,
           courseSelection: {
             ...state.courseSelection,
-            ...(action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<CourseBundlesState["courseSelection"]> }).payload,
+            ...(
+              action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<CourseBundlesState["courseSelection"]> }
+            ).payload,
+          },
+        };
+
+      // Bundle Benefits reducer cases (following Additional Content pattern)
+      case ACTION_TYPES.FETCH_BUNDLE_BENEFITS_START:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isLoading: true,
+            error: null,
+          },
+        };
+
+      case ACTION_TYPES.FETCH_BUNDLE_BENEFITS_SUCCESS:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            data: (action as { type: "FETCH_BUNDLE_BENEFITS_SUCCESS"; payload: { data: { benefits: string } } }).payload
+              .data,
+            isLoading: false,
+            error: null,
+          },
+        };
+
+      case ACTION_TYPES.FETCH_BUNDLE_BENEFITS_ERROR:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isLoading: false,
+            error: (action as { type: "FETCH_BUNDLE_BENEFITS_ERROR"; payload: { error: string } }).payload.error,
+          },
+        };
+
+      case ACTION_TYPES.SAVE_BUNDLE_BENEFITS_START:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isSaving: true,
+            error: null,
+          },
+        };
+
+      case ACTION_TYPES.SAVE_BUNDLE_BENEFITS_SUCCESS:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isSaving: false,
+            isDirty: false,
+            lastSaved: (action as { type: "SAVE_BUNDLE_BENEFITS_SUCCESS"; payload: { timestamp: number } }).payload
+              .timestamp,
+            error: null,
+          },
+        };
+
+      case ACTION_TYPES.SAVE_BUNDLE_BENEFITS_ERROR:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isSaving: false,
+            error: (action as { type: "SAVE_BUNDLE_BENEFITS_ERROR"; payload: { error: string } }).payload.error,
+          },
+        };
+
+      case ACTION_TYPES.SET_BUNDLE_BENEFITS_DATA:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            data: (action as { type: "SET_BUNDLE_BENEFITS_DATA"; payload: { data: { benefits: string } } }).payload
+              .data,
+          },
+        };
+
+      case ACTION_TYPES.UPDATE_BUNDLE_BENEFITS:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            data: {
+              ...state.bundleBenefits.data,
+              benefits: (action as { type: "UPDATE_BUNDLE_BENEFITS"; payload: { value: string } }).payload.value,
+            },
+            isDirty: true,
+          },
+        };
+
+      case ACTION_TYPES.SET_DIRTY_STATE:
+        return {
+          ...state,
+          bundleBenefits: {
+            ...state.bundleBenefits,
+            isDirty: (action as { type: "SET_DIRTY_STATE"; payload: { isDirty: boolean } }).payload.isDirty,
           },
         };
 
@@ -372,8 +583,6 @@ export const {
   updateBundle,
   getBundleCourses,
   updateBundleCourses,
-  getBundleBenefits,
-  updateBundleBenefits,
   getBundlePricing,
   updateBundlePricing,
   getBundleInstructors,

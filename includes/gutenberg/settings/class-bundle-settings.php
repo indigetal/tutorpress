@@ -31,7 +31,7 @@ class TutorPress_Bundle_Settings {
      *
      * @var string
      */
-    const BUNDLE_BENEFITS_META_KEY = 'course_benefits';
+    const BUNDLE_BENEFITS_META_KEY = '_tutor_course_benefits';
 
     /**
      * Initialize the bundle settings.

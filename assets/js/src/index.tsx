@@ -102,6 +102,13 @@ document.addEventListener("DOMContentLoaded", () => {
     render(<BundleCourseSelection bundleId={bundleId ? parseInt(bundleId) : undefined} />, courseSelectionRoot);
   }
 
+  // Render Benefits metabox for Course Bundles
+  const benefitsRoot = document.getElementById("tutorpress-bundle-benefits-root");
+  if (benefitsRoot) {
+    const Benefits = require("./components/metaboxes/bundles/Benefits").default;
+    render(<Benefits />, benefitsRoot);
+  }
+
   // Conditionally render Certificate metabox only when Certificate addon is enabled
   if (isCertificateEnabled()) {
     const certificateRoot = document.getElementById("tutorpress-certificate-root");
