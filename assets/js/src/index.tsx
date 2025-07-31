@@ -12,6 +12,7 @@ import CourseAccessPanel from "./components/settings/CourseAccessPanel";
 import CourseMediaPanel from "./components/settings/CourseMediaPanel";
 import CoursePricingPanel from "./components/settings/CoursePricingPanel";
 import CourseInstructorsPanel from "./components/settings/CourseInstructorsPanel";
+import BundlePricingPanel from "./components/settings/BundlePricingPanel";
 import EditCourseButton from "./components/common/EditCourseButton";
 import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
 import "./utils/overrides";
@@ -74,6 +75,11 @@ registerPlugin("tutorpress-course-pricing-settings", {
 // Register the course instructors panel plugin for Gutenberg sidebar
 registerPlugin("tutorpress-course-instructors-panel", {
   render: CourseInstructorsPanel,
+});
+
+// Register the bundle pricing panel plugin for Gutenberg sidebar
+registerPlugin("tutorpress-bundle-pricing-settings", {
+  render: BundlePricingPanel,
 });
 
 // Register the edit course button plugin for Gutenberg (Phase 1 - Testing)
