@@ -1,86 +1,400 @@
 /**
- * Bundle Course Selection Metabox Component
+ * CourseSelection.tsx
  *
- * Skeleton component for bundle course selection functionality.
- * Will be expanded in Setting 1: Course List Selection.
+ * Main component for displaying and managing course selection in the Bundle Course Metabox.
+ * This component handles the entire course selection section including:
+ * - Course list display with drag/drop functionality and action buttons
+ * - Course selection modal integration
+ * - Responsive button layout with proper state management
+ *
+ * Key Features:
+ * - Drag and drop reordering via @dnd-kit using useSortableList hook
+ * - Integration with WordPress Data Store for all operations
+ * - Course selection modal for adding new courses
+ * - Responsive design with WordPress admin styling consistency
+ * - Form validation and user feedback via WordPress notices
  *
  * @package TutorPress
- * @since 0.1.0
+ * @subpackage Course Bundles/Components
+ * @since 1.0.0
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { Card, CardHeader, CardBody, Button, Icon, Flex, FlexBlock, Spinner, Notice } from "@wordpress/components";
+import { dragHandle, plus, close } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
-import { Button, Notice } from "@wordpress/components";
-import { plus } from "@wordpress/icons";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useSelect, useDispatch } from "@wordpress/data";
+import { store as noticesStore } from "@wordpress/notices";
+import type { AvailableCourse } from "../../../types/bundle";
+import { CourseSelectionModal } from "../../modals/bundles/CourseSelectionModal";
+import { useSortableList } from "../../../hooks/common/useSortableList";
+import { useError } from "../../../hooks/useError";
 
-// Import types (will be expanded as needed)
-import type { Bundle } from "../../../types/bundle";
+const COURSE_BUNDLES_STORE = "tutorpress/course-bundles";
+
+interface BundleCourseSelectionProps {
+  bundleId?: number;
+}
+
+interface CourseItemProps {
+  course: AvailableCourse;
+  index: number;
+  onRemove: () => void;
+  dragHandleProps?: any;
+  className?: string;
+  style?: React.CSSProperties;
+}
 
 /**
- * Bundle Course Selection Metabox Component
- *
- * Features (to be implemented):
- * - Course list display
- * - Course search and selection
- * - Course addition/removal
- * - Course reordering
+ * Renders a single course item in topic-like structure
  */
-const CourseSelection: React.FC = () => {
-  // Placeholder state (will be expanded)
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+const CourseItem: React.FC<CourseItemProps> = ({
+  course,
+  index,
+  onRemove,
+  dragHandleProps,
+  className,
+  style,
+}): JSX.Element => (
+  <Card className={`tutorpress-topic ${className || ""}`} style={style}>
+    <CardHeader className="tutorpress-topic-header">
+      <Flex align="center" gap={2}>
+        {/* Course index and drag handle */}
+        <div className="tutorpress-topic-icon tpress-flex-shrink-0">
+          <span className="course-number">{index + 1}</span>
+          <Button icon={dragHandle} label={__("Drag to reorder", "tutorpress")} isSmall {...dragHandleProps} />
+        </div>
 
-  // Placeholder handlers (will be expanded)
-  const handleAddCourse = () => {
-    // TODO: Implement course addition
-    console.log("Add course functionality - to be implemented");
-  };
+        {/* Course thumbnail */}
+        <div className="tutorpress-course-thumbnail">
+          {course.featured_image ? (
+            <img
+              src={course.featured_image}
+              alt={course.title}
+              width="40"
+              height="40"
+              style={{ borderRadius: "4px", objectFit: "cover" }}
+            />
+          ) : (
+            <div
+              className="tutorpress-course-thumbnail-placeholder"
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "4px",
+                backgroundColor: "var(--gray-200)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--gray-600)",
+                fontWeight: "600",
+                fontSize: "14px",
+              }}
+            >
+              {course.title.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
 
-  const handleRemoveCourse = (courseId: number) => {
-    // TODO: Implement course removal
-    console.log("Remove course functionality - to be implemented", courseId);
-  };
+        {/* Course title */}
+        <FlexBlock style={{ textAlign: "left" }}>
+          <div className="tutorpress-topic-title">{course.title}</div>
+        </FlexBlock>
 
-  const handleReorderCourses = (courseIds: number[]) => {
-    // TODO: Implement course reordering
-    console.log("Reorder courses functionality - to be implemented", courseIds);
+        {/* Course price and delete button */}
+        <div className="tpress-item-actions-right">
+          <span
+            className="course-price"
+            dangerouslySetInnerHTML={{ __html: course.price || __("Free", "tutorpress") }}
+          />
+          <Button
+            icon={close}
+            label={__("Remove course", "tutorpress")}
+            isSmall
+            className="delete-button"
+            onClick={onRemove}
+          />
+        </div>
+      </Flex>
+    </CardHeader>
+  </Card>
+);
+
+/**
+ * Sortable wrapper for course items
+ */
+const SortableCourseItem: React.FC<CourseItemProps> = (props): JSX.Element => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.course.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    ...props.style,
   };
 
   return (
-    <div className="tutorpress-bundle-course-selection">
-      <div className="tutorpress-metabox-header">
-        <h3>{__("Bundle Courses", "tutorpress")}</h3>
-        <p className="description">{__("Select courses to include in this bundle.", "tutorpress")}</p>
-      </div>
-
-      <div className="tutorpress-metabox-content">
-        {/* Error display */}
-        {error && (
-          <Notice status="error" isDismissible={false}>
-            {error}
-          </Notice>
-        )}
-
-        {/* Loading state */}
-        {isLoading && <div className="tutorpress-loading">{__("Loading courses...", "tutorpress")}</div>}
-
-        {/* Course list placeholder */}
-        <div className="tutorpress-course-list">
-          <div className="tutorpress-course-list-placeholder">
-            <p>{__("No courses selected yet.", "tutorpress")}</p>
-            <p className="description">{__("Click the button below to add courses to this bundle.", "tutorpress")}</p>
-          </div>
-        </div>
-
-        {/* Add course button */}
-        <div className="tutorpress-metabox-actions">
-          <Button icon={plus} variant="primary" onClick={handleAddCourse} disabled={isLoading}>
-            {__("Add Course", "tutorpress")}
-          </Button>
-        </div>
-      </div>
+    <div ref={setNodeRef} style={style}>
+      <CourseItem
+        {...props}
+        dragHandleProps={{
+          ...attributes,
+          ...listeners,
+          ref: setActivatorNodeRef,
+        }}
+        className={isDragging ? "tutorpress-topic--dragging" : ""}
+      />
     </div>
   );
 };
 
-export default CourseSelection;
+/**
+ * Main Bundle Course Selection component
+ */
+export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bundleId }): JSX.Element => {
+  // State management
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [localCourses, setLocalCourses] = useState<AvailableCourse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Store dispatch
+  const { getBundleCourses, updateBundleCourses } = useDispatch(COURSE_BUNDLES_STORE);
+
+  // We load courses via loadBundleCourses into local state
+
+  // Get notice actions
+  const { createNotice } = useDispatch(noticesStore);
+
+  // Drag and drop functionality
+  const {
+    sensors: courseSensors,
+    dragHandlers,
+    dragState,
+  } = useSortableList({
+    items: localCourses,
+    onReorder: async (newOrder) => {
+      if (!bundleId) return { success: false };
+
+      try {
+        await updateBundleCourses(
+          bundleId,
+          newOrder.map((course) => course.id)
+        );
+        setLocalCourses(newOrder);
+        return { success: true };
+      } catch (error) {
+        console.error("Error updating bundle courses:", error);
+        return { success: false, error: { code: "update_failed", message: String(error) } };
+      }
+    },
+    persistenceMode: "api",
+    context: "topics",
+  });
+
+  // Load bundle courses on mount
+  const loadBundleCourses = async () => {
+    if (!bundleId) return;
+
+    try {
+      setIsLoading(true);
+      const response = await getBundleCourses(bundleId);
+      if (response && response.data) {
+        setLocalCourses(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading bundle courses:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle course removal
+  const handleRemoveCourse = async (courseId: number) => {
+    if (!bundleId) return;
+
+    try {
+      const updatedCourses = localCourses.filter((course) => course.id !== courseId);
+      await updateBundleCourses(
+        bundleId,
+        updatedCourses.map((course) => course.id)
+      );
+      setLocalCourses(updatedCourses);
+      createNotice("success", __("Course removed from bundle successfully.", "tutorpress"), {
+        type: "snackbar",
+      });
+    } catch (error) {
+      console.error("Error removing course:", error);
+      createNotice("error", __("Failed to remove course from bundle.", "tutorpress"), {
+        type: "snackbar",
+      });
+    }
+  };
+
+  // Handle adding courses
+  const handleAddCourses = async (courseIds: number[]) => {
+    if (!bundleId) return;
+
+    try {
+      const existingCourseIds = localCourses.map((course) => course.id);
+      const newCourseIds = courseIds.filter((id) => !existingCourseIds.includes(id));
+
+      if (newCourseIds.length === 0) {
+        createNotice("warning", __("All selected courses are already in the bundle.", "tutorpress"), {
+          type: "snackbar",
+        });
+        return;
+      }
+
+      const updatedCourseIds = [...existingCourseIds, ...newCourseIds];
+      await updateBundleCourses(bundleId, updatedCourseIds);
+
+      // Reload courses to get full course data
+      await loadBundleCourses();
+
+      createNotice("success", __("Courses added to bundle successfully.", "tutorpress"), {
+        type: "snackbar",
+      });
+    } catch (error) {
+      console.error("Error adding courses:", error);
+      createNotice("error", __("Failed to add courses to bundle.", "tutorpress"), {
+        type: "snackbar",
+      });
+    }
+  };
+
+  // Calculate summary statistics
+  const calculateSummary = () => {
+    const totalDuration = localCourses.reduce((sum, course) => sum + (Number(course.duration) || 0), 0);
+    const totalQuizzes = localCourses.reduce((sum, course) => sum + (course.quiz_count || 0), 0);
+    const totalLessons = localCourses.reduce((sum, course) => sum + (course.lesson_count || 0), 0);
+    const totalResources = localCourses.reduce((sum, course) => sum + (course.resource_count || 0), 0);
+
+    return {
+      totalDuration,
+      totalQuizzes,
+      totalLessons,
+      totalResources,
+    };
+  };
+
+  // Load courses on mount
+  useEffect(() => {
+    if (bundleId) {
+      loadBundleCourses();
+    }
+  }, [bundleId]);
+
+  const summary = calculateSummary();
+
+  return (
+    <div className="tutorpress-bundle-course-selection">
+      {/* Error Display - not using store error */}
+
+      {/* Course Count and Add Button - at the top */}
+      {!isLoading && (
+        <div className="tutorpress-bundle-course-header">
+          <div className="tutorpress-course-count">
+            {localCourses.length} {__("Courses Selected", "tutorpress")}
+          </div>
+          <Button variant="secondary" onClick={() => setIsModalOpen(true)}>
+            <Icon icon={plus} />
+            {__("Add Courses", "tutorpress")}
+          </Button>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="tutorpress-bundle-course-loading">
+          <Spinner />
+          <span>{__("Loading bundle courses...", "tutorpress")}</span>
+        </div>
+      )}
+
+      {/* Course List */}
+      {!isLoading && (
+        <div className="tutorpress-bundle-course-list">
+          {localCourses.length === 0 ? (
+            <div className="tutorpress-bundle-course-empty">
+              <p>{__("No courses added to this bundle yet.", "tutorpress")}</p>
+              <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+                {__("Add First Course", "tutorpress")}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <DndContext
+                sensors={courseSensors}
+                onDragStart={dragHandlers.handleDragStart}
+                onDragOver={dragHandlers.handleDragOver}
+                onDragEnd={dragHandlers.handleDragEnd}
+                onDragCancel={dragHandlers.handleDragCancel}
+              >
+                <SortableContext items={localCourses.map((course) => course.id)} strategy={verticalListSortingStrategy}>
+                  <div className="tutorpress-bundle-course-items">
+                    {localCourses.map((course, index) => (
+                      <SortableCourseItem
+                        key={course.id}
+                        course={course}
+                        index={index}
+                        onRemove={() => handleRemoveCourse(course.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+
+              {/* Selection Overview - Temporarily disabled
+               * 
+               * Issue: Tutor LMS does not automatically set or maintain lesson/quiz/resource count 
+               * meta fields (_lesson_count, _quiz_count, _resource_count) on courses. These 
+               * statistics are calculated on-the-fly in the frontend but not stored persistently.
+               * 
+               * The Course Bundle addon expects these meta fields to exist for accurate statistics
+               * display. Without them, the statistics show 0 or incorrect values.
+               * 
+               * Solution needed: Implement a custom statistics handler that updates these meta 
+               * fields when course content changes (lessons/quizzes/assignments added/removed).
+               * 
+               * See: Course Statistics Analysis for detailed investigation and implementation plan.
+              
+              <div className="tutorpress-selection-overview">
+                <h4>{__("Selection Overview", "tutorpress")}</h4>
+                <div className="tutorpress-selection-stats">
+                  <span>
+                    {summary.totalDuration} {__("Total Duration", "tutorpress")}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {summary.totalLessons} {__("Lessons", "tutorpress")}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {summary.totalQuizzes} {__("Quizzes", "tutorpress")}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {summary.totalResources} {__("Resources", "tutorpress")}
+                  </span>
+                </div>
+              </div>
+              */}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Course Selection Modal */}
+      <CourseSelectionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAddCourses={handleAddCourses}
+        excludeCourseIds={localCourses.map((course) => course.id)}
+      />
+    </div>
+  );
+};

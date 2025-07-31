@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.13.9
+ * Version: 1.13.10
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  *
@@ -82,6 +82,7 @@ require_once TUTORPRESS_PATH . 'includes/gutenberg/utilities/class-addon-checker
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-certificate-metabox.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-additional-content-metabox.php';
+require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-bundle-courses-metabox.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-assignment-settings.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-lesson-settings.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-course-settings.php';
@@ -119,6 +120,9 @@ TutorPress_Content_Drip_Helpers::init();
 
 // Initialize bundle settings
 TutorPress_Bundle_Settings::init();
+
+// Initialize bundle courses metabox
+Bundle_Courses_Metabox::init();
 
 // Initialize REST API early
 add_action('init', function() {

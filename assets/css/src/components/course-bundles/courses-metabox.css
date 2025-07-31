@@ -1,0 +1,171 @@
+/**
+ * Bundle Courses Metabox Styles
+ * Only contains overrides and new styling specific to Bundle's Courses UI
+ * Reuses existing TopicSection patterns from topics.css
+ */
+
+/* Bundle course header */
+.tutorpress-bundle-course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.tutorpress-course-count {
+  font-weight: 600;
+  color: var(--gray-700);
+  font-size: var(--text-base);
+}
+
+/* Bundle-specific overrides for course items */
+.tutorpress-topic .tutorpress-course-thumbnail {
+  flex-shrink: 0;
+}
+
+.tutorpress-topic .tutorpress-course-thumbnail-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--gray-200);
+  color: var(--gray-600);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Bundle-specific course styling - always show borders */
+.tutorpress-topic {
+  border: 1px solid var(--gray-300) !important;
+}
+
+/* Course number and drag handle positioning */
+.tutorpress-topic .tutorpress-topic-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.tutorpress-topic .course-number {
+  position: absolute;
+  font-weight: 600;
+  color: var(--gray-600);
+  font-size: 14px;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic .tutorpress-topic-icon .components-button {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic:hover .course-number {
+  opacity: 0;
+}
+
+.tutorpress-topic:hover .tutorpress-topic-icon .components-button {
+  opacity: 1;
+}
+
+/* Bundle-specific price and delete button overrides */
+.tutorpress-topic .tpress-item-actions-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.tutorpress-topic .course-price {
+  position: absolute;
+  color: var(--gray-700);
+  font-weight: 500;
+  opacity: 1; /* Always visible by default */
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic .delete-button {
+  position: absolute;
+  opacity: 0;
+  color: var(--gray-700);
+  background: transparent;
+  border: 1px solid transparent;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tutorpress-topic:hover .course-price {
+  opacity: 0;
+}
+
+.tutorpress-topic:hover .delete-button {
+  opacity: 1;
+}
+
+/* Bundle-specific selection overview */
+.tutorpress-selection-overview {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.tutorpress-selection-overview h4 {
+  margin-bottom: 12px;
+  color: var(--gray-700);
+}
+
+.tutorpress-selection-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--gray-600);
+  font-size: var(--text-sm);
+}
+
+/* Bundle course selection container */
+.tutorpress-bundle-course-selection {
+  margin-bottom: var(--space-lg);
+}
+
+/* Bundle course list */
+.tutorpress-bundle-course-list {
+  margin-bottom: var(--space-lg);
+}
+
+/* Bundle course items container */
+.tutorpress-bundle-course-items {
+  margin-bottom: var(--space-lg);
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* Bundle course loading state */
+.tutorpress-bundle-course-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  color: var(--gray-600);
+}
+
+/* Bundle course empty state */
+.tutorpress-bundle-course-empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--gray-500);
+}
+
+.tutorpress-bundle-course-empty p {
+  margin-bottom: var(--space-md);
+}

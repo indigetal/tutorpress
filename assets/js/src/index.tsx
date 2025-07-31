@@ -94,6 +94,14 @@ document.addEventListener("DOMContentLoaded", () => {
     render(<Curriculum />, root);
   }
 
+  // Render Course Selection metabox for Course Bundles
+  const courseSelectionRoot = document.getElementById("tutorpress-bundle-courses-root");
+  if (courseSelectionRoot) {
+    const bundleId = courseSelectionRoot.getAttribute("data-bundle-id");
+    const BundleCourseSelection = require("./components/metaboxes/bundles/CourseSelection").BundleCourseSelection;
+    render(<BundleCourseSelection bundleId={bundleId ? parseInt(bundleId) : undefined} />, courseSelectionRoot);
+  }
+
   // Conditionally render Certificate metabox only when Certificate addon is enabled
   if (isCertificateEnabled()) {
     const certificateRoot = document.getElementById("tutorpress-certificate-root");

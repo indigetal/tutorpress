@@ -166,7 +166,6 @@ export const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
         {/* Search Field */}
         <div className="tutorpress-search-section">
           <TextControl
-            label={__("Search Courses", "tutorpress")}
             value={searchTerm}
             onChange={handleSearchChange}
             placeholder={__("Search for courses...", "tutorpress")}
@@ -183,7 +182,7 @@ export const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
 
         {/* Course List */}
         {!isLoading && (
-          <>
+          <div className="tutorpress-course-content">
             {/* Table Headers */}
             <div className="tutorpress-course-table-header">
               <div className="tutorpress-course-table-row">
@@ -219,7 +218,9 @@ export const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
                       </div>
                       <div className="tutorpress-course-title">{course.title}</div>
                     </div>
-                    <div className="tutorpress-course-price">{course.price || __("Free", "tutorpress")}</div>
+                    <div className="tutorpress-course-price" 
+                         dangerouslySetInnerHTML={{ __html: course.price || __("Free", "tutorpress") }}
+                    />
                   </div>
                 ))
               )}
@@ -247,7 +248,7 @@ export const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
                 </Button>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {/* Modal Actions */}

@@ -123,7 +123,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
     }
 
     /**
-     * Check if user has permission to access bundle endpoints.
+     * Check if user has permission to access endpoints.
      *
      * @since 0.1.0
      * @param WP_REST_Request $request The request object.
@@ -136,8 +136,31 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             return $tutor_check;
         }
 
-        // Use base permission check
-        return parent::check_permission($request);
+        // Check if user can edit posts (basic requirement)
+        if (!current_user_can('edit_posts')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to access this endpoint.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        // For bundle-specific operations, check if user can edit the specific bundle
+        $bundle_id = $request->get_param('id');
+        if ($bundle_id) {
+            $bundle = get_post($bundle_id);
+            if ($bundle && $bundle->post_type === 'course-bundle') {
+                if (!current_user_can('edit_post', $bundle_id)) {
+                    return new WP_Error(
+                        'rest_forbidden',
+                        __('You do not have permission to edit this bundle.', 'tutorpress'),
+                        ['status' => 403]
+                    );
+                }
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -282,9 +305,15 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             );
         }
 
-        // Get bundle course IDs from meta
-        $course_ids = get_post_meta($bundle_id, '_tutor_bundle_course_ids', true);
-        if (!is_array($course_ids)) {
+        // Get bundle course IDs from meta - Tutor LMS uses 'bundle-course-ids'
+        $course_ids_meta = get_post_meta($bundle_id, 'bundle-course-ids', true);
+        
+        // Handle different data formats: comma-separated string or array
+        if (is_string($course_ids_meta) && !empty($course_ids_meta)) {
+            $course_ids = array_map('intval', explode(',', $course_ids_meta));
+        } elseif (is_array($course_ids_meta)) {
+            $course_ids = array_map('intval', $course_ids_meta);
+        } else {
             $course_ids = [];
         }
 
@@ -376,8 +405,9 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             }
         }
 
-        // Update bundle course IDs meta
-        $result = update_post_meta($bundle_id, '_tutor_bundle_course_ids', $valid_course_ids);
+        // Update bundle course IDs meta - Tutor LMS uses 'bundle-course-ids' as comma-separated string
+        $course_ids_string = implode(',', $valid_course_ids);
+        $result = update_post_meta($bundle_id, 'bundle-course-ids', $course_ids_string);
         
         if ($result === false) {
             return new WP_Error(

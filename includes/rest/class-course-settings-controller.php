@@ -808,14 +808,27 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             
             // Get course price
             $price_type = get_post_meta($course->ID, '_tutor_course_price_type', true);
+            $regular_price = get_post_meta($course->ID, 'tutor_course_price', true);
+            $sale_price = get_post_meta($course->ID, 'tutor_course_sale_price', true);
+            
             $price = '';
             if ($price_type === 'free') {
                 $price = __('Free', 'tutorpress');
             } else {
-                $regular_price = get_post_meta($course->ID, '_tutor_course_price', true);
-                $sale_price = get_post_meta($course->ID, '_tutor_course_sale_price', true);
-                $price = $sale_price ? $sale_price : $regular_price;
-                $price = $price ? '$' . $price : '';
+                // Format prices like Tutor LMS does
+                if ($sale_price && $sale_price > 0) {
+                    // Show sale price as primary, regular price as crossed out
+                    $price = sprintf(
+                        '<span class="tutor-course-price-regular" style="text-decoration: line-through; color: #999; margin-right: 8px;">$%s</span><span class="tutor-course-price-sale">$%s</span>',
+                        number_format($regular_price, 2),
+                        number_format($sale_price, 2)
+                    );
+                } elseif ($regular_price && $regular_price > 0) {
+                    // Show only regular price
+                    $price = sprintf('<span class="tutor-course-price-regular">$%s</span>', number_format($regular_price, 2));
+                } else {
+                    $price = __('Free', 'tutorpress');
+                }
             }
 
             $formatted_courses[] = array(

@@ -98,7 +98,7 @@ export interface AvailableCourse {
   featured_image?: string;
   author: string;
   date_created: string;
-  price?: string;
+  price?: string; // Can contain HTML for sale price formatting
   duration?: string;
   lesson_count?: number;
   quiz_count?: number;

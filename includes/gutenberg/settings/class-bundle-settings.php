@@ -15,9 +15,7 @@ defined('ABSPATH') || exit;
 class TutorPress_Bundle_Settings {
 
     /**
-     * Bundle course IDs meta key.
-     *
-     * @var string
+     * Meta field keys for bundle settings
      */
     const BUNDLE_COURSE_IDS_META_KEY = 'bundle-course-ids';
 
