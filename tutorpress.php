@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.13.11
+ * Version: 1.13.12
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  *
@@ -89,7 +89,8 @@ require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-lesson-setting
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-course-settings.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-content-drip-helpers.php';
 require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-bundle-settings.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-bundle-settings.php';
+
+
 
 // Load REST controllers early
 require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
@@ -119,14 +120,14 @@ TutorPress_Course_Settings::init();
 // Initialize Content Drip helpers
 TutorPress_Content_Drip_Helpers::init();
 
-// Initialize bundle settings
-TutorPress_Bundle_Settings::init();
-
 // Initialize bundle courses metabox
 Bundle_Courses_Metabox::init();
 
 // Initialize bundle benefits metabox
 Bundle_Benefits_Metabox::init();
+
+// Initialize bundle settings (following the same pattern as other working features)
+TutorPress_Bundle_Settings::init();
 
 // Initialize REST API early
 add_action('init', function() {
@@ -162,6 +163,17 @@ add_action('init', function() {
             if (!post_type_supports('tutor_assignments', 'editor')) {
                 add_post_type_support('tutor_assignments', 'editor');
             }
+        }
+    }
+}, 20); // Priority 20 to run after Tutor LMS registration
+
+// Enable custom-fields support for course-bundle post type (required for meta fields via REST API)
+add_action('init', function() {
+    // Check if Tutor LMS Pro has registered the course-bundle post type
+    if (post_type_exists('course-bundle')) {
+        // Enable custom-fields support (required for meta fields to be accessible via REST API)
+        if (!post_type_supports('course-bundle', 'custom-fields')) {
+            add_post_type_support('course-bundle', 'custom-fields');
         }
     }
 }, 20); // Priority 20 to run after Tutor LMS registration

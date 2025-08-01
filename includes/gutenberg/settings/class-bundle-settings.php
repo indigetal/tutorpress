@@ -15,19 +15,32 @@ defined('ABSPATH') || exit;
 class TutorPress_Bundle_Settings {
 
     /**
-     * Meta field keys for bundle settings
-     */
-    const BUNDLE_COURSE_IDS_META_KEY = 'bundle-course-ids';
-
-    /**
-     * Bundle ribbon type meta key.
+     * Bundle pricing meta keys (following Tutor LMS Course constants).
      *
      * @var string
      */
-    const BUNDLE_RIBBON_TYPE_META_KEY = 'tutor_bundle_ribbon_type';
-
+    const BUNDLE_PRICE_TYPE_META_KEY = '_tutor_course_price_type';
+    const BUNDLE_PRICE_META_KEY = 'tutor_course_price';
+    const BUNDLE_SALE_PRICE_META_KEY = 'tutor_course_sale_price';
+    const BUNDLE_SELLING_OPTION_META_KEY = 'tutor_course_selling_option';
+    const BUNDLE_PRODUCT_ID_META_KEY = '_tutor_course_product_id';
+    
     /**
-     * Bundle benefits meta key.
+     * Bundle ribbon meta key (following Tutor LMS Pro Course Bundle constants).
+     *
+     * @var string
+     */
+    const BUNDLE_RIBBON_META_KEY = 'tutor_bundle_ribbon_type';
+    
+    /**
+     * Bundle course IDs meta key (following Tutor LMS Pro Course Bundle constants).
+     *
+     * @var string
+     */
+    const BUNDLE_COURSE_IDS_META_KEY = 'bundle-course-ids';
+    
+    /**
+     * Bundle benefits meta key (following Tutor LMS Course constants).
      *
      * @var string
      */
@@ -40,13 +53,24 @@ class TutorPress_Bundle_Settings {
      * @return void
      */
     public static function init() {
+        // Register meta fields when WordPress is ready (following Bundle Benefits pattern)
+        add_action('init', [__CLASS__, 'maybe_register_meta_fields']);
+        add_action('rest_api_init', [__CLASS__, 'maybe_register_meta_fields']);
+    }
+    
+    /**
+     * Maybe register meta fields if conditions are met.
+     *
+     * @since 0.1.0
+     * @return void
+     */
+    public static function maybe_register_meta_fields() {
         // Only proceed if Tutor LMS is active and course-bundle post type exists
         if (!function_exists('tutor') || !post_type_exists('course-bundle')) {
             return;
         }
 
-        add_action('init', [__CLASS__, 'register_meta_fields']);
-        add_action('rest_api_init', [__CLASS__, 'register_rest_fields']);
+        self::register_meta_fields();
     }
 
     /**
@@ -56,30 +80,82 @@ class TutorPress_Bundle_Settings {
      * @return void
      */
     public static function register_meta_fields() {
-        // Bundle course IDs
-        register_post_meta('course-bundle', self::BUNDLE_COURSE_IDS_META_KEY, [
+        // Register the exact same meta fields as Tutor LMS Pro with REST API exposure
+        
+        // Price type meta field
+        register_post_meta('course-bundle', self::BUNDLE_PRICE_TYPE_META_KEY, [
             'type'              => 'string',
-            'description'       => __('Comma-separated list of course IDs in bundle', 'tutorpress'),
+            'description'       => __('Bundle price type (free/paid)', 'tutorpress'),
             'single'            => true,
-            'default'           => '',
-            'sanitize_callback' => [__CLASS__, 'sanitize_course_ids'],
+            'default'           => 'free',
+            'sanitize_callback' => [__CLASS__, 'sanitize_price_type'],
             'show_in_rest'      => true,
         ]);
-
-        // Bundle ribbon type
-        register_post_meta('course-bundle', self::BUNDLE_RIBBON_TYPE_META_KEY, [
+        
+        // Regular price meta field
+        register_post_meta('course-bundle', self::BUNDLE_PRICE_META_KEY, [
+            'type'              => 'number',
+            'description'       => __('Bundle regular price', 'tutorpress'),
+            'single'            => true,
+            'default'           => 0,
+            'sanitize_callback' => [__CLASS__, 'sanitize_price'],
+            'show_in_rest'      => true,
+        ]);
+        
+        // Sale price meta field
+        register_post_meta('course-bundle', self::BUNDLE_SALE_PRICE_META_KEY, [
+            'type'              => 'number',
+            'description'       => __('Bundle sale price', 'tutorpress'),
+            'single'            => true,
+            'default'           => 0,
+            'sanitize_callback' => [__CLASS__, 'sanitize_price'],
+            'show_in_rest'      => true,
+        ]);
+        
+        // Selling option meta field
+        register_post_meta('course-bundle', self::BUNDLE_SELLING_OPTION_META_KEY, [
             'type'              => 'string',
-            'description'       => __('Bundle ribbon display type', 'tutorpress'),
+            'description'       => __('Bundle selling option', 'tutorpress'),
+            'single'            => true,
+            'default'           => 'one_time',
+            'sanitize_callback' => [__CLASS__, 'sanitize_selling_option'],
+            'show_in_rest'      => true,
+        ]);
+        
+        // Product ID meta field
+        register_post_meta('course-bundle', self::BUNDLE_PRODUCT_ID_META_KEY, [
+            'type'              => 'integer',
+            'description'       => __('Bundle product ID', 'tutorpress'),
+            'single'            => true,
+            'default'           => 0,
+            'sanitize_callback' => 'absint',
+            'show_in_rest'      => true,
+        ]);
+        
+        // Ribbon type meta field
+        register_post_meta('course-bundle', self::BUNDLE_RIBBON_META_KEY, [
+            'type'              => 'string',
+            'description'       => __('Bundle ribbon type', 'tutorpress'),
             'single'            => true,
             'default'           => 'none',
             'sanitize_callback' => [__CLASS__, 'sanitize_ribbon_type'],
             'show_in_rest'      => true,
         ]);
-
-        // Bundle benefits
+        
+        // Course IDs meta field
+        register_post_meta('course-bundle', self::BUNDLE_COURSE_IDS_META_KEY, [
+            'type'              => 'string',
+            'description'       => __('Bundle course IDs', 'tutorpress'),
+            'single'            => true,
+            'default'           => '',
+            'sanitize_callback' => [__CLASS__, 'sanitize_course_ids'],
+            'show_in_rest'      => true,
+        ]);
+        
+        // Benefits meta field
         register_post_meta('course-bundle', self::BUNDLE_BENEFITS_META_KEY, [
             'type'              => 'string',
-            'description'       => __('Bundle benefits description', 'tutorpress'),
+            'description'       => __('Bundle benefits', 'tutorpress'),
             'single'            => true,
             'default'           => '',
             'sanitize_callback' => 'wp_kses_post',
@@ -87,48 +163,7 @@ class TutorPress_Bundle_Settings {
         ]);
     }
 
-    /**
-     * Register REST API fields for bundle settings.
-     *
-     * @since 0.1.0
-     * @return void
-     */
-    public static function register_rest_fields() {
-        register_rest_field('course-bundle', 'bundle_settings', [
-            'get_callback'    => [__CLASS__, 'get_bundle_settings'],
-            'update_callback' => [__CLASS__, 'update_bundle_settings'],
-        ]);
-    }
 
-    /**
-     * Get bundle settings for REST API.
-     *
-     * @since 0.1.0
-     * @param array $post The post array.
-     * @return array Bundle settings.
-     */
-    public static function get_bundle_settings($post) {
-        $post_id = $post['id'];
-        
-        return [
-            'course_ids'  => self::get_bundle_course_ids($post_id),
-            'ribbon_type' => self::get_bundle_ribbon_type($post_id),
-            'benefits'    => self::get_bundle_benefits($post_id),
-        ];
-    }
-
-    /**
-     * Update bundle settings from REST API.
-     *
-     * @since 0.1.0
-     * @param mixed $value The value to update.
-     * @param WP_Post $post The post object.
-     * @return bool True on success, false on failure.
-     */
-    public static function update_bundle_settings($value, $post) {
-        // Placeholder - will be expanded as settings are implemented
-        return true;
-    }
 
 
 
@@ -241,7 +276,47 @@ class TutorPress_Bundle_Settings {
      * @return string Sanitized ribbon type.
      */
     public static function sanitize_ribbon_type($value) {
-        // Simple sanitization - will be expanded as needed
-        return sanitize_text_field($value);
+        $allowed_types = ['in_percentage', 'in_amount', 'none'];
+        $value = sanitize_text_field($value);
+        return in_array($value, $allowed_types) ? $value : 'none';
     }
+
+    /**
+     * Sanitize price type.
+     *
+     * @since 0.1.0
+     * @param mixed $value The value to sanitize.
+     * @return string Sanitized price type.
+     */
+    public static function sanitize_price_type($value) {
+        $allowed_types = ['free', 'paid'];
+        $value = sanitize_text_field($value);
+        return in_array($value, $allowed_types) ? $value : 'free';
+    }
+
+    /**
+     * Sanitize price.
+     *
+     * @since 0.1.0
+     * @param mixed $value The value to sanitize.
+     * @return float Sanitized price.
+     */
+    public static function sanitize_price($value) {
+        $price = floatval($value);
+        return $price >= 0 ? $price : 0;
+    }
+
+    /**
+     * Sanitize selling option.
+     *
+     * @since 0.1.0
+     * @param mixed $value The value to sanitize.
+     * @return string Sanitized selling option.
+     */
+    public static function sanitize_selling_option($value) {
+        $allowed_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
+        $value = sanitize_text_field($value);
+        return in_array($value, $allowed_options) ? $value : 'one_time';
+    }
+
 }
