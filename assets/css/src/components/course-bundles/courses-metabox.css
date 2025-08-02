@@ -11,13 +11,13 @@
   align-items: center;
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .tutorpress-course-count {
   font-weight: 600;
-  color: var(--gray-700);
-  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  font-size: var(--text-lg);
 }
 
 /* Bundle-specific overrides for course items */
@@ -29,19 +29,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--gray-200);
-  color: var(--gray-600);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 /* Bundle-specific course styling - always show borders */
-.tutorpress-topic {
-  border: 1px solid var(--gray-300) !important;
+.tutorpress-bundle-course-selection .tutorpress-topic,
+.tutorpress-bundle-course-list .tutorpress-topic,
+.tutorpress-bundle-course-items .tutorpress-topic {
+  border: 1px solid var(--color-border-light) !important;
 }
 
 /* Course number and drag handle positioning */
-.tutorpress-topic .tutorpress-topic-icon {
+.tutorpress-bundle-course-selection .tutorpress-topic .tutorpress-topic-icon,
+.tutorpress-bundle-course-list .tutorpress-topic .tutorpress-topic-icon,
+.tutorpress-bundle-course-items .tutorpress-topic .tutorpress-topic-icon {
   position: relative;
   display: flex;
   align-items: center;
@@ -50,31 +54,41 @@
   height: 24px;
 }
 
-.tutorpress-topic .course-number {
+.tutorpress-bundle-course-selection .tutorpress-topic .course-number,
+.tutorpress-bundle-course-list .tutorpress-topic .course-number,
+.tutorpress-bundle-course-items .tutorpress-topic .course-number {
   position: absolute;
   font-weight: 600;
-  color: var(--gray-600);
-  font-size: 14px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
   opacity: 1;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
 }
 
-.tutorpress-topic .tutorpress-topic-icon .components-button {
+.tutorpress-bundle-course-selection .tutorpress-topic .tutorpress-topic-icon .components-button,
+.tutorpress-bundle-course-list .tutorpress-topic .tutorpress-topic-icon .components-button,
+.tutorpress-bundle-course-items .tutorpress-topic .tutorpress-topic-icon .components-button {
   position: absolute;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
 }
 
-.tutorpress-topic:hover .course-number {
+.tutorpress-bundle-course-selection .tutorpress-topic:hover .course-number,
+.tutorpress-bundle-course-list .tutorpress-topic:hover .course-number,
+.tutorpress-bundle-course-items .tutorpress-topic:hover .course-number {
   opacity: 0;
 }
 
-.tutorpress-topic:hover .tutorpress-topic-icon .components-button {
+.tutorpress-bundle-course-selection .tutorpress-topic:hover .tutorpress-topic-icon .components-button,
+.tutorpress-bundle-course-list .tutorpress-topic:hover .tutorpress-topic-icon .components-button,
+.tutorpress-bundle-course-items .tutorpress-topic:hover .tutorpress-topic-icon .components-button {
   opacity: 1;
 }
 
 /* Bundle-specific price and delete button overrides */
-.tutorpress-topic .tpress-item-actions-right {
+.tutorpress-bundle-course-selection .tutorpress-topic .tpress-item-actions-right,
+.tutorpress-bundle-course-list .tutorpress-topic .tpress-item-actions-right,
+.tutorpress-bundle-course-items .tutorpress-topic .tpress-item-actions-right {
   position: relative;
   display: flex;
   align-items: center;
@@ -82,52 +96,69 @@
   min-width: 40px;
 }
 
-.tutorpress-topic .course-price {
+.tutorpress-bundle-course-selection .tutorpress-topic .course-price,
+.tutorpress-bundle-course-list .tutorpress-topic .course-price,
+.tutorpress-bundle-course-items .tutorpress-topic .course-price {
   position: absolute;
-  color: var(--gray-700);
+  color: var(--color-text-secondary);
   font-weight: 500;
-  opacity: 1; /* Always visible by default */
-  transition: opacity 0.2s ease;
+  margin-right: var(--space-lg);
+  opacity: 1 !important; /* Always visible by default - override global rule */
+  transition: opacity var(--duration-normal) var(--ease-in-out);
 }
 
-.tutorpress-topic .delete-button {
+/* Override the global hover rule for bundle courses */
+.tutorpress-bundle-course-selection .tutorpress-topic .tpress-item-actions-right,
+.tutorpress-bundle-course-list .tutorpress-topic .tpress-item-actions-right,
+.tutorpress-bundle-course-items .tutorpress-topic .tpress-item-actions-right {
+  opacity: 1 !important; /* Always visible for bundle courses */
+}
+
+/* Hide course price on hover to show delete button */
+.tutorpress-bundle-course-selection .tutorpress-topic:hover .course-price,
+.tutorpress-bundle-course-list .tutorpress-topic:hover .course-price,
+.tutorpress-bundle-course-items .tutorpress-topic:hover .course-price {
+  opacity: 0 !important;
+}
+
+.tutorpress-bundle-course-selection .tutorpress-topic .delete-button,
+.tutorpress-bundle-course-list .tutorpress-topic .delete-button,
+.tutorpress-bundle-course-items .tutorpress-topic .delete-button {
   position: absolute;
   opacity: 0;
-  color: var(--gray-700);
+  color: var(--color-text-secondary);
   background: transparent;
   border: 1px solid transparent;
   width: auto;
   height: auto;
   padding: 0;
   margin: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
 }
 
-.tutorpress-topic:hover .course-price {
-  opacity: 0;
-}
-
-.tutorpress-topic:hover .delete-button {
+.tutorpress-bundle-course-selection .tutorpress-topic:hover .delete-button,
+.tutorpress-bundle-course-list .tutorpress-topic:hover .delete-button,
+.tutorpress-bundle-course-items .tutorpress-topic:hover .delete-button {
   opacity: 1;
 }
 
 /* Bundle-specific selection overview */
 .tutorpress-selection-overview {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--gray-200);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .tutorpress-selection-overview h4 {
-  margin-bottom: 12px;
-  color: var(--gray-700);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-secondary);
 }
 
 .tutorpress-selection-stats {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  color: var(--gray-600);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
@@ -156,16 +187,39 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md);
-  color: var(--gray-600);
+  color: var(--color-text-muted);
 }
 
 /* Bundle course empty state */
 .tutorpress-bundle-course-empty {
   text-align: center;
   padding: var(--space-xl);
-  color: var(--gray-500);
+  color: var(--color-text-muted);
 }
 
 .tutorpress-bundle-course-empty p {
   margin-bottom: var(--space-md);
+}
+
+/* Bundle course thumbnail styles */
+.tutorpress-bundle-course-selection .tutorpress-topic .tutorpress-course-thumbnail img,
+.tutorpress-bundle-course-list .tutorpress-topic .tutorpress-course-thumbnail img,
+.tutorpress-bundle-course-items .tutorpress-topic .tutorpress-course-thumbnail img {
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.tutorpress-bundle-course-selection .tutorpress-topic .tutorpress-course-thumbnail-placeholder,
+.tutorpress-bundle-course-list .tutorpress-topic .tutorpress-course-thumbnail-placeholder,
+.tutorpress-bundle-course-items .tutorpress-topic .tutorpress-course-thumbnail-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: var(--text-sm);
 }

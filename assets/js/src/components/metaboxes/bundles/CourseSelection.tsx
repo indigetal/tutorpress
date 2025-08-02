@@ -71,31 +71,9 @@ const CourseItem: React.FC<CourseItemProps> = ({
         {/* Course thumbnail */}
         <div className="tutorpress-course-thumbnail">
           {course.featured_image ? (
-            <img
-              src={course.featured_image}
-              alt={course.title}
-              width="40"
-              height="40"
-              style={{ borderRadius: "4px", objectFit: "cover" }}
-            />
+            <img src={course.featured_image} alt={course.title} width="40" height="40" />
           ) : (
-            <div
-              className="tutorpress-course-thumbnail-placeholder"
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "4px",
-                backgroundColor: "var(--gray-200)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--gray-600)",
-                fontWeight: "600",
-                fontSize: "14px",
-              }}
-            >
-              {course.title.charAt(0).toUpperCase()}
-            </div>
+            <div className="tutorpress-course-thumbnail-placeholder">{course.title.charAt(0).toUpperCase()}</div>
           )}
         </div>
 
