@@ -377,16 +377,29 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 $quiz_count = get_post_meta($course_id, '_quiz_count', true);
                 $resource_count = get_post_meta($course_id, '_resource_count', true);
                 
-                // Get course price
+                // Get course price - ALWAYS use regular price for bundle calculation
                 $price_type = get_post_meta($course_id, '_tutor_course_price_type', true);
+                $regular_price = get_post_meta($course_id, 'tutor_course_price', true);
+                $sale_price = get_post_meta($course_id, 'tutor_course_sale_price', true);
+                
                 $price = '';
                 if ($price_type === 'free') {
                     $price = __('Free', 'tutorpress');
                 } else {
-                    $regular_price = get_post_meta($course_id, '_tutor_course_price', true);
-                    $sale_price = get_post_meta($course_id, '_tutor_course_sale_price', true);
-                    $price = $sale_price ? $sale_price : $regular_price;
-                    $price = $price ? '$' . $price : '';
+                    // Format prices like Tutor LMS does (same as courses search endpoint)
+                    if ($sale_price && $sale_price > 0) {
+                        // Show sale price as primary, regular price as crossed out
+                        $price = sprintf(
+                            '<span class="tutor-course-price-regular" style="text-decoration: line-through; color: #999; margin-right: 8px;">$%s</span><span class="tutor-course-price-sale">$%s</span>',
+                            number_format($regular_price, 2),
+                            number_format($sale_price, 2)
+                        );
+                    } elseif ($regular_price && $regular_price > 0) {
+                        // Show only regular price
+                        $price = sprintf('<span class="tutor-course-price-regular">$%s</span>', number_format($regular_price, 2));
+                    } else {
+                        $price = __('Free', 'tutorpress');
+                    }
                 }
 
                 $courses[] = [
@@ -442,15 +455,40 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             );
         }
 
-        // Validate each course exists and is accessible
+        // Validate each course exists and check ownership/permissions
         $valid_course_ids = [];
+        $current_user_id = get_current_user_id();
+        
         foreach ($course_ids as $course_id) {
             $course = get_post($course_id);
-            if ($course && $course->post_type === 'courses') {
-                // Check if user has permission to access this course
-                if (current_user_can('edit_post', $course_id)) {
-                    $valid_course_ids[] = $course_id;
+            if (!$course || $course->post_type !== 'courses') {
+                continue;
+            }
+            
+            // Check if user can bundle this course
+            $can_bundle = false;
+            
+            // Option 1: User is the course author
+            if ($course->post_author == $current_user_id) {
+                $can_bundle = true;
+            }
+            // Option 2: Course is free (no profit from other instructors' work)
+            else {
+                $price_type = get_post_meta($course_id, '_tutor_course_price_type', true);
+                $regular_price = get_post_meta($course_id, 'tutor_course_price', true);
+                
+                if ($price_type === 'free' || empty($regular_price) || $regular_price == 0) {
+                    $can_bundle = true;
                 }
+            }
+            
+            // Option 3: User is admin (can bundle any course)
+            if (current_user_can('manage_options')) {
+                $can_bundle = true;
+            }
+            
+            if ($can_bundle) {
+                $valid_course_ids[] = $course_id;
             }
         }
 

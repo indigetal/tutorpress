@@ -224,6 +224,14 @@ export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bu
         updatedCourses.map((course) => course.id)
       );
       setLocalCourses(updatedCourses);
+
+      // Dispatch custom event to notify other components of course changes
+      window.dispatchEvent(
+        new CustomEvent("tutorpress-bundle-courses-updated", {
+          detail: { bundleId, courseIds: updatedCourses.map((course) => course.id) },
+        })
+      );
+
       createNotice("success", __("Course removed from bundle successfully.", "tutorpress"), {
         type: "snackbar",
       });
@@ -255,6 +263,13 @@ export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bu
 
       // Reload courses to get full course data
       await loadBundleCourses();
+
+      // Dispatch custom event to notify other components of course changes
+      window.dispatchEvent(
+        new CustomEvent("tutorpress-bundle-courses-updated", {
+          detail: { bundleId, courseIds: updatedCourseIds },
+        })
+      );
 
       createNotice("success", __("Courses added to bundle successfully.", "tutorpress"), {
         type: "snackbar",

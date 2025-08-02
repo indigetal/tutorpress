@@ -227,4 +227,20 @@ export interface CourseBundlesState {
     error: string | null;
     lastSaved: number | null;
   };
+  // Bundle Pricing state (following Bundle Benefits pattern)
+  bundlePricing: {
+    data: {
+      regular_price: number;
+      sale_price: number;
+      price_type: string;
+      ribbon_type: BundleRibbonType;
+      selling_option: string;
+      product_id: number;
+    };
+    isLoading: boolean;
+    isSaving: boolean;
+    isDirty: boolean;
+    error: string | null;
+    lastSaved: number | null;
+  };
 }

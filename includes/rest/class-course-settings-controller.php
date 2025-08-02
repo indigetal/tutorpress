@@ -798,8 +798,36 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
 
         $courses = get_posts($args);
         $formatted_courses = array();
+        $current_user_id = get_current_user_id();
 
         foreach ($courses as $course) {
+            // Check if user can bundle this course
+            $can_bundle = false;
+            
+            // Option 1: User is the course author
+            if ($course->post_author == $current_user_id) {
+                $can_bundle = true;
+            }
+            // Option 2: Course is free (no profit from other instructors' work)
+            else {
+                $price_type = get_post_meta($course->ID, '_tutor_course_price_type', true);
+                $regular_price = get_post_meta($course->ID, 'tutor_course_price', true);
+                
+                if ($price_type === 'free' || empty($regular_price) || $regular_price == 0) {
+                    $can_bundle = true;
+                }
+            }
+            
+            // Option 3: User is admin (can bundle any course)
+            if (current_user_can('manage_options')) {
+                $can_bundle = true;
+            }
+            
+            // Skip courses the user cannot bundle
+            if (!$can_bundle) {
+                continue;
+            }
+            
             // Get additional course data for bundles
             $course_duration = get_post_meta($course->ID, '_course_duration', true);
             $lesson_count = get_post_meta($course->ID, '_lesson_count', true);
