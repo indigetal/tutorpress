@@ -1,65 +1,149 @@
 /**
  * Bundle Instructors Panel Component
  *
- * Skeleton component for bundle instructors settings.
- * Will be expanded in Setting 4: Dynamic Instructors.
+ * Display-only instructor panel that shows aggregated instructors from bundle courses.
+ * Auto-updates when bundle courses change via custom events.
  *
  * @package TutorPress
  * @since 0.1.0
  */
 
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
-import { PanelRow, Notice, Button } from "@wordpress/components";
-import { plus } from "@wordpress/icons";
+import { useSelect, useDispatch } from "@wordpress/data";
+import { Spinner, Notice } from "@wordpress/components";
 
-// Import types (will be expanded as needed)
-import type { Bundle } from "../../types/bundle";
+// Import types
+import type { BundleInstructor } from "../../types/bundle";
 
 /**
  * Bundle Instructors Panel Component
  *
- * Features (to be implemented):
- * - Dynamic instructor list display
- * - Instructor search and selection
- * - Instructor addition/removal
- * - Instructor reordering
- * - Auto-population from bundle courses
+ * Features:
+ * - Dynamic instructor list display from bundle courses
+ * - Auto-update when bundle courses change
+ * - Display-only (no editing functionality)
+ * - Handles loading states and error conditions
+ * - Shows unique instructors only (no duplicates)
  */
 const BundleInstructorsPanel: React.FC = () => {
-  // Placeholder state (will be expanded)
-  const [instructors, setInstructors] = React.useState<any[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [isSearching, setIsSearching] = React.useState(false);
+  // Local state for instructor data
+  const [instructors, setInstructors] = useState<BundleInstructor[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [totalInstructors, setTotalInstructors] = useState(0);
+  const [totalCourses, setTotalCourses] = useState(0);
 
-  // Placeholder handlers (will be expanded)
-  const handleAddInstructor = () => {
-    // TODO: Implement instructor addition
-    console.log("Add instructor functionality - to be implemented");
-  };
+  // Get bundle data from our store and Gutenberg store
+  const { postType, postId, bundleCourseIds } = useSelect(
+    (select: any) => ({
+      postType: select("core/editor").getCurrentPostType(),
+      postId: select("core/editor").getCurrentPostId(),
+      bundleCourseIds: select("core/editor").getEditedPostAttribute("meta")?.["bundle-course-ids"] || "",
+    }),
+    []
+  );
 
-  const handleRemoveInstructor = (instructorId: number) => {
-    // TODO: Implement instructor removal
-    console.log("Remove instructor functionality - to be implemented", instructorId);
-  };
+  // Get dispatch actions
+  const { getBundleInstructors } = useDispatch("tutorpress/course-bundles");
 
-  const handleReorderInstructors = (instructorIds: number[]) => {
-    // TODO: Implement instructor reordering
-    console.log("Reorder instructors functionality - to be implemented", instructorIds);
-  };
+  /**
+   * Fetch instructors from bundle courses
+   */
+  const fetchInstructors = useCallback(async () => {
+    if (!postId || postType !== "course-bundle") return;
 
-  const handleLoadInstructorsFromCourses = async () => {
-    // TODO: Implement auto-loading instructors from bundle courses
     setIsLoading(true);
-    console.log("Load instructors from courses functionality - to be implemented");
+    setError(null);
 
-    // Simulate async operation
-    setTimeout(() => {
+    try {
+      const response = await getBundleInstructors(postId);
+
+      if (response && response.success) {
+        setInstructors(response.data || []);
+        setTotalInstructors(response.total_instructors || 0);
+        setTotalCourses(response.total_courses || 0);
+      } else {
+        setError(__("Failed to load instructors.", "tutorpress"));
+        setInstructors([]);
+        setTotalInstructors(0);
+        setTotalCourses(0);
+      }
+    } catch (error) {
+      console.error("Error fetching bundle instructors:", error);
+      setError(__("Error loading instructors. Please try again.", "tutorpress"));
+      setInstructors([]);
+      setTotalInstructors(0);
+      setTotalCourses(0);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  };
+    }
+  }, [postId, postType, getBundleInstructors]);
+
+  // Load instructors when component mounts
+  useEffect(() => {
+    if (postType === "course-bundle" && postId) {
+      fetchInstructors();
+    }
+  }, [postType, postId, fetchInstructors]);
+
+  // Listen for course changes via custom events (like BundlePricingPanel)
+  useEffect(() => {
+    const handleCourseChange = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      // Only respond to events for this bundle
+      if (customEvent.detail?.bundleId !== postId) return;
+
+      if (!postId || postType !== "course-bundle") return;
+
+      console.log("Bundle courses updated, refreshing instructors...");
+      await fetchInstructors();
+    };
+
+    // Listen for course changes from the Courses Metabox
+    window.addEventListener("tutorpress-bundle-courses-updated", handleCourseChange);
+
+    return () => {
+      window.removeEventListener("tutorpress-bundle-courses-updated", handleCourseChange);
+    };
+  }, [postId, postType, fetchInstructors]);
+
+  // Only show for course-bundle post type
+  if (postType !== "course-bundle") {
+    return null;
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <PluginDocumentSettingPanel
+        name="tutorpress-bundle-instructors"
+        title={__("Bundle Instructors", "tutorpress")}
+        className="tutorpress-bundle-instructors-panel"
+      >
+        <div className="tutorpress-settings-loading">
+          <Spinner />
+          <div className="tutorpress-settings-loading-text">{__("Loading instructors...", "tutorpress")}</div>
+        </div>
+      </PluginDocumentSettingPanel>
+    );
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <PluginDocumentSettingPanel
+        name="tutorpress-bundle-instructors"
+        title={__("Bundle Instructors", "tutorpress")}
+        className="tutorpress-bundle-instructors-panel"
+      >
+        <Notice status="error" isDismissible={false}>
+          {error}
+        </Notice>
+      </PluginDocumentSettingPanel>
+    );
+  }
 
   return (
     <PluginDocumentSettingPanel
@@ -67,52 +151,57 @@ const BundleInstructorsPanel: React.FC = () => {
       title={__("Bundle Instructors", "tutorpress")}
       className="tutorpress-bundle-instructors-panel"
     >
-      {/* Error display */}
-      {error && (
-        <Notice status="error" isDismissible={false}>
-          {error}
-        </Notice>
-      )}
-
-      {/* Loading state */}
-      {isLoading && <div className="tutorpress-loading">{__("Loading instructors...", "tutorpress")}</div>}
-
-      {/* Instructor list placeholder */}
-      <PanelRow>
-        <div className="tutorpress-instructor-list">
-          <div className="tutorpress-instructor-list-placeholder">
-            <p>{__("No instructors added yet.", "tutorpress")}</p>
+      <div className="tutorpress-instructors-panel">
+        {/* Instructors List */}
+        {instructors.length > 0 ? (
+          <div className="tutorpress-saved-files-list">
+            {instructors.map((instructor: BundleInstructor) => (
+              <div key={instructor.id} className="tutorpress-saved-file-item">
+                <div className="tutorpress-instructor-info">
+                  <div className="tutorpress-instructor-avatar">
+                    {instructor.avatar_url ? (
+                      <img
+                        src={instructor.avatar_url}
+                        alt={instructor.display_name}
+                        className="tutorpress-instructor-avatar-img"
+                      />
+                    ) : (
+                      <div className="tutorpress-instructor-avatar-placeholder">
+                        {instructor.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="tutorpress-instructor-details">
+                    <div className="tutorpress-instructor-name">{instructor.display_name}</div>
+                    <div className="tutorpress-instructor-email">{instructor.user_email}</div>
+                    {instructor.designation && (
+                      <div className="tutorpress-instructor-designation">{instructor.designation}</div>
+                    )}
+                  </div>
+                </div>
+                {/* No delete button - display only */}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="tutorpress-instructors-empty">
+            <p>{__("No instructors found in this bundle's courses.", "tutorpress")}</p>
             <p className="description">
-              {__("Instructors will be automatically populated from the courses in this bundle.", "tutorpress")}
+              {__("Instructors will appear here when courses are added to this bundle.", "tutorpress")}
             </p>
           </div>
-        </div>
-      </PanelRow>
+        )}
 
-      {/* Action buttons */}
-      <PanelRow>
-        <div className="tutorpress-panel-actions">
-          <Button icon={plus} variant="secondary" onClick={handleAddInstructor} disabled={isLoading}>
-            {__("Add Instructor", "tutorpress")}
-          </Button>
-
-          <Button variant="secondary" onClick={handleLoadInstructorsFromCourses} disabled={isLoading}>
-            {__("Load from Courses", "tutorpress")}
-          </Button>
-        </div>
-      </PanelRow>
-
-      {/* Help text */}
-      <PanelRow>
+        {/* Help Text */}
         <div className="tutorpress-help-text">
           <p className="description">
             {__(
-              "Instructors are automatically determined from the courses included in this bundle. You can manually add or remove instructors as needed.",
+              "Instructors are automatically determined from the courses included in this bundle. The list updates automatically when courses are added or removed.",
               "tutorpress"
             )}
           </p>
         </div>
-      </PanelRow>
+      </div>
     </PluginDocumentSettingPanel>
   );
 };

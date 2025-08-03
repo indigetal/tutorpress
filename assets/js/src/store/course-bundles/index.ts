@@ -66,6 +66,17 @@ const initialState: CourseBundlesState = {
     error: null,
     lastSaved: null,
   },
+  // Bundle Instructors state
+  bundleInstructors: {
+    data: {
+      instructors: [],
+      total_instructors: 0,
+      total_courses: 0,
+    },
+    isLoading: false,
+    error: null,
+    lastFetched: null,
+  },
 };
 
 // Action types
@@ -102,6 +113,12 @@ const ACTION_TYPES = {
   SET_BUNDLE_PRICING_DATA: "SET_BUNDLE_PRICING_DATA",
   UPDATE_BUNDLE_PRICING: "UPDATE_BUNDLE_PRICING",
   SET_PRICING_DIRTY_STATE: "SET_PRICING_DIRTY_STATE",
+  // Bundle Instructors actions
+  FETCH_BUNDLE_INSTRUCTORS: "FETCH_BUNDLE_INSTRUCTORS",
+  FETCH_BUNDLE_INSTRUCTORS_START: "FETCH_BUNDLE_INSTRUCTORS_START",
+  FETCH_BUNDLE_INSTRUCTORS_SUCCESS: "FETCH_BUNDLE_INSTRUCTORS_SUCCESS",
+  FETCH_BUNDLE_INSTRUCTORS_ERROR: "FETCH_BUNDLE_INSTRUCTORS_ERROR",
+  SET_BUNDLE_INSTRUCTORS_DATA: "SET_BUNDLE_INSTRUCTORS_DATA",
 } as const;
 
 // Define action types for TypeScript
@@ -133,7 +150,12 @@ export type CourseBundlesAction =
   | { type: "SAVE_BUNDLE_PRICING_ERROR"; payload: string }
   | { type: "SET_BUNDLE_PRICING_DATA"; payload: CourseBundlesState["bundlePricing"]["data"] }
   | { type: "UPDATE_BUNDLE_PRICING"; payload: Partial<CourseBundlesState["bundlePricing"]["data"]> }
-  | { type: "SET_PRICING_DIRTY_STATE"; payload: boolean };
+  | { type: "SET_PRICING_DIRTY_STATE"; payload: boolean }
+  // Bundle Instructors actions
+  | { type: "FETCH_BUNDLE_INSTRUCTORS_START" }
+  | { type: "FETCH_BUNDLE_INSTRUCTORS_SUCCESS"; payload: CourseBundlesState["bundleInstructors"]["data"] }
+  | { type: "FETCH_BUNDLE_INSTRUCTORS_ERROR"; payload: string }
+  | { type: "SET_BUNDLE_INSTRUCTORS_DATA"; payload: CourseBundlesState["bundleInstructors"]["data"] };
 
 // Action creators
 const actions = {
@@ -390,7 +412,7 @@ const actions = {
   },
 
   *getBundleInstructors(id: number) {
-    yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "loading" } };
+    yield { type: ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_START };
 
     try {
       const response: {
@@ -414,18 +436,23 @@ const actions = {
         },
       };
 
-      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "success", data: response } };
-      return response;
+      if (response && response.success) {
+        const instructorData = {
+          instructors: response.data || [],
+          total_instructors: response.total_instructors || 0,
+          total_courses: response.total_courses || 0,
+        };
+
+        yield { type: ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_SUCCESS, payload: instructorData };
+        return response;
+      } else {
+        yield { type: ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_ERROR, payload: "Failed to fetch bundle instructors" };
+        throw new Error("Failed to fetch bundle instructors");
+      }
     } catch (error) {
-      const bundleError: BundleError = {
-        code: BundleErrorCode.NETWORK_ERROR,
-        message: error instanceof Error ? error.message : "Failed to fetch bundle instructors",
-        context: { action: "getBundleInstructors", bundleId: id, details: `Failed to fetch bundle ${id} instructors` },
-      };
-      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "error", error: bundleError } };
-      throw bundleError;
-    } finally {
-      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "idle" } };
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch bundle instructors";
+      yield { type: ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_ERROR, payload: errorMessage };
+      throw error;
     }
   },
 
@@ -585,6 +612,14 @@ const selectors = {
   hasBundlePricingUnsavedChanges: (state: CourseBundlesState) => state.bundlePricing.isDirty,
   canSaveBundlePricing: (state: CourseBundlesState) =>
     !state.bundlePricing.isLoading && !state.bundlePricing.isSaving && state.bundlePricing.isDirty,
+  // Bundle Instructors selectors (following Bundle Benefits pattern)
+  getBundleInstructorsData: (state: CourseBundlesState) => state.bundleInstructors.data,
+  getBundleInstructorsLoading: (state: CourseBundlesState) => state.bundleInstructors.isLoading,
+  getBundleInstructorsError: (state: CourseBundlesState) => state.bundleInstructors.error,
+  getBundleInstructorsLastFetched: (state: CourseBundlesState) => state.bundleInstructors.lastFetched,
+  hasBundleInstructors: (state: CourseBundlesState) => state.bundleInstructors.data.instructors.length > 0,
+  getBundleInstructorsCount: (state: CourseBundlesState) => state.bundleInstructors.data.total_instructors,
+  getBundleCoursesCount: (state: CourseBundlesState) => state.bundleInstructors.data.total_courses,
 };
 
 // Create and register the store
@@ -846,6 +881,48 @@ const store = createReduxStore("tutorpress/course-bundles", {
           },
         };
 
+      // Bundle Instructors reducer cases (following Bundle Benefits pattern)
+      case ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_START:
+        return {
+          ...state,
+          bundleInstructors: {
+            ...state.bundleInstructors,
+            isLoading: true,
+            error: null,
+          },
+        };
+
+      case ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_SUCCESS:
+        return {
+          ...state,
+          bundleInstructors: {
+            ...state.bundleInstructors,
+            data: (action as { type: string; payload: CourseBundlesState["bundleInstructors"]["data"] }).payload,
+            isLoading: false,
+            error: null,
+            lastFetched: Date.now(),
+          },
+        };
+
+      case ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_ERROR:
+        return {
+          ...state,
+          bundleInstructors: {
+            ...state.bundleInstructors,
+            isLoading: false,
+            error: (action as { type: string; payload: string }).payload,
+          },
+        };
+
+      case ACTION_TYPES.SET_BUNDLE_INSTRUCTORS_DATA:
+        return {
+          ...state,
+          bundleInstructors: {
+            ...state.bundleInstructors,
+            data: (action as { type: string; payload: CourseBundlesState["bundleInstructors"]["data"] }).payload,
+          },
+        };
+
       default:
         return state;
     }
@@ -911,6 +988,14 @@ export const {
   getBundlePricingLastSaved,
   hasBundlePricingUnsavedChanges,
   canSaveBundlePricing,
+  // Bundle Instructors selectors
+  getBundleInstructorsData,
+  getBundleInstructorsLoading,
+  getBundleInstructorsError,
+  getBundleInstructorsLastFetched,
+  hasBundleInstructors,
+  getBundleInstructorsCount,
+  getBundleCoursesCount,
 } = selectors;
 
 // Export types for components

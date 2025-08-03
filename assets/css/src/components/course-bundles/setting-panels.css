@@ -1,0 +1,88 @@
+/**
+ * Course Bundle Setting Panels Styles
+ *
+ * Provides styling for TutorPress Course Bundle Gutenberg setting panels including:
+ * - Bundle Instructors Panel (BundleInstructorsPanel)
+ * - Bundle Pricing Panel (BundlePricingPanel)
+ * - Any future bundle-specific setting panels
+ *
+ * @package TutorPress
+ * @subpackage CSS/Components/CourseBundles
+ * @since 0.1.0
+ */
+
+/* ============================================================================
+   BUNDLE INSTRUCTORS PANEL
+   ============================================================================ */
+
+.tutorpress-bundle-instructors-panel {
+  /* Inherits base instructor styles from post-settings.css */
+}
+
+/* Bundle-specific instructor helper text */
+.tutorpress-bundle-instructors-panel .tutorpress-help-text .description {
+  color: #757575;
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+/* Bundle-specific empty state helper text */
+.tutorpress-bundle-instructors-panel .tutorpress-instructors-empty .description {
+  color: #757575;
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+/* ============================================================================
+   BUNDLE PRICING PANEL
+   ============================================================================ */
+
+.tutorpress-bundle-pricing-panel {
+  /* Inherits base pricing styles from post-settings.css */
+}
+
+/* Bundle-specific pricing helper text */
+.tutorpress-bundle-pricing-panel .tutorpress-help-text .description {
+  color: #757575;
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 782px) {
+  .tutorpress-bundle-instructors-panel,
+  .tutorpress-bundle-pricing-panel {
+    padding: var(--space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .tutorpress-bundle-instructors-panel,
+  .tutorpress-bundle-pricing-panel {
+    padding: var(--space-sm);
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-contrast: high) {
+  .tutorpress-bundle-instructors-panel .tutorpress-help-text .description,
+  .tutorpress-bundle-pricing-panel .tutorpress-help-text .description {
+    color: var(--color-text-primary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorpress-bundle-instructors-panel,
+  .tutorpress-bundle-pricing-panel {
+    transition: none;
+  }
+} 

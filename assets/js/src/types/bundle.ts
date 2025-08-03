@@ -126,8 +126,12 @@ export interface BundleBenefits {
 // Bundle Instructor Types
 export interface BundleInstructor {
   id: number;
-  name: string;
-  email: string;
+  display_name: string;
+  user_email: string;
+  user_login: string;
+  avatar_url: string;
+  role: "author" | "instructor";
+  designation?: string;
 }
 
 // ============================================================================
@@ -242,5 +246,16 @@ export interface CourseBundlesState {
     isDirty: boolean;
     error: string | null;
     lastSaved: number | null;
+  };
+  // Bundle Instructors state (following Bundle Benefits pattern)
+  bundleInstructors: {
+    data: {
+      instructors: BundleInstructor[];
+      total_instructors: number;
+      total_courses: number;
+    };
+    isLoading: boolean;
+    error: string | null;
+    lastFetched: number | null;
   };
 }

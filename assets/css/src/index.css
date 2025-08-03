@@ -30,6 +30,7 @@
 /* Course Bundles Feature */
 @import "./components/course-bundles/course-selection-modal.css";
 @import "./components/course-bundles/courses-metabox.css";
+@import "./components/course-bundles/setting-panels.css";
 
 /* Quiz Feature */
 @import "./components/quiz/quiz-modal.css";
