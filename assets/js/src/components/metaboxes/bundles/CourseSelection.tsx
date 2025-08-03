@@ -28,12 +28,67 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { store as noticesStore } from "@wordpress/notices";
-import type { AvailableCourse } from "../../../types/bundle";
+import type { AvailableCourse, BundlePricing } from "../../../types/bundle";
 import { CourseSelectionModal } from "../../modals/bundles/CourseSelectionModal";
 import { useSortableList } from "../../../hooks/common/useSortableList";
 import { useError } from "../../../hooks/useError";
 
 const COURSE_BUNDLES_STORE = "tutorpress/course-bundles";
+
+/**
+ * Extract numeric price from course price string
+ * Handles formats like "$99.99", "Free", "$0", and HTML formatted prices
+ */
+const extractNumericPrice = (priceString: string): number => {
+  if (!priceString || priceString.toLowerCase() === "free") {
+    return 0;
+  }
+
+  // Handle HTML formatted prices (from bundle courses API)
+  if (priceString.includes("<span")) {
+    // Extract regular price from HTML (always use regular price for bundle calculation)
+    const regularPriceMatch = priceString.match(/tutor-course-price-regular[^>]*>\$([\d.]+)/);
+    if (regularPriceMatch) {
+      return parseFloat(regularPriceMatch[1]);
+    }
+  }
+
+  // Extract numeric value from strings like "$99.99"
+  const match = priceString.match(/[\d.]+/);
+  return match ? parseFloat(match[0]) : 0;
+};
+
+/**
+ * Check if removing a course would create an invalid pricing state
+ */
+const checkPricingValidation = (
+  currentCourses: AvailableCourse[],
+  courseToRemove: AvailableCourse,
+  currentSalePrice: number
+): { isValid: boolean; newRegularPrice: number; message?: string } => {
+  // Calculate current regular price
+  const currentRegularPrice = currentCourses.reduce((sum, course) => {
+    return sum + extractNumericPrice(course.price || "");
+  }, 0);
+
+  // Calculate new regular price after removal
+  const coursePrice = extractNumericPrice(courseToRemove.price || "");
+  const newRegularPrice = currentRegularPrice - coursePrice;
+
+  // Check if sale price would exceed new regular price
+  if (currentSalePrice > newRegularPrice) {
+    return {
+      isValid: false,
+      newRegularPrice,
+      message: `Removing this course would reduce the total value to $${newRegularPrice.toFixed(2)}, which is less than the current bundle price of $${currentSalePrice.toFixed(2)}. Please adjust the bundle price first.`,
+    };
+  }
+
+  return {
+    isValid: true,
+    newRegularPrice,
+  };
+};
 
 interface BundleCourseSelectionProps {
   bundleId?: number;
@@ -143,6 +198,14 @@ export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bu
   // Store dispatch
   const { getBundleCourses, updateBundleCourses } = useDispatch(COURSE_BUNDLES_STORE);
 
+  // Get bundle pricing data for validation
+  const { pricingData } = useSelect(
+    (select: any) => ({
+      pricingData: select("tutorpress/course-bundles").getBundlePricingData(),
+    }),
+    []
+  );
+
   // We load courses via loadBundleCourses into local state
 
   // Get notice actions
@@ -194,6 +257,31 @@ export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bu
   // Handle course removal
   const handleRemoveCourse = async (courseId: number) => {
     if (!bundleId) return;
+
+    // Find the course to be removed
+    const courseToRemove = localCourses.find((course) => course.id === courseId);
+    if (!courseToRemove) {
+      createNotice("error", __("Course not found in bundle.", "tutorpress"), {
+        type: "snackbar",
+      });
+      return;
+    }
+
+    // Check pricing validation before removal
+    if (pricingData && pricingData.sale_price > 0) {
+      const validation = checkPricingValidation(
+        localCourses,
+        courseToRemove,
+        pricingData.sale_price
+      );
+
+      if (!validation.isValid) {
+        createNotice("error", validation.message || __("Cannot remove course due to pricing conflict.", "tutorpress"), {
+          type: "snackbar",
+        });
+        return;
+      }
+    }
 
     try {
       const updatedCourses = localCourses.filter((course) => course.id !== courseId);

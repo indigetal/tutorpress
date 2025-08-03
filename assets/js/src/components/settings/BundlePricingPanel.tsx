@@ -111,9 +111,22 @@ const BundlePricingPanel: React.FC = () => {
 
         // Update the pricing data with the calculated regular price
         if (pricingData && regularPrice !== pricingData.regular_price) {
+          // Check if sale price needs adjustment
+          let adjustedSalePrice = pricingData.sale_price;
+          if (pricingData.sale_price > regularPrice) {
+            adjustedSalePrice = regularPrice;
+            // Show notice about auto-adjustment
+            createNotice(
+              "warning", 
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"), 
+              { type: "snackbar" }
+            );
+          }
+
           updateBundlePricing(postId, {
             ...pricingData,
             regular_price: regularPrice,
+            sale_price: adjustedSalePrice,
           });
         }
       } catch (error) {
@@ -145,9 +158,22 @@ const BundlePricingPanel: React.FC = () => {
         setCalculatedRegularPrice(regularPrice);
 
         if (regularPrice !== pricingData.regular_price) {
+          // Check if sale price needs adjustment
+          let adjustedSalePrice = pricingData.sale_price;
+          if (pricingData.sale_price > regularPrice) {
+            adjustedSalePrice = regularPrice;
+            // Show notice about auto-adjustment
+            createNotice(
+              "warning", 
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"), 
+              { type: "snackbar" }
+            );
+          }
+
           updateBundlePricing(postId, {
             ...pricingData,
             regular_price: regularPrice,
+            sale_price: adjustedSalePrice,
           });
         }
       } catch (error) {

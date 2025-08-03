@@ -423,8 +423,9 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                     }
                 }
 
-                // Get course instructors (author + co-instructors)
-                $instructors = $this->get_course_instructors($course_id);
+                // Get course instructors only if specifically requested (to avoid performance issues)
+                $include_instructors = $request->get_param('include_instructors') === 'true';
+                $instructors = $include_instructors ? $this->get_course_instructors($course_id) : [];
 
                 $courses[] = [
                     'id' => $course_id,
