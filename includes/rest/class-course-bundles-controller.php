@@ -335,7 +335,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
     }
 
     /**
-     * Get courses for a specific bundle.
+     * Get courses for a specific bundle with instructor data.
      *
      * @since 0.1.0
      * @param WP_REST_Request $request The request object.
@@ -402,6 +402,9 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                     }
                 }
 
+                // Get course instructors (author + co-instructors)
+                $instructors = $this->get_course_instructors($course_id);
+
                 $courses[] = [
                     'id' => $course_id,
                     'title' => $course->post_title,
@@ -414,6 +417,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                     'lesson_count' => $lesson_count ? (int) $lesson_count : 0,
                     'quiz_count' => $quiz_count ? (int) $quiz_count : 0,
                     'resource_count' => $resource_count ? (int) $resource_count : 0,
+                    'instructors' => $instructors,
                 ];
             }
         }
@@ -598,6 +602,56 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 'benefits_saved' => $benefits_saved !== false,
             ],
         ]);
+    }
+
+    /**
+     * Get instructors for a specific course (author + co-instructors).
+     * Follows Tutor LMS Pro pattern for instructor aggregation.
+     *
+     * @since 0.1.0
+     * @param int $course_id The course ID.
+     * @return array Array of instructor data.
+     */
+    private function get_course_instructors($course_id) {
+        $instructors = [];
+
+        // Get course author (main instructor)
+        $course = get_post($course_id);
+        if ($course && $course->post_author) {
+            $author = get_user_by('id', $course->post_author);
+            if ($author) {
+                $instructors[] = [
+                    'id' => $author->ID,
+                    'display_name' => $author->display_name,
+                    'user_email' => $author->user_email,
+                    'user_login' => $author->user_login,
+                    'avatar_url' => get_avatar_url($author->ID, ['size' => 96]),
+                    'role' => 'author',
+                    'designation' => get_user_meta($author->ID, '_tutor_profile_job_title', true),
+                ];
+            }
+        }
+
+        // Get co-instructors from Tutor LMS meta field
+        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
+        if (is_array($co_instructor_ids)) {
+            foreach ($co_instructor_ids as $instructor_id) {
+                $instructor = get_user_by('id', $instructor_id);
+                if ($instructor) {
+                    $instructors[] = [
+                        'id' => $instructor->ID,
+                        'display_name' => $instructor->display_name,
+                        'user_email' => $instructor->user_email,
+                        'user_login' => $instructor->user_login,
+                        'avatar_url' => get_avatar_url($instructor->ID, ['size' => 96]),
+                        'role' => 'instructor',
+                        'designation' => get_user_meta($instructor->ID, '_tutor_profile_job_title', true),
+                    ];
+                }
+            }
+        }
+
+        return $instructors;
     }
 
 } 
