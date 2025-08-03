@@ -390,8 +390,43 @@ const actions = {
   },
 
   *getBundleInstructors(id: number) {
-    // Placeholder - will be expanded in Setting 4
-    return { instructors: [] };
+    yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "loading" } };
+
+    try {
+      const response: {
+        success: boolean;
+        data: Array<{
+          id: number;
+          display_name: string;
+          user_email: string;
+          user_login: string;
+          avatar_url: string;
+          role: "author" | "instructor";
+          designation?: string;
+        }>;
+        total_instructors: number;
+        total_courses: number;
+      } = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/bundles/${id}/instructors`,
+          method: "GET",
+        },
+      };
+
+      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "success", data: response } };
+      return response;
+    } catch (error) {
+      const bundleError: BundleError = {
+        code: BundleErrorCode.NETWORK_ERROR,
+        message: error instanceof Error ? error.message : "Failed to fetch bundle instructors",
+        context: { action: "getBundleInstructors", bundleId: id, details: `Failed to fetch bundle ${id} instructors` },
+      };
+      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "error", error: bundleError } };
+      throw bundleError;
+    } finally {
+      yield { type: ACTION_TYPES.SET_OPERATION_STATE, payload: { status: "idle" } };
+    }
   },
 
   // Utility Actions

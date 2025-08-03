@@ -142,6 +142,27 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             ]
         );
 
+        // Bundle instructors endpoint
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/(?P<id>[\d]+)/instructors',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_bundle_instructors'],
+                    'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'id' => [
+                            'required'          => true,
+                            'type'             => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The bundle ID.', 'tutorpress'),
+                        ],
+                    ],
+                ],
+            ]
+        );
+
         // Save bundle benefits endpoint (following Additional Content pattern)
         register_rest_route(
             $this->namespace,
@@ -601,6 +622,68 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 'bundle_id' => $bundle_id,
                 'benefits_saved' => $benefits_saved !== false,
             ],
+        ]);
+    }
+
+    /**
+     * Get aggregated instructors for a specific bundle.
+     * Aggregates unique instructors from all courses in the bundle.
+     * Follows Tutor LMS Pro pattern for instructor aggregation.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response object.
+     */
+    public function get_bundle_instructors($request) {
+        $bundle_id = (int) $request->get_param('id');
+        
+        // Validate bundle exists
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return new WP_Error(
+                'bundle_not_found',
+                __('Bundle not found.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Get bundle course IDs from meta - Tutor LMS uses 'bundle-course-ids'
+        $course_ids_meta = get_post_meta($bundle_id, 'bundle-course-ids', true);
+        
+        // Handle different data formats: comma-separated string or array
+        if (is_string($course_ids_meta) && !empty($course_ids_meta)) {
+            $course_ids = array_map('intval', explode(',', $course_ids_meta));
+        } elseif (is_array($course_ids_meta)) {
+            $course_ids = array_map('intval', $course_ids_meta);
+        } else {
+            $course_ids = [];
+        }
+
+        // Aggregate unique instructors from all courses
+        $all_instructors = [];
+        $unique_instructors = [];
+        $instructor_ids_seen = [];
+
+        foreach ($course_ids as $course_id) {
+            $course = get_post($course_id);
+            if ($course && $course->post_type === 'courses') {
+                $course_instructors = $this->get_course_instructors($course_id);
+                
+                foreach ($course_instructors as $instructor) {
+                    // Only add instructor if we haven't seen their ID before
+                    if (!in_array($instructor['id'], $instructor_ids_seen)) {
+                        $unique_instructors[] = $instructor;
+                        $instructor_ids_seen[] = $instructor['id'];
+                    }
+                }
+            }
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $unique_instructors,
+            'total_instructors' => count($unique_instructors),
+            'total_courses' => count($course_ids),
         ]);
     }
 
