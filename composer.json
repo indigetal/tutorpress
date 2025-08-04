@@ -1,0 +1,13 @@
+{
+  "name": "tutorpress/tutorpress",
+  "description": "TutorPress - Gutenberg integration for Tutor LMS",
+  "type": "wordpress-plugin",
+  "autoload": {
+    "classmap": ["includes/"],
+    "files": ["includes/tutorpress-functions.php"]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+} 
