@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.13.17
+ * Version: 1.13.18
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  *
@@ -69,6 +69,16 @@ if (!defined('ABSPATH')) {
 define('TUTORPRESS_PATH', plugin_dir_path(__FILE__));
 define('TUTORPRESS_URL', plugin_dir_url(__FILE__));
 
+// Load dependency checker first
+require_once TUTORPRESS_PATH . 'includes/class-tutorpress-dependency-checker.php';
+
+// Check dependencies before loading other components
+$dependency_errors = TutorPress_Dependency_Checker::check_all_requirements();
+if ( ! empty( $dependency_errors ) ) {
+    TutorPress_Dependency_Checker::display_errors( $dependency_errors );
+    return; // Stop plugin loading if requirements not met
+}
+
 // Load dependencies.
 require_once TUTORPRESS_PATH . 'includes/class-settings.php';
 require_once TUTORPRESS_PATH . 'includes/class-template-loader.php';
@@ -134,10 +144,8 @@ add_action('init', function() {
     new TutorPress_REST();
 });
 
-// Initialize classes when Tutor LMS is fully loaded.
-add_action('tutor_loaded', function () {
-    Tutor_LMS_Metadata_Handler::init(); // Metadata handler
-});
+// Initialize metadata handler (dependency checker ensures Tutor LMS is available)
+Tutor_LMS_Metadata_Handler::init();
 
 // Modify assignment post type to enable WordPress admin UI
 add_action('init', function() {
