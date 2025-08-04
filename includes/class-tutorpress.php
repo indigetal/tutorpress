@@ -122,10 +122,12 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     private function init_core_components() {
+        // Initialize Scripts first (for H5P filtering)
+        TutorPress_Scripts::init();
+        
         // Initialize core classes using their static init methods
         TutorPress_Settings::init();
         TutorPress_Admin_Customizations::init();
-        TutorPress_Scripts::init();
         TutorPress_Frontend_Customizations::init();
         
         // Initialize metaboxes using constructor pattern (following Sensei LMS)
@@ -152,6 +154,8 @@ class TutorPress_Main {
         // Initialize components on appropriate hooks
         add_action( 'init', array( $this, 'init_rest_api' ) );
         add_action( 'init', array( $this, 'init_metadata_handler' ) );
+        
+
     }
 
     /**

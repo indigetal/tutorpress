@@ -658,12 +658,10 @@ class TutorPress_Addon_Checker {
      * @since 1.4.0
      */
     public static function override_h5p_addon_filtering() {
-        // Only run if H5P plugin is active
-        if (!self::is_h5p_plugin_active()) {
-            return;
-        }
-
-        // Add our own filtering that allows interactive quizzes when H5P plugin is active
+        // Always register filters regardless of H5P plugin status
+        // This allows us to both show content when H5P plugin is active AND hide content when H5P plugin is inactive
+        
+        // Add our own filtering that controls interactive quizzes based on H5P plugin status only
         // Use priority 15 (higher than Tutor Pro's 10) to override their filters
         add_filter('tutor_filter_course_content', array(__CLASS__, 'allow_h5p_quiz_content'), 15, 1);
         add_filter('tutor_filter_lesson_sidebar', array(__CLASS__, 'allow_h5p_sidebar_contents'), 15, 2);
@@ -682,8 +680,11 @@ class TutorPress_Addon_Checker {
      * @return array
      */
     public static function allow_h5p_quiz_content($current_topic) {
+        // Check only H5P plugin status (ignore addon status)
+        $h5p_plugin_active = self::is_h5p_plugin_active();
+        
         // If H5P plugin is active, allow all content including H5P quizzes
-        if (self::is_h5p_plugin_active()) {
+        if ($h5p_plugin_active) {
             return $current_topic;
         }
 
@@ -715,8 +716,11 @@ class TutorPress_Addon_Checker {
      * @return \WP_Query
      */
     public static function allow_h5p_sidebar_contents($query, $topic_id) {
+        // Check only H5P plugin status (ignore addon status)
+        $h5p_plugin_active = self::is_h5p_plugin_active();
+        
         // If H5P plugin is active, recreate the original query (no filtering)
-        if (self::is_h5p_plugin_active()) {
+        if ($h5p_plugin_active) {
             $topics_id = tutor_utils()->get_post_id($topic_id);
             $lesson_post_type = tutor()->lesson_post_type;
             $post_type = array_unique(apply_filters('tutor_course_contents_post_types', array($lesson_post_type, 'tutor_quiz')));

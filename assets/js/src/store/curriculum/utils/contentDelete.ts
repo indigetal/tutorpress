@@ -264,15 +264,48 @@ export const deleteResolvers = {
     idField: "assignmentId",
   }),
 
-  quiz: createComplexDeleteResolver({
-    type: "complex",
-    apiPath: "/tutorpress/v1/quizzes",
-    parentInfoPath: "/tutorpress/v1/quizzes",
-    contentTypes: ["tutor_quiz", "interactive_quiz"],
-    entityName: "quiz",
-    idField: "quizId",
-    needsCourseId: true,
-  }),
+  quiz: function* (quizId: number): Generator<unknown, void, unknown> {
+    try {
+      yield {
+        type: "DELETE_QUIZ_START",
+        payload: { quizId },
+      };
+
+      // Delete the quiz (no parent info needed)
+      yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/quizzes/${quizId}`,
+          method: "DELETE",
+        },
+      };
+
+      yield {
+        type: "DELETE_QUIZ_SUCCESS",
+        payload: { quizId },
+      };
+
+      // Update topics directly to remove the deleted quiz (preserves toggle states)
+      yield {
+        type: "SET_TOPICS",
+        payload: createRemoveMultiTypeContentPayload(quizId, ["tutor_quiz", "interactive_quiz"]),
+      };
+    } catch (error) {
+      yield {
+        type: "DELETE_QUIZ_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message: error instanceof Error ? error.message : __("Failed to delete quiz", "tutorpress"),
+            context: {
+              action: "deleteQuiz",
+              details: `Failed to delete quiz ${quizId}`,
+            },
+          },
+        },
+      };
+    }
+  },
 
   liveLesson: createComplexDeleteResolver({
     type: "complex",

@@ -43,7 +43,15 @@ class TutorPress_Scripts {
      * @return void
      */
     public static function enqueue_common_assets() {
-        // Empty - we now handle frontend overrides in enqueue_dashboard_assets()
+        // Localize addon checker data for frontend use
+        wp_localize_script('jquery', 'tutorpressAddonChecker', 
+            TutorPress_Addon_Checker::get_comprehensive_status()
+        );
+        
+        // Also localize to window.tutorpress for compatibility
+        wp_localize_script('jquery', 'tutorpress', [
+            'addonChecker' => TutorPress_Addon_Checker::get_comprehensive_status()
+        ]);
     }
 
     /**
