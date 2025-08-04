@@ -139,10 +139,6 @@
   margin: 0 0 var(--space-lg) 0;
 }
 
-.quiz-modal-questions-header {
-  /* Using tpress-section-header utility class */
-}
-
 .quiz-modal-questions-header h4 {
   margin: 0;
   font-size: var(--text-sm);
@@ -175,15 +171,6 @@
   font-style: italic;
   font-size: var(--text-sm);
   margin: 0;
-}
-
-/* Center and Right Column Empty States */
-.quiz-modal-empty-state {
-  /* Using tpress-empty-state-container utility class */
-}
-
-.quiz-modal-empty-state p {
-  /* Using tpress-empty-state-container p utility class */
 }
 
 /* Settings Tab - Single Column Layout */
@@ -297,16 +284,10 @@
   margin-bottom: var(--space-md);
 }
 
-/* Labels - Using WordPress core styling */
-
-/* Number Control and Select Control Styling - Using WordPress core styling */
-
 /* Toggle Control Styling */
 .quiz-modal-settings .components-toggle-control {
   margin-bottom: var(--space-xs);
 }
-
-/* Toggle Control Labels - Using WordPress core styling */
 
 /* Notice Styling in Modal */
 .quiz-modal-setting-group .components-notice {
@@ -350,14 +331,6 @@
 
 .quiz-modal-question-type-section .components-base-control {
   margin-bottom: var(--space-sm);
-}
-
-/* Question Type Section Labels - Using WordPress core styling */
-
-/* Question Type Select Control - Using WordPress core styling */
-
-.quiz-modal-loading-question-types {
-  /* Using tpress-loading-state-inline utility class */
 }
 
 .quiz-modal-question-type-actions {
@@ -480,8 +453,6 @@
 .quiz-modal-question-core-fields .components-base-control:last-child {
   margin-bottom: 0;
 }
-
-/* Question Core Fields Labels - Using WordPress core styling */
 
 /* Description Field Styles */
 .quiz-modal-description-field,
@@ -644,8 +615,6 @@
 .quiz-modal-question-settings-content .components-base-control {
   margin-bottom: var(--space-md);
 }
-
-/* Question Settings Content Labels - Using WordPress core styling */
 
 /* Error States */
 .quiz-modal .has-error .components-text-control__input,
@@ -874,22 +843,6 @@
   min-height: 250px;
 }
 
-.quiz-modal-h5p-content .h5p-preview-spinner {
-  /* Using tpress-loading-state-centered utility class */
-}
-
-.quiz-modal-h5p-content .h5p-preview-error-content {
-  /* Using tpress-error-state-section utility class */
-}
-
-.quiz-modal-h5p-content .h5p-preview-error-message {
-  /* Using tpress-error-message utility class */
-}
-
-.quiz-modal-h5p-content .h5p-preview-error-details {
-  /* Using tpress-error-details utility class */
-}
-
 /* Ensure H5P content renders properly */
 .quiz-modal-h5p-content .h5p-content,
 .quiz-modal-h5p-content .h5p-iframe-wrapper {
@@ -941,36 +894,6 @@
   padding: var(--space-xl) var(--space-2xl);
   border-top: 1px solid var(--gray-300);
   background: var(--gray-100);
-}
-
-/* Loading State */
-.tutorpress-h5p-loading-state {
-  /* Using tpress-loading-state-centered utility class */
-}
-
-.tutorpress-h5p-loading-state .components-spinner {
-  /* Using tpress-loading-state-centered .components-spinner utility class */
-}
-
-.tutorpress-h5p-loading-state p {
-  /* Using tpress-loading-state-centered p utility class */
-}
-
-/* Error State */
-.tutorpress-h5p-error-state {
-  /* Using tpress-error-state-alert utility class */
-}
-
-.tutor-alert {
-  /* Using tpress-error-state-alert utility class */
-}
-
-.tutor-alert-warning {
-  /* Border color handled by tpress-error-state-alert */
-}
-
-.tutor-alert p {
-  /* Using tpress-error-state-alert p utility class */
 }
 
 .tutor-btn {

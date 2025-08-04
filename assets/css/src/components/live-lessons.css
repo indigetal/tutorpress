@@ -50,7 +50,6 @@
   padding: var(--space-lg) var(--space-2xl);
   background: var(--gray-100);
   border-top: 1px solid var(--gray-300);
-  /* Using tpress-flex-end utility class */
 }
 
 /* ========================================================================
@@ -110,10 +109,6 @@
 .tutorpress-modal-content .components-datetime__date {
   padding: var(--space-sm);
 }
-
-/* NumberControl styling - Using WordPress core styling */
-
-/* Label styling - Using WordPress core styling */
 
 /* Required field indicator */
 .tutorpress-modal-content .components-text-control__input[required] {
@@ -307,8 +302,6 @@
   margin-bottom: 1rem;
 }
 
-/* Live lesson specific layout - base styles now in post-settings.css */
-
 /* Form Notices and Errors */
 .tutorpress-form-notice {
   background: var(--info-bg);
@@ -325,60 +318,15 @@
   color: var(--color-text-primary);
 }
 
-.tutorpress-form-error {
-  /* Using tpress-error-state-inline utility class */
-}
-
-.tutorpress-form-error p {
-  /* Using tpress-error-state-inline p utility class */
-}
-
 /* Password Field with Eye Toggle */
 .tutorpress-password-field {
   margin-bottom: 1rem;
-}
-
-.tutorpress-password-field .components-base-control__label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: var(--text-xs);
-  font-weight: 500;
-  line-height: 1.4;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
 }
 
 .tutorpress-password-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.tutorpress-password-input-wrapper .components-text-control__input {
-  flex: 1;
-  padding-right: 40px; /* Make room for the eye toggle button */
-  border: 1px solid var(--gray-500);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  line-height: 16px;
-  padding: 8px 12px;
-  min-height: 40px;
-  box-shadow: 0 0 0 transparent;
-  transition: box-shadow 0.1s linear;
-  background-color: var(--white);
-  color: var(--color-text-primary);
-}
-
-.tutorpress-password-input-wrapper .components-text-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: 2px solid transparent;
-}
-
-.tutorpress-password-input-wrapper .components-text-control__input:disabled {
-  background-color: var(--gray-300);
-  border-color: var(--gray-300);
-  color: var(--gray-500);
 }
 
 .tutorpress-password-toggle {
@@ -407,12 +355,4 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.tutorpress-password-field .components-base-control__help {
-  margin-top: 8px;
-  margin-bottom: 0;
-  font-size: var(--text-xs);
-  font-style: normal;
-  color: var(--gray-500);
 }

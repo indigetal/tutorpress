@@ -41,12 +41,6 @@
   position: relative;
 }
 
-/* Textarea field styling - Using WordPress core styling */
-
-/* Field labels - Using WordPress core styling */
-
-/* Help text - Using WordPress core styling */
-
 /* ============================================================================
    Content Drip Section
    ============================================================================ */
@@ -245,10 +239,6 @@
 /* ============================================================================
    Accessibility and Interaction States
    ============================================================================ */
-
-/* Focus states - Using WordPress core styling */
-
-/* Disabled states - Using WordPress core styling */
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

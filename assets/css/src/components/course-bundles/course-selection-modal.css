@@ -50,8 +50,6 @@
   margin-bottom: 0;
 }
 
-/* Search input styling - Using WordPress core styling */
-
 /* ========================================================================
    COURSE CONTENT STYLES
    ======================================================================== */
@@ -116,8 +114,6 @@
 .tutorpress-course-checkbox .components-checkbox-control {
   margin-bottom: 0;
 }
-
-/* Checkbox labels - Using WordPress core styling */
 
 /* Course info column */
 .tutorpress-course-info {
@@ -328,8 +324,6 @@
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
-
-/* Checkbox focus states - Using WordPress core styling */
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

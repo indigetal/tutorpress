@@ -40,14 +40,6 @@
   color: var(--color-text-primary);
 }
 
-/* Help text - Using WordPress core styling */
-
-/* ============================================================================
-   FORM CONTROLS - STANDARDIZED ACROSS ALL SETTINGS
-   ============================================================================ */
-
-/* Text inputs, selects, and textareas - Using WordPress core styling */
-
 /* ============================================================================
    DATE/TIME COMPONENTS - CONSOLIDATED FROM MULTIPLE FILES
    ============================================================================ */
@@ -196,8 +188,6 @@
   flex: 1;
 }
 
-/* Hide individual field labels when section heading provides context - Using WordPress core styling */
-
 /* ============================================================================
    SIDE-BY-SIDE FIELD LAYOUTS (for modals and settings)
    ============================================================================ */
@@ -211,12 +201,6 @@
 .tutorpress-datetime-section .components-select-control {
   margin-top: var(--space-sm);
 }
-
-/* ============================================================================
-   TOGGLE CONTROLS & CHECKBOXES
-   ============================================================================ */
-
-/* Toggle and checkbox controls - Now handled by tutorpress-form-toggle and tutorpress-form-checkbox utilities */
 
 /* ============================================================================
    NOTICES IN SETTINGS PANELS
@@ -491,11 +475,6 @@
    PRICING MODEL PANEL - COURSE PRICING PANEL
    ============================================================================ */
 
-/* Pricing panel container */
-.tutorpress-course-pricing-panel {
-  /* Inherits shared post settings panel styles */
-}
-
 /* Pricing model radio control */
 .tutorpress-course-pricing-panel .components-radio-control {
   margin-bottom: var(--space-lg);
@@ -657,8 +636,6 @@
   text-align: right;
   font-size: var(--text-sm);
 }
-
-/* Price field labels - Using WordPress core styling */
 
 /* Price field help text */
 .tutorpress-course-pricing-panel .price-field .components-base-control__help {

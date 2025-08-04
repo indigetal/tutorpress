@@ -8,8 +8,6 @@
   margin-bottom: var(--space-sm);
 }
 
-/* TinyMCE textarea styling - Using WordPress core styling */
-
 .quiz-modal-tinymce-editor .mce-tinymce {
   border: 1px solid var(--gray-300) !important;
   border-radius: var(--radius-sm) !important;
@@ -100,11 +98,6 @@
 
 .quiz-modal-wp-editor .wp-editor-wrap.html-active .mce-tinymce {
   display: none !important;
-}
-
-/* FORCE all quiz modal editors to show Visual mode regardless of WordPress defaults */
-.quiz-modal-wp-editor .wp-editor-wrap {
-  /* Always force tmce-active class behavior */
 }
 
 .quiz-modal-wp-editor .wp-editor-wrap textarea {

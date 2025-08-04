@@ -70,8 +70,6 @@
   margin-top: var(--space-lg);
 }
 
-/* Toggle controls - Using WordPress core styling */
-
 .tutorpress-subscription-plan-form .sale-price-section .sale-date-time {
   margin-top: var(--space-lg);
   padding: var(--space-lg);
@@ -82,8 +80,6 @@
 /* ============================================================================
    FORM VALIDATION STYLES
    ============================================================================ */
-
-/* Error states - Now handled by tutorpress-form-error and tutorpress-form-error-help utilities */
 
 .tutorpress-subscription-plan-form .error-summary {
   color: var(--color-error);
@@ -119,12 +115,6 @@
     gap: var(--space-md);
   }
 }
-
-/* ============================================================================
-   ACCESSIBILITY
-   ============================================================================ */
-
-/* Checkbox and toggle controls - Now handled by tutorpress-form-toggle and tutorpress-form-checkbox utilities */
 
 /* ============================================================================
    SUBSCRIPTION PLAN SECTION

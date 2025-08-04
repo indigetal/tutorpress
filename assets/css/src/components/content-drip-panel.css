@@ -51,10 +51,6 @@
   width: 100%;
 }
 
-/* Field labels - Using WordPress core styling */
-
-/* Help text - Using WordPress core styling */
-
 /* ============================================================================
    Date Picker Field
    ============================================================================ */
@@ -64,8 +60,6 @@
   gap: var(--space-md);
   align-items: flex-start;
 }
-
-/* Content Drip specific datetime overrides - all base styles now in post-settings.css */
 
 /* ============================================================================
    Prerequisites Multi-Select Field
