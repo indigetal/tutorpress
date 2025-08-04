@@ -112,36 +112,8 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     private function load_required_files() {
-        // Core classes
-        require_once $this->plugin_path . 'includes/class-settings.php';
-        require_once $this->plugin_path . 'includes/class-tutorpress-templates.php';
-        require_once $this->plugin_path . 'includes/class-metadata-handler.php';
-        require_once $this->plugin_path . 'includes/class-admin-customizations.php';
-        require_once $this->plugin_path . 'includes/class-scripts.php';
-        require_once $this->plugin_path . 'includes/class-rest.php';
-        require_once $this->plugin_path . 'includes/class-frontend-customizations.php';
-        
-        // Gutenberg components
-        require_once $this->plugin_path . 'includes/gutenberg/utilities/class-addon-checker.php';
-        require_once $this->plugin_path . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
-        require_once $this->plugin_path . 'includes/gutenberg/metaboxes/class-certificate-metabox.php';
-        require_once $this->plugin_path . 'includes/gutenberg/metaboxes/class-additional-content-metabox.php';
-        require_once $this->plugin_path . 'includes/gutenberg/metaboxes/class-bundle-courses-metabox.php';
-        require_once $this->plugin_path . 'includes/gutenberg/metaboxes/class-bundle-benefits-metabox.php';
-        
-        // Settings panels
-        require_once $this->plugin_path . 'includes/gutenberg/settings/class-assignment-settings.php';
-        require_once $this->plugin_path . 'includes/gutenberg/settings/class-lesson-settings.php';
-        require_once $this->plugin_path . 'includes/gutenberg/settings/class-course-settings.php';
-        require_once $this->plugin_path . 'includes/gutenberg/settings/class-content-drip-helpers.php';
-        require_once $this->plugin_path . 'includes/gutenberg/settings/class-bundle-settings.php';
-        
-        // REST controllers
-        require_once $this->plugin_path . 'includes/rest/class-rest-controller.php';
-        require_once $this->plugin_path . 'includes/rest/class-lessons-controller.php';
-        require_once $this->plugin_path . 'includes/rest/class-topics-controller.php';
-        require_once $this->plugin_path . 'includes/rest/class-assignments-controller.php';
-        require_once $this->plugin_path . 'includes/rest/class-quizzes-controller.php';
+        // All files are now loaded automatically by Composer autoloader
+        // No manual require_once statements needed
     }
 
     /**
@@ -156,14 +128,21 @@ class TutorPress_Main {
         TutorPress_Scripts::init();
         TutorPress_Frontend_Customizations::init();
         
-        // Initialize components that use static init pattern
+        // Initialize metaboxes that use static init pattern
         Bundle_Courses_Metabox::init();
         Bundle_Benefits_Metabox::init();
+        Curriculum_Metabox::init();
+        Certificate_Metabox::init();
+        
+        // Initialize settings panels that use static init pattern
         TutorPress_Assignment_Settings::init();
         TutorPress_Lesson_Settings::init();
         TutorPress_Course_Settings::init();
         TutorPress_Content_Drip_Helpers::init();
         TutorPress_Bundle_Settings::init();
+        
+        // Initialize metaboxes that use static init pattern
+        Additional_Content_Metabox::init();
     }
 
     /**

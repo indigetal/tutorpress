@@ -651,19 +651,15 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 $fake_request->set_param('id', $item_id);
 
                 if ($item_type === 'lesson') {
-                    require_once __DIR__ . '/class-lessons-controller.php';
                     $controller = new TutorPress_REST_Lessons_Controller();
                     $delete_result = $controller->delete_item($fake_request);
                 } elseif ($item_type === 'tutor_assignments') {
-                    require_once __DIR__ . '/class-assignments-controller.php';
                     $controller = new TutorPress_REST_Assignments_Controller();
                     $delete_result = $controller->delete_item($fake_request);
                 } elseif ($item_type === 'tutor_quiz' || $item_type === 'interactive_quiz') {
-                    require_once __DIR__ . '/class-quizzes-controller.php';
                     $controller = new TutorPress_REST_Quizzes_Controller();
                     $delete_result = $controller->delete_item($fake_request);
                 } elseif ($item_type === 'meet_lesson' || $item_type === 'zoom_lesson') {
-                    require_once __DIR__ . '/class-live-lessons-controller.php';
                     $controller = new TutorPress_REST_Live_Lessons_Controller();
                     $delete_result = $controller->delete_item($fake_request);
                 } else {

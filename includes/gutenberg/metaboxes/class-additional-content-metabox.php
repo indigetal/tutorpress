@@ -21,20 +21,24 @@ if (!defined('ABSPATH')) {
 class Additional_Content_Metabox {
 
     /**
-     * Initialize the metabox
+     * Initialize the metabox registration.
+     *
+     * @since 0.1.0
+     * @return void
      */
-    public function __construct() {
-        add_action('add_meta_boxes', array($this, 'register_metabox'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
-        add_action('save_post', array($this, 'save_additional_content'), 10, 2);
+    public static function init() {
+        add_action('add_meta_boxes', array(__CLASS__, 'register_metabox'));
+        add_action('admin_enqueue_scripts', array(__CLASS__, 'enqueue_assets'));
+        add_action('save_post', array(__CLASS__, 'save_additional_content'), 10, 2);
     }
 
     /**
      * Register the metabox for course post type
      *
+     * @since 0.1.0
      * @return void
      */
-    public function register_metabox() {
+    public static function register_metabox() {
         // Always register for courses (no addon dependency for core fields)
         add_meta_box(
             'tutorpress_additional_content_metabox',  // Metabox ID
@@ -85,10 +89,11 @@ class Additional_Content_Metabox {
     /**
      * Enqueue metabox assets
      *
+     * @since 0.1.0
      * @param string $hook_suffix The current admin page hook suffix
      * @return void
      */
-    public function enqueue_assets($hook_suffix) {
+    public static function enqueue_assets($hook_suffix) {
         // Only load on course edit pages
         if (!in_array($hook_suffix, array('post.php', 'post-new.php'))) {
             return;
@@ -165,11 +170,12 @@ class Additional_Content_Metabox {
     /**
      * Save additional content when post is saved
      *
+     * @since 0.1.0
      * @param int $post_id The post ID
      * @param WP_Post $post The post object
      * @return void
      */
-    public function save_additional_content($post_id, $post) {
+    public static function save_additional_content($post_id, $post) {
         // Only process courses
         if (!$post || $post->post_type !== 'courses') {
             return;
@@ -237,7 +243,4 @@ class Additional_Content_Metabox {
             update_post_meta($post_id, '_tutor_course_settings', $course_settings);
         }
     }
-}
-
-// Initialize the metabox
-new Additional_Content_Metabox(); 
+} 
