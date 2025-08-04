@@ -598,25 +598,57 @@ class TutorPress_Addon_Checker {
      * @return array Complete status array including addons and payment engines
      */
     public static function get_comprehensive_status() {
+        // Check if comprehensive status is already cached
+        if (isset(self::$cache['comprehensive_status'])) {
+            return self::$cache['comprehensive_status'];
+        }
+        
         $status = self::get_all_addon_status();
         
-        // Add payment engine status
-        $status['tutor_pro'] = self::is_tutor_pro_enabled();
-        $status['paid_memberships_pro'] = self::is_pmp_enabled();
-        $status['surecart'] = self::is_surecart_enabled();
-        $status['woocommerce'] = self::is_woocommerce_enabled();
-        $status['woocommerce_monetization'] = self::is_woocommerce_monetization();
-        $status['edd'] = self::is_edd_enabled();
-        $status['edd_monetization'] = self::is_edd_monetization();
-        $status['payment_engine'] = self::get_payment_engine();
-        $status['monetization_enabled'] = self::is_monetization_enabled();
-        $status['available_payment_engines'] = self::get_available_payment_engines();
+        // Add payment engine status (cached to avoid redundant calls)
+        $payment_status = self::get_payment_engine_status_cached();
+        $status = array_merge($status, $payment_status);
         
         // Add H5P plugin status (independent of Tutor Pro)
         $status['h5p_plugin_active'] = self::is_h5p_plugin_active();
         // Add Certificate Builder plugin status
         $status['certificate_builder'] = self::is_certificate_builder_enabled();
+        
+        // Cache the comprehensive status
+        self::$cache['comprehensive_status'] = $status;
+        
         return $status;
+    }
+    
+    /**
+     * Get payment engine status with caching to avoid redundant calls
+     *
+     * @return array Payment engine status
+     */
+    private static function get_payment_engine_status_cached() {
+        // Check if payment engine status is already cached
+        if (isset(self::$cache['payment_engine_status'])) {
+            return self::$cache['payment_engine_status'];
+        }
+        
+        // Get all payment engine status in one batch
+        $payment_status = [
+            'tutor_pro' => self::is_tutor_pro_enabled(),
+            'paid_memberships_pro' => self::is_pmp_enabled(),
+            'surecart' => self::is_surecart_enabled(),
+            'woocommerce' => self::is_woocommerce_enabled(),
+            'woocommerce_monetization' => self::is_woocommerce_monetization(),
+            'edd' => self::is_edd_enabled(),
+            'edd_monetization' => self::is_edd_monetization(),
+            'payment_engine' => self::get_payment_engine(),
+            'monetization_enabled' => self::is_monetization_enabled(),
+            'available_payment_engines' => self::get_available_payment_engines(),
+        ];
+        
+        // Cache the payment engine status
+        self::$cache['payment_engine_status'] = $payment_status;
+        
+        return $payment_status;
     }
 
     /**
