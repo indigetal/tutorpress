@@ -40,61 +40,13 @@
   color: var(--color-text-primary);
 }
 
-/* Help text */
-.tutorpress-settings-section .components-base-control__help {
-  margin: var(--space-sm) 0 0;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  line-height: var(--leading-relaxed);
-}
+/* Help text - Using WordPress core styling */
 
 /* ============================================================================
    FORM CONTROLS - STANDARDIZED ACROSS ALL SETTINGS
    ============================================================================ */
 
-/* Text inputs, selects, and textareas */
-.tutorpress-settings-section .components-text-control__input,
-.tutorpress-settings-section .components-select-control__input,
-.tutorpress-settings-section .components-textarea-control__input,
-.tutorpress-datetime-section .components-select-control__input {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  background: var(--white);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  transition: all 0.15s ease-in-out;
-}
-
-/* Hover states */
-.tutorpress-settings-section .components-text-control__input:hover,
-.tutorpress-settings-section .components-select-control__input:hover,
-.tutorpress-settings-section .components-textarea-control__input:hover,
-.tutorpress-datetime-section .components-select-control__input:hover {
-  border-color: var(--color-primary);
-}
-
-/* Focus states */
-.tutorpress-settings-section .components-text-control__input:focus,
-.tutorpress-settings-section .components-select-control__input:focus,
-.tutorpress-settings-section .components-textarea-control__input:focus,
-.tutorpress-datetime-section .components-select-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
-/* Disabled states */
-.tutorpress-settings-section .components-text-control__input:disabled,
-.tutorpress-settings-section .components-select-control__input:disabled,
-.tutorpress-settings-section .components-textarea-control__input:disabled {
-  background-color: var(--gray-100);
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
+/* Text inputs, selects, and textareas - Using WordPress core styling */
 
 /* ============================================================================
    DATE/TIME COMPONENTS - CONSOLIDATED FROM MULTIPLE FILES
@@ -244,11 +196,7 @@
   flex: 1;
 }
 
-/* Hide individual field labels when section heading provides context */
-.tutorpress-duration-section .components-h-stack .components-base-control__label,
-.tutorpress-datetime-section .components-h-stack .components-base-control__label {
-  display: none;
-}
+/* Hide individual field labels when section heading provides context - Using WordPress core styling */
 
 /* ============================================================================
    SIDE-BY-SIDE FIELD LAYOUTS (for modals and settings)
@@ -268,15 +216,7 @@
    TOGGLE CONTROLS & CHECKBOXES
    ============================================================================ */
 
-.tutorpress-settings-section .components-toggle-control,
-.tutorpress-settings-section .components-checkbox-control {
-  margin-bottom: var(--space-md);
-}
-
-.tutorpress-settings-section .components-toggle-control:last-child,
-.tutorpress-settings-section .components-checkbox-control:last-child {
-  margin-bottom: 0;
-}
+/* Toggle and checkbox controls - Now handled by tutorpress-form-toggle and tutorpress-form-checkbox utilities */
 
 /* ============================================================================
    NOTICES IN SETTINGS PANELS
@@ -718,12 +658,7 @@
   font-size: var(--text-sm);
 }
 
-/* Price field labels */
-.tutorpress-course-pricing-panel .price-field .components-base-control__label {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-xs);
-}
+/* Price field labels - Using WordPress core styling */
 
 /* Price field help text */
 .tutorpress-course-pricing-panel .price-field .components-base-control__help {

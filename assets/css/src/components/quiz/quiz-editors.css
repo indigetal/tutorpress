@@ -8,22 +8,7 @@
   margin-bottom: var(--space-sm);
 }
 
-.quiz-modal-tinymce-editor textarea {
-  width: 100%;
-  min-height: 200px;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.quiz-modal-tinymce-editor textarea:focus {
-  border-color: var(--wp-admin-theme-color, #0073aa);
-  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
-  outline: none;
-}
+/* TinyMCE textarea styling - Using WordPress core styling */
 
 .quiz-modal-tinymce-editor .mce-tinymce {
   border: 1px solid var(--gray-300) !important;

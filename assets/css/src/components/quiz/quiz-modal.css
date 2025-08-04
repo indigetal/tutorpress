@@ -297,34 +297,16 @@
   margin-bottom: var(--space-md);
 }
 
-.quiz-modal-settings .components-base-control__label {
-  font-weight: 600;
-  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
-}
+/* Labels - Using WordPress core styling */
 
-/* Number Control and Select Control Styling */
-.quiz-modal-settings .components-number-control__input,
-.quiz-modal-settings .components-select-control__input {
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-}
-
-.quiz-modal-settings .components-number-control__input:focus,
-.quiz-modal-settings .components-select-control__input:focus {
-  border-color: var(--wp-admin-theme-color, #0073aa);
-  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
-}
+/* Number Control and Select Control Styling - Using WordPress core styling */
 
 /* Toggle Control Styling */
 .quiz-modal-settings .components-toggle-control {
   margin-bottom: var(--space-xs);
 }
 
-.quiz-modal-settings .components-toggle-control .components-toggle-control__label {
-  font-weight: 600;
-  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
-}
+/* Toggle Control Labels - Using WordPress core styling */
 
 /* Notice Styling in Modal */
 .quiz-modal-setting-group .components-notice {
@@ -370,27 +352,9 @@
   margin-bottom: var(--space-sm);
 }
 
-.quiz-modal-question-type-section .components-base-control__label {
-  font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
-  margin-bottom: var(--space-xs);
-}
+/* Question Type Section Labels - Using WordPress core styling */
 
-.quiz-modal-question-type-select .components-select-control__input {
-  background: var(--white);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
-  min-height: 40px;
-}
-
-.quiz-modal-question-type-select .components-select-control__input:focus {
-  border-color: var(--wp-admin-theme-color, #0073aa);
-  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #0073aa);
-  outline: none;
-}
+/* Question Type Select Control - Using WordPress core styling */
 
 .quiz-modal-loading-question-types {
   /* Using tpress-loading-state-inline utility class */
@@ -517,10 +481,7 @@
   margin-bottom: 0;
 }
 
-.quiz-modal-question-core-fields .components-base-control__label {
-  font-weight: 600;
-  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
-}
+/* Question Core Fields Labels - Using WordPress core styling */
 
 /* Description Field Styles */
 .quiz-modal-description-field,
@@ -684,10 +645,7 @@
   margin-bottom: var(--space-md);
 }
 
-.quiz-modal-question-settings-content .components-base-control__label {
-  font-weight: 600;
-  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
-}
+/* Question Settings Content Labels - Using WordPress core styling */
 
 /* Error States */
 .quiz-modal .has-error .components-text-control__input,
@@ -1037,27 +995,6 @@
 .tutor-btn-outline-primary:hover {
   color: var(--white);
   background: var(--wp-admin-theme-color);
-}
-
-/* Empty State */
-.tutorpress-h5p-empty-state {
-  /* Using tpress-empty-state-page utility class */
-}
-
-.tutor-empty-state {
-  /* Using tpress-empty-state-page utility class */
-}
-
-.tutor-empty-state-icon {
-  /* Using tpress-empty-state-icon utility class */
-}
-
-.tutor-empty-state h3 {
-  /* Using tpress-empty-state-page h3 utility class */
-}
-
-.tutor-empty-state p {
-  /* Using tpress-empty-state-page p utility class */
 }
 
 /* Responsive design for H5P Selection Modal */

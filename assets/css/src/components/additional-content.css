@@ -41,48 +41,11 @@
   position: relative;
 }
 
-/* Textarea field styling */
-.tutorpress-additional-content__field .components-textarea-control {
-  margin-bottom: 0;
-}
+/* Textarea field styling - Using WordPress core styling */
 
-.tutorpress-additional-content__field .components-textarea-control__input {
-  min-height: 100px;
-  resize: vertical;
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
-  transition: border-color 0.2s ease;
-}
+/* Field labels - Using WordPress core styling */
 
-.tutorpress-additional-content__field .components-textarea-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
-.tutorpress-additional-content__field .components-textarea-control__input:disabled {
-  background-color: var(--gray-100);
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-}
-
-/* Field labels */
-.tutorpress-additional-content__field .components-base-control__label {
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-xs);
-  display: block;
-}
-
-/* Help text */
-.tutorpress-additional-content__field .components-base-control__help {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  margin-top: var(--space-xs);
-  line-height: var(--leading-relaxed);
-}
+/* Help text - Using WordPress core styling */
 
 /* ============================================================================
    Content Drip Section
@@ -128,9 +91,7 @@
   margin-bottom: 0;
 }
 
-.tutorpress-content-drip-settings__enable .components-checkbox-control__label {
-  color: var(--color-text-primary);
-}
+/* Checkbox labels - Using WordPress core styling */
 
 .tutorpress-content-drip-settings__type {
   padding: var(--space-md);
@@ -285,19 +246,9 @@
    Accessibility and Interaction States
    ============================================================================ */
 
-/* Focus states */
-.tutorpress-content-drip-settings__enable .components-checkbox-control__input:focus,
-.tutorpress-content-drip-settings__type .components-radio-control__input:focus {
-  box-shadow: 0 0 0 2px var(--color-primary);
-  outline: none;
-}
+/* Focus states - Using WordPress core styling */
 
-/* Disabled states */
-.tutorpress-content-drip-settings__enable .components-checkbox-control__input:disabled,
-.tutorpress-content-drip-settings__type .components-radio-control__input:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+/* Disabled states - Using WordPress core styling */
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

@@ -80,16 +80,9 @@
   margin-bottom: 0;
 }
 
+/* Fill blanks textarea styling - Using WordPress core styling */
 .quiz-modal-fill-blanks-field .quiz-modal-option-textarea {
   width: 100%;
-  min-height: 100px;
-  resize: vertical;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  margin-bottom: var(--space-sm);
 }
 
 .quiz-modal-fill-blanks-field .quiz-modal-option-textarea[rows="3"] {

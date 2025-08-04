@@ -50,21 +50,7 @@
   margin-bottom: 0;
 }
 
-.tutorpress-search-section .components-text-control__input {
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  width: 100%;
-  background: var(--white);
-}
-
-.tutorpress-search-section .components-text-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
+/* Search input styling - Using WordPress core styling */
 
 /* ========================================================================
    COURSE CONTENT STYLES
@@ -131,10 +117,7 @@
   margin-bottom: 0;
 }
 
-.tutorpress-course-checkbox .components-checkbox-control__label {
-  font-weight: 600;
-  color: var(--gray-700);
-}
+/* Checkbox labels - Using WordPress core styling */
 
 /* Course info column */
 .tutorpress-course-info {
@@ -346,10 +329,7 @@
   outline-offset: -2px;
 }
 
-.tutorpress-course-checkbox .components-checkbox-control__input:focus + .components-checkbox-control__label {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
+/* Checkbox focus states - Using WordPress core styling */
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

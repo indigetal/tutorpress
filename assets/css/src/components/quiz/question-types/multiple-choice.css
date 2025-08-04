@@ -110,38 +110,9 @@
   cursor: not-allowed;
 }
 
+/* Option textarea styling - Using WordPress core styling */
 .quiz-modal-option-textarea {
   width: 100%;
-  min-height: 80px;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--color-text-primary);
-  background: var(--white);
-  resize: vertical;
-  transition:
-    border-color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out;
-  margin-bottom: var(--space-md);
-}
-
-.quiz-modal-option-textarea:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
-.quiz-modal-option-textarea::placeholder {
-  color: var(--gray-500);
-}
-
-.quiz-modal-option-textarea:disabled {
-  background: var(--gray-100);
-  color: var(--gray-500);
-  cursor: not-allowed;
 }
 
 .quiz-modal-option-editor-actions {

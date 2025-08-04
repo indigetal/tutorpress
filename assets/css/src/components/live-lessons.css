@@ -65,26 +65,7 @@
   margin-bottom: 0;
 }
 
-.tutorpress-modal-content .components-text-control__input,
-.tutorpress-modal-content .components-textarea-control__input,
-.tutorpress-modal-content .components-select-control__input {
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  width: 100%;
-  background: var(--white);
-}
-
-.tutorpress-modal-content .components-text-control__input:focus,
-.tutorpress-modal-content .components-textarea-control__input:focus,
-.tutorpress-modal-content .components-select-control__input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
+/* Form inputs - Using WordPress core styling */
 .tutorpress-modal-content .components-textarea-control__input {
   resize: vertical;
   min-height: 80px;
@@ -130,34 +111,9 @@
   padding: var(--space-sm);
 }
 
-/* NumberControl styling */
-.tutorpress-modal-content .components-number-control {
-  width: 100%;
-}
+/* NumberControl styling - Using WordPress core styling */
 
-.tutorpress-modal-content .components-number-control input {
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  width: 100%;
-}
-
-.tutorpress-modal-content .components-number-control input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-  outline: none;
-}
-
-/* Label styling */
-.tutorpress-modal-content .components-base-control__label {
-  font-weight: 600;
-  margin-bottom: 8px;
-  display: block;
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-}
+/* Label styling - Using WordPress core styling */
 
 /* Required field indicator */
 .tutorpress-modal-content .components-text-control__input[required] {

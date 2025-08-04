@@ -70,9 +70,7 @@
   margin-top: var(--space-lg);
 }
 
-.tutorpress-subscription-plan-form .sale-price-section .components-toggle-control {
-  margin-bottom: var(--space-lg);
-}
+/* Toggle controls - Using WordPress core styling */
 
 .tutorpress-subscription-plan-form .sale-price-section .sale-date-time {
   margin-top: var(--space-lg);
@@ -85,13 +83,7 @@
    FORM VALIDATION STYLES
    ============================================================================ */
 
-.tutorpress-subscription-plan-form .has-error .components-base-control__field {
-  border-color: var(--color-error);
-}
-
-.tutorpress-subscription-plan-form .has-error .components-base-control__help {
-  color: var(--color-error);
-}
+/* Error states - Now handled by tutorpress-form-error and tutorpress-form-error-help utilities */
 
 .tutorpress-subscription-plan-form .error-summary {
   color: var(--color-error);
@@ -132,17 +124,7 @@
    ACCESSIBILITY
    ============================================================================ */
 
-/* Use general modal styles for form controls */
-/* Subscription-specific spacing for checkbox/toggle controls */
-.subscription-modal .tutorpress-modal-content .components-checkbox-control,
-.subscription-modal .tutorpress-modal-content .components-toggle-control {
-  margin-bottom: var(--space-md);
-}
-
-.subscription-modal .tutorpress-modal-content .components-checkbox-control:last-child,
-.subscription-modal .tutorpress-modal-content .components-toggle-control:last-child {
-  margin-bottom: 0;
-}
+/* Checkbox and toggle controls - Now handled by tutorpress-form-toggle and tutorpress-form-checkbox utilities */
 
 /* ============================================================================
    SUBSCRIPTION PLAN SECTION
