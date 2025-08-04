@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.13.18
+ * Version: 1.13.19
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  *
@@ -69,83 +69,23 @@ if (!defined('ABSPATH')) {
 define('TUTORPRESS_PATH', plugin_dir_path(__FILE__));
 define('TUTORPRESS_URL', plugin_dir_url(__FILE__));
 
-// Load dependency checker first
-require_once TUTORPRESS_PATH . 'includes/class-tutorpress-dependency-checker.php';
+// Load main orchestrator
+require_once TUTORPRESS_PATH . 'includes/class-tutorpress.php';
 
-// Check dependencies before loading other components
-$dependency_errors = TutorPress_Dependency_Checker::check_all_requirements();
-if ( ! empty( $dependency_errors ) ) {
-    TutorPress_Dependency_Checker::display_errors( $dependency_errors );
-    return; // Stop plugin loading if requirements not met
+// Initialize TutorPress
+TutorPress_Main::instance( array( 'main_file' => __FILE__ ) );
+
+// Global access function
+if ( ! function_exists( 'TutorPress' ) ) {
+    /**
+     * Returns the global TutorPress Instance.
+     *
+     * @return TutorPress_Main
+     */
+    function TutorPress() {
+	return TutorPress_Main::instance();
 }
-
-// Load dependencies.
-require_once TUTORPRESS_PATH . 'includes/class-settings.php';
-require_once TUTORPRESS_PATH . 'includes/class-template-loader.php';
-require_once TUTORPRESS_PATH . 'includes/class-metadata-handler.php';
-require_once TUTORPRESS_PATH . 'includes/class-admin-customizations.php';
-require_once TUTORPRESS_PATH . 'includes/class-scripts.php';
-require_once TUTORPRESS_PATH . 'includes/class-rest.php';
-require_once TUTORPRESS_PATH . 'includes/class-frontend-customizations.php';
-
-require_once TUTORPRESS_PATH . 'includes/gutenberg/utilities/class-addon-checker.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-curriculum-metabox.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-certificate-metabox.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-additional-content-metabox.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-bundle-courses-metabox.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/metaboxes/class-bundle-benefits-metabox.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-assignment-settings.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-lesson-settings.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-course-settings.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-content-drip-helpers.php';
-require_once TUTORPRESS_PATH . 'includes/gutenberg/settings/class-bundle-settings.php';
-
-
-
-// Load REST controllers early
-require_once TUTORPRESS_PATH . 'includes/rest/class-rest-controller.php';
-require_once TUTORPRESS_PATH . 'includes/rest/class-lessons-controller.php';
-require_once TUTORPRESS_PATH . 'includes/rest/class-topics-controller.php';
-require_once TUTORPRESS_PATH . 'includes/rest/class-assignments-controller.php';
-require_once TUTORPRESS_PATH . 'includes/rest/class-quizzes-controller.php';
-
-// Initialize lesson handling
-TutorPress_REST_Lessons_Controller::init();
-
-// Initialize assignment handling
-TutorPress_REST_Assignments_Controller::init();
-
-// Initialize quiz handling
-TutorPress_REST_Quizzes_Controller::init();
-
-// Initialize assignment settings
-TutorPress_Assignment_Settings::init();
-
-// Initialize lesson settings
-TutorPress_Lesson_Settings::init();
-
-// Initialize course settings
-TutorPress_Course_Settings::init();
-
-// Initialize Content Drip helpers
-TutorPress_Content_Drip_Helpers::init();
-
-// Initialize bundle courses metabox
-Bundle_Courses_Metabox::init();
-
-// Initialize bundle benefits metabox
-Bundle_Benefits_Metabox::init();
-
-// Initialize bundle settings (following the same pattern as other working features)
-TutorPress_Bundle_Settings::init();
-
-// Initialize REST API early
-add_action('init', function() {
-    new TutorPress_REST();
-});
-
-// Initialize metadata handler (dependency checker ensures Tutor LMS is available)
-Tutor_LMS_Metadata_Handler::init();
+}
 
 // Modify assignment post type to enable WordPress admin UI
 add_action('init', function() {

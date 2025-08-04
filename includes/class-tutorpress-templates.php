@@ -5,7 +5,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-class Custom_Tutor_LMS_Template_Loader {
+class TutorPress_Templates {
 
     public static function init() {
         add_filter( 'template_include', array( __CLASS__, 'template_loader' ), 99 );
@@ -37,4 +37,4 @@ class Custom_Tutor_LMS_Template_Loader {
 }
 
 // Initialize the class
-Custom_Tutor_LMS_Template_Loader::init();
+TutorPress_Templates::init();
