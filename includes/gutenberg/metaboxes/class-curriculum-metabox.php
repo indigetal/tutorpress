@@ -36,9 +36,9 @@ class Curriculum_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function init() {
-        add_action( 'add_meta_boxes', array( __CLASS__, 'register_metabox' ) );
-        add_action( 'admin_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_editor_assets' ) );
+    public function __construct() {
+        add_action( 'add_meta_boxes', array( $this, 'register_metabox' ) );
+        add_action( 'admin_enqueue_scripts', array( $this, 'maybe_enqueue_editor_assets' ) );
     }
 
     /**
@@ -47,7 +47,7 @@ class Curriculum_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function register_metabox() {
+    public function register_metabox() {
         add_meta_box(
             'tutorpress_curriculum_metabox',  // Unique ID
             __( 'Course Curriculum', 'tutorpress' ),  // Title
@@ -65,7 +65,7 @@ class Curriculum_Metabox {
      * @param string $hook_suffix The current admin page.
      * @return void
      */
-    public static function maybe_enqueue_editor_assets( $hook_suffix ) {
+    public function maybe_enqueue_editor_assets( $hook_suffix ) {
         if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
             return;
         }
@@ -117,6 +117,3 @@ class Curriculum_Metabox {
         <?php
     }
 }
-
-// Initialize the class
-Curriculum_Metabox::init();

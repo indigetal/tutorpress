@@ -128,11 +128,12 @@ class TutorPress_Main {
         TutorPress_Scripts::init();
         TutorPress_Frontend_Customizations::init();
         
-        // Initialize metaboxes that use static init pattern
-        Bundle_Courses_Metabox::init();
-        Bundle_Benefits_Metabox::init();
-        Curriculum_Metabox::init();
-        Certificate_Metabox::init();
+        // Initialize metaboxes using constructor pattern (following Sensei LMS)
+        new Bundle_Courses_Metabox();
+        new Bundle_Benefits_Metabox();
+        new Curriculum_Metabox();
+        new Certificate_Metabox();
+        new Additional_Content_Metabox();
         
         // Initialize settings panels that use static init pattern
         TutorPress_Assignment_Settings::init();
@@ -140,9 +141,6 @@ class TutorPress_Main {
         TutorPress_Course_Settings::init();
         TutorPress_Content_Drip_Helpers::init();
         TutorPress_Bundle_Settings::init();
-        
-        // Initialize metaboxes that use static init pattern
-        Additional_Content_Metabox::init();
     }
 
     /**

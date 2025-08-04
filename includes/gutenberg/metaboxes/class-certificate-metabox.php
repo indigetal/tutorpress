@@ -36,14 +36,14 @@ class Certificate_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function init() {
+    public function __construct() {
         // Only initialize if Certificate addon is enabled
         if ( ! TutorPress_Addon_Checker::is_certificate_enabled() ) {
             return;
         }
 
-        add_action( 'add_meta_boxes', array( __CLASS__, 'register_metabox' ) );
-        add_action( 'admin_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_editor_assets' ) );
+        add_action( 'add_meta_boxes', array( $this, 'register_metabox' ) );
+        add_action( 'admin_enqueue_scripts', array( $this, 'maybe_enqueue_editor_assets' ) );
     }
 
     /**
@@ -52,7 +52,7 @@ class Certificate_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function register_metabox() {
+    public function register_metabox() {
         add_meta_box(
             'tutorpress_certificate_metabox',  // Unique ID
             __( 'Certificate', 'tutorpress' ), // Title
@@ -70,7 +70,7 @@ class Certificate_Metabox {
      * @param string $hook_suffix The current admin page.
      * @return void
      */
-    public static function maybe_enqueue_editor_assets( $hook_suffix ) {
+    public function maybe_enqueue_editor_assets( $hook_suffix ) {
         if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
             return;
         }
@@ -121,7 +121,4 @@ class Certificate_Metabox {
         </div>
         <?php
     }
-}
-
-// Initialize the class
-Certificate_Metabox::init(); 
+} 

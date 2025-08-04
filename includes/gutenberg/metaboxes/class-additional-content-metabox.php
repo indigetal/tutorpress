@@ -26,10 +26,10 @@ class Additional_Content_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function init() {
-        add_action('add_meta_boxes', array(__CLASS__, 'register_metabox'));
-        add_action('admin_enqueue_scripts', array(__CLASS__, 'enqueue_assets'));
-        add_action('save_post', array(__CLASS__, 'save_additional_content'), 10, 2);
+    public function __construct() {
+        add_action('add_meta_boxes', array($this, 'register_metabox'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('save_post', array($this, 'save_additional_content'), 10, 2);
     }
 
     /**
@@ -38,7 +38,7 @@ class Additional_Content_Metabox {
      * @since 0.1.0
      * @return void
      */
-    public static function register_metabox() {
+    public function register_metabox() {
         // Always register for courses (no addon dependency for core fields)
         add_meta_box(
             'tutorpress_additional_content_metabox',  // Metabox ID
@@ -93,7 +93,7 @@ class Additional_Content_Metabox {
      * @param string $hook_suffix The current admin page hook suffix
      * @return void
      */
-    public static function enqueue_assets($hook_suffix) {
+    public function enqueue_assets($hook_suffix) {
         // Only load on course edit pages
         if (!in_array($hook_suffix, array('post.php', 'post-new.php'))) {
             return;
@@ -175,7 +175,7 @@ class Additional_Content_Metabox {
      * @param WP_Post $post The post object
      * @return void
      */
-    public static function save_additional_content($post_id, $post) {
+    public function save_additional_content($post_id, $post) {
         // Only process courses
         if (!$post || $post->post_type !== 'courses') {
             return;
