@@ -10,7 +10,7 @@
 
 defined('ABSPATH') || exit;
 
-class TutorPress_REST {
+class TutorPress_REST_API {
 
     /**
      * Constructor.

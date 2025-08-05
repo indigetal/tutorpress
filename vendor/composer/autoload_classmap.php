@@ -27,7 +27,7 @@ return array(
     'TutorPress_Lesson_Settings' => $baseDir . '/includes/gutenberg/settings/class-lesson-settings.php',
     'TutorPress_Main' => $baseDir . '/includes/class-tutorpress.php',
     'TutorPress_Product_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
-    'TutorPress_REST' => $baseDir . '/includes/class-rest.php',
+    'TutorPress_REST_API' => $baseDir . '/includes/rest/class-tutorpress-rest-api.php',
     'TutorPress_REST_Assignments_Controller' => $baseDir . '/includes/rest/class-assignments-controller.php',
     'TutorPress_REST_Content_Drip_Controller' => $baseDir . '/includes/rest/class-content-drip-controller.php',
     'TutorPress_REST_Controller' => $baseDir . '/includes/rest/class-rest-controller.php',

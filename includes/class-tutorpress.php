@@ -170,7 +170,7 @@ class TutorPress_Main {
         TutorPress_REST_Quizzes_Controller::init();
         
         // Initialize REST API
-        new TutorPress_REST();
+        new TutorPress_REST_API();
     }
 
     /**

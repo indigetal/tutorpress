@@ -32,7 +32,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Lesson_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-lesson-settings.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
         'TutorPress_Product_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
-        'TutorPress_REST' => __DIR__ . '/../..' . '/includes/class-rest.php',
+        'TutorPress_REST_API' => __DIR__ . '/../..' . '/includes/rest/class-tutorpress-rest-api.php',
         'TutorPress_REST_Assignments_Controller' => __DIR__ . '/../..' . '/includes/rest/class-assignments-controller.php',
         'TutorPress_REST_Content_Drip_Controller' => __DIR__ . '/../..' . '/includes/rest/class-content-drip-controller.php',
         'TutorPress_REST_Controller' => __DIR__ . '/../..' . '/includes/rest/class-rest-controller.php',
