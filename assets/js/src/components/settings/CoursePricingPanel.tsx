@@ -107,6 +107,19 @@ const CoursePricingPanel: React.FC = () => {
     }
   }, [postId, fetchEddProducts]);
 
+  // Validate EDD product selection when products are loaded
+  useEffect(() => {
+    if (settings?.edd_product_id && eddProducts && !eddLoading) {
+      const selectedProductId = settings.edd_product_id;
+      const productExists = eddProducts.some((product: any) => product.ID === selectedProductId);
+      if (!productExists) {
+        // Product not in dropdown - could be linked to current course or truly unavailable
+        // Only log once when products are loaded, not on every render
+        console.warn("Selected EDD product not in dropdown - may be linked to current course");
+      }
+    }
+  }, [settings?.edd_product_id, eddProducts, eddLoading]);
+
   // Only show for course post type
   if (postType !== "courses") {
     return null;
@@ -469,21 +482,7 @@ const CoursePricingPanel: React.FC = () => {
               "Select an EDD product to link to this course. The product's price will automatically sync to this course. Only products not already linked to other courses are shown.",
               "tutorpress"
             )}
-            value={(() => {
-              // Validate that the selected product is still available
-              const selectedProductId = settings?.edd_product_id || "";
-              if (selectedProductId && eddProducts) {
-                const productExists = eddProducts.some((product: any) => product.ID === selectedProductId);
-                if (!productExists) {
-                  // Product not in dropdown - could be linked to current course or truly unavailable
-                  // Only clear if we can verify the product is truly unavailable (not just linked)
-                  // For now, keep the selection as it might be linked to current course
-                  console.warn("Selected EDD product not in dropdown - may be linked to current course");
-                  return selectedProductId; // Keep the selection
-                }
-              }
-              return selectedProductId;
-            })()}
+            value={settings?.edd_product_id || ""}
             options={[
               {
                 label: __("Select a product", "tutorpress"),
