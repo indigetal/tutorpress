@@ -129,6 +129,28 @@ class TutorPress_Admin_Customizations {
             wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
         }
         
+        // Only intercept backend/admin requests, not frontend requests
+        // Check if this is a frontend request by looking at the referer or source
+        $is_frontend_request = false;
+        
+        // Check referer - if it's from frontend dashboard, let Tutor LMS handle it
+        if (isset($_SERVER['HTTP_REFERER'])) {
+            $referer = $_SERVER['HTTP_REFERER'];
+            if (strpos($referer, 'dashboard') !== false || strpos($referer, 'tutor_dashboard') !== false) {
+                $is_frontend_request = true;
+            }
+        }
+        
+        // Check if source parameter indicates frontend
+        if (isset($_POST['source']) && $_POST['source'] === 'frontend') {
+            $is_frontend_request = true;
+        }
+        
+        // If this is a frontend request, let Tutor LMS handle it
+        if ($is_frontend_request) {
+            return;
+        }
+        
         // Let Tutor LMS create the draft course
         $course_id = wp_insert_post([
             'post_title'  => __('New Course', 'tutor'),

@@ -128,7 +128,7 @@ class TutorPress_Main {
         // Initialize core classes using their static init methods
         TutorPress_Settings::init();
         TutorPress_Admin_Customizations::init();
-        TutorPress_Frontend_Customizations::init();
+        TutorPress_Dashboard_Overrides::init();
         
         // Initialize metaboxes using constructor pattern (following Sensei LMS)
         new Bundle_Courses_Metabox();

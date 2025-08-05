@@ -8,7 +8,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-class TutorPress_Frontend_Customizations {
+class TutorPress_Dashboard_Overrides {
 
     public static function init() {
         $options = get_option('tutorpress_settings', []);
@@ -67,4 +67,4 @@ class TutorPress_Frontend_Customizations {
 }
 
 // Initialize the class
-TutorPress_Frontend_Customizations::init();
+TutorPress_Dashboard_Overrides::init();
