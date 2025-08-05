@@ -123,7 +123,7 @@ class TutorPress_Main {
      */
     private function init_core_components() {
         // Initialize Scripts first (for H5P filtering)
-        TutorPress_Scripts::init();
+        TutorPress_Assets::init();
         
         // Initialize core classes using their static init methods
         TutorPress_Settings::init();

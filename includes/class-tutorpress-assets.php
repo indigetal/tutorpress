@@ -8,7 +8,7 @@
 
 defined('ABSPATH') || exit;
 
-class TutorPress_Scripts {
+class TutorPress_Assets {
 
     /**
      * Initialize the class.
@@ -262,4 +262,4 @@ class TutorPress_Scripts {
 }
 
 // Initialize the class
-TutorPress_Scripts::init();
+TutorPress_Assets::init();
