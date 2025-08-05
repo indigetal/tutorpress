@@ -19,7 +19,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'Curriculum_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-curriculum-metabox.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
         'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
-        'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/class-admin-customizations.php',
+        'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
         'TutorPress_Assets' => __DIR__ . '/../..' . '/includes/class-tutorpress-assets.php',
         'TutorPress_Assignment_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-assignment-settings.php',
         'TutorPress_Bundle_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-bundle-settings.php',
@@ -32,6 +32,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_EDD_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
         'TutorPress_Lesson_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-lesson-settings.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
+        'TutorPress_Metadata_Handler' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
         'TutorPress_Product_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
         'TutorPress_REST_API' => __DIR__ . '/../..' . '/includes/rest/class-tutorpress-rest-api.php',
         'TutorPress_REST_Assignments_Controller' => __DIR__ . '/../..' . '/includes/rest/class-assignments-controller.php',
@@ -45,10 +46,9 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_REST_Subscriptions_Controller' => __DIR__ . '/../..' . '/includes/rest/class-subscriptions-controller.php',
         'TutorPress_REST_Topics_Controller' => __DIR__ . '/../..' . '/includes/rest/class-topics-controller.php',
         'TutorPress_Settings' => __DIR__ . '/../..' . '/includes/class-tutorpress-settings.php',
-        'TutorPress_Sidebar_Tabs' => __DIR__ . '/../..' . '/includes/class-sidebar-tabs.php',
+        'TutorPress_Sidebar_Tabs' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-sidebar-tabs.php',
         'TutorPress_Template_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
         'TutorPress_WooCommerce_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
-        'Tutor_LMS_Metadata_Handler' => __DIR__ . '/../..' . '/includes/class-metadata-handler.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

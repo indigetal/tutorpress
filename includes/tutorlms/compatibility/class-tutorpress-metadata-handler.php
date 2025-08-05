@@ -5,7 +5,7 @@
 
 defined('ABSPATH') || exit;
 
-class Tutor_LMS_Metadata_Handler {
+class TutorPress_Metadata_Handler {
 
     /**
      * Flag to prevent multiple metadata updates in a single request.
@@ -90,5 +90,4 @@ class Tutor_LMS_Metadata_Handler {
     }
 }
 
-// Initialize the metadata handler.
-Tutor_LMS_Metadata_Handler::init();
+// Class will be initialized by main orchestrator

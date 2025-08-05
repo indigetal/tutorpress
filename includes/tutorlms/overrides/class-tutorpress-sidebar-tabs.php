@@ -60,5 +60,4 @@ class TutorPress_Sidebar_Tabs {
     }
 }
 
-// Initialize the class
-TutorPress_Sidebar_Tabs::init();
+// Class will be initialized by main orchestrator

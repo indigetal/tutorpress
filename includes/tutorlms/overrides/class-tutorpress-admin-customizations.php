@@ -212,5 +212,4 @@ class TutorPress_Admin_Customizations {
     }
 }
 
-// Initialize the class
-TutorPress_Admin_Customizations::init();
+// Class will be initialized by main orchestrator

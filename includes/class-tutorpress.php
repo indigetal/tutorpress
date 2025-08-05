@@ -129,6 +129,7 @@ class TutorPress_Main {
         TutorPress_Settings::init();
         TutorPress_Admin_Customizations::init();
         TutorPress_Dashboard_Overrides::init();
+        TutorPress_Sidebar_Tabs::init();
         
         // Initialize template overrides (self-initializing class)
         TutorPress_Template_Overrides::init();
@@ -182,7 +183,7 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     public function init_metadata_handler() {
-        Tutor_LMS_Metadata_Handler::init();
+        TutorPress_Metadata_Handler::init();
     }
 
     /**
