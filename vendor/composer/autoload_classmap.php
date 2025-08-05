@@ -22,7 +22,7 @@ return array(
     'TutorPress_Content_Drip_Helpers' => $baseDir . '/includes/gutenberg/settings/class-content-drip-helpers.php',
     'TutorPress_Course_Settings' => $baseDir . '/includes/gutenberg/settings/class-course-settings.php',
     'TutorPress_Course_Settings_Controller' => $baseDir . '/includes/rest/class-course-settings-controller.php',
-    'TutorPress_Dashboard_Overrides' => $baseDir . '/includes/addon/overrides/class-tutorpress-dashboard-overrides.php',
+    'TutorPress_Dashboard_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
     'TutorPress_Dependency_Checker' => $baseDir . '/includes/class-tutorpress-dependency-checker.php',
     'TutorPress_EDD_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
     'TutorPress_Lesson_Settings' => $baseDir . '/includes/gutenberg/settings/class-lesson-settings.php',
