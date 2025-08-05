@@ -5,7 +5,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-class TutorPress_Templates {
+class TutorPress_Template_Overrides {
 
     public static function init() {
         add_filter( 'template_include', array( __CLASS__, 'template_loader' ), 99 );
@@ -37,4 +37,4 @@ class TutorPress_Templates {
 }
 
 // Initialize the class
-TutorPress_Templates::init();
+TutorPress_Template_Overrides::init();

@@ -46,7 +46,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_REST_Topics_Controller' => __DIR__ . '/../..' . '/includes/rest/class-topics-controller.php',
         'TutorPress_Settings' => __DIR__ . '/../..' . '/includes/class-tutorpress-settings.php',
         'TutorPress_Sidebar_Tabs' => __DIR__ . '/../..' . '/includes/class-sidebar-tabs.php',
-        'TutorPress_Templates' => __DIR__ . '/../..' . '/includes/class-tutorpress-templates.php',
+        'TutorPress_Template_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
         'TutorPress_WooCommerce_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
         'Tutor_LMS_Metadata_Handler' => __DIR__ . '/../..' . '/includes/class-metadata-handler.php',
     );

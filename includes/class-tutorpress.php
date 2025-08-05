@@ -130,6 +130,9 @@ class TutorPress_Main {
         TutorPress_Admin_Customizations::init();
         TutorPress_Dashboard_Overrides::init();
         
+        // Initialize template overrides (self-initializing class)
+        TutorPress_Template_Overrides::init();
+        
         // Initialize metaboxes using constructor pattern (following Sensei LMS)
         new Bundle_Courses_Metabox();
         new Bundle_Benefits_Metabox();

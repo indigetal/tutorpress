@@ -41,7 +41,7 @@ return array(
     'TutorPress_REST_Topics_Controller' => $baseDir . '/includes/rest/class-topics-controller.php',
     'TutorPress_Settings' => $baseDir . '/includes/class-tutorpress-settings.php',
     'TutorPress_Sidebar_Tabs' => $baseDir . '/includes/class-sidebar-tabs.php',
-    'TutorPress_Templates' => $baseDir . '/includes/class-tutorpress-templates.php',
+    'TutorPress_Template_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
     'TutorPress_WooCommerce_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
     'Tutor_LMS_Metadata_Handler' => $baseDir . '/includes/class-metadata-handler.php',
 );
