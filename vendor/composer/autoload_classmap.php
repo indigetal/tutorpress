@@ -13,7 +13,7 @@ return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'Curriculum_Metabox' => $baseDir . '/includes/gutenberg/metaboxes/class-curriculum-metabox.php',
     'TutorPress_Additional_Content_Controller' => $baseDir . '/includes/rest/class-additional-content-controller.php',
-    'TutorPress_Addon_Checker' => $baseDir . '/includes/gutenberg/utilities/class-addon-checker.php',
+    'TutorPress_Addon_Checker' => $baseDir . '/includes/services/class-tutorpress-addon-checker.php',
     'TutorPress_Admin_Customizations' => $baseDir . '/includes/class-admin-customizations.php',
     'TutorPress_Assignment_Settings' => $baseDir . '/includes/gutenberg/settings/class-assignment-settings.php',
     'TutorPress_Bundle_Settings' => $baseDir . '/includes/gutenberg/settings/class-bundle-settings.php',

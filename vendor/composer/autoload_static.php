@@ -18,7 +18,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Curriculum_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-curriculum-metabox.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
-        'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/gutenberg/utilities/class-addon-checker.php',
+        'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
         'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/class-admin-customizations.php',
         'TutorPress_Assignment_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-assignment-settings.php',
         'TutorPress_Bundle_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-bundle-settings.php',
