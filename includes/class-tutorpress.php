@@ -137,7 +137,7 @@ class TutorPress_Main {
         // Initialize metaboxes using constructor pattern (following Sensei LMS)
         new Bundle_Courses_Metabox();
         new Bundle_Benefits_Metabox();
-        new Curriculum_Metabox();
+        new TutorPress_Curriculum_Metabox();
         new Certificate_Metabox();
         new Additional_Content_Metabox();
         

@@ -1,11 +1,10 @@
 <?php
 /**
- * Class Curriculum_Metabox
+ * Class TutorPress_Curriculum_Metabox
  *
- * Registers the premium Curriculum Metabox for TutorPress.
- * This metabox is displayed in the Gutenberg editor for Course and Lesson posts.
- * The display logic is handled in PHP while interactive functionality will be
- * provided via React/TypeScript.
+ * Shared curriculum metabox display logic for TutorPress.
+ * Provides shared curriculum metabox functionality for courses, lessons, and assignments.
+ * The display logic is handled in PHP while interactive functionality is provided via React/TypeScript.
  *
  * @package TutorPress
  * @since 0.1.0
@@ -16,11 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Curriculum_Metabox class.
+ * TutorPress_Curriculum_Metabox class.
  *
  * @since 0.1.0
  */
-class Curriculum_Metabox {
+class TutorPress_Curriculum_Metabox {
 
     /**
      * The nonce action for the metabox.
@@ -31,7 +30,7 @@ class Curriculum_Metabox {
     const NONCE_ACTION = 'tutorpress_curriculum_nonce';
 
     /**
-     * Initialize the metabox registration.
+     * Initialize the shared curriculum metabox functionality.
      *
      * @since 0.1.0
      * @return void
@@ -51,7 +50,7 @@ class Curriculum_Metabox {
         add_meta_box(
             'tutorpress_curriculum_metabox',  // Unique ID
             __( 'Course Curriculum', 'tutorpress' ),  // Title
-            array( __CLASS__, 'display_metabox' ),    // Callback
+            array( __CLASS__, 'render_curriculum_metabox' ),    // Callback (renamed for clarity)
             array( 'courses', 'lesson', 'tutor_assignments' ),     // Post types (matching Tutor LMS post types)
             'normal',                        // Context
             'high'                           // Priority
@@ -79,17 +78,17 @@ class Curriculum_Metabox {
     }
 
     /**
-     * Display the metabox content.
+     * Render the curriculum metabox content.
      * 
+     * Shared method for rendering curriculum metabox across all supported post types.
      * Renders the PHP-based UI structure that will be enhanced with React/TypeScript
-     * for interactive functionality. The display logic is premium-only (controlled via
-     * Freemius's @fs_premium_only directory exclusion).
+     * for interactive functionality.
      *
      * @since 0.1.0
      * @param WP_Post $post Current post object.
      * @return void
      */
-    public static function display_metabox( $post ) {
+    public static function render_curriculum_metabox( $post ) {
         wp_nonce_field( self::NONCE_ACTION, 'tutorpress_curriculum_nonce' );
 
         $post_type_object = get_post_type_object( $post->post_type );
@@ -115,5 +114,17 @@ class Curriculum_Metabox {
             </div>
         </div>
         <?php
+    }
+
+    /**
+     * Display the metabox content (legacy method for backward compatibility).
+     * 
+     * @deprecated Use render_curriculum_metabox() instead.
+     * @since 0.1.0
+     * @param WP_Post $post Current post object.
+     * @return void
+     */
+    public static function display_metabox( $post ) {
+        self::render_curriculum_metabox( $post );
     }
 }
