@@ -18,7 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * TutorPress_Course class.
  *
  * Manages course metaboxes and settings for TutorPress addon functionality.
- * Following Sensei LMS patterns for clean, organized architecture.
  *
  * @since 1.14.2
  */
@@ -35,8 +34,6 @@ class TutorPress_Course {
     /**
      * Constructor.
      *
-     * Following Sensei LMS patterns for post type class initialization.
-     *
      * @since 1.14.2
      */
     public function __construct() {
@@ -46,7 +43,7 @@ class TutorPress_Course {
         add_action( 'init', [ $this, 'set_up_meta_fields' ] );
         add_action( 'rest_api_init', [ $this, 'add_author_support' ] );
 
-        // Admin actions (following Sensei LMS pattern)
+        // Admin actions
         if ( is_admin() ) {
             // Metabox functions
             add_action( 'add_meta_boxes', [ $this, 'meta_box_setup' ], 20 );
@@ -73,8 +70,6 @@ class TutorPress_Course {
 
     /**
      * Set up meta fields for courses.
-     *
-     * Following Sensei LMS pattern for meta field registration.
      *
      * @since 1.14.2
      * @return void
@@ -288,8 +283,6 @@ class TutorPress_Course {
     /**
      * Add author support when it's a REST request to allow save teacher via the Rest API.
      *
-     * Following Sensei LMS pattern for REST API support.
-     *
      * @since 1.14.2
      * @return void
      */
@@ -309,8 +302,6 @@ class TutorPress_Course {
 
     /**
      * Register admin scripts.
-     *
-     * Following Sensei LMS pattern for admin script registration.
      * Conditionally enqueue editor assets when on course edit screen.
      *
      * @since 1.14.2
@@ -334,8 +325,6 @@ class TutorPress_Course {
 
     /**
      * Meta box setup.
-     *
-     * Following Sensei LMS pattern for metabox registration.
      *
      * @since 1.14.2
      * @return void
@@ -367,24 +356,83 @@ class TutorPress_Course {
     /**
      * Meta box save.
      *
-     * Following Sensei LMS pattern for metabox save handling.
-     *
      * @since 1.14.2
      * @param int $post_id The post ID.
      * @return void
      */
     public function meta_box_save( $post_id ) {
-        // Metabox save logic will be implemented in future phases
-        // This method exists for Sensei LMS pattern compliance
+        // Only process courses
+        if ( ! $post_id || get_post_type( $post_id ) !== 'courses' ) {
+            return;
+        }
+
+        // Check if this is an autosave
+        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+            return;
+        }
+
+        // Verify nonce for additional content metabox
+        if ( isset( $_POST['tutorpress_additional_content_nonce'] ) && 
+             wp_verify_nonce( $_POST['tutorpress_additional_content_nonce'], 'tutorpress_additional_content_metabox' ) ) {
+            
+            // Check user permissions
+            if ( ! current_user_can( 'edit_post', $post_id ) ) {
+                return;
+            }
+
+            // Get data from hidden form fields created by React component
+            $what_will_learn = isset( $_POST['tutorpress_what_will_learn'] ) ? 
+                sanitize_textarea_field( $_POST['tutorpress_what_will_learn'] ) : '';
+            $target_audience = isset( $_POST['tutorpress_target_audience'] ) ? 
+                sanitize_textarea_field( $_POST['tutorpress_target_audience'] ) : '';
+            $requirements = isset( $_POST['tutorpress_requirements'] ) ? 
+                sanitize_textarea_field( $_POST['tutorpress_requirements'] ) : '';
+            $content_drip_enabled = isset( $_POST['tutorpress_content_drip_enabled'] ) ? 
+                (bool) $_POST['tutorpress_content_drip_enabled'] : false;
+            $content_drip_type = isset( $_POST['tutorpress_content_drip_type'] ) ? 
+                sanitize_text_field( $_POST['tutorpress_content_drip_type'] ) : 'unlock_by_date';
+
+            // Validate content drip type
+            $valid_drip_types = array( 'unlock_by_date', 'specific_days', 'unlock_sequentially', 'after_finishing_prerequisites' );
+            if ( ! in_array( $content_drip_type, $valid_drip_types ) ) {
+                $content_drip_type = 'unlock_by_date';
+            }
+
+            // Save additional content fields to Tutor LMS compatible meta fields
+            update_post_meta( $post_id, '_tutor_course_benefits', $what_will_learn );
+            update_post_meta( $post_id, '_tutor_course_target_audience', $target_audience );
+            update_post_meta( $post_id, '_tutor_course_requirements', $requirements );
+
+            // Save content drip settings (only if content drip addon is enabled)
+            if ( class_exists( 'TutorPress_Addon_Checker' ) && TutorPress_Addon_Checker::is_content_drip_enabled() ) {
+                // Get existing course settings
+                $course_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
+                if ( ! is_array( $course_settings ) ) {
+                    $course_settings = array();
+                }
+
+                // Update content drip settings
+                $course_settings['enable_content_drip'] = $content_drip_enabled;
+                
+                // Only save content drip type if content drip is enabled
+                if ( $content_drip_enabled ) {
+                    $course_settings['content_drip_type'] = $content_drip_type;
+                } else {
+                    // When disabled, remove the content drip type or set to default
+                    // This ensures "None" behavior - no content drip type is active
+                    unset( $course_settings['content_drip_type'] );
+                }
+
+                update_post_meta( $post_id, '_tutor_course_settings', $course_settings );
+            }
+        }
     }
 
     /**
      * Certificate metabox content.
      *
-     * Extracted from Certificate_Metabox::display_metabox().
      * Renders the PHP-based UI structure that will be enhanced with React/TypeScript
-     * for interactive functionality. The display logic is premium-only (controlled via
-     * Freemius's @fs_premium_only directory exclusion).
+     * for interactive functionality.
      *
      * @since 1.14.2
      * @param WP_Post $post Current post object.
@@ -424,21 +472,45 @@ class TutorPress_Course {
     /**
      * Additional content metabox content.
      *
-     * Extracted from Additional_Content_Metabox::display_metabox().
+     * Provides additional course content fields (What Will I Learn, Target Audience, Requirements)
+     * and Content Drip settings in the WordPress course editor.
      *
      * @since 1.14.2
      * @param WP_Post $post Current post object.
      * @return void
      */
     public function additional_content_metabox_content( $post ) {
-        // TODO: Extract logic from Additional_Content_Metabox::display_metabox()
-        // This will be implemented in Phase 2, Step 2.2
+        // Ensure we have a valid course post
+        if ( ! $post || $post->post_type !== 'courses' ) {
+            return;
+        }
+
+        // Add nonce for security
+        wp_nonce_field( 'tutorpress_additional_content_metabox', 'tutorpress_additional_content_nonce' );
+
+        // Get current addon status for JavaScript
+        $addon_status = array(
+            'content_drip' => TutorPress_Addon_Checker::is_content_drip_enabled(),
+        );
+
+        ?>
+        <div 
+            id="tutorpress-additional-content-root" 
+            data-post-id="<?php echo esc_attr( $post->ID ); ?>"
+            data-rest-url="<?php echo esc_url( get_rest_url() ); ?>"
+            data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
+            data-addon-status="<?php echo esc_attr( json_encode( $addon_status ) ); ?>"
+        >
+            <!-- React component will mount here -->
+            <div class="tutorpress-loading">
+                <p><?php _e( 'Loading additional content settings...', 'tutorpress' ); ?></p>
+            </div>
+        </div>
+        <?php
     }
 
     /**
      * Get course settings for REST API.
-     *
-     * Extracted from TutorPress_Course_Settings::get_course_settings().
      *
      * @since 1.14.2
      * @param array $post Post data.
@@ -452,8 +524,6 @@ class TutorPress_Course {
 
     /**
      * Update course settings.
-     *
-     * Extracted from TutorPress_Course_Settings::update_course_settings().
      *
      * @since 1.14.2
      * @param array $value Settings to update.
@@ -579,5 +649,68 @@ class TutorPress_Course {
     public function sync_on_course_save( $post_id, $post, $update ) {
         // TODO: Extract logic from TutorPress_Course_Settings::sync_on_course_save()
         // This will be implemented in Phase 3, Step 3.3
+    }
+
+    /**
+     * Get supported additional content fields.
+     *
+     * Extracted from Additional_Content_Metabox::get_supported_fields().
+     *
+     * @since 1.14.2
+     * @return array Array of field configurations.
+     */
+    public static function get_supported_fields() {
+        return array(
+            'what_will_learn' => array(
+                'label' => __( 'What Will I Learn', 'tutorpress' ),
+                'description' => __( 'List what students will learn from this course', 'tutorpress' ),
+                'type' => 'textarea',
+                'meta_key' => '_tutor_course_benefits',
+            ),
+            'target_audience' => array(
+                'label' => __( 'Target Audience', 'tutorpress' ),
+                'description' => __( 'Who is this course for?', 'tutorpress' ),
+                'type' => 'textarea',
+                'meta_key' => '_tutor_course_target_audience',
+            ),
+            'requirements' => array(
+                'label' => __( 'Requirements/Instructions', 'tutorpress' ),
+                'description' => __( 'What do students need to know or have before taking this course?', 'tutorpress' ),
+                'type' => 'textarea',
+                'meta_key' => '_tutor_course_requirements',
+            ),
+        );
+    }
+
+    /**
+     * Get content drip field configurations.
+     *
+     * @since 1.14.2
+     * @return array Array of content drip field configurations.
+     */
+    public static function get_content_drip_fields() {
+        return array(
+            'enable_content_drip' => array(
+                'label' => __( 'Enable Content Drip', 'tutorpress' ),
+                'description' => __( 'Control when course content becomes available to students', 'tutorpress' ),
+                'type' => 'checkbox',
+                'meta_key' => '_tutor_course_settings',
+                'meta_subkey' => 'enable_content_drip',
+            ),
+            'content_drip_type' => array(
+                'label' => __( 'Content Drip Type', 'tutorpress' ),
+                'description' => __( 'Choose how content should be released to students', 'tutorpress' ),
+                'type' => 'radio',
+                'meta_key' => '_tutor_course_settings',
+                'meta_subkey' => 'content_drip_type',
+                'options' => array(
+                    'unlock_by_date' => __( 'Schedule course contents by date', 'tutorpress' ),
+                    'specific_days' => __( 'Content available after X days from enrollment', 'tutorpress' ),
+                    'unlock_sequentially' => __( 'Course content available sequentially', 'tutorpress' ),
+                    'after_finishing_prerequisites' => __( 'Course content unlocked after finishing prerequisites', 'tutorpress' ),
+                ),
+                'default' => 'unlock_by_date',
+            ),
+        );
     }
 } 
