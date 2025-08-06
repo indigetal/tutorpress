@@ -516,14 +516,97 @@ class TutorPress_Course {
      * @param array $post Post data.
      * @return array Course settings.
      */
+    /**
+     * Get course settings.
+     *
+     * Foundation implementation for Phase 3.1.
+     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
+     *
+     * @since 1.14.2
+     * @param array $post Post data.
+     * @return array Course settings.
+     */
     public function get_course_settings( $post ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::get_course_settings()
-        // This will be implemented in Phase 3, Step 3.2
-        return [];
+        $post_id = $post['id'];
+        
+        // Course Details Section: Read from individual Tutor LMS meta fields
+        $course_level = get_post_meta($post_id, '_tutor_course_level', true);
+        $is_public_course = get_post_meta($post_id, '_tutor_is_public_course', true);
+        $enable_qna = get_post_meta($post_id, '_tutor_enable_qa', true);
+        $course_duration = get_post_meta($post_id, '_course_duration', true);
+        
+        // Course Media Section: Read from individual Tutor LMS meta fields
+        $course_material_includes = get_post_meta($post_id, '_tutor_course_material_includes', true);
+        $intro_video = get_post_meta($post_id, '_video', true);
+        
+        // Validate and set defaults for Course Details fields
+        if (!is_array($course_duration)) {
+            $course_duration = ['hours' => 0, 'minutes' => 0];
+        }
+        
+        // Future sections: Read from _tutor_course_settings (when we implement them)
+        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = [];
+        }
+        
+        // Build settings structure (preserving Tutor LMS compatibility)
+        $settings = [
+            // Course Details Section (individual meta fields)
+            'course_level' => $course_level ?: 'all_levels',
+            'is_public_course' => $is_public_course === 'yes',
+            'enable_qna' => $enable_qna !== 'no',
+            'course_duration' => $course_duration,
+            
+            // Future sections (will be implemented in Steps 3.2-3.6)
+            'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
+            'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
+            'schedule' => $tutor_settings['schedule'] ?? [
+                'enabled' => false,
+                'start_date' => '',
+                'start_time' => '',
+                'show_coming_soon' => false,
+            ],
+            'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
+            'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
+            'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
+            'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? 'no',
+            'intro_video' => array_merge([
+                'source' => '',
+                'source_video_id' => 0,
+                'source_youtube' => '',
+                'source_vimeo' => '',
+                'source_external_url' => '',
+                'source_embedded' => '',
+                'source_shortcode' => '',
+                'poster' => '',
+            ], is_array($intro_video) ? $intro_video : [], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
+            'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
+            'course_material_includes' => $course_material_includes ?: '',
+            
+            // Pricing Model Section: Read from individual Tutor LMS meta fields
+            'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
+            'pricing_model' => get_post_meta($post_id, '_tutor_course_price_type', true) ?: 'free',
+            'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
+            'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
+            'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
+            'woocommerce_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
+            'edd_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
+            'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
+        ];
+        
+        // Update the course_settings meta field with the complete settings structure
+        // This ensures Gutenberg can access all settings through the meta field
+        update_post_meta($post_id, 'course_settings', $settings);
+        
+        return $settings;
     }
 
     /**
      * Update course settings.
+     *
+     * Foundation implementation for Phase 3.1.
+     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
      *
      * @since 1.14.2
      * @param array $value Settings to update.
@@ -531,24 +614,94 @@ class TutorPress_Course {
      * @return bool Whether the update was successful.
      */
     public function update_course_settings( $value, $post ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::update_course_settings()
-        // This will be implemented in Phase 3, Step 3.2
-        return false;
+        $post_id = $post->ID;
+        
+        if (!is_array($value)) {
+            return false;
+        }
+        
+        // Set sync flag to prevent infinite loops
+        update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
+        
+        $results = [];
+        
+        // Course Details Section: Update individual Tutor LMS meta fields
+        if (isset($value['course_level'])) {
+            $results['course_level'] = update_post_meta($post_id, '_tutor_course_level', $value['course_level']);
+        }
+        
+        if (isset($value['is_public_course'])) {
+            $results['is_public_course'] = update_post_meta($post_id, '_tutor_is_public_course', $value['is_public_course'] ? 'yes' : 'no');
+        }
+        
+        if (isset($value['enable_qna'])) {
+            $results['enable_qna'] = update_post_meta($post_id, '_tutor_enable_qa', $value['enable_qna'] ? 'yes' : 'no');
+        }
+        
+        if (isset($value['course_duration'])) {
+            $results['course_duration'] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
+        }
+        
+        // Future sections will be implemented in Steps 3.2-3.6
+        // For now, we'll handle the basic Course Details panel
+        
+        // Clear sync flag
+        delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
+        
+        return !in_array(false, $results, true);
     }
 
     /**
      * Sanitize course settings.
      *
-     * Extracted from TutorPress_Course_Settings::sanitize_course_settings().
+     * Foundation implementation for Phase 3.1.
+     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
      *
      * @since 1.14.2
      * @param array $settings Course settings to sanitize.
      * @return array Sanitized settings.
      */
     public function sanitize_course_settings( $settings ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::sanitize_course_settings()
-        // This will be implemented in Phase 3, Step 3.1
-        return [];
+        if (!is_array($settings)) {
+            return [];
+        }
+        
+        $sanitized = [];
+        
+        // Course Details Section: Sanitize individual fields
+        if (isset($settings['course_level'])) {
+            $allowed_levels = ['beginner', 'intermediate', 'expert', 'all_levels'];
+            $sanitized['course_level'] = in_array($settings['course_level'], $allowed_levels) ? $settings['course_level'] : 'all_levels';
+        }
+        
+        if (isset($settings['is_public_course'])) {
+            $sanitized['is_public_course'] = (bool) $settings['is_public_course'];
+        }
+        
+        if (isset($settings['enable_qna'])) {
+            $sanitized['enable_qna'] = (bool) $settings['enable_qna'];
+        }
+        
+        if (isset($settings['course_duration'])) {
+            $duration = $settings['course_duration'];
+            if (is_array($duration)) {
+                $sanitized['course_duration'] = [
+                    'hours' => absint($duration['hours'] ?? 0),
+                    'minutes' => absint($duration['minutes'] ?? 0),
+                ];
+                // Ensure minutes don't exceed 59
+                if ($sanitized['course_duration']['minutes'] > 59) {
+                    $sanitized['course_duration']['minutes'] = 59;
+                }
+            } else {
+                $sanitized['course_duration'] = ['hours' => 0, 'minutes' => 0];
+            }
+        }
+        
+        // Future sections will be implemented in Steps 3.2-3.6
+        // For now, we'll handle the basic Course Details panel
+        
+        return $sanitized;
     }
 
     /**
