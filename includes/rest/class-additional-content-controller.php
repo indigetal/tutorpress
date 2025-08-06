@@ -300,8 +300,8 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
      */
     public static function get_field_configs() {
         return array(
-            'additional_fields' => Additional_Content_Metabox::get_supported_fields(),
-            'content_drip_fields' => Additional_Content_Metabox::get_content_drip_fields(),
+            'additional_fields' => TutorPress_Course::get_supported_fields(),
+            'content_drip_fields' => TutorPress_Course::get_content_drip_fields(),
         );
     }
 } 

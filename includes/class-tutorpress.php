@@ -138,18 +138,17 @@ class TutorPress_Main {
         new Bundle_Courses_Metabox();
         new Bundle_Benefits_Metabox();
         
-        // TODO: Phase 2 - Migrate metaboxes one-by-one
-        new TutorPress_Curriculum_Metabox(); // Keep shared curriculum metabox for all post types
-        // new Certificate_Metabox(); // Will be migrated to TutorPress_Course
-        // new Additional_Content_Metabox(); // Will be migrated to TutorPress_Course
+        // Initialize metaboxes using constructor pattern (following Sensei LMS)
+        new Bundle_Courses_Metabox();
+        new Bundle_Benefits_Metabox();
+        new TutorPress_Curriculum_Metabox(); // Shared curriculum metabox for all post types
         
-        // Phase 1 Testing - Basic TutorPress_Course class instantiation
-        new TutorPress_Course(); // Ready for testing
+        // Initialize course-specific functionality (migrated from individual metaboxes)
+        new TutorPress_Course(); // Handles Certificate, Additional Content, and Course Settings
         
         // Initialize settings panels that use static init pattern
         TutorPress_Assignment_Settings::init();
         TutorPress_Lesson_Settings::init();
-        TutorPress_Course_Settings::init();
         TutorPress_Content_Drip_Helpers::init();
         TutorPress_Bundle_Settings::init();
     }

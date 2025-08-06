@@ -903,8 +903,9 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
     public function get_item($request) {
         $course_id = $request->get_param('id');
 
-        // Use TutorPress_Course_Settings to get settings (this handles both systems)
-        $settings = TutorPress_Course_Settings::get_course_settings(['id' => $course_id]);
+        // Use TutorPress_Course to get settings (migrated from TutorPress_Course_Settings)
+        $course_instance = new TutorPress_Course();
+        $settings = $course_instance->get_course_settings(['id' => $course_id]);
 
         if (empty($settings)) {
             return new WP_Error(
@@ -987,8 +988,9 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Use TutorPress_Course_Settings to update (this handles bidirectional sync)
-        $result = TutorPress_Course_Settings::update_course_settings($merged_settings, $post);
+        // Use TutorPress_Course to update (migrated from TutorPress_Course_Settings)
+        $course_instance = new TutorPress_Course();
+        $result = $course_instance->update_course_settings($merged_settings, $post);
 
         if (!$result) {
             return new WP_Error(

@@ -82,6 +82,7 @@ class TutorPress_Course {
             'single'            => true,
             'default'           => [],
             'sanitize_callback' => [ $this, 'sanitize_course_settings' ],
+            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
             'show_in_rest'      => [
                 'schema' => [
                     'type'       => 'object',
@@ -174,17 +175,14 @@ class TutorPress_Course {
                         ],
                         'woocommerce_product_id' => [
                             'type' => 'string',
-                            'description' => __( 'WooCommerce product ID for product linking', 'tutorpress' ),
                         ],
                         'edd_product_id' => [
                             'type' => 'string',
-                            'description' => __( 'EDD product ID for product linking', 'tutorpress' ),
+                        ],
+                        'subscription_enabled' => [
+                            'type' => 'boolean',
                         ],
                         'instructors' => [
-                            'type'  => 'array',
-                            'items' => [ 'type' => 'integer' ],
-                        ],
-                        'additional_instructors' => [
                             'type'  => 'array',
                             'items' => [ 'type' => 'integer' ],
                         ],
@@ -193,91 +191,150 @@ class TutorPress_Course {
             ],
         ] );
 
-        // Register individual meta fields for Gutenberg access
+        // Register individual meta fields with auth callbacks for comprehensive security
         $individual_meta_fields = [
             '_tutor_course_level' => [
                 'type' => 'string',
                 'description' => __( 'Course difficulty level', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_is_public_course' => [
                 'type' => 'string',
                 'description' => __( 'Whether the course is public', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_enable_qa' => [
                 'type' => 'string',
                 'description' => __( 'Whether Q&A is enabled', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_course_duration' => [
                 'type' => 'object',
                 'description' => __( 'Course duration', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_price_type' => [
                 'type' => 'string',
                 'description' => __( 'Course pricing type', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             'tutor_course_price' => [
                 'type' => 'number',
                 'description' => __( 'Course price', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             'tutor_course_sale_price' => [
                 'type' => 'number',
                 'description' => __( 'Course sale price', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_selling_option' => [
                 'type' => 'string',
                 'description' => __( 'Course selling option', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_product_id' => [
                 'type' => 'string',
                 'description' => __( 'WooCommerce product ID for product linking', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_prerequisites_ids' => [
                 'type' => 'array',
                 'description' => __( 'Course prerequisites', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_material_includes' => [
                 'type' => 'string',
                 'description' => __( 'Course materials', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_video' => [
                 'type' => 'object',
                 'description' => __( 'Course intro video', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
             '_tutor_course_attachments' => [
                 'type' => 'array',
                 'description' => __( 'Course attachments', 'tutorpress' ),
                 'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
+                'show_in_rest' => true,
+            ],
+            // Additional Content Metabox fields
+            '_tutor_course_benefits' => [
+                'type' => 'string',
+                'description' => __( 'Course benefits (What Will I Learn)', 'tutorpress' ),
+                'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_target_audience' => [
+                'type' => 'string',
+                'description' => __( 'Course target audience', 'tutorpress' ),
+                'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_requirements' => [
+                'type' => 'string',
+                'description' => __( 'Course requirements', 'tutorpress' ),
+                'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
+                'show_in_rest' => true,
+            ],
+            '_tutor_course_instructors' => [
+                'type' => 'array',
+                'description' => __( 'Course instructors', 'tutorpress' ),
+                'single' => true,
+                'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
         ];
 
+        // Register all individual meta fields
         foreach ( $individual_meta_fields as $meta_key => $config ) {
             register_post_meta( $this->token, $meta_key, $config );
         }
+    }
+
+    /**
+     * Auth callback for post meta fields.
+     *
+     * Follows Sensei LMS pattern for permission checking.
+     * Ensures users can only edit course settings if they have permission to edit the post.
+     *
+     * @since 1.14.2
+     * @param bool   $allowed  Whether the user can add the meta.
+     * @param string $meta_key The meta key.
+     * @param int    $post_id  The post ID where the meta key is being edited.
+     * @return bool Whether the user can edit the meta key.
+     */
+    public function post_meta_auth_callback( $allowed, $meta_key, $post_id ) {
+        return current_user_can( 'edit_post', $post_id );
     }
 
     /**
@@ -593,6 +650,10 @@ class TutorPress_Course {
             'woocommerce_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
             'edd_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
             'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
+            
+            // Course Instructors Section: Read from individual Tutor LMS meta fields
+            'instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [],
+            'additional_instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [], // Alias for compatibility
         ];
         
         // Update the course_settings meta field with the complete settings structure
@@ -613,42 +674,19 @@ class TutorPress_Course {
      * @param WP_Post $post Post object.
      * @return bool Whether the update was successful.
      */
-    public function update_course_settings( $value, $post ) {
+    public function update_course_settings($value, $post) {
         $post_id = $post->ID;
         
-        if (!is_array($value)) {
-            return false;
-        }
+        // Set a flag to prevent infinite loops during sync
+        update_post_meta($post_id, '_tutorpress_syncing', true);
         
-        // Set sync flag to prevent infinite loops
-        update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
+        // Update the course_settings meta field
+        $result = update_post_meta($post_id, 'course_settings', $value);
         
-        $results = [];
+        // Clear the sync flag
+        delete_post_meta($post_id, '_tutorpress_syncing');
         
-        // Course Details Section: Update individual Tutor LMS meta fields
-        if (isset($value['course_level'])) {
-            $results['course_level'] = update_post_meta($post_id, '_tutor_course_level', $value['course_level']);
-        }
-        
-        if (isset($value['is_public_course'])) {
-            $results['is_public_course'] = update_post_meta($post_id, '_tutor_is_public_course', $value['is_public_course'] ? 'yes' : 'no');
-        }
-        
-        if (isset($value['enable_qna'])) {
-            $results['enable_qna'] = update_post_meta($post_id, '_tutor_enable_qa', $value['enable_qna'] ? 'yes' : 'no');
-        }
-        
-        if (isset($value['course_duration'])) {
-            $results['course_duration'] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
-        }
-        
-        // Future sections will be implemented in Steps 3.2-3.6
-        // For now, we'll handle the basic Course Details panel
-        
-        // Clear sync flag
-        delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
-        
-        return !in_array(false, $results, true);
+        return $result;
     }
 
     /**
@@ -698,10 +736,164 @@ class TutorPress_Course {
             }
         }
         
-        // Future sections will be implemented in Steps 3.2-3.6
-        // For now, we'll handle the basic Course Details panel
+        // Course Media Section: Sanitize individual fields
+        if (isset($settings['course_material_includes'])) {
+            $sanitized['course_material_includes'] = sanitize_textarea_field($settings['course_material_includes']);
+        }
+        
+        if (isset($settings['intro_video'])) {
+            $intro_video = $settings['intro_video'];
+            if (is_array($intro_video)) {
+                $sanitized['intro_video'] = [
+                    'source' => sanitize_text_field($intro_video['source'] ?? ''),
+                    'source_video_id' => absint($intro_video['source_video_id'] ?? 0),
+                    'source_youtube' => sanitize_text_field($intro_video['source_youtube'] ?? ''),
+                    'source_vimeo' => sanitize_text_field($intro_video['source_vimeo'] ?? ''),
+                    'source_external_url' => sanitize_text_field($intro_video['source_external_url'] ?? ''),
+                    'source_embedded' => sanitize_text_field($intro_video['source_embedded'] ?? ''),
+                    'source_shortcode' => sanitize_text_field($intro_video['source_shortcode'] ?? ''),
+                    'poster' => sanitize_text_field($intro_video['poster'] ?? ''),
+                ];
+            } else {
+                $sanitized['intro_video'] = [
+                    'source' => '',
+                    'source_video_id' => 0,
+                    'source_youtube' => '',
+                    'source_vimeo' => '',
+                    'source_external_url' => '',
+                    'source_embedded' => '',
+                    'source_shortcode' => '',
+                    'poster' => '',
+                ];
+            }
+        }
+        
+        if (isset($settings['attachments'])) {
+            $attachments = $settings['attachments'];
+            if (is_array($attachments)) {
+                $sanitized['attachments'] = array_map('absint', $attachments);
+            } else {
+                $sanitized['attachments'] = [];
+            }
+        }
+        
+        // Pricing Model Section: Sanitize individual fields
+        if (isset($settings['pricing_model'])) {
+            $allowed_models = ['free', 'paid'];
+            $sanitized['pricing_model'] = in_array($settings['pricing_model'], $allowed_models) ? $settings['pricing_model'] : 'free';
+        }
+        
+        if (isset($settings['price'])) {
+            $sanitized['price'] = max(0, (float) $settings['price']);
+        }
+        
+        if (isset($settings['sale_price'])) {
+            $sanitized['sale_price'] = max(0, (float) $settings['sale_price']);
+        }
+        
+        if (isset($settings['selling_option'])) {
+            $allowed_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
+            $sanitized['selling_option'] = in_array($settings['selling_option'], $allowed_options) ? $settings['selling_option'] : 'one_time';
+        }
+        
+        // Handle product IDs
+        if (isset($settings['woocommerce_product_id'])) {
+            $sanitized['woocommerce_product_id'] = sanitize_text_field($settings['woocommerce_product_id']);
+        }
+        
+        if (isset($settings['edd_product_id'])) {
+            $sanitized['edd_product_id'] = sanitize_text_field($settings['edd_product_id']);
+        }
+        
+        // Course Access & Enrollment Section: Sanitize mixed storage fields
+        if (isset($settings['maximum_students'])) {
+            // Handle empty string, null, or 0 as null (unlimited)
+            $max_students = $settings['maximum_students'];
+            if ($max_students === '' || $max_students === null || $max_students === 0 || $max_students === '0') {
+                $sanitized['maximum_students'] = null;
+            } else {
+                $sanitized['maximum_students'] = max(0, intval($max_students));
+            }
+            // Also set the legacy field
+            $sanitized['maximum_students_allowed'] = $sanitized['maximum_students'];
+        }
+        
+        if (isset($settings['pause_enrollment'])) {
+            // Convert to 'yes'/'no' string
+            $pause_enrollment = $settings['pause_enrollment'];
+            if (is_bool($pause_enrollment)) {
+                $sanitized['pause_enrollment'] = $pause_enrollment ? 'yes' : 'no';
+            } else {
+                $sanitized['pause_enrollment'] = in_array($pause_enrollment, ['yes', 'no']) ? $pause_enrollment : 'no';
+            }
+            // Also set the legacy field
+            $sanitized['enrollment_status'] = $sanitized['pause_enrollment'];
+        }
+        
+        if (isset($settings['course_enrollment_period'])) {
+            $sanitized['course_enrollment_period'] = in_array($settings['course_enrollment_period'], ['yes', 'no']) ? $settings['course_enrollment_period'] : 'no';
+        }
+        
+        if (isset($settings['enrollment_starts_at'])) {
+            $sanitized['enrollment_starts_at'] = sanitize_text_field($settings['enrollment_starts_at']);
+        }
+        
+        if (isset($settings['enrollment_ends_at'])) {
+            $sanitized['enrollment_ends_at'] = sanitize_text_field($settings['enrollment_ends_at']);
+        }
+        
+        // Course Prerequisites
+        if (isset($settings['course_prerequisites']) && is_array($settings['course_prerequisites'])) {
+            $sanitized['course_prerequisites'] = array_map('absint', $settings['course_prerequisites']);
+        }
+        
+        // Schedule
+        if (isset($settings['schedule']) && is_array($settings['schedule'])) {
+            $sanitized['schedule'] = [
+                'enabled' => isset($settings['schedule']['enabled']) ? (bool) $settings['schedule']['enabled'] : false,
+                'start_date' => isset($settings['schedule']['start_date']) ? sanitize_text_field($settings['schedule']['start_date']) : '',
+                'start_time' => isset($settings['schedule']['start_time']) ? sanitize_text_field($settings['schedule']['start_time']) : '',
+                'show_coming_soon' => isset($settings['schedule']['show_coming_soon']) ? (bool) $settings['schedule']['show_coming_soon'] : false,
+            ];
+        }
+        
+        // Course Instructors Section: Sanitize individual fields
+        if (isset($settings['instructors']) && is_array($settings['instructors'])) {
+            $sanitized['instructors'] = array_map('absint', $settings['instructors']);
+        }
+        
+        if (isset($settings['additional_instructors']) && is_array($settings['additional_instructors'])) {
+            $sanitized['additional_instructors'] = array_map('absint', $settings['additional_instructors']);
+        }
+        
+        // All settings panels have been migrated
+        // Course Details, Course Media, Pricing Model, Course Access & Enrollment, and Course Instructors panels
         
         return $sanitized;
+    }
+
+    /**
+     * Sync instructors to Tutor LMS compatibility format
+     *
+     * @param int $course_id The course ID
+     * @param array $instructor_ids Array of instructor user IDs
+     * @return void
+     */
+    private function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
+        // Remove old instructor associations
+        global $wpdb;
+        $wpdb->delete(
+            $wpdb->usermeta,
+            [
+                'meta_key' => '_tutor_instructor_course_id',
+                'meta_value' => $course_id,
+            ]
+        );
+
+        // Add new instructor associations
+        foreach ($instructor_ids as $instructor_id) {
+            add_user_meta($instructor_id, '_tutor_instructor_course_id', $course_id);
+        }
     }
 
     /**
@@ -717,8 +909,88 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_individual_field_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::handle_tutor_individual_field_update()
-        // This will be implemented in Phase 3, Step 3.3
+        // Only handle individual Tutor LMS fields for courses
+        $tutor_fields = [
+            '_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration',
+            '_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
+            '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
+            '_tutor_course_material_includes', '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price',
+            '_tutor_course_selling_option'
+        ];
+        
+        if (!in_array($meta_key, $tutor_fields) || get_post_type($post_id) !== 'courses') {
+            return;
+        }
+
+        // Skip if we're currently syncing to Tutor LMS
+        if (get_post_meta($post_id, '_tutorpress_syncing_to_tutor', true)) {
+            return;
+        }
+
+        // Get current course_settings
+        $current_settings = get_post_meta($post_id, 'course_settings', true);
+        if (!is_array($current_settings)) {
+            $current_settings = [];
+        }
+
+        // Update the specific field in our settings
+        switch ($meta_key) {
+            case '_tutor_course_level':
+                $current_settings['course_level'] = $meta_value ?: 'all_levels';
+                break;
+            case '_tutor_is_public_course':
+                $current_settings['is_public_course'] = $meta_value === 'yes';
+                break;
+            case '_tutor_enable_qa':
+                $current_settings['enable_qna'] = $meta_value !== 'no';
+                break;
+            case '_course_duration':
+                if (is_array($meta_value)) {
+                    $current_settings['course_duration'] = $meta_value;
+                } else {
+                    $current_settings['course_duration'] = ['hours' => 0, 'minutes' => 0];
+                }
+                break;
+            case '_tutor_course_prerequisites_ids':
+                $current_settings['course_prerequisites'] = is_array($meta_value) ? $meta_value : [];
+                break;
+            case '_tutor_maximum_students':
+                $current_settings['maximum_students'] = $meta_value;
+                $current_settings['maximum_students_allowed'] = $meta_value;
+                break;
+            case '_tutor_enrollment_status':
+                $current_settings['pause_enrollment'] = $meta_value;
+                $current_settings['enrollment_status'] = $meta_value;
+                break;
+            case '_tutor_course_enrollment_period':
+                $current_settings['course_enrollment_period'] = $meta_value;
+                break;
+            case '_tutor_enrollment_starts_at':
+                $current_settings['enrollment_starts_at'] = $meta_value;
+                break;
+            case '_tutor_enrollment_ends_at':
+                $current_settings['enrollment_ends_at'] = $meta_value;
+                break;
+            case '_tutor_course_material_includes':
+                $current_settings['course_material_includes'] = $meta_value;
+                break;
+            case '_tutor_course_price_type':
+                $current_settings['pricing_model'] = $meta_value ?: 'free';
+                $current_settings['is_free'] = $meta_value === 'free';
+                break;
+            case 'tutor_course_price':
+                $current_settings['price'] = (float) $meta_value ?: 0;
+                break;
+            case 'tutor_course_sale_price':
+                $current_settings['sale_price'] = (float) $meta_value ?: 0;
+                break;
+            case '_tutor_course_selling_option':
+                $current_settings['selling_option'] = $meta_value;
+                break;
+        }
+
+        // Update our course_settings field
+        update_post_meta($post_id, 'course_settings', $current_settings);
     }
 
     /**
@@ -734,8 +1006,31 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_course_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::handle_tutor_course_settings_update()
-        // This will be implemented in Phase 3, Step 3.3
+        // Only handle _tutor_course_settings updates for courses
+        if ($meta_key !== '_tutor_course_settings' || get_post_type($post_id) !== 'courses') {
+            return;
+        }
+
+        // Skip if we're currently syncing to Tutor LMS
+        if (get_post_meta($post_id, '_tutorpress_syncing_to_tutor', true)) {
+            return;
+        }
+
+        // Avoid rapid updates
+        $last_sync = get_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', true);
+        if ($last_sync && (time() - $last_sync) < 5) {
+            return;
+        }
+
+        // Set sync flag to prevent infinite loops
+        update_post_meta($post_id, '_tutorpress_syncing_from_tutor', true);
+        update_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', time());
+
+        // Update our course_settings field to match
+        update_post_meta($post_id, 'course_settings', $meta_value);
+
+        // Clear sync flag
+        delete_post_meta($post_id, '_tutorpress_syncing_from_tutor');
     }
 
     /**
@@ -751,8 +1046,21 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::handle_tutor_attachments_meta_update()
-        // This will be implemented in Phase 3, Step 3.3
+        // Only handle _tutor_attachments updates for courses
+        if ($meta_key !== '_tutor_attachments' || get_post_type($post_id) !== 'courses') {
+            return;
+        }
+
+        // Avoid infinite loops
+        $our_last_update = get_post_meta($post_id, '_tutorpress_attachments_last_sync', true);
+        if ($our_last_update && (time() - $our_last_update) < 5) {
+            return;
+        }
+
+        // Sync course attachments
+        update_post_meta($post_id, '_tutorpress_attachments_last_sync', time());
+        $attachment_ids = is_array($meta_value) ? array_map('absint', $meta_value) : [];
+        update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
     }
 
     /**
@@ -768,14 +1076,114 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_course_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::handle_course_settings_update()
-        // This will be implemented in Phase 3, Step 3.3
+        // Only handle course_settings updates for courses
+        if ($meta_key !== 'course_settings' || get_post_type($post_id) !== 'courses') {
+            return;
+        }
+
+        // Skip if we're currently syncing from Tutor LMS
+        if (get_post_meta($post_id, '_tutorpress_syncing_from_tutor', true)) {
+            return;
+        }
+
+        // Avoid rapid updates
+        $last_sync = get_post_meta($post_id, '_tutorpress_course_settings_last_sync', true);
+        if ($last_sync && (time() - $last_sync) < 5) {
+            return;
+        }
+
+        // Get existing Tutor LMS settings
+        $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+        if (!is_array($existing_tutor_settings)) {
+            $existing_tutor_settings = [];
+        }
+
+        // Sync to individual Tutor LMS meta fields and _tutor_course_settings
+        if (is_array($meta_value)) {
+            // Set sync flag to prevent infinite loops
+            update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
+            update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
+            
+            // Update individual Tutor LMS meta fields for core settings
+            if (isset($meta_value['course_level'])) {
+                update_post_meta($post_id, '_tutor_course_level', $meta_value['course_level']);
+            }
+            
+            if (isset($meta_value['is_public_course'])) {
+                $public_value = $meta_value['is_public_course'] ? 'yes' : 'no';
+                update_post_meta($post_id, '_tutor_is_public_course', $public_value);
+            }
+            
+            if (isset($meta_value['enable_qna'])) {
+                $qna_value = $meta_value['enable_qna'] ? 'yes' : 'no';
+                update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
+            }
+            
+            // Handle course_duration separately (Tutor LMS stores this in _course_duration meta field)
+            if (isset($meta_value['course_duration'])) {
+                update_post_meta($post_id, '_course_duration', $meta_value['course_duration']);
+            }
+            
+            // Course Media Section: Handle individual Tutor LMS meta fields
+            if (isset($meta_value['course_material_includes'])) {
+                update_post_meta($post_id, '_tutor_course_material_includes', $meta_value['course_material_includes']);
+            }
+            
+            if (isset($meta_value['intro_video'])) {
+                update_post_meta($post_id, '_video', $meta_value['intro_video']);
+            }
+            
+            if (isset($meta_value['attachments'])) {
+                $attachment_ids = is_array($meta_value['attachments']) ? array_map('absint', $meta_value['attachments']) : [];
+                update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
+                update_post_meta($post_id, '_tutor_attachments', $attachment_ids);
+            }
+            
+            // Handle pricing fields separately (Tutor LMS stores these as individual meta fields)
+            if (isset($meta_value['pricing_model'])) {
+                $pricing_type = $meta_value['pricing_model'] === 'free' ? 'free' : 'paid';
+                update_post_meta($post_id, '_tutor_course_price_type', $pricing_type);
+            }
+            
+            if (isset($meta_value['price'])) {
+                update_post_meta($post_id, 'tutor_course_price', (float) $meta_value['price']);
+            }
+            
+            if (isset($meta_value['sale_price'])) {
+                update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
+            }
+            
+            if (isset($meta_value['selling_option'])) {
+                $selling_option = $meta_value['selling_option'];
+                update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+            }
+            
+            // Course Instructors Section: Handle individual Tutor LMS meta fields
+            if (isset($meta_value['instructors'])) {
+                $instructor_ids = is_array($meta_value['instructors']) ? array_map('absint', $meta_value['instructors']) : [];
+                update_post_meta($post_id, '_tutor_course_instructors', $instructor_ids);
+                // Sync to Tutor LMS compatibility (user meta)
+                $this->sync_instructors_to_tutor_lms($post_id, $instructor_ids);
+            }
+            
+            if (isset($meta_value['additional_instructors'])) {
+                $additional_instructor_ids = is_array($meta_value['additional_instructors']) ? array_map('absint', $meta_value['additional_instructors']) : [];
+                update_post_meta($post_id, '_tutor_course_instructors', $additional_instructor_ids);
+                // Sync to Tutor LMS compatibility (user meta)
+                $this->sync_instructors_to_tutor_lms($post_id, $additional_instructor_ids);
+            }
+            
+            // Clear sync flag
+            delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
+        }
     }
 
     /**
      * Handle REST API course updates.
      *
-     * Extracted from TutorPress_Course_Settings::handle_rest_course_update().
+     * This method is called when courses are updated via REST API (Gutenberg saves).
+     * The original TutorPress_Course_Settings_Controller handles video sync correctly,
+     * so we don't need to duplicate this functionality.
      *
      * @since 1.14.2
      * @param WP_Post $post Post object.
@@ -784,24 +1192,32 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_rest_course_update( $post, $request, $creating ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::handle_rest_course_update()
-        // This will be implemented in Phase 3, Step 3.3
+        // The original TutorPress_Course_Settings_Controller handles video sync correctly
+        // No need to duplicate this functionality here
     }
 
     /**
-     * Sync on course save.
-     *
-     * Extracted from TutorPress_Course_Settings::sync_on_course_save().
-     *
-     * @since 1.14.2
-     * @param int $post_id Post ID.
-     * @param object $post Post object.
-     * @param bool $update Whether this is an update.
-     * @return void
+     * Sync course_settings to _tutor_course_settings on post save
+     * This uses the simple merge strategy from the working implementations
      */
-    public function sync_on_course_save( $post_id, $post, $update ) {
-        // TODO: Extract logic from TutorPress_Course_Settings::sync_on_course_save()
-        // This will be implemented in Phase 3, Step 3.3
+    public function sync_on_course_save($post_id, $post, $update) {
+        // Skip autosaves and revisions
+        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
+            return;
+        }
+
+        // Ensure both meta fields are in sync
+        $course_settings = get_post_meta($post_id, 'course_settings', true);
+        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+
+        if (is_array($course_settings) && !empty($course_settings)) {
+            if (!is_array($tutor_settings)) {
+                $tutor_settings = [];
+            }
+            
+            $merged_settings = array_merge($tutor_settings, $course_settings);
+            update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
+        }
     }
 
     /**
