@@ -311,13 +311,25 @@ class TutorPress_Course {
      * Register admin scripts.
      *
      * Following Sensei LMS pattern for admin script registration.
+     * Conditionally enqueue editor assets when on course edit screen.
      *
      * @since 1.14.2
      * @return void
      */
     public function register_admin_scripts() {
-        // Scripts are handled by TutorPress_Scripts class
-        // This method exists for potential future script-specific loading
+        $hook_suffix = get_current_screen() ? get_current_screen()->id : '';
+        
+        if ( ! in_array( $hook_suffix, array( 'post', 'post-new' ), true ) ) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if ( ! $screen || ! in_array( $screen->post_type, array( 'courses' ), true ) ) {
+            return;
+        }
+
+        // Enqueue is handled in TutorPress_Scripts class
+        // Certificate-specific scripts will be loaded when certificate addon is enabled
     }
 
     /**
@@ -370,14 +382,43 @@ class TutorPress_Course {
      * Certificate metabox content.
      *
      * Extracted from Certificate_Metabox::display_metabox().
+     * Renders the PHP-based UI structure that will be enhanced with React/TypeScript
+     * for interactive functionality. The display logic is premium-only (controlled via
+     * Freemius's @fs_premium_only directory exclusion).
      *
      * @since 1.14.2
      * @param WP_Post $post Current post object.
      * @return void
      */
     public function certificate_metabox_content( $post ) {
-        // TODO: Extract logic from Certificate_Metabox::display_metabox()
-        // This will be implemented in Phase 2, Step 2.1
+        // Nonce action for the metabox
+        $nonce_action = 'tutorpress_certificate_nonce';
+        
+        wp_nonce_field( $nonce_action, 'tutorpress_certificate_nonce' );
+
+        $post_type_object = get_post_type_object( $post->post_type );
+        if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->edit_post, $post->ID ) ) {
+            return;
+        }
+        ?>
+        <div 
+            id="tutorpress-certificate-builder" 
+            class="tutorpress-certificate-metabox"
+            data-post-id="<?php echo esc_attr( $post->ID ); ?>"
+            data-post-type="<?php echo esc_attr( $post->post_type ); ?>"
+            data-nonce="<?php echo esc_attr( wp_create_nonce( $nonce_action ) ); ?>"
+            data-rest-url="<?php echo esc_url( get_rest_url() ); ?>"
+            data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
+        >
+            <div class="tutorpress-certificate-container">
+                <div class="tutorpress-certificate-content">
+                    <div id="tutorpress-certificate-root">
+                        <?php esc_html_e( 'Loading certificate builder...', 'tutorpress' ); ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
     }
 
     /**
