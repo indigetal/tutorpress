@@ -2,6 +2,7 @@ import React from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } from "@wordpress/components";
 
 // Import course settings types
@@ -22,6 +23,11 @@ const CourseDetailsPanel: React.FC = () => {
 
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
+
+  // Bind Gutenberg composite course_settings for incremental migration
+  // Bind directly to the courses post type to avoid transient undefined postType during first render
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const enableQna = (courseSettings as any)?.enable_qna ?? settings.enable_qna;
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -111,12 +117,16 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Q&A", "tutorpress")}
             help={
-              settings.enable_qna
+              enableQna
                 ? __("Students can ask questions and get answers", "tutorpress")
                 : __("Q&A is disabled for this course", "tutorpress")
             }
-            checked={settings.enable_qna}
-            onChange={(enabled) => updateSettings({ enable_qna: enabled })}
+            checked={!!enableQna}
+            onChange={(enabled) => {
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, enable_qna: !!enabled });
+              updateSettings({ enable_qna: !!enabled });
+            }}
           />
 
           <p
