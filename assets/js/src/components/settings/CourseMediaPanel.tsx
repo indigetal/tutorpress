@@ -24,7 +24,12 @@ const CourseMediaPanel: React.FC = () => {
   );
 
   // Get dispatch actions
-  const { updateSettings, fetchAttachmentsMetadata } = useDispatch("tutorpress/course-settings");
+  const { updateSettings, fetchAttachmentsMetadata, getSettings } = useDispatch("tutorpress/course-settings");
+
+  // Ensure fresh settings are fetched on mount to override any stale Gutenberg cache
+  useEffect(() => {
+    getSettings();
+  }, [getSettings]);
 
   // Fetch attachment metadata when attachments change
   useEffect(() => {

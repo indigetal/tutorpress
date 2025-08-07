@@ -99,6 +99,16 @@ import "./store/course-settings";
 import "./store/subscriptions";
 import "./store/course-bundles";
 
+// Proactively hydrate course settings from API on editor load to avoid stale Gutenberg cache
+try {
+  const wpAny = (window as any).wp;
+  if (wpAny?.data) {
+    wpAny.data.dispatch("tutorpress/course-settings").getSettings();
+  }
+} catch (e) {
+  // ignore
+}
+
 // Wait for DOM to be ready for curriculum metabox
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("tutorpress-curriculum-root");

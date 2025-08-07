@@ -628,6 +628,7 @@ class TutorPress_Course {
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
             'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? 'no',
+            // Prefer the fresh _video meta over any stale copies in _tutor_course_settings
             'intro_video' => array_merge([
                 'source' => '',
                 'source_video_id' => 0,
@@ -637,7 +638,7 @@ class TutorPress_Course {
                 'source_embedded' => '',
                 'source_shortcode' => '',
                 'poster' => '',
-            ], is_array($intro_video) ? $intro_video : [], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? []),
+            ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? [], is_array($intro_video) ? $intro_video : []),
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
             'course_material_includes' => $course_material_includes ?: '',
             
@@ -677,16 +678,94 @@ class TutorPress_Course {
     public function update_course_settings($value, $post) {
         $post_id = $post->ID;
         
+        if (!is_array($value)) {
+            return false;
+        }
+        
         // Set a flag to prevent infinite loops during sync
         update_post_meta($post_id, '_tutorpress_syncing', true);
         
+        $results = [];
+        
         // Update the course_settings meta field
-        $result = update_post_meta($post_id, 'course_settings', $value);
+        $results[] = update_post_meta($post_id, 'course_settings', $value);
+        
+        // Course Details Section: Update individual Tutor LMS meta fields
+        if (isset($value['course_level'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_level', $value['course_level']);
+        }
+        
+        if (isset($value['is_public_course'])) {
+            $public_value = $value['is_public_course'] ? 'yes' : 'no';
+            $results[] = update_post_meta($post_id, '_tutor_is_public_course', $public_value);
+        }
+        
+        if (isset($value['enable_qna'])) {
+            $qna_value = $value['enable_qna'] ? 'yes' : 'no';
+            $results[] = update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
+        }
+        
+        if (isset($value['course_duration'])) {
+            $results[] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
+        }
+        
+        // Course Media Section: Update individual Tutor LMS meta fields
+        if (isset($value['course_material_includes'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_material_includes', $value['course_material_includes']);
+        }
+        
+        // Handle Video Intro field (stored in _video meta field like Tutor LMS)
+        if (isset($value['intro_video'])) {
+            $intro_video = $value['intro_video'];
+            if (is_array($intro_video)) {
+                $results[] = update_post_meta($post_id, '_video', $intro_video);
+            }
+        }
+        
+        if (isset($value['attachments'])) {
+            $attachment_ids = is_array($value['attachments']) ? array_map('absint', $value['attachments']) : [];
+            $results[] = update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
+            $results[] = update_post_meta($post_id, '_tutor_attachments', $attachment_ids);
+        }
+        
+        // Handle pricing fields separately (Tutor LMS stores these as individual meta fields)
+        if (isset($value['pricing_model'])) {
+            $pricing_type = $value['pricing_model'] === 'free' ? 'free' : 'paid';
+            $results[] = update_post_meta($post_id, '_tutor_course_price_type', $pricing_type);
+        }
+        
+        if (isset($value['price'])) {
+            $results[] = update_post_meta($post_id, 'tutor_course_price', (float) $value['price']);
+        }
+        
+        if (isset($value['sale_price'])) {
+            $results[] = update_post_meta($post_id, 'tutor_course_sale_price', (float) $value['sale_price']);
+        }
+        
+        if (isset($value['selling_option'])) {
+            $selling_option = $value['selling_option'];
+            $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+        }
+        
+        // Course Instructors Section: Handle individual Tutor LMS meta fields
+        if (isset($value['instructors'])) {
+            $instructor_ids = is_array($value['instructors']) ? array_map('absint', $value['instructors']) : [];
+            $results[] = update_post_meta($post_id, '_tutor_course_instructors', $instructor_ids);
+            // Sync to Tutor LMS compatibility (user meta)
+            $this->sync_instructors_to_tutor_lms($post_id, $instructor_ids);
+        }
+        
+        if (isset($value['additional_instructors'])) {
+            $additional_instructor_ids = is_array($value['additional_instructors']) ? array_map('absint', $value['additional_instructors']) : [];
+            $results[] = update_post_meta($post_id, '_tutor_course_instructors', $additional_instructor_ids);
+            // Sync to Tutor LMS compatibility (user meta)
+            $this->sync_instructors_to_tutor_lms($post_id, $additional_instructor_ids);
+        }
         
         // Clear the sync flag
         delete_post_meta($post_id, '_tutorpress_syncing');
         
-        return $result;
+        return !in_array(false, $results, true);
     }
 
     /**
@@ -1182,8 +1261,7 @@ class TutorPress_Course {
      * Handle REST API course updates.
      *
      * This method is called when courses are updated via REST API (Gutenberg saves).
-     * The original TutorPress_Course_Settings_Controller handles video sync correctly,
-     * so we don't need to duplicate this functionality.
+     * When using useEntityProp, the data goes through REST API, so we need to handle intro video sync here.
      *
      * @since 1.14.2
      * @param WP_Post $post Post object.
@@ -1192,8 +1270,34 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_rest_course_update( $post, $request, $creating ) {
-        // The original TutorPress_Course_Settings_Controller handles video sync correctly
-        // No need to duplicate this functionality here
+        if ($post->post_type !== 'courses') {
+            return;
+        }
+
+        // Get course settings from request
+        $settings = $request->get_param('course_settings');
+        if (!is_array($settings)) {
+            return;
+        }
+
+        // Handle intro video sync
+        if (isset($settings['intro_video'])) {
+            $intro_video = $settings['intro_video'];
+            if (is_array($intro_video)) {
+                update_post_meta($post->ID, '_video', $intro_video);
+            }
+        }
+
+        // Handle other course media fields
+        if (isset($settings['course_material_includes'])) {
+            update_post_meta($post->ID, '_tutor_course_material_includes', $settings['course_material_includes']);
+        }
+
+        if (isset($settings['attachments'])) {
+            $attachment_ids = is_array($settings['attachments']) ? array_map('absint', $settings['attachments']) : [];
+            update_post_meta($post->ID, '_tutor_course_attachments', $attachment_ids);
+            update_post_meta($post->ID, '_tutor_attachments', $attachment_ids);
+        }
     }
 
     /**

@@ -590,8 +590,8 @@ const selectors = {
     const gutenbergSettings = select("core/editor").getEditedPostAttribute("course_settings") || {};
     return {
       ...defaultCourseSettings,
-      ...gutenbergSettings,
-      ...state.settings,
+      ...gutenbergSettings, // Gutenberg cache as fallback base
+      ...state.settings, // Our store takes precedence over Gutenberg cache
     };
   },
   getFetchState(state: State) {
@@ -701,11 +701,11 @@ const resolvers = {
       // Get current Gutenberg settings
       const gutenbergSettings = yield select("core/editor").getEditedPostAttribute("course_settings") || {};
 
-      // Merge settings, prioritizing API response
+      // Merge settings, prioritizing API response over Gutenberg cache
       const mergedSettings = {
         ...defaultCourseSettings,
-        ...gutenbergSettings,
-        ...response.data,
+        ...gutenbergSettings, // Start from any editor cache
+        ...response.data, // Fresh API response takes precedence
       };
 
       // Update both stores
