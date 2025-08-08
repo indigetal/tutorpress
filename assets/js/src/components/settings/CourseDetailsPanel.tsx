@@ -80,8 +80,7 @@ const CourseDetailsPanel: React.FC = () => {
             value={(courseSettings as any)?.course_level ?? settings.course_level}
             options={courseDifficultyLevels}
             onChange={(value: CourseDifficultyLevel) => {
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, course_level: value });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), course_level: value }));
               updateSettings({ course_level: value });
             }}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
@@ -101,8 +100,7 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={!!((courseSettings as any)?.is_public_course ?? settings.is_public_course)}
             onChange={(enabled) => {
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, is_public_course: !!enabled });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), is_public_course: !!enabled }));
               updateSettings({ is_public_course: !!enabled });
             }}
           />
@@ -131,8 +129,7 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={!!enableQna}
             onChange={(enabled) => {
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, enable_qna: !!enabled });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), enable_qna: !!enabled }));
               updateSettings({ enable_qna: !!enabled });
             }}
           />

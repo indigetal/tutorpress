@@ -178,8 +178,7 @@ const CourseMediaPanel: React.FC = () => {
             label={__("Materials Included", "tutorpress")}
             value={(courseSettings as any)?.course_material_includes ?? settings?.course_material_includes ?? ""}
             onChange={(value) => {
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, course_material_includes: value });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), course_material_includes: value }));
               updateSettings({ course_material_includes: value });
             }}
             placeholder={__(

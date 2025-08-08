@@ -1014,6 +1014,16 @@ class TutorPress_Course {
         if (isset($settings['additional_instructors']) && is_array($settings['additional_instructors'])) {
             $sanitized['additional_instructors'] = array_map('absint', $settings['additional_instructors']);
         }
+
+        // Enforce dependent field clearing when enrollment period is disabled
+        // If course_enrollment_period is 'no', both dates must be empty to prevent stale data
+        if (
+            isset($sanitized['course_enrollment_period'])
+            && $sanitized['course_enrollment_period'] === 'no'
+        ) {
+            $sanitized['enrollment_starts_at'] = '';
+            $sanitized['enrollment_ends_at'] = '';
+        }
         
         // All settings panels have been migrated
         // Course Details, Course Media, Pricing Model, Course Access & Enrollment, and Course Instructors panels

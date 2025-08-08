@@ -254,8 +254,7 @@ const CourseAccessPanel: React.FC = () => {
             onChange={(value) => {
               // Use empty string as UI state to represent unlimited (null) to avoid React immediately coercing to 0
               const newValue = processMaximumStudents(value);
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, maximum_students: newValue });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), maximum_students: newValue }));
               updateSettings({ maximum_students: newValue });
             }}
             help={__(
@@ -274,8 +273,7 @@ const CourseAccessPanel: React.FC = () => {
             checked={((courseSettings as any)?.pause_enrollment ?? settings.pause_enrollment) === "yes"}
             onChange={(checked: boolean) => {
               const value = checked ? "yes" : "no";
-              const base = (courseSettings as any) || (settings as any) || {};
-              setCourseSettings({ ...base, pause_enrollment: value });
+              setCourseSettings((prev: any) => ({ ...(prev || {}), pause_enrollment: value }));
               updateSettings({ pause_enrollment: value });
             }}
             help={__("Temporarily stop new enrollments for this course.", "tutorpress")}
@@ -293,7 +291,7 @@ const CourseAccessPanel: React.FC = () => {
               const base = (courseSettings as any) || (settings as any) || {};
               if (checked) {
                 // Enable enrollment period
-                setCourseSettings({ ...base, course_enrollment_period: "yes" });
+                setCourseSettings((prev: any) => ({ ...(prev || {}), course_enrollment_period: "yes" }));
                 updateSettings({ course_enrollment_period: "yes" });
               } else {
                 // Disable and clear dates immediately in editor state
@@ -302,7 +300,7 @@ const CourseAccessPanel: React.FC = () => {
                   enrollment_starts_at: "",
                   enrollment_ends_at: "",
                 } satisfies Partial<CourseSettings>;
-                setCourseSettings({ ...base, ...cleared });
+                setCourseSettings((prev: any) => ({ ...(prev || {}), ...cleared }));
                 updateSettings(cleared);
               }
             }}
