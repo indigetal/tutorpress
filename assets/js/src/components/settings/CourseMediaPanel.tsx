@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, Notice, Spinner, Button, TextareaControl } from "@wordpress/components";
 
 // Import course settings types
@@ -25,6 +26,9 @@ const CourseMediaPanel: React.FC = () => {
 
   // Get dispatch actions
   const { updateSettings, fetchAttachmentsMetadata, getSettings } = useDispatch("tutorpress/course-settings");
+
+  // Bind Gutenberg composite course_settings for incremental migration
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
 
   // Ensure fresh settings are fetched on mount to override any stale Gutenberg cache
   useEffect(() => {
@@ -172,8 +176,12 @@ const CourseMediaPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <TextareaControl
             label={__("Materials Included", "tutorpress")}
-            value={settings?.course_material_includes || ""}
-            onChange={(value) => updateSettings({ course_material_includes: value })}
+            value={(courseSettings as any)?.course_material_includes ?? settings?.course_material_includes ?? ""}
+            onChange={(value) => {
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, course_material_includes: value });
+              updateSettings({ course_material_includes: value });
+            }}
             placeholder={__(
               "A list of assets you will be providing for the students in this course (one per line)",
               "tutorpress"
