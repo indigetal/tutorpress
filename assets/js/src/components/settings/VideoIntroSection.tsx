@@ -11,6 +11,7 @@
 import React, { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, Notice, Spinner, Button, TextControl, TextareaControl, SelectControl } from "@wordpress/components";
 
 // Import course settings types
@@ -27,6 +28,10 @@ const VideoIntroSection: React.FC = () => {
     }),
     []
   );
+
+  // Bind Gutenberg composite course_settings for incremental migration (entity prop with fallback)
+  const [courseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const intro: any = ((courseSettings as any)?.intro_video ?? (settings as any)?.intro_video) || {};
 
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
@@ -116,13 +121,13 @@ const VideoIntroSection: React.FC = () => {
 
   // Check if video is set
   const hasVideo =
-    settings?.intro_video?.source !== "" &&
-    (settings?.intro_video?.source_video_id > 0 ||
-      settings?.intro_video?.source_external_url ||
-      settings?.intro_video?.source_youtube ||
-      settings?.intro_video?.source_vimeo ||
-      settings?.intro_video?.source_embedded ||
-      settings?.intro_video?.source_shortcode);
+    (intro?.source || "") !== "" &&
+    (intro?.source_video_id > 0 ||
+      intro?.source_external_url ||
+      intro?.source_youtube ||
+      intro?.source_vimeo ||
+      intro?.source_embedded ||
+      intro?.source_shortcode);
 
   // Show video detection loading state
   const showVideoDetectionLoading = isDetecting || isLoadingVideoMeta;
@@ -133,7 +138,7 @@ const VideoIntroSection: React.FC = () => {
         <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Intro Video", "tutorpress")}</div>
 
         <SelectControl
-          value={settings?.intro_video?.source || ""}
+          value={intro?.source || ""}
           options={videoSourceOptions}
           onChange={(value) => {
             if (value === "") {
@@ -173,7 +178,7 @@ const VideoIntroSection: React.FC = () => {
                 marginBottom: "8px",
               }}
             >
-              {settings?.intro_video?.source_video_id > 0
+              {intro?.source_video_id > 0
                 ? __("Change Video", "tutorpress")
                 : __("Select Video", "tutorpress")}
             </Button>
@@ -198,19 +203,19 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* YouTube */}
-        {settings?.intro_video?.source === "youtube" && (
+        {intro?.source === "youtube" && (
           <div>
             <TextControl
               label={__("YouTube URL or Video ID", "tutorpress")}
               placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-              value={settings?.intro_video?.source_youtube || ""}
+              value={intro?.source_youtube || ""}
               onChange={(value) => updateSetting("intro_video.source_youtube", value)}
               disabled={isSaving}
               help={__("Enter the full YouTube URL or just the video ID", "tutorpress")}
@@ -224,19 +229,19 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* Vimeo */}
-        {settings?.intro_video?.source === "vimeo" && (
+        {intro?.source === "vimeo" && (
           <div>
             <TextControl
               label={__("Vimeo URL or Video ID", "tutorpress")}
               placeholder="https://vimeo.com/123456789"
-              value={settings?.intro_video?.source_vimeo || ""}
+              value={intro?.source_vimeo || ""}
               onChange={(value) => updateSetting("intro_video.source_vimeo", value)}
               disabled={isSaving}
               help={__("Enter the full Vimeo URL or just the video ID", "tutorpress")}
@@ -250,19 +255,19 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* External URL */}
-        {settings?.intro_video?.source === "external_url" && (
+        {intro?.source === "external_url" && (
           <div>
             <TextControl
               label={__("External Video URL", "tutorpress")}
               placeholder="https://example.com/video.mp4"
-              value={settings?.intro_video?.source_external_url || ""}
+              value={intro?.source_external_url || ""}
               onChange={(value) => updateSetting("intro_video.source_external_url", value)}
               disabled={isSaving}
               help={__("Enter a direct link to the video file (MP4, WebM, etc.)", "tutorpress")}
@@ -278,10 +283,10 @@ const VideoIntroSection: React.FC = () => {
 
         {/* Embedded Code - Commented out to match Tutor LMS frontend course builder */}
         {/* {settings?.intro_video?.source === "embedded" && (
-          <TextareaControl
+            <TextareaControl
             label={__("Embedded Video Code", "tutorpress")}
             placeholder="<iframe src=...></iframe>"
-            value={settings?.intro_video?.source_embedded || ""}
+              value={intro?.source_embedded || ""}
             onChange={(value) => updateSetting("intro_video.source_embedded", value)}
             disabled={isSaving}
             help={__("Paste the embed code (iframe, video tag, etc.)", "tutorpress")}
@@ -291,10 +296,10 @@ const VideoIntroSection: React.FC = () => {
 
         {/* Shortcode - Commented out to match Tutor LMS frontend course builder */}
         {/* {settings?.intro_video?.source === "shortcode" && (
-          <TextControl
+            <TextControl
             label={__("Video Shortcode", "tutorpress")}
             placeholder="[video src='...']"
-            value={settings?.intro_video?.source_shortcode || ""}
+              value={intro?.source_shortcode || ""}
             onChange={(value) => updateSetting("intro_video.source_shortcode", value)}
             disabled={isSaving}
             help={__("Enter a WordPress video shortcode", "tutorpress")}
