@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/editor";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import {
   PanelRow,
   TextControl,
@@ -78,6 +79,9 @@ const CourseAccessPanel: React.FC = () => {
   // Get dispatch actions
   const { updateSettings, fetchAvailableCourses } = useDispatch("tutorpress/course-settings");
 
+  // Bind Gutenberg composite course_settings for incremental migration
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+
   // Only show for course post type
   if (postType !== "courses") {
     return null;
@@ -112,7 +116,10 @@ const CourseAccessPanel: React.FC = () => {
 
   // Helper function for maximum students processing
   const processMaximumStudents = (value: string | number | null): number | null => {
-    return value === "" || value === "0" || value === 0 ? null : parseInt(value?.toString() || "0") || null;
+    if (value === "" || value === null) return null; // allow blank (unlimited)
+    const n = parseInt(value.toString(), 10);
+    if (Number.isNaN(n)) return null;
+    return Math.max(0, n); // allow 0 (unlimited) or positive ints
   };
 
   // Generate time options with 30-minute intervals (standardized across TutorPress)
@@ -228,10 +235,23 @@ const CourseAccessPanel: React.FC = () => {
           <TextControl
             type="number"
             label={__("Maximum Students", "tutorpress")}
-            value={settings.maximum_students?.toString() || ""}
+            value={(() => {
+              const cs: any = courseSettings as any;
+              if (cs && Object.prototype.hasOwnProperty.call(cs, "maximum_students")) {
+                return cs.maximum_students === null || cs.maximum_students === undefined
+                  ? ""
+                  : cs.maximum_students.toString();
+              }
+              const storeVal = (settings as any)?.maximum_students;
+              return storeVal === null || storeVal === undefined ? "" : storeVal.toString();
+            })()}
             placeholder="0"
+            min={0 as any}
             onChange={(value) => {
+              // Use empty string as UI state to represent unlimited (null) to avoid React immediately coercing to 0
               const newValue = processMaximumStudents(value);
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, maximum_students: newValue });
               updateSettings({ maximum_students: newValue });
             }}
             help={__(
@@ -247,9 +267,12 @@ const CourseAccessPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <CheckboxControl
             label={__("Pause Enrollment", "tutorpress")}
-            checked={settings.pause_enrollment === "yes"}
+            checked={((courseSettings as any)?.pause_enrollment ?? settings.pause_enrollment) === "yes"}
             onChange={(checked: boolean) => {
-              updateSettings({ pause_enrollment: checked ? "yes" : "no" });
+              const value = checked ? "yes" : "no";
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, pause_enrollment: value });
+              updateSettings({ pause_enrollment: value });
             }}
             help={__("Temporarily stop new enrollments for this course.", "tutorpress")}
           />

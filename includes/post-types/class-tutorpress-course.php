@@ -105,7 +105,7 @@ class TutorPress_Course {
                             ],
                         ],
                         'maximum_students' => [
-                            'type'    => 'integer',
+                            'type'    => ['integer', 'null'],
                             'minimum' => 0,
                         ],
                         'course_prerequisites' => [
@@ -615,8 +615,21 @@ class TutorPress_Course {
             'enable_qna' => $enable_qna !== 'no',
             'course_duration' => $course_duration,
             
-            // Future sections (will be implemented in Steps 3.2-3.6)
-            'maximum_students' => $tutor_settings['maximum_students'] ?? 0,
+            // Access & Enrollment (prefer canonical Tutor meta over _tutor_course_settings to avoid stale data)
+            'maximum_students' => (function() use ($post_id, $tutor_settings) {
+                // Prioritize _tutor_course_settings if it explicitly contains null or 0 (recent save via REST)
+                if (array_key_exists('maximum_students', $tutor_settings)) {
+                    $val = $tutor_settings['maximum_students'];
+                    if ($val === null || $val === 0 || is_numeric($val)) {
+                        return $val === null ? null : (int) $val;
+                    }
+                }
+                $legacy_max = get_post_meta($post_id, '_tutor_maximum_students', true);
+                if ($legacy_max === '' || $legacy_max === null) {
+                    return null;
+                }
+                return (int) $legacy_max;
+            })(),
             'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
             'schedule' => $tutor_settings['schedule'] ?? [
                 'enabled' => false,
@@ -627,7 +640,19 @@ class TutorPress_Course {
             'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
-            'pause_enrollment' => $tutor_settings['pause_enrollment'] ?? 'no',
+            'pause_enrollment' => (function() use ($post_id, $tutor_settings) {
+                if (array_key_exists('pause_enrollment', $tutor_settings)) {
+                    $val = $tutor_settings['pause_enrollment'];
+                    if ($val === 'yes' || $val === 'no') {
+                        return $val;
+                    }
+                }
+                $status = get_post_meta($post_id, '_tutor_enrollment_status', true);
+                if ($status === 'yes' || $status === 'no') {
+                    return $status;
+                }
+                return 'no';
+            })(),
             // Prefer the fresh _video meta over any stale copies in _tutor_course_settings
             'intro_video' => array_merge([
                 'source' => '',
@@ -656,11 +681,8 @@ class TutorPress_Course {
             'instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [],
             'additional_instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [], // Alias for compatibility
         ];
-        
-        // Update the course_settings meta field with the complete settings structure
-        // This ensures Gutenberg can access all settings through the meta field
-        update_post_meta($post_id, 'course_settings', $settings);
-        
+
+        // Do not override from stored course_settings here; rely on canonical Tutor meta + computed values
         return $settings;
     }
 
@@ -687,7 +709,18 @@ class TutorPress_Course {
         
         $results = [];
         
-        // Update the course_settings meta field
+        // Update the course_settings meta field (normalize maximum_students empty/0 → null at source of truth)
+            if (array_key_exists('maximum_students', $value)) {
+                $v = $value['maximum_students'];
+                // Explicitly normalize: '' => null; '0' => 0; 0 => 0; positive numbers kept; anything else -> null
+                if ($v === '' || $v === null) {
+                    $value['maximum_students'] = null;
+                } elseif ($v === '0' || $v === 0) {
+                    $value['maximum_students'] = 0;
+                } else {
+                    $value['maximum_students'] = max(0, (int) $v);
+                }
+            }
         $results[] = update_post_meta($post_id, 'course_settings', $value);
         
         // Course Details Section: Update individual Tutor LMS meta fields
@@ -747,6 +780,43 @@ class TutorPress_Course {
             $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
         }
         
+        // --- Ensure Tutor settings mirror for Access & Enrollment even if updated_post_meta paths don't fire ---
+        $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+        if (!is_array($existing_tutor_settings)) {
+            $existing_tutor_settings = [];
+        }
+
+        // maximum_students → _tutor_maximum_students and _tutor_course_settings
+        if (array_key_exists('maximum_students', $value)) {
+            $max_students_in = $value['maximum_students'];
+            if ($max_students_in === '' || $max_students_in === null) {
+                $legacy_max = '';
+            } elseif ($max_students_in === 0 || $max_students_in === '0') {
+                $legacy_max = 0;
+            } else {
+                $legacy_max = max(0, intval($max_students_in));
+            }
+            update_post_meta($post_id, '_tutor_maximum_students', $legacy_max);
+            $existing_tutor_settings['maximum_students'] = ($legacy_max === '') ? null : intval($legacy_max);
+            $existing_tutor_settings['maximum_students_allowed'] = $existing_tutor_settings['maximum_students'];
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[TP] update_course_settings mirror maximum_students=' . var_export($existing_tutor_settings['maximum_students'], true) . ' legacy_max=' . var_export($legacy_max, true));
+            }
+        }
+
+        // pause_enrollment → _tutor_enrollment_status and _tutor_course_settings
+            if (array_key_exists('pause_enrollment', $value)) {
+            $pause_val_in = $value['pause_enrollment'];
+            $pause_str = is_bool($pause_val_in) ? ($pause_val_in ? 'yes' : 'no') : (in_array($pause_val_in, ['yes', 'no'], true) ? $pause_val_in : 'no');
+            update_post_meta($post_id, '_tutor_enrollment_status', $pause_str);
+            $existing_tutor_settings['pause_enrollment'] = $pause_str;
+            $existing_tutor_settings['enrollment_status'] = $pause_str;
+        }
+
+        // Persist merged Tutor settings
+        update_post_meta($post_id, '_tutor_course_settings', $existing_tutor_settings);
+        update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
+
         // Course Instructors Section: Handle individual Tutor LMS meta fields
         if (isset($value['instructors'])) {
             $instructor_ids = is_array($value['instructors']) ? array_map('absint', $value['instructors']) : [];
@@ -886,14 +956,14 @@ class TutorPress_Course {
         
         // Course Access & Enrollment Section: Sanitize mixed storage fields
         if (isset($settings['maximum_students'])) {
-            // Handle empty string, null, or 0 as null (unlimited)
+            // Treat '' or null as unlimited (null), but preserve 0 as 0
             $max_students = $settings['maximum_students'];
-            if ($max_students === '' || $max_students === null || $max_students === 0 || $max_students === '0') {
+            if ($max_students === '' || $max_students === null) {
                 $sanitized['maximum_students'] = null;
             } else {
                 $sanitized['maximum_students'] = max(0, intval($max_students));
             }
-            // Also set the legacy field
+            // Also set the legacy helper field to mirror value (null or non-negative int)
             $sanitized['maximum_students_allowed'] = $sanitized['maximum_students'];
         }
         
@@ -1251,6 +1321,38 @@ class TutorPress_Course {
                 // Sync to Tutor LMS compatibility (user meta)
                 $this->sync_instructors_to_tutor_lms($post_id, $additional_instructor_ids);
             }
+
+            // Access & Enrollment: maximum_students (nullable) and pause_enrollment (yes/no)
+            if (array_key_exists('maximum_students', $meta_value)) {
+                $max_students_in = $meta_value['maximum_students'];
+                // Legacy Tutor stores empty string for unlimited; preserve 0 explicitly
+                if ($max_students_in === '' || $max_students_in === null) {
+                    $legacy_max = '';
+                } elseif ($max_students_in === 0 || $max_students_in === '0') {
+                    $legacy_max = 0;
+                } else {
+                    $legacy_max = max(0, intval($max_students_in));
+                }
+                update_post_meta($post_id, '_tutor_maximum_students', $legacy_max);
+                $existing_tutor_settings['maximum_students'] = ($legacy_max === '') ? null : intval($legacy_max);
+                $existing_tutor_settings['maximum_students_allowed'] = $existing_tutor_settings['maximum_students'];
+            }
+
+            if (array_key_exists('pause_enrollment', $meta_value)) {
+                $pause_val_in = $meta_value['pause_enrollment'];
+                $pause_str = is_bool($pause_val_in)
+                    ? ($pause_val_in ? 'yes' : 'no')
+                    : (in_array($pause_val_in, ['yes', 'no'], true) ? $pause_val_in : 'no');
+                update_post_meta($post_id, '_tutor_enrollment_status', $pause_str);
+                $existing_tutor_settings['pause_enrollment'] = $pause_str;
+                $existing_tutor_settings['enrollment_status'] = $pause_str;
+            }
+
+            // Persist merged Tutor settings to keep get_course_settings() authoritative
+            $merged_settings = array_merge($existing_tutor_settings, is_array($meta_value) ? $meta_value : []);
+            update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
+            // Mark last REST sync time to prevent immediate override on save_post hook
+            update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
             
             // Clear sync flag
             delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
@@ -1307,6 +1409,12 @@ class TutorPress_Course {
     public function sync_on_course_save($post_id, $post, $update) {
         // Skip autosaves and revisions
         if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
+            return;
+        }
+
+        // If we just synced course_settings via REST (handle_course_settings_update), skip this pass
+        $last_rest_sync = get_post_meta($post_id, '_tutorpress_course_settings_last_sync', true);
+        if ($last_rest_sync && (time() - (int) $last_rest_sync) < 5) {
             return;
         }
 
