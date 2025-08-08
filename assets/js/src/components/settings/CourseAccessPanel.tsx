@@ -127,8 +127,10 @@ const CourseAccessPanel: React.FC = () => {
 
   // Get current dates for date pickers (default to current date)
   const currentDate = new Date();
-  const startDate = parseGMTString(settings.enrollment_starts_at) || currentDate;
-  const endDate = parseGMTString(settings.enrollment_ends_at) || currentDate;
+  const startAt = ((courseSettings as any)?.enrollment_starts_at ?? settings.enrollment_starts_at) as string;
+  const endAt = ((courseSettings as any)?.enrollment_ends_at ?? settings.enrollment_ends_at) as string;
+  const startDate = parseGMTString(startAt) || currentDate;
+  const endDate = parseGMTString(endAt) || currentDate;
 
   // Prerequisites functionality
   const handlePrerequisiteChange = async (courseId: string) => {
@@ -323,7 +325,7 @@ const CourseAccessPanel: React.FC = () => {
                     icon={calendar}
                     onClick={() => setStartDatePickerOpen(!startDatePickerOpen)}
                   >
-                    {displayDate(settings.enrollment_starts_at)}
+                    {displayDate(startAt)}
                   </Button>
 
                   {startDatePickerOpen && (
@@ -332,15 +334,15 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={startDate}
                         onChange={(date) => {
                           const newStartDate = new Date(date);
-                          const newDate = combineDateTime(newStartDate, displayTime(settings.enrollment_starts_at));
+                         const newDate = combineDateTime(newStartDate, displayTime(startAt));
 
                           // Auto-correct end date if start date is later (simple behavior)
-                          const currentEndDate = parseGMTString(settings.enrollment_ends_at) || newStartDate;
+                           const currentEndDate = parseGMTString(endAt) || newStartDate;
                           const validation = validateAndCorrectDateTime(
                             newStartDate,
-                            displayTime(settings.enrollment_starts_at),
-                            currentEndDate,
-                            displayTime(settings.enrollment_ends_at)
+                             displayTime(startAt),
+                             currentEndDate,
+                             displayTime(endAt)
                           );
 
                           // Always update start date, and auto-correct end date if needed
@@ -349,7 +351,7 @@ const CourseAccessPanel: React.FC = () => {
                           if (validation.correctedEndDate) {
                             updates.enrollment_ends_at = combineDateTime(
                               validation.correctedEndDate,
-                              displayTime(settings.enrollment_ends_at)
+                               displayTime(endAt)
                             );
                           }
                           if (validation.correctedEndTime) {
@@ -357,6 +359,7 @@ const CourseAccessPanel: React.FC = () => {
                             updates.enrollment_ends_at = combineDateTime(endDateToUse, validation.correctedEndTime);
                           }
 
+                          setCourseSettings((prev: any) => ({ ...(prev || {}), ...updates }));
                           updateSettings(updates);
 
                           setStartDatePickerOpen(false);
@@ -370,23 +373,24 @@ const CourseAccessPanel: React.FC = () => {
               {/* Start Time */}
               <FlexItem>
                 <SelectControl
-                  value={displayTime(settings.enrollment_starts_at)}
+                   value={displayTime(startAt)}
                   options={timeOptions}
                   onChange={(value) => {
                     const newStartDate = combineDateTime(startDate, value);
+                    setCourseSettings((prev: any) => ({ ...(prev || {}), enrollment_starts_at: newStartDate }));
                     updateSettings({ enrollment_starts_at: newStartDate });
 
                     // Auto-correct end time if it becomes invalid using our validation utility
-                    if (settings.enrollment_ends_at) {
-                      const startDateTimeParsed = parseGMTString(settings.enrollment_starts_at);
-                      const endDateTimeParsed = parseGMTString(settings.enrollment_ends_at);
+                     if (endAt) {
+                       const startDateTimeParsed = parseGMTString(startAt);
+                       const endDateTimeParsed = parseGMTString(endAt);
 
                       if (startDateTimeParsed && endDateTimeParsed) {
                         const validationResult = validateAndCorrectDateTime(
                           startDateTimeParsed,
                           value,
                           endDateTimeParsed,
-                          displayTime(settings.enrollment_ends_at)
+                           displayTime(endAt)
                         );
 
                         if (validationResult.correctedEndTime) {
@@ -412,7 +416,7 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <div className="tutorpress-date-picker-wrapper">
                   <Button variant="secondary" icon={calendar} onClick={() => setEndDatePickerOpen(!endDatePickerOpen)}>
-                    {displayDate(settings.enrollment_ends_at)}
+                    {displayDate(endAt)}
                   </Button>
 
                   {endDatePickerOpen && (
@@ -421,18 +425,18 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={endDate}
                         onChange={(date) => {
                           const selectedDate = new Date(date);
-                          const newDate = combineDateTime(selectedDate, displayTime(settings.enrollment_ends_at));
+                         const newDate = combineDateTime(selectedDate, displayTime(endAt));
 
                           // Auto-correct start date if end date is earlier (match Google Meet behavior)
-                          const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                           const startDateTime = parseGMTString(startAt);
                           const updates: any = { enrollment_ends_at: newDate };
 
                           if (startDateTime) {
                             const validationResult = validateAndCorrectDateTime(
                               startDateTime,
-                              displayTime(settings.enrollment_starts_at),
+                               displayTime(startAt),
                               selectedDate,
-                              displayTime(settings.enrollment_ends_at)
+                               displayTime(endAt)
                             );
 
                             if (validationResult.correctedEndTime) {
@@ -457,11 +461,12 @@ const CourseAccessPanel: React.FC = () => {
                             if (endDateOnly < startDateOnly) {
                               updates.enrollment_starts_at = combineDateTime(
                                 selectedDate,
-                                displayTime(settings.enrollment_starts_at)
+                                 displayTime(startAt)
                               );
                             }
                           }
 
+                          setCourseSettings((prev: any) => ({ ...(prev || {}), ...updates }));
                           updateSettings(updates);
                           setEndDatePickerOpen(false);
                         }}
@@ -474,9 +479,9 @@ const CourseAccessPanel: React.FC = () => {
               {/* End Time */}
               <FlexItem>
                 <SelectControl
-                  value={displayTime(settings.enrollment_ends_at)}
+                   value={displayTime(endAt)}
                   options={(() => {
-                    const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                     const startDateTime = parseGMTString(startAt);
                     return startDateTime
                       ? filterEndTimeOptions(
                           timeOptions,
@@ -496,7 +501,7 @@ const CourseAccessPanel: React.FC = () => {
                     if (startDateTimeForValidation) {
                       const validationResult = validateAndCorrectDateTime(
                         startDateTimeForValidation,
-                        displayTime(settings.enrollment_starts_at),
+                           displayTime(startAt),
                         endDate,
                         value
                       );
@@ -506,6 +511,7 @@ const CourseAccessPanel: React.FC = () => {
                         : newEndDate;
                     }
 
+                    setCourseSettings((prev: any) => ({ ...(prev || {}), enrollment_ends_at: finalEndDate }));
                     updateSettings({ enrollment_ends_at: finalEndDate });
                   }}
                 />
