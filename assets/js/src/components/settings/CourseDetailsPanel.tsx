@@ -77,9 +77,13 @@ const CourseDetailsPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <SelectControl
             label={__("Difficulty Level", "tutorpress")}
-            value={settings.course_level}
+            value={(courseSettings as any)?.course_level ?? settings.course_level}
             options={courseDifficultyLevels}
-            onChange={(value: CourseDifficultyLevel) => updateSettings({ course_level: value })}
+            onChange={(value: CourseDifficultyLevel) => {
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, course_level: value });
+              updateSettings({ course_level: value });
+            }}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
           />
         </div>
@@ -91,12 +95,16 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Public Course", "tutorpress")}
             help={
-              settings.is_public_course
+              ((courseSettings as any)?.is_public_course ?? settings.is_public_course)
                 ? __("This course is visible to all users", "tutorpress")
                 : __("This course requires enrollment to view", "tutorpress")
             }
-            checked={settings.is_public_course}
-            onChange={(enabled) => updateSettings({ is_public_course: enabled })}
+            checked={!!((courseSettings as any)?.is_public_course ?? settings.is_public_course)}
+            onChange={(enabled) => {
+              const base = (courseSettings as any) || (settings as any) || {};
+              setCourseSettings({ ...base, is_public_course: !!enabled });
+              updateSettings({ is_public_course: !!enabled });
+            }}
           />
 
           <p
