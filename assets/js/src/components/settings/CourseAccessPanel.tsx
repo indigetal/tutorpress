@@ -167,6 +167,10 @@ const CourseAccessPanel: React.FC = () => {
     .map((id: number) => availableCourses.find((course: Course) => course.id === id))
     .filter((course: Course | undefined): course is Course => course !== undefined);
 
+  // Enrollment period enabled state (prefer entity prop with store fallback during transition)
+  const enrollmentPeriodEnabled =
+    (((courseSettings as any)?.course_enrollment_period ?? settings.course_enrollment_period) === "yes");
+
   return (
     <PluginDocumentSettingPanel
       name="course-access-panel"
@@ -284,22 +288,30 @@ const CourseAccessPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <ToggleControl
             label={__("Course Enrollment Period", "tutorpress")}
-            checked={settings.course_enrollment_period === "yes"}
+            checked={enrollmentPeriodEnabled}
             onChange={(checked) => {
-              const updates: Partial<CourseSettings> = { course_enrollment_period: checked ? "yes" : "no" };
-              // When disabling enrollment period, clear the dates
-              if (!checked) {
-                updates.enrollment_starts_at = "";
-                updates.enrollment_ends_at = "";
+              const base = (courseSettings as any) || (settings as any) || {};
+              if (checked) {
+                // Enable enrollment period
+                setCourseSettings({ ...base, course_enrollment_period: "yes" });
+                updateSettings({ course_enrollment_period: "yes" });
+              } else {
+                // Disable and clear dates immediately in editor state
+                const cleared = {
+                  course_enrollment_period: "no" as const,
+                  enrollment_starts_at: "",
+                  enrollment_ends_at: "",
+                } satisfies Partial<CourseSettings>;
+                setCourseSettings({ ...base, ...cleared });
+                updateSettings(cleared);
               }
-              updateSettings(updates);
             }}
             help={__("Set a specific time period when students can enroll in this course.", "tutorpress")}
           />
         </div>
       </PanelRow>
 
-      {settings.course_enrollment_period === "yes" && (
+      {enrollmentPeriodEnabled && (
         <>
           {/* Start Date/Time */}
           <div className="tutorpress-datetime-section">
