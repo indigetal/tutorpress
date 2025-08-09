@@ -30,10 +30,7 @@ const CourseMediaPanel: React.FC = () => {
   // Bind Gutenberg composite course_settings for incremental migration
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
 
-  // Ensure fresh settings are fetched on mount to override any stale Gutenberg cache
-  useEffect(() => {
-    getSettings();
-  }, [getSettings]);
+  // Removed legacy hydration on mount; rely on entity-prop/REST lifecycle
 
   // Fetch attachment metadata when attachments change
   useEffect(() => {

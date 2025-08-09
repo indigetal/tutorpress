@@ -903,6 +903,85 @@ class TutorPress_Course {
                     'source_shortcode' => sanitize_text_field($intro_video['source_shortcode'] ?? ''),
                     'poster' => sanitize_text_field($intro_video['poster'] ?? ''),
                 ];
+
+                // Per-source normalization to prevent stale/cross-source data
+                $allowed_sources = array('', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode');
+                if (!in_array($sanitized['intro_video']['source'], $allowed_sources, true)) {
+                    $sanitized['intro_video']['source'] = '';
+                }
+
+                $src = $sanitized['intro_video']['source'];
+
+                // Helper to clear all non-applicable fields
+                $clear_non_applicable = function(array &$iv, array $keep_keys) {
+                    $keys = array('source_video_id','source_youtube','source_vimeo','source_external_url','source_embedded','source_shortcode');
+                    foreach ($keys as $key) {
+                        if (!in_array($key, $keep_keys, true)) {
+                            if ($key === 'source_video_id') {
+                                $iv[$key] = 0;
+                            } else {
+                                $iv[$key] = '';
+                            }
+                        }
+                    }
+                };
+
+                switch ($src) {
+                    case 'html5':
+                        // Require a valid attachment ID; otherwise treat as no video
+                        if ($sanitized['intro_video']['source_video_id'] <= 0) {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            // Keep only video_id; clear URL-based fields
+                            $clear_non_applicable($sanitized['intro_video'], array('source_video_id'));
+                        }
+                        break;
+                    case 'youtube':
+                        if ($sanitized['intro_video']['source_youtube'] === '') {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            $clear_non_applicable($sanitized['intro_video'], array('source_youtube'));
+                        }
+                        break;
+                    case 'vimeo':
+                        if ($sanitized['intro_video']['source_vimeo'] === '') {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            $clear_non_applicable($sanitized['intro_video'], array('source_vimeo'));
+                        }
+                        break;
+                    case 'external_url':
+                        if ($sanitized['intro_video']['source_external_url'] === '') {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            $clear_non_applicable($sanitized['intro_video'], array('source_external_url'));
+                        }
+                        break;
+                    case 'embedded':
+                        if ($sanitized['intro_video']['source_embedded'] === '') {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            $clear_non_applicable($sanitized['intro_video'], array('source_embedded'));
+                        }
+                        break;
+                    case 'shortcode':
+                        if ($sanitized['intro_video']['source_shortcode'] === '') {
+                            $sanitized['intro_video']['source'] = '';
+                            $clear_non_applicable($sanitized['intro_video'], array());
+                        } else {
+                            $clear_non_applicable($sanitized['intro_video'], array('source_shortcode'));
+                        }
+                        break;
+                    default:
+                        // Empty or unsupported: fully clear non-applicable fields
+                        $clear_non_applicable($sanitized['intro_video'], array());
+                        break;
+                }
             } else {
                 $sanitized['intro_video'] = [
                     'source' => '',

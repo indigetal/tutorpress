@@ -99,11 +99,32 @@ import "./store/course-settings";
 import "./store/subscriptions";
 import "./store/course-bundles";
 
-// Proactively hydrate course settings from API on editor load to avoid stale Gutenberg cache
+// Proactively hydrate course settings only when editor has a valid course context
 try {
   const wpAny = (window as any).wp;
   if (wpAny?.data) {
-    wpAny.data.dispatch("tutorpress/course-settings").getSettings();
+    const { select, subscribe, dispatch } = wpAny.data;
+    let hydrated = false;
+    const maybeHydrate = () => {
+      try {
+        const postType = select("core/editor").getCurrentPostType?.();
+        const postId = select("core/editor").getCurrentPostId?.();
+        if (!hydrated && postType === "courses" && postId) {
+          hydrated = true;
+          dispatch("tutorpress/course-settings").getSettings();
+          if (unsub) unsub();
+        }
+      } catch (e) {
+        // ignore transient selector errors
+      }
+    };
+    const unsub = subscribe(maybeHydrate);
+    // Run once in case state is already ready
+    maybeHydrate();
+    // Safety timeout to stop listening after a while
+    setTimeout(() => {
+      if (unsub) unsub();
+    }, 10000);
   }
 } catch (e) {
   // ignore
