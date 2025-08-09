@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { PluginDocumentSettingPanel } from "@wordpress/editor";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, TextControl, SelectControl } from "@wordpress/components";

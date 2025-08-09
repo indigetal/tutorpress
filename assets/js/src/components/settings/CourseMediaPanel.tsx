@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { PluginDocumentSettingPanel } from "@wordpress/editor";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { useEntityProp } from "@wordpress/core-data";
@@ -29,6 +29,7 @@ const CourseMediaPanel: React.FC = () => {
 
   // Bind Gutenberg composite course_settings for incremental migration
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
 
   // Removed legacy hydration on mount; rely on entity-prop/REST lifecycle
 
@@ -173,9 +174,12 @@ const CourseMediaPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <TextareaControl
             label={__("Materials Included", "tutorpress")}
-            value={(courseSettings as any)?.course_material_includes ?? settings?.course_material_includes ?? ""}
+            value={cs?.course_material_includes ?? settings?.course_material_includes ?? ""}
             onChange={(value) => {
-              setCourseSettings((prev: any) => ({ ...(prev || {}), course_material_includes: value }));
+              setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+                ...(prev || {}),
+                course_material_includes: value,
+              }));
               updateSettings({ course_material_includes: value });
             }}
             placeholder={__(

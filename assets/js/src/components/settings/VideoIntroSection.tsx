@@ -31,7 +31,24 @@ const VideoIntroSection: React.FC = () => {
 
   // Bind Gutenberg composite course_settings for incremental migration (entity prop with fallback)
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
-  const intro: any = ((courseSettings as any)?.intro_video ?? (settings as any)?.intro_video) || {};
+
+  // Strongly-typed helpers
+  const emptyIntro: CourseSettings["intro_video"] = {
+    source: "",
+    source_video_id: 0,
+    source_external_url: "",
+    source_youtube: "",
+    source_vimeo: "",
+    source_embedded: "",
+    source_shortcode: "",
+    poster: "",
+  };
+  const courseSettingsTyped = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
+  const settingsTyped = (settings as CourseSettings | null) || null;
+  const intro: CourseSettings["intro_video"] =
+    (courseSettingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
+    (settingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
+    emptyIntro;
 
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
@@ -46,18 +63,18 @@ const VideoIntroSection: React.FC = () => {
   // Deep-merge helper for intro_video (functional updater + mirrored legacy write during transition)
   const applyIntro = useCallback(
     (updates: Partial<CourseSettings["intro_video"]>) => {
-      setCourseSettings((prev: any) => ({
+      setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
         ...(prev || {}),
-        intro_video: { ...(prev?.intro_video || {}), ...updates },
+        intro_video: { ...((prev?.intro_video as CourseSettings["intro_video"]) || emptyIntro), ...updates },
       }));
-      updateSettings({ intro_video: { ...(intro || {}), ...updates } as any });
+      updateSettings({ intro_video: { ...intro, ...updates } });
     },
     [setCourseSettings, updateSettings, intro]
   );
 
   // Reset by source and clear helpers
   const resetForSource = useCallback(
-    (source: '' | 'html5' | 'youtube' | 'vimeo' | 'external_url' | 'embedded' | 'shortcode') => {
+    (source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode") => {
       setVideoMetaError("");
       applyIntro({
         source,
@@ -138,7 +155,7 @@ const VideoIntroSection: React.FC = () => {
             if (value === "") {
               clearVideo();
             } else {
-              resetForSource(value as '' | 'html5' | 'youtube' | 'vimeo' | 'external_url' | 'embedded' | 'shortcode');
+              resetForSource(value as "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode");
             }
           }}
           disabled={isSaving}
@@ -157,9 +174,7 @@ const VideoIntroSection: React.FC = () => {
                 marginBottom: "8px",
               }}
             >
-              {intro?.source_video_id > 0
-                ? __("Change Video", "tutorpress")
-                : __("Select Video", "tutorpress")}
+              {intro?.source_video_id > 0 ? __("Change Video", "tutorpress") : __("Select Video", "tutorpress")}
             </Button>
             {showVideoDetectionLoading && (
               <div

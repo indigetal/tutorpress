@@ -1,5 +1,5 @@
 import React from "react";
-import { PluginDocumentSettingPanel } from "@wordpress/editor";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { useEntityProp } from "@wordpress/core-data";
@@ -27,7 +27,8 @@ const CourseDetailsPanel: React.FC = () => {
   // Bind Gutenberg composite course_settings for incremental migration
   // Bind directly to the courses post type to avoid transient undefined postType during first render
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
-  const enableQna = (courseSettings as any)?.enable_qna ?? settings.enable_qna;
+  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
+  const enableQna = cs?.enable_qna ?? settings.enable_qna;
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -77,7 +78,7 @@ const CourseDetailsPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <SelectControl
             label={__("Difficulty Level", "tutorpress")}
-            value={(courseSettings as any)?.course_level ?? settings.course_level}
+            value={cs?.course_level ?? settings.course_level}
             options={courseDifficultyLevels}
             onChange={(value: CourseDifficultyLevel) => {
               setCourseSettings((prev: any) => ({ ...(prev || {}), course_level: value }));
@@ -98,7 +99,7 @@ const CourseDetailsPanel: React.FC = () => {
                 ? __("This course is visible to all users", "tutorpress")
                 : __("This course requires enrollment to view", "tutorpress")
             }
-            checked={!!((courseSettings as any)?.is_public_course ?? settings.is_public_course)}
+            checked={!!(cs?.is_public_course ?? settings.is_public_course)}
             onChange={(enabled) => {
               setCourseSettings((prev: any) => ({ ...(prev || {}), is_public_course: !!enabled }));
               updateSettings({ is_public_course: !!enabled });
