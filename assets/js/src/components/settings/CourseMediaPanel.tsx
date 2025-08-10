@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -12,19 +12,24 @@ import VideoIntroSection from "./VideoIntroSection";
 
 const CourseMediaPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading } = useSelect((select: any) => {
-    const s = select("tutorpress/course-settings");
-    const ids = (s.getSettings()?.attachments || []) as number[];
-    const metaStore = select("tutorpress/attachments-meta");
-    return {
-      postType: select("core/editor").getCurrentPostType(),
-      settings: s.getSettings(),
-      error: s.getError(),
-      isLoading: s.getFetchState().isLoading,
-      attachmentsMetadata: metaStore.getAttachmentsMetadata(ids),
-      attachmentsLoading: metaStore.getAttachmentsLoading(),
-    };
-  }, []);
+  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading, attachmentIds } = useSelect(
+    (select: any) => {
+      const s = select("tutorpress/course-settings");
+      const cs = select("core/editor").getEditedPostAttribute("course_settings") || {};
+      const ids = ((cs.attachments as number[]) || []) as number[];
+      const metaStore = select("tutorpress/attachments-meta");
+      return {
+        postType: select("core/editor").getCurrentPostType(),
+        settings: s.getSettings(),
+        error: s.getError(),
+        isLoading: s.getFetchState().isLoading,
+        attachmentsMetadata: metaStore.getAttachmentsMetadata(ids),
+        attachmentsLoading: metaStore.getAttachmentsLoading(),
+        attachmentIds: ids,
+      };
+    },
+    []
+  );
 
   // Get dispatch actions
   const { updateSettings, getSettings } = useDispatch("tutorpress/course-settings");
@@ -36,15 +41,31 @@ const CourseMediaPanel: React.FC = () => {
 
   // Removed legacy hydration on mount; rely on entity-prop/REST lifecycle
 
-  // Compute attachment ids from entity prop with store fallback during transition
-  const entityAttachments: number[] = ((courseSettings as any)?.attachments ?? settings?.attachments ?? []) as number[];
+  // UI ids with write-through to entity; guard against flicker while entity catches up
+  const [uiIds, setUiIds] = useState<number[]>(attachmentIds || []);
+  const lastWriteRef = useRef<number[] | null>(null);
+  useEffect(() => {
+    const entityStr = (attachmentIds || []).join(",");
+    const lastStr = (lastWriteRef.current || []).join(",");
+    const uiStr = (uiIds || []).join(",");
+    if (lastWriteRef.current) {
+      if (entityStr === lastStr && uiStr !== entityStr) {
+        setUiIds(attachmentIds || []);
+        lastWriteRef.current = null;
+      }
+    } else if (uiStr !== entityStr) {
+      setUiIds(attachmentIds || []);
+    }
+  }, [attachmentIds.join(",")]);
+
+  const optimisticMetaById: Record<number, { id: number; filename: string }> = {};
 
   // Fetch attachment metadata when attachments change
   useEffect(() => {
-    if (entityAttachments.length > 0) {
-      fetchAttachmentsMetadata(entityAttachments);
+    if (uiIds.length > 0) {
+      fetchAttachmentsMetadata(uiIds);
     }
-  }, [entityAttachments.join(","), fetchAttachmentsMetadata]);
+  }, [uiIds.join(","), fetchAttachmentsMetadata]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -53,7 +74,7 @@ const CourseMediaPanel: React.FC = () => {
 
   // Course Attachments functions (following Exercise Files pattern)
   const openCourseAttachmentsLibrary = () => {
-    const currentAttachments = entityAttachments || [];
+    const currentAttachments = uiIds || [];
 
     const mediaFrame = (window as any).wp.media({
       title: __("Select Course Attachments", "tutorpress"),
@@ -69,23 +90,28 @@ const CourseMediaPanel: React.FC = () => {
 
       // Combine existing attachments with new ones, avoiding duplicates
       const allAttachmentIds = [...new Set([...currentAttachments, ...newAttachmentIds])];
-      // Dual-write during transition
+      // Write via entity prop; show optimistic ids and fetch metadata
+      setUiIds(allAttachmentIds);
+      lastWriteRef.current = allAttachmentIds;
       setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: allAttachmentIds }));
-      updateSettings({ attachments: allAttachmentIds });
+      // Ensure fetch sees updated ids on next tick
+      setTimeout(() => fetchAttachmentsMetadata(allAttachmentIds), 0);
     });
 
     mediaFrame.open();
   };
 
   const removeCourseAttachment = (attachmentId: number) => {
-    const currentAttachments = entityAttachments || [];
+    const currentAttachments = uiIds || [];
     const updatedAttachments = currentAttachments.filter((id: number) => id !== attachmentId);
-    // Dual-write during transition
+    // Write via entity prop and schedule metadata refresh (remaining ids)
+    setUiIds(updatedAttachments);
+    lastWriteRef.current = updatedAttachments;
     setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: updatedAttachments }));
-    updateSettings({ attachments: updatedAttachments });
+    setTimeout(() => fetchAttachmentsMetadata(updatedAttachments), 0);
   };
 
-  const attachmentCount = entityAttachments?.length || 0;
+  const attachmentCount = uiIds?.length || 0;
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -150,7 +176,7 @@ const CourseMediaPanel: React.FC = () => {
             {/* Display selected files */}
             {attachmentCount > 0 && (
               <div className="tutorpress-saved-files-list">
-                {entityAttachments?.map((attachmentId: number) => {
+                {uiIds?.map((attachmentId: number) => {
                   // Find attachment metadata
                   const attachment = attachmentsMetadata.find((meta: any) => meta.id === attachmentId);
                   const displayName = attachment ? attachment.filename : `File ID: ${attachmentId}`;
