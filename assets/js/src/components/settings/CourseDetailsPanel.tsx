@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -35,6 +35,22 @@ const CourseDetailsPanel: React.FC = () => {
     return null;
   }
 
+  // Calculate total duration display (entity-prop only for course_duration)
+  const totalDuration = cs?.course_duration ?? { hours: 0, minutes: 0 };
+  // Local UI buffers to allow empty/partial input without snapping to 0
+  const [hoursInput, setHoursInput] = useState<string>(String(totalDuration.hours));
+  const [minutesInput, setMinutesInput] = useState<string>(String(totalDuration.minutes));
+
+  // Initialize local inputs once from entity prop (avoid fighting user typing)
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current) {
+      setHoursInput(String(totalDuration.hours));
+      setMinutesInput(String(totalDuration.minutes));
+      initializedRef.current = true;
+    }
+  }, [totalDuration.hours, totalDuration.minutes]);
+
   // Show loading state while fetching settings
   if (isLoading) {
     return (
@@ -51,9 +67,6 @@ const CourseDetailsPanel: React.FC = () => {
       </PluginDocumentSettingPanel>
     );
   }
-
-  // Calculate total duration display
-  const totalDuration = settings.course_duration;
   const hasDuration = totalDuration.hours > 0 || totalDuration.minutes > 0;
   const durationText = hasDuration
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`
@@ -164,15 +177,25 @@ const CourseDetailsPanel: React.FC = () => {
               <TextControl
                 type="number"
                 min="0"
-                value={settings.course_duration.hours.toString()}
-                onChange={(value) =>
-                  updateSettings({
+                value={hoursInput}
+                onChange={(value) => {
+                  setHoursInput(value);
+                }}
+                onBlur={() => {
+                  const hours = Math.max(0, parseInt(hoursInput || "0", 10) || 0);
+                  const minutes = Math.min(
+                    59,
+                    Math.max(0, parseInt(minutesInput || String(totalDuration.minutes), 10) || 0)
+                  );
+                  setHoursInput(String(hours));
+                  setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+                    ...(prev || {}),
                     course_duration: {
-                      ...settings.course_duration,
-                      hours: parseInt(value) || 0,
+                      hours,
+                      minutes,
                     },
-                  })
-                }
+                  }));
+                }}
               />
             </div>
 
@@ -182,15 +205,22 @@ const CourseDetailsPanel: React.FC = () => {
                 type="number"
                 min="0"
                 max="59"
-                value={settings.course_duration.minutes.toString()}
-                onChange={(value) =>
-                  updateSettings({
+                value={minutesInput}
+                onChange={(value) => {
+                  setMinutesInput(value);
+                }}
+                onBlur={() => {
+                  const hours = Math.max(0, parseInt(hoursInput || String(totalDuration.hours), 10) || 0);
+                  const minutes = Math.min(59, Math.max(0, parseInt(minutesInput || "0", 10) || 0));
+                  setMinutesInput(String(minutes));
+                  setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+                    ...(prev || {}),
                     course_duration: {
-                      ...settings.course_duration,
-                      minutes: Math.min(59, parseInt(value) || 0),
+                      hours,
+                      minutes,
                     },
-                  })
-                }
+                  }));
+                }}
               />
             </div>
           </div>
