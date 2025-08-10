@@ -36,13 +36,15 @@ const CourseMediaPanel: React.FC = () => {
 
   // Removed legacy hydration on mount; rely on entity-prop/REST lifecycle
 
+  // Compute attachment ids from entity prop with store fallback during transition
+  const entityAttachments: number[] = ((courseSettings as any)?.attachments ?? settings?.attachments ?? []) as number[];
+
   // Fetch attachment metadata when attachments change
   useEffect(() => {
-    const attachmentIds = settings?.attachments || [];
-    if (attachmentIds.length > 0) {
-      fetchAttachmentsMetadata(attachmentIds);
+    if (entityAttachments.length > 0) {
+      fetchAttachmentsMetadata(entityAttachments);
     }
-  }, [settings?.attachments, fetchAttachmentsMetadata]);
+  }, [entityAttachments.join(","), fetchAttachmentsMetadata]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -51,7 +53,7 @@ const CourseMediaPanel: React.FC = () => {
 
   // Course Attachments functions (following Exercise Files pattern)
   const openCourseAttachmentsLibrary = () => {
-    const currentAttachments = settings?.attachments || [];
+    const currentAttachments = entityAttachments || [];
 
     const mediaFrame = (window as any).wp.media({
       title: __("Select Course Attachments", "tutorpress"),
@@ -67,6 +69,8 @@ const CourseMediaPanel: React.FC = () => {
 
       // Combine existing attachments with new ones, avoiding duplicates
       const allAttachmentIds = [...new Set([...currentAttachments, ...newAttachmentIds])];
+      // Dual-write during transition
+      setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: allAttachmentIds }));
       updateSettings({ attachments: allAttachmentIds });
     });
 
@@ -74,12 +78,14 @@ const CourseMediaPanel: React.FC = () => {
   };
 
   const removeCourseAttachment = (attachmentId: number) => {
-    const currentAttachments = settings?.attachments || [];
+    const currentAttachments = entityAttachments || [];
     const updatedAttachments = currentAttachments.filter((id: number) => id !== attachmentId);
+    // Dual-write during transition
+    setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: updatedAttachments }));
     updateSettings({ attachments: updatedAttachments });
   };
 
-  const attachmentCount = settings?.attachments?.length || 0;
+  const attachmentCount = entityAttachments?.length || 0;
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -144,7 +150,7 @@ const CourseMediaPanel: React.FC = () => {
             {/* Display selected files */}
             {attachmentCount > 0 && (
               <div className="tutorpress-saved-files-list">
-                {settings?.attachments?.map((attachmentId: number) => {
+                {entityAttachments?.map((attachmentId: number) => {
                   // Find attachment metadata
                   const attachment = attachmentsMetadata.find((meta: any) => meta.id === attachmentId);
                   const displayName = attachment ? attachment.filename : `File ID: ${attachmentId}`;
