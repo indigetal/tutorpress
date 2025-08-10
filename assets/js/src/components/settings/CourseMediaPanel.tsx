@@ -12,20 +12,23 @@ import VideoIntroSection from "./VideoIntroSection";
 
 const CourseMediaPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading } = useSelect(
-    (select: any) => ({
+  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading } = useSelect((select: any) => {
+    const s = select("tutorpress/course-settings");
+    const ids = (s.getSettings()?.attachments || []) as number[];
+    const metaStore = select("tutorpress/attachments-meta");
+    return {
       postType: select("core/editor").getCurrentPostType(),
-      settings: select("tutorpress/course-settings").getSettings(),
-      error: select("tutorpress/course-settings").getError(),
-      isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
-      attachmentsMetadata: select("tutorpress/course-settings").getAttachmentsMetadata(),
-      attachmentsLoading: select("tutorpress/course-settings").getAttachmentsLoading(),
-    }),
-    []
-  );
+      settings: s.getSettings(),
+      error: s.getError(),
+      isLoading: s.getFetchState().isLoading,
+      attachmentsMetadata: metaStore.getAttachmentsMetadata(ids),
+      attachmentsLoading: metaStore.getAttachmentsLoading(),
+    };
+  }, []);
 
   // Get dispatch actions
-  const { updateSettings, fetchAttachmentsMetadata, getSettings } = useDispatch("tutorpress/course-settings");
+  const { updateSettings, getSettings } = useDispatch("tutorpress/course-settings");
+  const { fetchAttachmentsMetadata } = useDispatch("tutorpress/attachments-meta");
 
   // Bind Gutenberg composite course_settings for incremental migration
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
