@@ -10,13 +10,7 @@
 import { createReduxStore, register } from "@wordpress/data";
 import { controls } from "@wordpress/data-controls";
 import { select, dispatch as wpDispatch } from "@wordpress/data";
-import type {
-  CourseSettings,
-  PrerequisiteCourse,
-  CourseAttachment,
-  CourseInstructors,
-  InstructorSearchResult,
-} from "../../types/courses";
+import type { CourseSettings, CourseAttachment, CourseInstructors, InstructorSearchResult } from "../../types/courses";
 import { defaultCourseSettings } from "../../types/courses";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
@@ -38,11 +32,7 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
-  courseSelection: {
-    availableCourses: PrerequisiteCourse[];
-    isLoading: boolean;
-    error: string | null;
-  };
+  // prerequisites list moved to dedicated store `tutorpress/prerequisites`
   attachments: {
     metadata: CourseAttachment[];
     isLoading: boolean;
@@ -76,11 +66,7 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
-  courseSelection: {
-    availableCourses: [],
-    isLoading: false,
-    error: null,
-  },
+  // prerequisites list moved to dedicated store `tutorpress/prerequisites`
   attachments: {
     metadata: [],
     isLoading: false,
@@ -111,8 +97,7 @@ const DEFAULT_STATE: State = {
 type CourseSettingsAction =
   | { type: "SET_SETTINGS"; payload: CourseSettings }
   | { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }
-  | { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }
-  | { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }
+  // prerequisites list actions removed (moved to dedicated store)
   | { type: "SET_ATTACHMENTS_METADATA"; payload: CourseAttachment[] }
   | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }
   | { type: "SET_WOOCOMMERCE_PRODUCTS"; payload: any[] }
@@ -140,19 +125,7 @@ const actions = {
     };
   },
 
-  setAvailableCourses(courses: PrerequisiteCourse[]) {
-    return {
-      type: "SET_AVAILABLE_COURSES" as const,
-      payload: courses,
-    };
-  },
-
-  setCourseSelectionState(state: Partial<State["courseSelection"]>) {
-    return {
-      type: "SET_COURSE_SELECTION_STATE" as const,
-      payload: state,
-    };
-  },
+  // prerequisites list actions removed (moved to dedicated store)
 
   setAttachmentsMetadata(attachments: CourseAttachment[]) {
     return {
@@ -475,45 +448,7 @@ const actions = {
     }
   },
 
-  // Fetch available courses for prerequisites dropdown
-  *fetchAvailableCourses(): Generator {
-    try {
-      yield actions.setCourseSelectionState({ isLoading: true, error: null });
-
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
-        throw createCurriculumError(
-          "No course ID available",
-          CurriculumErrorCode.VALIDATION_ERROR,
-          "fetchAvailableCourses",
-          "Failed to get course ID"
-        );
-      }
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/courses/search?exclude=${courseId}&per_page=50&status=publish`,
-          method: "GET",
-        },
-      };
-
-      if (!response.success) {
-        throw createCurriculumError(
-          response.message || "Failed to fetch courses",
-          CurriculumErrorCode.FETCH_FAILED,
-          "fetchAvailableCourses",
-          "API Error"
-        );
-      }
-
-      yield actions.setAvailableCourses(response.data);
-      yield actions.setCourseSelectionState({ isLoading: false, error: null });
-    } catch (error: any) {
-      yield actions.setCourseSelectionState({ isLoading: false, error: error.message });
-      throw error;
-    }
-  },
+  // prerequisites list fetch moved to dedicated store
 
   // Update settings in Gutenberg store and our local state
   *updateSettings(settings: Partial<CourseSettings>): Generator {
@@ -603,15 +538,7 @@ const selectors = {
   getError(state: State) {
     return state.fetchState.error;
   },
-  getAvailableCourses(state: State) {
-    return state.courseSelection.availableCourses;
-  },
-  getCourseSelectionLoading(state: State) {
-    return state.courseSelection.isLoading;
-  },
-  getCourseSelectionError(state: State) {
-    return state.courseSelection.error;
-  },
+  // prerequisites list selectors removed (moved to dedicated store)
   getAttachmentsMetadata(state: State) {
     return state.attachments.metadata;
   },
@@ -928,22 +855,7 @@ const store = createReduxStore("tutorpress/course-settings", {
             ...(action as { type: "SET_FETCH_STATE"; payload: Partial<State["fetchState"]> }).payload,
           },
         };
-      case "SET_AVAILABLE_COURSES":
-        return {
-          ...state,
-          courseSelection: {
-            ...state.courseSelection,
-            availableCourses: (action as { type: "SET_AVAILABLE_COURSES"; payload: PrerequisiteCourse[] }).payload,
-          },
-        };
-      case "SET_COURSE_SELECTION_STATE":
-        return {
-          ...state,
-          courseSelection: {
-            ...state.courseSelection,
-            ...(action as { type: "SET_COURSE_SELECTION_STATE"; payload: Partial<State["courseSelection"]> }).payload,
-          },
-        };
+      // prerequisites list reducer cases removed (moved to dedicated store)
       case "SET_ATTACHMENTS_METADATA":
         return {
           ...state,

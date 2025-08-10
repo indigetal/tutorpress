@@ -139,7 +139,7 @@ const CourseAccessPanel: React.FC = () => {
     const numericId = parseInt(courseId);
     if (isNaN(numericId) || !courseId) return;
 
-    const currentPrereqs: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? []) as number[];
     if (!currentPrereqs.includes(numericId)) {
       const newPrereqs = [...currentPrereqs, numericId];
       setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
@@ -151,7 +151,7 @@ const CourseAccessPanel: React.FC = () => {
   };
 
   const removePrerequisite = async (courseId: number) => {
-    const currentPrereqs: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? []) as number[];
     const updatedPrereqs = currentPrereqs.filter((id: number) => id !== courseId);
     setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
       ...(prev || {}),
@@ -161,7 +161,7 @@ const CourseAccessPanel: React.FC = () => {
   };
 
   // Convert course list to select options
-  const selectedPrereqIds: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
+  const selectedPrereqIds: number[] = (cs?.course_prerequisites ?? []) as number[];
   const courseOptions: CourseOption[] = [
     {
       value: "",
