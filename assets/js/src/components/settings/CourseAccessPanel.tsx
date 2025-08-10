@@ -139,27 +139,36 @@ const CourseAccessPanel: React.FC = () => {
     const numericId = parseInt(courseId);
     if (isNaN(numericId) || !courseId) return;
 
-    const currentPrereqs = settings.course_prerequisites || [];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
     if (!currentPrereqs.includes(numericId)) {
       const newPrereqs = [...currentPrereqs, numericId];
+      setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+        ...(prev || {}),
+        course_prerequisites: newPrereqs,
+      }));
       updateSettings({ course_prerequisites: newPrereqs });
     }
   };
 
   const removePrerequisite = async (courseId: number) => {
-    const currentPrereqs = settings.course_prerequisites || [];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
     const updatedPrereqs = currentPrereqs.filter((id: number) => id !== courseId);
+    setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+      ...(prev || {}),
+      course_prerequisites: updatedPrereqs,
+    }));
     updateSettings({ course_prerequisites: updatedPrereqs });
   };
 
   // Convert course list to select options
+  const selectedPrereqIds: number[] = (cs?.course_prerequisites ?? settings.course_prerequisites ?? []) as number[];
   const courseOptions: CourseOption[] = [
     {
       value: "",
       label: coursesLoading ? __("Loading courses...", "tutorpress") : __("Select a course...", "tutorpress"),
     },
     ...availableCourses
-      .filter((course: Course) => !(settings.course_prerequisites || []).includes(course.id))
+      .filter((course: Course) => !selectedPrereqIds.includes(course.id))
       .map((course: Course) => ({
         value: course.id.toString(),
         label: course.title,
@@ -167,7 +176,7 @@ const CourseAccessPanel: React.FC = () => {
   ];
 
   // Get selected prerequisites with course details
-  const selectedPrerequisitesWithDetails = (settings.course_prerequisites || [])
+  const selectedPrerequisitesWithDetails = (selectedPrereqIds || [])
     .map((id: number) => availableCourses.find((course: Course) => course.id === id))
     .filter((course: Course | undefined): course is Course => course !== undefined);
 
