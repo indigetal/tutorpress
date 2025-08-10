@@ -69,15 +69,16 @@ const CourseAccessPanel: React.FC = () => {
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       courseId: select("core/editor").getCurrentPostId(),
-      availableCourses: select("tutorpress/course-settings").getAvailableCourses(),
-      coursesLoading: select("tutorpress/course-settings").getCourseSelectionLoading(),
-      coursesError: select("tutorpress/course-settings").getCourseSelectionError(),
+      availableCourses: select("tutorpress/prerequisites").getAvailableCourses(),
+      coursesLoading: select("tutorpress/prerequisites").getCourseSelectionLoading(),
+      coursesError: select("tutorpress/prerequisites").getCourseSelectionError(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { updateSettings, fetchAvailableCourses } = useDispatch("tutorpress/course-settings");
+  const { updateSettings } = useDispatch("tutorpress/course-settings");
+  const { fetchAvailableCourses } = useDispatch("tutorpress/prerequisites");
 
   // Bind Gutenberg composite course_settings for incremental migration
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");

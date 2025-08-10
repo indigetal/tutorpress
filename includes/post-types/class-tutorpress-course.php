@@ -275,7 +275,22 @@ class TutorPress_Course {
                 'description' => __( 'Course intro video', 'tutorpress' ),
                 'single' => true,
                 'auth_callback' => [ $this, 'post_meta_auth_callback' ],
-                'show_in_rest' => true,
+                // Expose full schema so REST API returns meta._video reliably
+                'show_in_rest' => [
+                    'schema' => [
+                        'type'       => 'object',
+                        'properties' => [
+                            'source'              => [ 'type' => 'string' ],
+                            'source_video_id'     => [ 'type' => 'integer' ],
+                            'source_youtube'      => [ 'type' => 'string' ],
+                            'source_vimeo'        => [ 'type' => 'string' ],
+                            'source_external_url' => [ 'type' => 'string' ],
+                            'source_embedded'     => [ 'type' => 'string' ],
+                            'source_shortcode'    => [ 'type' => 'string' ],
+                            'poster'              => [ 'type' => 'string' ],
+                        ],
+                    ],
+                ],
             ],
             '_tutor_course_attachments' => [
                 'type' => 'array',
@@ -345,6 +360,8 @@ class TutorPress_Course {
      */
     public function add_author_support() {
         add_post_type_support( $this->token, 'author' );
+        // Ensure meta appears under the REST 'meta' field for this post type
+        add_post_type_support( $this->token, 'custom-fields' );
 
         // Register REST API fields for course settings
         register_rest_field( $this->token, 'course_settings', [
@@ -811,6 +828,13 @@ class TutorPress_Course {
             update_post_meta($post_id, '_tutor_enrollment_status', $pause_str);
             $existing_tutor_settings['pause_enrollment'] = $pause_str;
             $existing_tutor_settings['enrollment_status'] = $pause_str;
+        }
+
+        // course_prerequisites (ids array) → _tutor_course_prerequisites_ids and _tutor_course_settings
+        if (array_key_exists('course_prerequisites', $value)) {
+            $ids = is_array($value['course_prerequisites']) ? array_map('absint', $value['course_prerequisites']) : [];
+            update_post_meta($post_id, '_tutor_course_prerequisites_ids', $ids);
+            $existing_tutor_settings['course_prerequisites'] = $ids;
         }
 
         // Persist merged Tutor settings
