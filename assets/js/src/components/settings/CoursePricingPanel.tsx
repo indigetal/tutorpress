@@ -251,22 +251,18 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle price change
   const handlePriceChange = (value: string) => {
-    if (settings) {
-      updateSettings({
-        ...settings,
-        price: parseFloat(value) || 0,
-      });
-    }
+    const raw = parseFloat(value);
+    const price = isNaN(raw) || raw < 0 ? 0 : raw;
+    setCourseSettings({ ...(courseSettings || {}), price } as any);
   };
 
   // Handle sale price change
   const handleSalePriceChange = (value: string) => {
-    if (settings) {
-      updateSettings({
-        ...settings,
-        sale_price: parseFloat(value) || 0,
-      });
-    }
+    const raw = parseFloat(value);
+    let sale_price = isNaN(raw) || raw < 0 ? 0 : raw;
+    const currentPrice = Number((courseSettings as any)?.price ?? (settings as any)?.price ?? 0) || 0;
+    if (sale_price >= currentPrice) sale_price = 0;
+    setCourseSettings({ ...(courseSettings || {}), sale_price } as any);
   };
 
   // Handle purchase option change
@@ -298,32 +294,17 @@ const CoursePricingPanel: React.FC = () => {
             // Validate price data before updating
             const regularPrice = parseFloat(productDetails.regular_price);
             const salePrice = parseFloat(productDetails.sale_price);
-
-            if (isNaN(regularPrice) || regularPrice < 0) {
-              console.warn("Invalid regular price received from WooCommerce product:", productDetails.regular_price);
-              updatedSettings.price = 0;
-            } else {
-              updatedSettings.price = regularPrice;
-            }
-
-            if (isNaN(salePrice) || salePrice < 0) {
-              console.warn("Invalid sale price received from WooCommerce product:", productDetails.sale_price);
-              updatedSettings.sale_price = 0;
-            } else {
-              updatedSettings.sale_price = salePrice;
-            }
-
-            // Validate sale price is not greater than regular price
-            if (updatedSettings.sale_price > 0 && updatedSettings.sale_price >= updatedSettings.price) {
-              console.warn("Sale price cannot be greater than or equal to regular price. Resetting sale price.");
-              updatedSettings.sale_price = 0;
+            let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
+            let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
+            if (sale_price >= price) sale_price = 0;
+            // Last-write guard: ensure current entity still matches chosen id
+            const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+            if ((current?.woocommerce_product_id || "") === chosenId) {
+              setCourseSettings({ ...(current || {}), price, sale_price } as any);
             }
           } else {
             console.warn("No product details received for product ID:", productId);
           }
-          // Last-write guard: ensure current entity still matches chosen id
-          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
-          if ((current?.woocommerce_product_id || "") !== chosenId) return;
         } catch (error) {
           console.error("Error fetching WooCommerce product details:", error);
           // Show user-friendly error message
@@ -334,8 +315,7 @@ const CoursePricingPanel: React.FC = () => {
         }
       } else {
         // Reset prices when no product is selected
-        updatedSettings.price = 0;
-        updatedSettings.sale_price = 0;
+        setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
       }
 
       updateSettings(updatedSettings);
@@ -364,32 +344,17 @@ const CoursePricingPanel: React.FC = () => {
             // Validate price data before updating
             const regularPrice = parseFloat(productDetails.regular_price);
             const salePrice = parseFloat(productDetails.sale_price);
-
-            if (isNaN(regularPrice) || regularPrice < 0) {
-              console.warn("Invalid regular price received from EDD product:", productDetails.regular_price);
-              updatedSettings.price = 0;
-            } else {
-              updatedSettings.price = regularPrice;
-            }
-
-            if (isNaN(salePrice) || salePrice < 0) {
-              console.warn("Invalid sale price received from EDD product:", productDetails.sale_price);
-              updatedSettings.sale_price = 0;
-            } else {
-              updatedSettings.sale_price = salePrice;
-            }
-
-            // Validate sale price is not greater than regular price
-            if (updatedSettings.sale_price > 0 && updatedSettings.sale_price >= updatedSettings.price) {
-              console.warn("Sale price cannot be greater than or equal to regular price. Resetting sale price.");
-              updatedSettings.sale_price = 0;
+            let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
+            let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
+            if (sale_price >= price) sale_price = 0;
+            // Last-write guard: ensure current entity still matches chosen id
+            const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+            if ((current?.edd_product_id || "") === chosenId) {
+              setCourseSettings({ ...(current || {}), price, sale_price } as any);
             }
           } else {
             console.warn("No product details received for product ID:", productId);
           }
-          // Last-write guard: ensure current entity still matches chosen id
-          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
-          if ((current?.edd_product_id || "") !== chosenId) return;
         } catch (error) {
           console.error("Error fetching EDD product details:", error);
           // Show user-friendly error message
@@ -398,8 +363,7 @@ const CoursePricingPanel: React.FC = () => {
         }
       } else {
         // Reset prices when no product is selected
-        updatedSettings.price = 0;
-        updatedSettings.sale_price = 0;
+        setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
       }
 
       updateSettings(updatedSettings);
@@ -588,7 +552,7 @@ const CoursePricingPanel: React.FC = () => {
                 type="number"
                 min="0"
                 step="0.01"
-                value={settings?.price?.toString() || "0"}
+                value={((courseSettings as any)?.price ?? (settings as any)?.price ?? 0).toString()}
                 onChange={handlePriceChange}
               />
             </div>
@@ -602,7 +566,7 @@ const CoursePricingPanel: React.FC = () => {
                 type="number"
                 min="0"
                 step="0.01"
-                value={settings?.sale_price?.toString() || "0"}
+                value={((courseSettings as any)?.sale_price ?? (settings as any)?.sale_price ?? 0).toString()}
                 onChange={handleSalePriceChange}
               />
             </div>
