@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
-import { useSelect, useDispatch } from "@wordpress/data";
+import { useSelect, useDispatch, select as wpSelect } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
 import { plus, edit } from "@wordpress/icons";
 import { useEntityProp } from "@wordpress/core-data";
@@ -54,13 +54,13 @@ const CoursePricingPanel: React.FC = () => {
   const { fetchWooProducts, fetchWooProductDetails, fetchEddProducts, fetchEddProductDetails } =
     useDispatch("tutorpress/commerce");
 
-  // Entity prop for canonical course settings (Step 3a: simple fields only)
+  // Entity-prop for course settings (Step 3b: product ids only)
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
 
-  // Dual-write helper: mirror updates for simple fields back to legacy store snapshot
-  const mirrorLegacySimple = (partial: Partial<CourseSettings>) => {
-    const legacySnapshot: CourseSettings = { ...(settings || {}), ...(partial as any) } as CourseSettings;
-    updateSettings(legacySnapshot);
+  // Dual-write mirror to legacy store during migration
+  const mirrorLegacy = (partial: Partial<CourseSettings>) => {
+    const snapshot: CourseSettings = { ...(courseSettings || {}), ...(partial as any) } as CourseSettings;
+    updateSettings(snapshot);
   };
 
   // Modal state
@@ -103,6 +103,7 @@ const CoursePricingPanel: React.FC = () => {
       fetchWooProducts({
         course_id: postId,
         per_page: 50,
+        exclude_linked_products: false,
       });
     }
   }, [postId, fetchWooProducts]);
@@ -113,14 +114,42 @@ const CoursePricingPanel: React.FC = () => {
       fetchEddProducts({
         course_id: postId,
         per_page: 50,
+        exclude_linked_products: false,
       });
     }
   }, [postId, fetchEddProducts]);
 
+  // Seed entity product ids from legacy on mount when missing
+  useEffect(() => {
+    if (isWooCommerceMonetization()) {
+      const entityId = (courseSettings as any)?.woocommerce_product_id || "";
+      const legacyId = (settings as any)?.woocommerce_product_id || "";
+      if (!entityId && legacyId) {
+        const id = String(legacyId);
+        setCourseSettings({ ...(courseSettings || {}), woocommerce_product_id: id } as any);
+      }
+    }
+  }, [
+    isWooCommerceMonetization(),
+    (courseSettings as any)?.woocommerce_product_id,
+    (settings as any)?.woocommerce_product_id,
+  ]);
+
+  useEffect(() => {
+    if (isEddMonetization()) {
+      const entityId = (courseSettings as any)?.edd_product_id || "";
+      const legacyId = (settings as any)?.edd_product_id || "";
+      if (!entityId && legacyId) {
+        const id = String(legacyId);
+        setCourseSettings({ ...(courseSettings || {}), edd_product_id: id } as any);
+      }
+    }
+  }, [isEddMonetization(), (courseSettings as any)?.edd_product_id, (settings as any)?.edd_product_id]);
+
   // Validate EDD product selection when products are loaded
   useEffect(() => {
-    if (isEddMonetization() && settings?.edd_product_id && eddProducts && !eddLoading) {
-      const selectedProductId = settings.edd_product_id;
+    if (isEddMonetization() && (courseSettings as any)?.edd_product_id && eddProducts && !eddLoading) {
+      const selectedProductId = (courseSettings as any).edd_product_id;
       const productExists = eddProducts.some((product: any) => product.ID === selectedProductId);
       if (!productExists) {
         // Product not in dropdown - could be linked to current course or truly unavailable
@@ -128,12 +157,17 @@ const CoursePricingPanel: React.FC = () => {
         console.warn("Selected EDD product not in dropdown - may be linked to current course");
       }
     }
-  }, [settings?.edd_product_id, eddProducts, eddLoading]);
+  }, [(courseSettings as any)?.edd_product_id, eddProducts, eddLoading]);
 
   // Validate WooCommerce product selection when products are loaded
   useEffect(() => {
-    if (isWooCommerceMonetization() && settings?.woocommerce_product_id && woocommerceProducts && !woocommerceLoading) {
-      const selectedProductId = settings.woocommerce_product_id;
+    if (
+      isWooCommerceMonetization() &&
+      (courseSettings as any)?.woocommerce_product_id &&
+      woocommerceProducts &&
+      !woocommerceLoading
+    ) {
+      const selectedProductId = (courseSettings as any).woocommerce_product_id;
       const productExists = woocommerceProducts.some((product: WcProduct) => product.ID === selectedProductId);
       if (!productExists) {
         // Product not in dropdown - could be linked to current course or truly unavailable
@@ -141,7 +175,36 @@ const CoursePricingPanel: React.FC = () => {
         console.warn("Selected WooCommerce product not in dropdown - may be linked to current course");
       }
     }
-  }, [settings?.woocommerce_product_id, woocommerceProducts, woocommerceLoading]);
+  }, [(courseSettings as any)?.woocommerce_product_id, woocommerceProducts, woocommerceLoading]);
+
+  // Build options with synthetic entry for the active engine when needed
+  const wooSelectedId = String((courseSettings as any)?.woocommerce_product_id || "");
+  const wooOptions = useMemo(() => {
+    const base = [
+      { label: __("Select a product", "tutorpress"), value: "" },
+      ...(woocommerceProducts || []).map((p: WcProduct) => ({ label: p.post_title, value: String(p.ID) })),
+    ];
+    if (
+      isWooCommerceMonetization() &&
+      wooSelectedId &&
+      !(woocommerceProducts || []).some((p: WcProduct) => String(p.ID) === wooSelectedId)
+    ) {
+      base.splice(1, 0, { label: `#${wooSelectedId}`, value: wooSelectedId });
+    }
+    return base;
+  }, [woocommerceProducts, wooSelectedId, isWooCommerceMonetization()]);
+
+  const eddSelectedId = String((courseSettings as any)?.edd_product_id || "");
+  const eddOptions = useMemo(() => {
+    const base = [
+      { label: __("Select a product", "tutorpress"), value: "" },
+      ...(eddProducts || []).map((p: any) => ({ label: p.post_title, value: String(p.ID) })),
+    ];
+    if (isEddMonetization() && eddSelectedId && !(eddProducts || []).some((p: any) => String(p.ID) === eddSelectedId)) {
+      base.splice(1, 0, { label: `#${eddSelectedId}`, value: eddSelectedId });
+    }
+    return base;
+  }, [eddProducts, eddSelectedId, isEddMonetization()]);
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -167,19 +230,23 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle pricing model change
   const handlePricingModelChange = (value: string) => {
-    // Update entity for simple fields
-    setCourseSettings((prev: Partial<CourseSettings>) => ({
-      ...(prev || {}),
-      pricing_model: value,
-      is_free: value === "free",
-    }));
-    // Mirror to legacy and handle price resets in legacy (prices not migrated yet)
-    const legacyPartial: Partial<CourseSettings> = {
-      pricing_model: value,
-      is_free: value === "free",
-      ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
-    };
-    mirrorLegacySimple(legacyPartial);
+    if (settings) {
+      updateSettings({
+        ...settings,
+        pricing_model: value,
+        is_free: value === "free",
+        // Set defaults when switching to paid (matching Tutor LMS defaults)
+        ...(value === "paid" && {
+          price: 10,
+          sale_price: 0,
+        }),
+        // Reset price fields when switching to free
+        ...(value === "free" && {
+          price: 0,
+          sale_price: 0,
+        }),
+      });
+    }
   };
 
   // Handle price change
@@ -204,30 +271,29 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle purchase option change
   const handlePurchaseOptionChange = (value: string) => {
-    const subscription_enabled = value === "subscription" || value === "both" || value === "all";
-    // Update entity
-    setCourseSettings((prev: Partial<CourseSettings>) => ({
-      ...(prev || {}),
-      selling_option: value,
-      subscription_enabled,
-    }));
-    // Mirror to legacy
-    mirrorLegacySimple({ selling_option: value, subscription_enabled });
+    if (settings) {
+      updateSettings({
+        ...settings,
+        selling_option: value,
+        // Let the backend derive subscription_enabled from selling_option
+        subscription_enabled: value === "subscription" || value === "both" || value === "all",
+      });
+    }
   };
 
   // Handle WooCommerce product selection
   const handleWooCommerceProductChange = async (productId: string) => {
     if (settings) {
       // Update the product ID
-      const updatedSettings = {
-        ...settings,
-        woocommerce_product_id: productId,
-      };
+      const id = String(productId || "");
+      setCourseSettings({ ...(courseSettings || {}), woocommerce_product_id: id } as any);
+      const updatedSettings = { ...settings, woocommerce_product_id: id } as any;
 
       // If a product is selected, fetch its details and sync prices
-      if (productId) {
+      if (id) {
         try {
-          const productDetails = await fetchWooProductDetails(productId, postId);
+          const chosenId = id;
+          const productDetails = await fetchWooProductDetails(chosenId, postId);
           if (productDetails) {
             // Validate price data before updating
             const regularPrice = parseFloat(productDetails.regular_price);
@@ -255,6 +321,9 @@ const CoursePricingPanel: React.FC = () => {
           } else {
             console.warn("No product details received for product ID:", productId);
           }
+          // Last-write guard: ensure current entity still matches chosen id
+          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+          if ((current?.woocommerce_product_id || "") !== chosenId) return;
         } catch (error) {
           console.error("Error fetching WooCommerce product details:", error);
           // Show user-friendly error message
@@ -282,15 +351,15 @@ const CoursePricingPanel: React.FC = () => {
   const handleEddProductChange = async (productId: string) => {
     if (settings) {
       // Update the product ID
-      const updatedSettings = {
-        ...settings,
-        edd_product_id: productId,
-      };
+      const id = String(productId || "");
+      setCourseSettings({ ...(courseSettings || {}), edd_product_id: id } as any);
+      const updatedSettings = { ...settings, edd_product_id: id } as any;
 
       // If a product is selected, fetch its details and sync prices
-      if (productId) {
+      if (id) {
         try {
-          const productDetails = await fetchEddProductDetails(productId, postId);
+          const chosenId = id;
+          const productDetails = await fetchEddProductDetails(chosenId, postId);
           if (productDetails) {
             // Validate price data before updating
             const regularPrice = parseFloat(productDetails.regular_price);
@@ -318,6 +387,9 @@ const CoursePricingPanel: React.FC = () => {
           } else {
             console.warn("No product details received for product ID:", productId);
           }
+          // Last-write guard: ensure current entity still matches chosen id
+          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+          if ((current?.edd_product_id || "") !== chosenId) return;
         } catch (error) {
           console.error("Error fetching EDD product details:", error);
           // Show user-friendly error message
@@ -340,16 +412,13 @@ const CoursePricingPanel: React.FC = () => {
   };
 
   // Check if purchase options should be shown
-  const currentPricingModel = (courseSettings as any)?.pricing_model ?? settings?.pricing_model;
-  const currentSellingOption = (courseSettings as any)?.selling_option ?? settings?.selling_option;
-
   const shouldShowPurchaseOptions =
-    currentPricingModel === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
+    settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
 
   // Helper function to determine if price fields should be shown
   const shouldShowPriceFields = () => {
     // Don't show if pricing model is not "paid" or monetization is disabled
-    if (currentPricingModel !== "paid" || !isMonetizationEnabled()) {
+    if (settings?.pricing_model !== "paid" || !isMonetizationEnabled()) {
       return false;
     }
 
@@ -369,7 +438,7 @@ const CoursePricingPanel: React.FC = () => {
     }
 
     // If subscription addon is enabled, show based on selling option
-    const sellingOption = currentSellingOption || "one_time";
+    const sellingOption = settings?.selling_option || "one_time";
     return ["one_time", "both", "all"].includes(sellingOption);
   };
 
@@ -427,7 +496,7 @@ const CoursePricingPanel: React.FC = () => {
         <RadioControl
           label={__("Pricing Type", "tutorpress")}
           help={__("Choose whether this course is free or paid.", "tutorpress")}
-          selected={currentPricingModel || "free"}
+          selected={settings?.pricing_model || "free"}
           options={[
             {
               label: __("Free", "tutorpress"),
@@ -448,7 +517,7 @@ const CoursePricingPanel: React.FC = () => {
       </PanelRow>
 
       {/* WooCommerce Product Selector - Only show when WooCommerce monetization is active and course is paid */}
-      {isWooCommerceMonetization() && currentPricingModel === "paid" && (
+      {isWooCommerceMonetization() && settings?.pricing_model === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("WooCommerce Product", "tutorpress")}
@@ -456,17 +525,8 @@ const CoursePricingPanel: React.FC = () => {
               "Select a WooCommerce product to link to this course. The product's price will automatically sync to this course. Only products not already linked to other courses are shown.",
               "tutorpress"
             )}
-            value={settings?.woocommerce_product_id || ""}
-            options={[
-              {
-                label: __("Select a product", "tutorpress"),
-                value: "",
-              },
-              ...(woocommerceProducts || []).map((product: WcProduct) => ({
-                label: product.post_title,
-                value: product.ID,
-              })),
-            ]}
+            value={wooSelectedId}
+            options={wooOptions as any}
             onChange={handleWooCommerceProductChange}
             disabled={woocommerceLoading}
           />
@@ -481,7 +541,7 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* EDD Product Selector - Only show when EDD monetization is active and course is paid */}
-      {isEddMonetization() && currentPricingModel === "paid" && (
+      {isEddMonetization() && settings?.pricing_model === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("EDD Product", "tutorpress")}
@@ -489,17 +549,8 @@ const CoursePricingPanel: React.FC = () => {
               "Select an EDD product to link to this course. The product's price will automatically sync to this course. Only products not already linked to other courses are shown.",
               "tutorpress"
             )}
-            value={settings?.edd_product_id || ""}
-            options={[
-              {
-                label: __("Select a product", "tutorpress"),
-                value: "",
-              },
-              ...(eddProducts || []).map((product: any) => ({
-                label: product.post_title,
-                value: product.ID,
-              })),
-            ]}
+            value={eddSelectedId}
+            options={eddOptions as any}
             onChange={handleEddProductChange}
             disabled={eddLoading}
           />
@@ -519,7 +570,7 @@ const CoursePricingPanel: React.FC = () => {
           <SelectControl
             label={__("Purchase Options", "tutorpress")}
             help={__("Choose how this course can be purchased.", "tutorpress")}
-            value={currentSellingOption || "one_time"}
+            value={settings?.selling_option || "one_time"}
             options={getPurchaseOptions()}
             onChange={handlePurchaseOptionChange}
           />
@@ -560,12 +611,12 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* Subscription Section - Show based on purchase option selection */}
-      {currentPricingModel === "paid" &&
+      {settings?.pricing_model === "paid" &&
         isMonetizationEnabled() &&
         isSubscriptionEnabled() &&
-        (currentSellingOption === "subscription" ||
-          currentSellingOption === "both" ||
-          currentSellingOption === "all") && (
+        (settings?.selling_option === "subscription" ||
+          settings?.selling_option === "both" ||
+          settings?.selling_option === "all") && (
           <PanelRow>
             <div className="subscription-section">
               {/* Existing Plans List */}
