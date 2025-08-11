@@ -4,6 +4,7 @@ import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
 import { plus, edit } from "@wordpress/icons";
+import { useEntityProp } from "@wordpress/core-data";
 
 // Import course settings types
 import type { CourseSettings, WcProduct } from "../../types/courses";
@@ -52,6 +53,15 @@ const CoursePricingPanel: React.FC = () => {
   const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
   const { fetchWooProducts, fetchWooProductDetails, fetchEddProducts, fetchEddProductDetails } =
     useDispatch("tutorpress/commerce");
+
+  // Entity prop for canonical course settings (Step 3a: simple fields only)
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+
+  // Dual-write helper: mirror updates for simple fields back to legacy store snapshot
+  const mirrorLegacySimple = (partial: Partial<CourseSettings>) => {
+    const legacySnapshot: CourseSettings = { ...(settings || {}), ...(partial as any) } as CourseSettings;
+    updateSettings(legacySnapshot);
+  };
 
   // Modal state
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
@@ -157,23 +167,19 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle pricing model change
   const handlePricingModelChange = (value: string) => {
-    if (settings) {
-      updateSettings({
-        ...settings,
-        pricing_model: value,
-        is_free: value === "free",
-        // Set defaults when switching to paid (matching Tutor LMS defaults)
-        ...(value === "paid" && {
-          price: 10,
-          sale_price: 0,
-        }),
-        // Reset price fields when switching to free
-        ...(value === "free" && {
-          price: 0,
-          sale_price: 0,
-        }),
-      });
-    }
+    // Update entity for simple fields
+    setCourseSettings((prev: Partial<CourseSettings>) => ({
+      ...(prev || {}),
+      pricing_model: value,
+      is_free: value === "free",
+    }));
+    // Mirror to legacy and handle price resets in legacy (prices not migrated yet)
+    const legacyPartial: Partial<CourseSettings> = {
+      pricing_model: value,
+      is_free: value === "free",
+      ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
+    };
+    mirrorLegacySimple(legacyPartial);
   };
 
   // Handle price change
@@ -198,14 +204,15 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle purchase option change
   const handlePurchaseOptionChange = (value: string) => {
-    if (settings) {
-      updateSettings({
-        ...settings,
-        selling_option: value,
-        // Let the backend derive subscription_enabled from selling_option
-        subscription_enabled: value === "subscription" || value === "both" || value === "all",
-      });
-    }
+    const subscription_enabled = value === "subscription" || value === "both" || value === "all";
+    // Update entity
+    setCourseSettings((prev: Partial<CourseSettings>) => ({
+      ...(prev || {}),
+      selling_option: value,
+      subscription_enabled,
+    }));
+    // Mirror to legacy
+    mirrorLegacySimple({ selling_option: value, subscription_enabled });
   };
 
   // Handle WooCommerce product selection
@@ -333,13 +340,16 @@ const CoursePricingPanel: React.FC = () => {
   };
 
   // Check if purchase options should be shown
+  const currentPricingModel = (courseSettings as any)?.pricing_model ?? settings?.pricing_model;
+  const currentSellingOption = (courseSettings as any)?.selling_option ?? settings?.selling_option;
+
   const shouldShowPurchaseOptions =
-    settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
+    currentPricingModel === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
 
   // Helper function to determine if price fields should be shown
   const shouldShowPriceFields = () => {
     // Don't show if pricing model is not "paid" or monetization is disabled
-    if (settings?.pricing_model !== "paid" || !isMonetizationEnabled()) {
+    if (currentPricingModel !== "paid" || !isMonetizationEnabled()) {
       return false;
     }
 
@@ -359,7 +369,7 @@ const CoursePricingPanel: React.FC = () => {
     }
 
     // If subscription addon is enabled, show based on selling option
-    const sellingOption = settings?.selling_option || "one_time";
+    const sellingOption = currentSellingOption || "one_time";
     return ["one_time", "both", "all"].includes(sellingOption);
   };
 
@@ -417,7 +427,7 @@ const CoursePricingPanel: React.FC = () => {
         <RadioControl
           label={__("Pricing Type", "tutorpress")}
           help={__("Choose whether this course is free or paid.", "tutorpress")}
-          selected={settings?.pricing_model || "free"}
+          selected={currentPricingModel || "free"}
           options={[
             {
               label: __("Free", "tutorpress"),
@@ -438,7 +448,7 @@ const CoursePricingPanel: React.FC = () => {
       </PanelRow>
 
       {/* WooCommerce Product Selector - Only show when WooCommerce monetization is active and course is paid */}
-      {isWooCommerceMonetization() && settings?.pricing_model === "paid" && (
+      {isWooCommerceMonetization() && currentPricingModel === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("WooCommerce Product", "tutorpress")}
@@ -471,7 +481,7 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* EDD Product Selector - Only show when EDD monetization is active and course is paid */}
-      {isEddMonetization() && settings?.pricing_model === "paid" && (
+      {isEddMonetization() && currentPricingModel === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("EDD Product", "tutorpress")}
@@ -509,7 +519,7 @@ const CoursePricingPanel: React.FC = () => {
           <SelectControl
             label={__("Purchase Options", "tutorpress")}
             help={__("Choose how this course can be purchased.", "tutorpress")}
-            value={settings?.selling_option || "one_time"}
+            value={currentSellingOption || "one_time"}
             options={getPurchaseOptions()}
             onChange={handlePurchaseOptionChange}
           />
@@ -550,12 +560,12 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* Subscription Section - Show based on purchase option selection */}
-      {settings?.pricing_model === "paid" &&
+      {currentPricingModel === "paid" &&
         isMonetizationEnabled() &&
         isSubscriptionEnabled() &&
-        (settings?.selling_option === "subscription" ||
-          settings?.selling_option === "both" ||
-          settings?.selling_option === "all") && (
+        (currentSellingOption === "subscription" ||
+          currentSellingOption === "both" ||
+          currentSellingOption === "all") && (
           <PanelRow>
             <div className="subscription-section">
               {/* Existing Plans List */}
