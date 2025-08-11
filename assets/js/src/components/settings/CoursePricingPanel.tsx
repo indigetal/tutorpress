@@ -39,10 +39,10 @@ const CoursePricingPanel: React.FC = () => {
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans(),
       subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
-      woocommerceProducts: select("tutorpress/course-settings").getWooCommerceProducts(),
-      woocommerceLoading: select("tutorpress/course-settings").getWooCommerceLoading(),
-      eddProducts: select("tutorpress/course-settings").getEddProducts(),
-      eddLoading: select("tutorpress/course-settings").getEddLoading(),
+      woocommerceProducts: select("tutorpress/commerce").getWooProducts(),
+      woocommerceLoading: select("tutorpress/commerce").getWooLoading(),
+      eddProducts: select("tutorpress/commerce").getEddProducts(),
+      eddLoading: select("tutorpress/commerce").getEddLoading(),
     }),
     []
   );
@@ -50,8 +50,8 @@ const CoursePricingPanel: React.FC = () => {
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
   const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
-  const { fetchWooCommerceProducts, fetchWooCommerceProductDetails, fetchEddProducts, fetchEddProductDetails } =
-    useDispatch("tutorpress/course-settings");
+  const { fetchWooProducts, fetchWooProductDetails, fetchEddProducts, fetchEddProductDetails } =
+    useDispatch("tutorpress/commerce");
 
   // Modal state
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
@@ -90,12 +90,12 @@ const CoursePricingPanel: React.FC = () => {
   // Fetch WooCommerce products when component mounts and WooCommerce is active
   useEffect(() => {
     if (postId && isWooCommerceMonetization()) {
-      fetchWooCommerceProducts({
+      fetchWooProducts({
         course_id: postId,
         per_page: 50,
       });
     }
-  }, [postId, fetchWooCommerceProducts]);
+  }, [postId, fetchWooProducts]);
 
   // Fetch EDD products when component mounts and EDD monetization is active
   useEffect(() => {
@@ -220,7 +220,7 @@ const CoursePricingPanel: React.FC = () => {
       // If a product is selected, fetch its details and sync prices
       if (productId) {
         try {
-          const productDetails = await fetchWooCommerceProductDetails(productId, postId);
+          const productDetails = await fetchWooProductDetails(productId, postId);
           if (productDetails) {
             // Validate price data before updating
             const regularPrice = parseFloat(productDetails.regular_price);
