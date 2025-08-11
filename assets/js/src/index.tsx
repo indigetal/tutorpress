@@ -100,6 +100,7 @@ import "./store/subscriptions";
 import "./store/course-bundles";
 import "./store/attachments-meta";
 import "./store/prerequisites";
+import "./store/commerce";
 
 // Proactively hydrate course settings only when editor has a valid course context
 try {
