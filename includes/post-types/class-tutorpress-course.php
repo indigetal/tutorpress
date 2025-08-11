@@ -690,8 +690,8 @@ class TutorPress_Course {
             'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
             'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
             'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
-            'woocommerce_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
-            'edd_product_id' => get_post_meta($post_id, '_tutor_course_product_id', true) ?: '',
+            'woocommerce_product_id' => TutorPress_Addon_Checker::is_woocommerce_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
+            'edd_product_id' => TutorPress_Addon_Checker::is_edd_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
             'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
             
             // Course Instructors Section: Read from individual Tutor LMS meta fields
@@ -795,6 +795,21 @@ class TutorPress_Course {
         if (isset($value['selling_option'])) {
             $selling_option = $value['selling_option'];
             $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+        }
+        
+        // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
+        if (isset($value['woocommerce_product_id']) || isset($value['edd_product_id'])) {
+            $active_product_id = '';
+            
+            // Determine which product ID should be active based on monetization engine
+            if (isset($value['woocommerce_product_id']) && TutorPress_Addon_Checker::is_woocommerce_monetization()) {
+                $active_product_id = $value['woocommerce_product_id'];
+            } elseif (isset($value['edd_product_id']) && TutorPress_Addon_Checker::is_edd_monetization()) {
+                $active_product_id = $value['edd_product_id'];
+            }
+            
+            // Save the active product ID to the shared meta field
+            $results[] = update_post_meta($post_id, '_tutor_course_product_id', $active_product_id);
         }
         
         // --- Ensure Tutor settings mirror for Access & Enrollment even if updated_post_meta paths don't fire ---
@@ -1418,6 +1433,21 @@ class TutorPress_Course {
             if (isset($meta_value['selling_option'])) {
                 $selling_option = $meta_value['selling_option'];
                 update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+            }
+            
+            // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
+            if (isset($meta_value['woocommerce_product_id']) || isset($meta_value['edd_product_id'])) {
+                $active_product_id = '';
+                
+                // Determine which product ID should be active based on monetization engine
+                if (isset($meta_value['woocommerce_product_id']) && TutorPress_Addon_Checker::is_woocommerce_monetization()) {
+                    $active_product_id = $meta_value['woocommerce_product_id'];
+                } elseif (isset($meta_value['edd_product_id']) && TutorPress_Addon_Checker::is_edd_monetization()) {
+                    $active_product_id = $meta_value['edd_product_id'];
+                }
+                
+                // Save the active product ID to the shared meta field
+                update_post_meta($post_id, '_tutor_course_product_id', $active_product_id);
             }
             
             // Course Instructors Section: Handle individual Tutor LMS meta fields
