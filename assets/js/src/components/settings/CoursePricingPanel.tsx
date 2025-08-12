@@ -127,11 +127,7 @@ const CoursePricingPanel: React.FC = () => {
     if (isEddMonetization() && (courseSettings as any)?.edd_product_id && eddProducts && !eddLoading) {
       const selectedProductId = (courseSettings as any).edd_product_id;
       const productExists = eddProducts.some((product: any) => product.ID === selectedProductId);
-      if (!productExists) {
-        // Product not in dropdown - could be linked to current course or truly unavailable
-        // Only log once when products are loaded, not on every render
-        console.warn("Selected EDD product not in dropdown - may be linked to current course");
-      }
+      // If product not found in the dropdown, quietly allow synthetic option to represent current linkage
     }
   }, [(courseSettings as any)?.edd_product_id, eddProducts, eddLoading]);
 
@@ -145,11 +141,7 @@ const CoursePricingPanel: React.FC = () => {
     ) {
       const selectedProductId = (courseSettings as any).woocommerce_product_id;
       const productExists = woocommerceProducts.some((product: WcProduct) => product.ID === selectedProductId);
-      if (!productExists) {
-        // Product not in dropdown - could be linked to current course or truly unavailable
-        // Only log once when products are loaded, not on every render
-        console.warn("Selected WooCommerce product not in dropdown - may be linked to current course");
-      }
+      // If product not found in the dropdown, quietly allow synthetic option to represent current linkage
     }
   }, [(courseSettings as any)?.woocommerce_product_id, woocommerceProducts, woocommerceLoading]);
 
@@ -292,11 +284,8 @@ const CoursePricingPanel: React.FC = () => {
             setCourseSettings(next);
             editorDispatch.editPost({ course_settings: next });
           }
-        } else {
-          console.warn("No product details received for product ID:", productId);
         }
       } catch (error) {
-        console.error("Error fetching WooCommerce product details:", error);
         // Show user-friendly error message
         setWooCommerceError(
           __("Failed to load product details. Please try selecting the product again.", "tutorpress")
@@ -348,11 +337,8 @@ const CoursePricingPanel: React.FC = () => {
             setCourseSettings(next);
             editorDispatch.editPost({ course_settings: next });
           }
-        } else {
-          console.warn("No product details received for product ID:", productId);
         }
       } catch (error) {
-        console.error("Error fetching EDD product details:", error);
         // Show user-friendly error message
         setEddError(__("Failed to load product details. Please try selecting the product again.", "tutorpress"));
         // Don't update prices if there's an error - keep existing values
