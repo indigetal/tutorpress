@@ -11,6 +11,7 @@
 import React, { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, Notice, Spinner, Button, TextControl, TextareaControl, SelectControl } from "@wordpress/components";
 
 // Import course settings types
@@ -28,6 +29,27 @@ const VideoIntroSection: React.FC = () => {
     []
   );
 
+  // Bind Gutenberg composite course_settings for incremental migration (entity prop with fallback)
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+
+  // Strongly-typed helpers
+  const emptyIntro: CourseSettings["intro_video"] = {
+    source: "",
+    source_video_id: 0,
+    source_external_url: "",
+    source_youtube: "",
+    source_vimeo: "",
+    source_embedded: "",
+    source_shortcode: "",
+    poster: "",
+  };
+  const courseSettingsTyped = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
+  const settingsTyped = (settings as CourseSettings | null) || null;
+  const intro: CourseSettings["intro_video"] =
+    (courseSettingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
+    (settingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
+    emptyIntro;
+
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
 
@@ -38,29 +60,24 @@ const VideoIntroSection: React.FC = () => {
   const [videoMetaError, setVideoMetaError] = useState<string>("");
   const [isLoadingVideoMeta, setIsLoadingVideoMeta] = useState<boolean>(false);
 
-  // Update a specific setting
-  const updateSetting = useCallback(
-    (key: string, value: any) => {
-      const newSettings = { ...settings };
-      const keys = key.split(".");
-      let current = newSettings;
-
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-
-      current[keys[keys.length - 1]] = value;
-      updateSettings(newSettings);
+  // Deep-merge helper for intro_video (functional updater + mirrored legacy write during transition)
+  const applyIntro = useCallback(
+    (updates: Partial<CourseSettings["intro_video"]>) => {
+      setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+        ...(prev || {}),
+        intro_video: { ...((prev?.intro_video as CourseSettings["intro_video"]) || emptyIntro), ...updates },
+      }));
+      updateSettings({ intro_video: { ...intro, ...updates } });
     },
-    [settings, updateSettings]
+    [setCourseSettings, updateSettings, intro]
   );
 
-  // Clear video completely
-  const clearVideo = useCallback(() => {
-    const newSettings = {
-      ...settings,
-      intro_video: {
-        source: "",
+  // Reset by source and clear helpers
+  const resetForSource = useCallback(
+    (source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode") => {
+      setVideoMetaError("");
+      applyIntro({
+        source,
         source_video_id: 0,
         source_external_url: "",
         source_youtube: "",
@@ -68,12 +85,14 @@ const VideoIntroSection: React.FC = () => {
         source_embedded: "",
         source_shortcode: "",
         poster: "",
-      },
-    };
+      });
+    },
+    [applyIntro]
+  );
 
-    setVideoMetaError("");
-    updateSettings(newSettings);
-  }, [settings, updateSettings]);
+  const clearVideo = useCallback(() => {
+    resetForSource("");
+  }, [resetForSource]);
 
   // Open WordPress media library for video selection
   const openVideoMediaLibrary = useCallback(() => {
@@ -90,14 +109,11 @@ const VideoIntroSection: React.FC = () => {
 
     mediaFrame.on("select", () => {
       const attachment = mediaFrame.state().get("selection").first().toJSON();
-
-      // Set video source to upload and store attachment ID
-      updateSetting("intro_video.source", "html5");
-      updateSetting("intro_video.source_video_id", attachment.id);
+      applyIntro({ source: "html5", source_video_id: attachment.id });
     });
 
     mediaFrame.open();
-  }, [updateSetting]);
+  }, [applyIntro]);
 
   // Video source options (matching Tutor LMS frontend course builder)
   const videoSourceOptions = [
@@ -116,13 +132,13 @@ const VideoIntroSection: React.FC = () => {
 
   // Check if video is set
   const hasVideo =
-    settings?.intro_video?.source !== "" &&
-    (settings?.intro_video?.source_video_id > 0 ||
-      settings?.intro_video?.source_external_url ||
-      settings?.intro_video?.source_youtube ||
-      settings?.intro_video?.source_vimeo ||
-      settings?.intro_video?.source_embedded ||
-      settings?.intro_video?.source_shortcode);
+    (intro?.source || "") !== "" &&
+    (intro?.source_video_id > 0 ||
+      intro?.source_external_url ||
+      intro?.source_youtube ||
+      intro?.source_vimeo ||
+      intro?.source_embedded ||
+      intro?.source_shortcode);
 
   // Show video detection loading state
   const showVideoDetectionLoading = isDetecting || isLoadingVideoMeta;
@@ -133,28 +149,13 @@ const VideoIntroSection: React.FC = () => {
         <div style={{ marginBottom: "8px", fontWeight: 600 }}>{__("Intro Video", "tutorpress")}</div>
 
         <SelectControl
-          value={settings?.intro_video?.source || ""}
+          value={intro?.source || ""}
           options={videoSourceOptions}
           onChange={(value) => {
             if (value === "") {
-              // Clear video completely
               clearVideo();
             } else {
-              // Clear other video source fields when changing source type
-              const newSettings = {
-                ...settings,
-                intro_video: {
-                  source: value as any,
-                  source_video_id: 0,
-                  source_external_url: "",
-                  source_youtube: "",
-                  source_vimeo: "",
-                  source_embedded: "",
-                  source_shortcode: "",
-                  poster: "",
-                },
-              };
-              updateSettings(newSettings);
+              resetForSource(value as "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode");
             }
           }}
           disabled={isSaving}
@@ -173,9 +174,7 @@ const VideoIntroSection: React.FC = () => {
                 marginBottom: "8px",
               }}
             >
-              {settings?.intro_video?.source_video_id > 0
-                ? __("Change Video", "tutorpress")
-                : __("Select Video", "tutorpress")}
+              {intro?.source_video_id > 0 ? __("Change Video", "tutorpress") : __("Select Video", "tutorpress")}
             </Button>
             {showVideoDetectionLoading && (
               <div
@@ -198,20 +197,20 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* YouTube */}
-        {settings?.intro_video?.source === "youtube" && (
+        {intro?.source === "youtube" && (
           <div>
             <TextControl
               label={__("YouTube URL or Video ID", "tutorpress")}
               placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-              value={settings?.intro_video?.source_youtube || ""}
-              onChange={(value) => updateSetting("intro_video.source_youtube", value)}
+              value={intro?.source_youtube || ""}
+              onChange={(value) => applyIntro({ source_youtube: value })}
               disabled={isSaving}
               help={__("Enter the full YouTube URL or just the video ID", "tutorpress")}
             />
@@ -224,20 +223,20 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* Vimeo */}
-        {settings?.intro_video?.source === "vimeo" && (
+        {intro?.source === "vimeo" && (
           <div>
             <TextControl
               label={__("Vimeo URL or Video ID", "tutorpress")}
               placeholder="https://vimeo.com/123456789"
-              value={settings?.intro_video?.source_vimeo || ""}
-              onChange={(value) => updateSetting("intro_video.source_vimeo", value)}
+              value={intro?.source_vimeo || ""}
+              onChange={(value) => applyIntro({ source_vimeo: value })}
               disabled={isSaving}
               help={__("Enter the full Vimeo URL or just the video ID", "tutorpress")}
             />
@@ -250,20 +249,20 @@ const VideoIntroSection: React.FC = () => {
 
             {/* Video Thumbnail */}
             <VideoThumbnail
-              key={`video-${settings?.intro_video?.source}-${settings?.intro_video?.source_video_id}-${settings?.intro_video?.source_youtube}-${settings?.intro_video?.source_vimeo}`}
-              videoData={settings?.intro_video}
+              key={`video-${intro?.source}-${intro?.source_video_id}-${intro?.source_youtube}-${intro?.source_vimeo}`}
+              videoData={intro}
             />
           </div>
         )}
 
         {/* External URL */}
-        {settings?.intro_video?.source === "external_url" && (
+        {intro?.source === "external_url" && (
           <div>
             <TextControl
               label={__("External Video URL", "tutorpress")}
               placeholder="https://example.com/video.mp4"
-              value={settings?.intro_video?.source_external_url || ""}
-              onChange={(value) => updateSetting("intro_video.source_external_url", value)}
+              value={intro?.source_external_url || ""}
+              onChange={(value) => applyIntro({ source_external_url: value })}
               disabled={isSaving}
               help={__("Enter a direct link to the video file (MP4, WebM, etc.)", "tutorpress")}
             />
@@ -278,10 +277,10 @@ const VideoIntroSection: React.FC = () => {
 
         {/* Embedded Code - Commented out to match Tutor LMS frontend course builder */}
         {/* {settings?.intro_video?.source === "embedded" && (
-          <TextareaControl
+            <TextareaControl
             label={__("Embedded Video Code", "tutorpress")}
             placeholder="<iframe src=...></iframe>"
-            value={settings?.intro_video?.source_embedded || ""}
+              value={intro?.source_embedded || ""}
             onChange={(value) => updateSetting("intro_video.source_embedded", value)}
             disabled={isSaving}
             help={__("Paste the embed code (iframe, video tag, etc.)", "tutorpress")}
@@ -291,10 +290,10 @@ const VideoIntroSection: React.FC = () => {
 
         {/* Shortcode - Commented out to match Tutor LMS frontend course builder */}
         {/* {settings?.intro_video?.source === "shortcode" && (
-          <TextControl
+            <TextControl
             label={__("Video Shortcode", "tutorpress")}
             placeholder="[video src='...']"
-            value={settings?.intro_video?.source_shortcode || ""}
+              value={intro?.source_shortcode || ""}
             onChange={(value) => updateSetting("intro_video.source_shortcode", value)}
             disabled={isSaving}
             help={__("Enter a WordPress video shortcode", "tutorpress")}

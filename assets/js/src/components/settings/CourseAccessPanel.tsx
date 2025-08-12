@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { PluginDocumentSettingPanel } from "@wordpress/editor";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import {
   PanelRow,
   TextControl,
@@ -68,15 +69,20 @@ const CourseAccessPanel: React.FC = () => {
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       courseId: select("core/editor").getCurrentPostId(),
-      availableCourses: select("tutorpress/course-settings").getAvailableCourses(),
-      coursesLoading: select("tutorpress/course-settings").getCourseSelectionLoading(),
-      coursesError: select("tutorpress/course-settings").getCourseSelectionError(),
+      availableCourses: select("tutorpress/prerequisites").getAvailableCourses(),
+      coursesLoading: select("tutorpress/prerequisites").getCourseSelectionLoading(),
+      coursesError: select("tutorpress/prerequisites").getCourseSelectionError(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { updateSettings, fetchAvailableCourses } = useDispatch("tutorpress/course-settings");
+  const { updateSettings } = useDispatch("tutorpress/course-settings");
+  const { fetchAvailableCourses } = useDispatch("tutorpress/prerequisites");
+
+  // Bind Gutenberg composite course_settings for incremental migration
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
 
   // Only show for course post type
   if (postType !== "courses") {
@@ -112,7 +118,10 @@ const CourseAccessPanel: React.FC = () => {
 
   // Helper function for maximum students processing
   const processMaximumStudents = (value: string | number | null): number | null => {
-    return value === "" || value === "0" || value === 0 ? null : parseInt(value?.toString() || "0") || null;
+    if (value === "" || value === null) return null; // allow blank (unlimited)
+    const n = parseInt(value.toString(), 10);
+    if (Number.isNaN(n)) return null;
+    return Math.max(0, n); // allow 0 (unlimited) or positive ints
   };
 
   // Generate time options with 30-minute intervals (standardized across TutorPress)
@@ -120,35 +129,46 @@ const CourseAccessPanel: React.FC = () => {
 
   // Get current dates for date pickers (default to current date)
   const currentDate = new Date();
-  const startDate = parseGMTString(settings.enrollment_starts_at) || currentDate;
-  const endDate = parseGMTString(settings.enrollment_ends_at) || currentDate;
+  const startAt = (cs?.enrollment_starts_at ?? settings.enrollment_starts_at) as string;
+  const endAt = (cs?.enrollment_ends_at ?? settings.enrollment_ends_at) as string;
+  const startDate = parseGMTString(startAt) || currentDate;
+  const endDate = parseGMTString(endAt) || currentDate;
 
   // Prerequisites functionality
   const handlePrerequisiteChange = async (courseId: string) => {
     const numericId = parseInt(courseId);
     if (isNaN(numericId) || !courseId) return;
 
-    const currentPrereqs = settings.course_prerequisites || [];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? []) as number[];
     if (!currentPrereqs.includes(numericId)) {
       const newPrereqs = [...currentPrereqs, numericId];
+      setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+        ...(prev || {}),
+        course_prerequisites: newPrereqs,
+      }));
       updateSettings({ course_prerequisites: newPrereqs });
     }
   };
 
   const removePrerequisite = async (courseId: number) => {
-    const currentPrereqs = settings.course_prerequisites || [];
+    const currentPrereqs: number[] = (cs?.course_prerequisites ?? []) as number[];
     const updatedPrereqs = currentPrereqs.filter((id: number) => id !== courseId);
+    setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+      ...(prev || {}),
+      course_prerequisites: updatedPrereqs,
+    }));
     updateSettings({ course_prerequisites: updatedPrereqs });
   };
 
   // Convert course list to select options
+  const selectedPrereqIds: number[] = (cs?.course_prerequisites ?? []) as number[];
   const courseOptions: CourseOption[] = [
     {
       value: "",
       label: coursesLoading ? __("Loading courses...", "tutorpress") : __("Select a course...", "tutorpress"),
     },
     ...availableCourses
-      .filter((course: Course) => !(settings.course_prerequisites || []).includes(course.id))
+      .filter((course: Course) => !selectedPrereqIds.includes(course.id))
       .map((course: Course) => ({
         value: course.id.toString(),
         label: course.title,
@@ -156,9 +176,12 @@ const CourseAccessPanel: React.FC = () => {
   ];
 
   // Get selected prerequisites with course details
-  const selectedPrerequisitesWithDetails = (settings.course_prerequisites || [])
+  const selectedPrerequisitesWithDetails = (selectedPrereqIds || [])
     .map((id: number) => availableCourses.find((course: Course) => course.id === id))
     .filter((course: Course | undefined): course is Course => course !== undefined);
+
+  // Enrollment period enabled state (prefer entity prop with store fallback during transition)
+  const enrollmentPeriodEnabled = (cs?.course_enrollment_period ?? settings.course_enrollment_period) === "yes";
 
   return (
     <PluginDocumentSettingPanel
@@ -228,10 +251,22 @@ const CourseAccessPanel: React.FC = () => {
           <TextControl
             type="number"
             label={__("Maximum Students", "tutorpress")}
-            value={settings.maximum_students?.toString() || ""}
+            value={(() => {
+              const cs: any = courseSettings as any;
+              if (cs && Object.prototype.hasOwnProperty.call(cs, "maximum_students")) {
+                return cs.maximum_students === null || cs.maximum_students === undefined
+                  ? ""
+                  : cs.maximum_students.toString();
+              }
+              const storeVal = (settings as any)?.maximum_students;
+              return storeVal === null || storeVal === undefined ? "" : storeVal.toString();
+            })()}
             placeholder="0"
+            min={0 as any}
             onChange={(value) => {
+              // Use empty string as UI state to represent unlimited (null) to avoid React immediately coercing to 0
               const newValue = processMaximumStudents(value);
+              setCourseSettings((prev: any) => ({ ...(prev || {}), maximum_students: newValue }));
               updateSettings({ maximum_students: newValue });
             }}
             help={__(
@@ -247,9 +282,11 @@ const CourseAccessPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <CheckboxControl
             label={__("Pause Enrollment", "tutorpress")}
-            checked={settings.pause_enrollment === "yes"}
+            checked={((courseSettings as any)?.pause_enrollment ?? settings.pause_enrollment) === "yes"}
             onChange={(checked: boolean) => {
-              updateSettings({ pause_enrollment: checked ? "yes" : "no" });
+              const value = checked ? "yes" : "no";
+              setCourseSettings((prev: any) => ({ ...(prev || {}), pause_enrollment: value }));
+              updateSettings({ pause_enrollment: value });
             }}
             help={__("Temporarily stop new enrollments for this course.", "tutorpress")}
           />
@@ -261,22 +298,30 @@ const CourseAccessPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <ToggleControl
             label={__("Course Enrollment Period", "tutorpress")}
-            checked={settings.course_enrollment_period === "yes"}
+            checked={enrollmentPeriodEnabled}
             onChange={(checked) => {
-              const updates: Partial<CourseSettings> = { course_enrollment_period: checked ? "yes" : "no" };
-              // When disabling enrollment period, clear the dates
-              if (!checked) {
-                updates.enrollment_starts_at = "";
-                updates.enrollment_ends_at = "";
+              const base = (courseSettings as any) || (settings as any) || {};
+              if (checked) {
+                // Enable enrollment period
+                setCourseSettings((prev: any) => ({ ...(prev || {}), course_enrollment_period: "yes" }));
+                updateSettings({ course_enrollment_period: "yes" });
+              } else {
+                // Disable and clear dates immediately in editor state
+                const cleared = {
+                  course_enrollment_period: "no" as const,
+                  enrollment_starts_at: "",
+                  enrollment_ends_at: "",
+                } satisfies Partial<CourseSettings>;
+                setCourseSettings((prev: any) => ({ ...(prev || {}), ...cleared }));
+                updateSettings(cleared);
               }
-              updateSettings(updates);
             }}
             help={__("Set a specific time period when students can enroll in this course.", "tutorpress")}
           />
         </div>
       </PanelRow>
 
-      {settings.course_enrollment_period === "yes" && (
+      {enrollmentPeriodEnabled && (
         <>
           {/* Start Date/Time */}
           <div className="tutorpress-datetime-section">
@@ -290,7 +335,7 @@ const CourseAccessPanel: React.FC = () => {
                     icon={calendar}
                     onClick={() => setStartDatePickerOpen(!startDatePickerOpen)}
                   >
-                    {displayDate(settings.enrollment_starts_at)}
+                    {displayDate(startAt)}
                   </Button>
 
                   {startDatePickerOpen && (
@@ -299,15 +344,15 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={startDate}
                         onChange={(date) => {
                           const newStartDate = new Date(date);
-                          const newDate = combineDateTime(newStartDate, displayTime(settings.enrollment_starts_at));
+                          const newDate = combineDateTime(newStartDate, displayTime(startAt));
 
                           // Auto-correct end date if start date is later (simple behavior)
-                          const currentEndDate = parseGMTString(settings.enrollment_ends_at) || newStartDate;
+                          const currentEndDate = parseGMTString(endAt) || newStartDate;
                           const validation = validateAndCorrectDateTime(
                             newStartDate,
-                            displayTime(settings.enrollment_starts_at),
+                            displayTime(startAt),
                             currentEndDate,
-                            displayTime(settings.enrollment_ends_at)
+                            displayTime(endAt)
                           );
 
                           // Always update start date, and auto-correct end date if needed
@@ -316,7 +361,7 @@ const CourseAccessPanel: React.FC = () => {
                           if (validation.correctedEndDate) {
                             updates.enrollment_ends_at = combineDateTime(
                               validation.correctedEndDate,
-                              displayTime(settings.enrollment_ends_at)
+                              displayTime(endAt)
                             );
                           }
                           if (validation.correctedEndTime) {
@@ -324,6 +369,7 @@ const CourseAccessPanel: React.FC = () => {
                             updates.enrollment_ends_at = combineDateTime(endDateToUse, validation.correctedEndTime);
                           }
 
+                          setCourseSettings((prev: any) => ({ ...(prev || {}), ...updates }));
                           updateSettings(updates);
 
                           setStartDatePickerOpen(false);
@@ -337,23 +383,24 @@ const CourseAccessPanel: React.FC = () => {
               {/* Start Time */}
               <FlexItem>
                 <SelectControl
-                  value={displayTime(settings.enrollment_starts_at)}
+                  value={displayTime(startAt)}
                   options={timeOptions}
                   onChange={(value) => {
                     const newStartDate = combineDateTime(startDate, value);
+                    setCourseSettings((prev: any) => ({ ...(prev || {}), enrollment_starts_at: newStartDate }));
                     updateSettings({ enrollment_starts_at: newStartDate });
 
                     // Auto-correct end time if it becomes invalid using our validation utility
-                    if (settings.enrollment_ends_at) {
-                      const startDateTimeParsed = parseGMTString(settings.enrollment_starts_at);
-                      const endDateTimeParsed = parseGMTString(settings.enrollment_ends_at);
+                    if (endAt) {
+                      const startDateTimeParsed = parseGMTString(startAt);
+                      const endDateTimeParsed = parseGMTString(endAt);
 
                       if (startDateTimeParsed && endDateTimeParsed) {
                         const validationResult = validateAndCorrectDateTime(
                           startDateTimeParsed,
                           value,
                           endDateTimeParsed,
-                          displayTime(settings.enrollment_ends_at)
+                          displayTime(endAt)
                         );
 
                         if (validationResult.correctedEndTime) {
@@ -379,7 +426,7 @@ const CourseAccessPanel: React.FC = () => {
               <FlexItem>
                 <div className="tutorpress-date-picker-wrapper">
                   <Button variant="secondary" icon={calendar} onClick={() => setEndDatePickerOpen(!endDatePickerOpen)}>
-                    {displayDate(settings.enrollment_ends_at)}
+                    {displayDate(endAt)}
                   </Button>
 
                   {endDatePickerOpen && (
@@ -388,18 +435,18 @@ const CourseAccessPanel: React.FC = () => {
                         currentDate={endDate}
                         onChange={(date) => {
                           const selectedDate = new Date(date);
-                          const newDate = combineDateTime(selectedDate, displayTime(settings.enrollment_ends_at));
+                          const newDate = combineDateTime(selectedDate, displayTime(endAt));
 
                           // Auto-correct start date if end date is earlier (match Google Meet behavior)
-                          const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                          const startDateTime = parseGMTString(startAt);
                           const updates: any = { enrollment_ends_at: newDate };
 
                           if (startDateTime) {
                             const validationResult = validateAndCorrectDateTime(
                               startDateTime,
-                              displayTime(settings.enrollment_starts_at),
+                              displayTime(startAt),
                               selectedDate,
-                              displayTime(settings.enrollment_ends_at)
+                              displayTime(endAt)
                             );
 
                             if (validationResult.correctedEndTime) {
@@ -422,13 +469,11 @@ const CourseAccessPanel: React.FC = () => {
                             );
 
                             if (endDateOnly < startDateOnly) {
-                              updates.enrollment_starts_at = combineDateTime(
-                                selectedDate,
-                                displayTime(settings.enrollment_starts_at)
-                              );
+                              updates.enrollment_starts_at = combineDateTime(selectedDate, displayTime(startAt));
                             }
                           }
 
+                          setCourseSettings((prev: any) => ({ ...(prev || {}), ...updates }));
                           updateSettings(updates);
                           setEndDatePickerOpen(false);
                         }}
@@ -441,9 +486,9 @@ const CourseAccessPanel: React.FC = () => {
               {/* End Time */}
               <FlexItem>
                 <SelectControl
-                  value={displayTime(settings.enrollment_ends_at)}
+                  value={displayTime(endAt)}
                   options={(() => {
-                    const startDateTime = parseGMTString(settings.enrollment_starts_at);
+                    const startDateTime = parseGMTString(startAt);
                     return startDateTime
                       ? filterEndTimeOptions(
                           timeOptions,
@@ -463,7 +508,7 @@ const CourseAccessPanel: React.FC = () => {
                     if (startDateTimeForValidation) {
                       const validationResult = validateAndCorrectDateTime(
                         startDateTimeForValidation,
-                        displayTime(settings.enrollment_starts_at),
+                        displayTime(startAt),
                         endDate,
                         value
                       );
@@ -473,6 +518,7 @@ const CourseAccessPanel: React.FC = () => {
                         : newEndDate;
                     }
 
+                    setCourseSettings((prev: any) => ({ ...(prev || {}), enrollment_ends_at: finalEndDate }));
                     updateSettings({ enrollment_ends_at: finalEndDate });
                   }}
                 />

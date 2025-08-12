@@ -1,7 +1,8 @@
-import React from "react";
-import { PluginDocumentSettingPanel } from "@wordpress/editor";
+import React, { useEffect, useRef, useState } from "react";
+import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } from "@wordpress/components";
 
 // Import course settings types
@@ -23,10 +24,32 @@ const CourseDetailsPanel: React.FC = () => {
   // Get dispatch actions
   const { updateSettings } = useDispatch("tutorpress/course-settings");
 
+  // Bind Gutenberg composite course_settings for incremental migration
+  // Bind directly to the courses post type to avoid transient undefined postType during first render
+  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
+  const enableQna = cs?.enable_qna ?? settings.enable_qna;
+
   // Only show for course post type
   if (postType !== "courses") {
     return null;
   }
+
+  // Calculate total duration display (entity-prop only for course_duration)
+  const totalDuration = cs?.course_duration ?? { hours: 0, minutes: 0 };
+  // Local UI buffers to allow empty/partial input without snapping to 0
+  const [hoursInput, setHoursInput] = useState<string>(String(totalDuration.hours));
+  const [minutesInput, setMinutesInput] = useState<string>(String(totalDuration.minutes));
+
+  // Initialize local inputs once from entity prop (avoid fighting user typing)
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current) {
+      setHoursInput(String(totalDuration.hours));
+      setMinutesInput(String(totalDuration.minutes));
+      initializedRef.current = true;
+    }
+  }, [totalDuration.hours, totalDuration.minutes]);
 
   // Show loading state while fetching settings
   if (isLoading) {
@@ -44,9 +67,6 @@ const CourseDetailsPanel: React.FC = () => {
       </PluginDocumentSettingPanel>
     );
   }
-
-  // Calculate total duration display
-  const totalDuration = settings.course_duration;
   const hasDuration = totalDuration.hours > 0 || totalDuration.minutes > 0;
   const durationText = hasDuration
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`
@@ -71,9 +91,12 @@ const CourseDetailsPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <SelectControl
             label={__("Difficulty Level", "tutorpress")}
-            value={settings.course_level}
+            value={cs?.course_level ?? settings.course_level}
             options={courseDifficultyLevels}
-            onChange={(value: CourseDifficultyLevel) => updateSettings({ course_level: value })}
+            onChange={(value: CourseDifficultyLevel) => {
+              setCourseSettings((prev: any) => ({ ...(prev || {}), course_level: value }));
+              updateSettings({ course_level: value });
+            }}
             help={__("Set the difficulty level that best describes this course", "tutorpress")}
           />
         </div>
@@ -85,12 +108,15 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Public Course", "tutorpress")}
             help={
-              settings.is_public_course
+              ((courseSettings as any)?.is_public_course ?? settings.is_public_course)
                 ? __("This course is visible to all users", "tutorpress")
                 : __("This course requires enrollment to view", "tutorpress")
             }
-            checked={settings.is_public_course}
-            onChange={(enabled) => updateSettings({ is_public_course: enabled })}
+            checked={!!(cs?.is_public_course ?? settings.is_public_course)}
+            onChange={(enabled) => {
+              setCourseSettings((prev: any) => ({ ...(prev || {}), is_public_course: !!enabled }));
+              updateSettings({ is_public_course: !!enabled });
+            }}
           />
 
           <p
@@ -111,12 +137,15 @@ const CourseDetailsPanel: React.FC = () => {
           <ToggleControl
             label={__("Q&A", "tutorpress")}
             help={
-              settings.enable_qna
+              enableQna
                 ? __("Students can ask questions and get answers", "tutorpress")
                 : __("Q&A is disabled for this course", "tutorpress")
             }
-            checked={settings.enable_qna}
-            onChange={(enabled) => updateSettings({ enable_qna: enabled })}
+            checked={!!enableQna}
+            onChange={(enabled) => {
+              setCourseSettings((prev: any) => ({ ...(prev || {}), enable_qna: !!enabled }));
+              updateSettings({ enable_qna: !!enabled });
+            }}
           />
 
           <p
@@ -148,15 +177,25 @@ const CourseDetailsPanel: React.FC = () => {
               <TextControl
                 type="number"
                 min="0"
-                value={settings.course_duration.hours.toString()}
-                onChange={(value) =>
-                  updateSettings({
+                value={hoursInput}
+                onChange={(value) => {
+                  setHoursInput(value);
+                }}
+                onBlur={() => {
+                  const hours = Math.max(0, parseInt(hoursInput || "0", 10) || 0);
+                  const minutes = Math.min(
+                    59,
+                    Math.max(0, parseInt(minutesInput || String(totalDuration.minutes), 10) || 0)
+                  );
+                  setHoursInput(String(hours));
+                  setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+                    ...(prev || {}),
                     course_duration: {
-                      ...settings.course_duration,
-                      hours: parseInt(value) || 0,
+                      hours,
+                      minutes,
                     },
-                  })
-                }
+                  }));
+                }}
               />
             </div>
 
@@ -166,15 +205,22 @@ const CourseDetailsPanel: React.FC = () => {
                 type="number"
                 min="0"
                 max="59"
-                value={settings.course_duration.minutes.toString()}
-                onChange={(value) =>
-                  updateSettings({
+                value={minutesInput}
+                onChange={(value) => {
+                  setMinutesInput(value);
+                }}
+                onBlur={() => {
+                  const hours = Math.max(0, parseInt(hoursInput || String(totalDuration.hours), 10) || 0);
+                  const minutes = Math.min(59, Math.max(0, parseInt(minutesInput || "0", 10) || 0));
+                  setMinutesInput(String(minutes));
+                  setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
+                    ...(prev || {}),
                     course_duration: {
-                      ...settings.course_duration,
-                      minutes: Math.min(59, parseInt(value) || 0),
+                      hours,
+                      minutes,
                     },
-                  })
-                }
+                  }));
+                }}
               />
             </div>
           </div>

@@ -1304,8 +1304,10 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         
         $filtered_data = array_intersect_key($plan_data, array_flip($db_fields));
         
-        // Debug: Log the filtered plan data being updated
-        error_log('TutorPress Subscriptions: Filtered plan data for update: ' . print_r($filtered_data, true));
+        // Debug logging only when WP_DEBUG is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('TutorPress Subscriptions: Filtered plan data for update: ' . print_r($filtered_data, true));
+        }
         
         // Apply explicit type casting to prevent data corruption (same as create method)
         $update_data = [];

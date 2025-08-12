@@ -42,7 +42,9 @@ import { CurriculumErrorCode } from "../../types/curriculum";
 /**
  * Subscription Store State Interface
  */
-interface State extends SubscriptionState {}
+interface State extends SubscriptionState {
+  lastLoadedCourseId?: number | null;
+}
 
 // ============================================================================
 // INITIAL STATE
@@ -64,6 +66,7 @@ const DEFAULT_STATE: State = {
     isReordering: false,
     error: null,
   },
+  lastLoadedCourseId: null,
 };
 
 // ============================================================================
@@ -131,6 +134,7 @@ const reducer = (state = DEFAULT_STATE, action: SubscriptionAction): State => {
           isLoading: false,
           error: null,
         },
+        lastLoadedCourseId: (action as any).payload.courseId ?? state.lastLoadedCourseId,
       };
 
     case "FETCH_SUBSCRIPTION_PLANS_ERROR":
@@ -489,10 +493,15 @@ const resolvers = {
       }
 
       // Dispatch start action
-      yield {
-        type: "FETCH_SUBSCRIPTION_PLANS_START",
-        payload: { courseId },
-      };
+      // Cache guard: if already loaded for this course and not loading, avoid refetch
+      const alreadyLoadedForCourse =
+        (yield select("tutorpress/subscriptions")).getSubscriptionPlans()?.length > 0 &&
+        (yield select("tutorpress/subscriptions")).getState?.()?.lastLoadedCourseId === courseId;
+      if (alreadyLoadedForCourse) {
+        return { success: true, data: (yield select("tutorpress/subscriptions")).getSubscriptionPlans() } as any;
+      }
+
+      yield { type: "FETCH_SUBSCRIPTION_PLANS_START", payload: { courseId } };
 
       const response = yield {
         type: "API_FETCH",
@@ -512,10 +521,7 @@ const resolvers = {
       }
 
       // Dispatch success action
-      yield {
-        type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS",
-        payload: { plans: response.data },
-      };
+      yield { type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS", payload: { plans: response.data, courseId } };
 
       return response;
     } catch (error: any) {

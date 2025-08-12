@@ -5,7 +5,7 @@
  * Can be used by both Course and Lesson settings components.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   detectVideoDuration,
   type VideoDuration,
@@ -35,40 +35,62 @@ export function useVideoDetection(): UseVideoDetectionReturn {
   const [isDetecting, setIsDetecting] = useState(false);
   const [duration, setDuration] = useState<VideoDuration | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const lastRequestIdRef = useRef<number>(0);
 
   const detectDuration = useCallback(async (source: VideoSource, url: string): Promise<VideoDuration | null> => {
-    if (!url.trim()) {
-      setError("Video URL is required");
-      return null;
+    // Debounce rapid calls (300ms)
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
     }
 
-    // Check if YouTube source is supported
-    if (source === "youtube" && !isYouTubeApiAvailable()) {
-      setError("YouTube API key not configured in Tutor LMS settings");
-      return null;
-    }
+    return new Promise<VideoDuration | null>((resolve) => {
+      debounceTimerRef.current = window.setTimeout(async () => {
+        if (!url.trim()) {
+          setError("Video URL is required");
+          resolve(null);
+          return;
+        }
 
-    setIsDetecting(true);
-    setError(null);
-    setDuration(null);
+        if (source === "youtube" && !isYouTubeApiAvailable()) {
+          setError("YouTube API key not configured in Tutor LMS settings");
+          resolve(null);
+          return;
+        }
 
-    try {
-      const detectedDuration = await detectVideoDuration(source, url);
+        const requestId = ++lastRequestIdRef.current;
+        setIsDetecting(true);
+        setError(null);
+        setDuration(null);
 
-      if (detectedDuration) {
-        setDuration(detectedDuration);
-        return detectedDuration;
-      } else {
-        setError(`Could not detect duration for ${source} video`);
-        return null;
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to detect video duration: ${errorMessage}`);
-      return null;
-    } finally {
-      setIsDetecting(false);
-    }
+        try {
+          const detectedDuration = await detectVideoDuration(source, url);
+
+          // Stale-response guard
+          if (requestId !== lastRequestIdRef.current) {
+            resolve(null);
+            return;
+          }
+
+          if (detectedDuration) {
+            setDuration(detectedDuration);
+            resolve(detectedDuration);
+          } else {
+            setError(`Could not detect duration for ${source} video`);
+            resolve(null);
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+          setError(`Failed to detect video duration: ${errorMessage}`);
+          resolve(null);
+        } finally {
+          // Ensure we only stop detecting for the latest request
+          if (requestId === lastRequestIdRef.current) {
+            setIsDetecting(false);
+          }
+        }
+      }, 300);
+    });
   }, []);
 
   const clearDetection = useCallback(() => {

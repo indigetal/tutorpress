@@ -11,12 +11,9 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
     );
 
     public static $classMap = array (
-        'Additional_Content_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-additional-content-metabox.php',
         'Bundle_Benefits_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-bundle-benefits-metabox.php',
         'Bundle_Courses_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-bundle-courses-metabox.php',
-        'Certificate_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-certificate-metabox.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
-        'Curriculum_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-curriculum-metabox.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
         'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
         'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
@@ -25,8 +22,9 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Bundle_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-bundle-settings.php',
         'TutorPress_Certificate_Controller' => __DIR__ . '/../..' . '/includes/rest/class-certificate-controller.php',
         'TutorPress_Content_Drip_Helpers' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-content-drip-helpers.php',
-        'TutorPress_Course_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-course-settings.php',
+        'TutorPress_Course' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-course.php',
         'TutorPress_Course_Settings_Controller' => __DIR__ . '/../..' . '/includes/rest/class-course-settings-controller.php',
+        'TutorPress_Curriculum_Metabox' => __DIR__ . '/../..' . '/includes/shared/class-tutorpress-curriculum-metabox.php',
         'TutorPress_Dashboard_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
         'TutorPress_Dependency_Checker' => __DIR__ . '/../..' . '/includes/class-tutorpress-dependency-checker.php',
         'TutorPress_EDD_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
