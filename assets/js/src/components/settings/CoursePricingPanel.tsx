@@ -126,7 +126,7 @@ const CoursePricingPanel: React.FC = () => {
       const legacyId = (settings as any)?.woocommerce_product_id || "";
       if (!entityId && legacyId) {
         const id = String(legacyId);
-        setCourseSettings({ ...(courseSettings || {}), woocommerce_product_id: id } as any);
+        setCourseSettings((prev: any) => ({ ...(prev || {}), woocommerce_product_id: id }));
       }
     }
   }, [
@@ -141,7 +141,7 @@ const CoursePricingPanel: React.FC = () => {
       const legacyId = (settings as any)?.edd_product_id || "";
       if (!entityId && legacyId) {
         const id = String(legacyId);
-        setCourseSettings({ ...(courseSettings || {}), edd_product_id: id } as any);
+        setCourseSettings((prev: any) => ({ ...(prev || {}), edd_product_id: id }));
       }
     }
   }, [isEddMonetization(), (courseSettings as any)?.edd_product_id, (settings as any)?.edd_product_id]);
@@ -230,21 +230,21 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle pricing model change
   const handlePricingModelChange = (value: string) => {
+    // Restore legacy write for stability; entity migration deferred
     if (settings) {
       updateSettings({
         ...settings,
         pricing_model: value,
         is_free: value === "free",
-        // Set defaults when switching to paid (matching Tutor LMS defaults)
-        ...(value === "paid" && {
-          price: 10,
-          sale_price: 0,
-        }),
-        // Reset price fields when switching to free
-        ...(value === "free" && {
-          price: 0,
-          sale_price: 0,
-        }),
+        ...(value === "paid"
+          ? {
+              price: 10,
+              sale_price: 0,
+            }
+          : {
+              price: 0,
+              sale_price: 0,
+            }),
       });
     }
   };
@@ -267,11 +267,11 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle purchase option change
   const handlePurchaseOptionChange = (value: string) => {
+    // Restore legacy write for stability; entity migration deferred
     if (settings) {
       updateSettings({
         ...settings,
         selling_option: value,
-        // Let the backend derive subscription_enabled from selling_option
         subscription_enabled: value === "subscription" || value === "both" || value === "all",
       });
     }
