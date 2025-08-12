@@ -228,23 +228,22 @@ const CoursePricingPanel: React.FC = () => {
     );
   }
 
-  // Handle pricing model change
+  // Handle pricing model change — 5a.1 entity-only writes for simple flags
   const handlePricingModelChange = (value: string) => {
-    // Restore legacy write for stability; entity migration deferred
+    // Entity write
+    setCourseSettings((prev: any) => ({
+      ...(prev || {}),
+      pricing_model: value,
+      is_free: value === "free",
+      ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
+    }));
+    // Mirror to legacy until reads flip in Step 5b
     if (settings) {
       updateSettings({
         ...settings,
         pricing_model: value,
         is_free: value === "free",
-        ...(value === "paid"
-          ? {
-              price: 10,
-              sale_price: 0,
-            }
-          : {
-              price: 0,
-              sale_price: 0,
-            }),
+        ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
       });
     }
   };
@@ -265,9 +264,15 @@ const CoursePricingPanel: React.FC = () => {
     setCourseSettings({ ...(courseSettings || {}), sale_price } as any);
   };
 
-  // Handle purchase option change
+  // Handle purchase option change — 5a.1 entity-only writes for simple flags
   const handlePurchaseOptionChange = (value: string) => {
-    // Restore legacy write for stability; entity migration deferred
+    // Entity write
+    setCourseSettings((prev: any) => ({
+      ...(prev || {}),
+      selling_option: value,
+      subscription_enabled: value === "subscription" || value === "both" || value === "all",
+    }));
+    // Mirror to legacy until reads flip in Step 5b
     if (settings) {
       updateSettings({
         ...settings,
@@ -318,7 +323,7 @@ const CoursePricingPanel: React.FC = () => {
         setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
       }
 
-      updateSettings(updatedSettings);
+      // 5a.2: entity-only writes for product id (no legacy mirror)
 
       // Clear any previous errors on successful update
       if (woocommerceError) {
@@ -366,7 +371,7 @@ const CoursePricingPanel: React.FC = () => {
         setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
       }
 
-      updateSettings(updatedSettings);
+      // 5a.2: entity-only writes for product id (no legacy mirror)
 
       // Clear any previous errors on successful update
       if (eddError) {
