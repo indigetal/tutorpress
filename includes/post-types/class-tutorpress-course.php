@@ -1051,11 +1051,11 @@ class TutorPress_Course {
         }
         
         if (isset($settings['price'])) {
-            $sanitized['price'] = max(0, (float) $settings['price']);
+            $sanitized['price'] = round(max(0, (float) $settings['price']), 2);
         }
         
         if (isset($settings['sale_price'])) {
-            $sanitized['sale_price'] = max(0, (float) $settings['sale_price']);
+            $sanitized['sale_price'] = round(max(0, (float) $settings['sale_price']), 2);
         }
         
         if (isset($settings['selling_option'])) {
