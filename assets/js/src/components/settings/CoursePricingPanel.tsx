@@ -22,7 +22,6 @@ const CoursePricingPanel: React.FC = () => {
   const {
     postType,
     postId,
-    settings,
     error,
     isLoading,
     subscriptionPlans,
@@ -35,7 +34,6 @@ const CoursePricingPanel: React.FC = () => {
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       postId: select("core/editor").getCurrentPostId(),
-      settings: select("tutorpress/course-settings").getSettings(),
       error: select("tutorpress/course-settings").getError(),
       isLoading: select("tutorpress/course-settings").getFetchState().isLoading,
       subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans(),
@@ -119,32 +117,7 @@ const CoursePricingPanel: React.FC = () => {
     }
   }, [postId, fetchEddProducts]);
 
-  // Seed entity product ids from legacy on mount when missing
-  useEffect(() => {
-    if (isWooCommerceMonetization()) {
-      const entityId = (courseSettings as any)?.woocommerce_product_id || "";
-      const legacyId = (settings as any)?.woocommerce_product_id || "";
-      if (!entityId && legacyId) {
-        const id = String(legacyId);
-        setCourseSettings((prev: any) => ({ ...(prev || {}), woocommerce_product_id: id }));
-      }
-    }
-  }, [
-    isWooCommerceMonetization(),
-    (courseSettings as any)?.woocommerce_product_id,
-    (settings as any)?.woocommerce_product_id,
-  ]);
-
-  useEffect(() => {
-    if (isEddMonetization()) {
-      const entityId = (courseSettings as any)?.edd_product_id || "";
-      const legacyId = (settings as any)?.edd_product_id || "";
-      if (!entityId && legacyId) {
-        const id = String(legacyId);
-        setCourseSettings((prev: any) => ({ ...(prev || {}), edd_product_id: id }));
-      }
-    }
-  }, [isEddMonetization(), (courseSettings as any)?.edd_product_id, (settings as any)?.edd_product_id]);
+  // Remove legacy → entity seeding; entity is the source of truth now
 
   // Validate EDD product selection when products are loaded
   useEffect(() => {
@@ -237,15 +210,12 @@ const CoursePricingPanel: React.FC = () => {
       is_free: value === "free",
       ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
     }));
-    // Mirror to legacy until reads flip in Step 5b
-    if (settings) {
-      updateSettings({
-        ...settings,
-        pricing_model: value,
-        is_free: value === "free",
-        ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
-      });
-    }
+    // Mirror to legacy until reads flip in Step 5b (partial, no full snapshot)
+    updateSettings({
+      pricing_model: value,
+      is_free: value === "free",
+      ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
+    } as any);
   };
 
   // Handle price change
@@ -259,7 +229,7 @@ const CoursePricingPanel: React.FC = () => {
   const handleSalePriceChange = (value: string) => {
     const raw = parseFloat(value);
     let sale_price = isNaN(raw) || raw < 0 ? 0 : raw;
-    const currentPrice = Number((courseSettings as any)?.price ?? (settings as any)?.price ?? 0) || 0;
+    const currentPrice = Number((courseSettings as any)?.price ?? 0) || 0;
     if (sale_price >= currentPrice) sale_price = 0;
     setCourseSettings({ ...(courseSettings || {}), sale_price } as any);
   };
@@ -272,122 +242,113 @@ const CoursePricingPanel: React.FC = () => {
       selling_option: value,
       subscription_enabled: value === "subscription" || value === "both" || value === "all",
     }));
-    // Mirror to legacy until reads flip in Step 5b
-    if (settings) {
-      updateSettings({
-        ...settings,
-        selling_option: value,
-        subscription_enabled: value === "subscription" || value === "both" || value === "all",
-      });
-    }
+    // Mirror to legacy until reads flip in Step 5b (partial, no full snapshot)
+    updateSettings({
+      selling_option: value,
+      subscription_enabled: value === "subscription" || value === "both" || value === "all",
+    } as any);
   };
 
   // Handle WooCommerce product selection
   const handleWooCommerceProductChange = async (productId: string) => {
-    if (settings) {
-      // Update the product ID
-      const id = String(productId || "");
-      setCourseSettings({ ...(courseSettings || {}), woocommerce_product_id: id } as any);
-      const updatedSettings = { ...settings, woocommerce_product_id: id } as any;
+    // Update the product ID
+    const id = String(productId || "");
+    setCourseSettings({ ...(courseSettings || {}), woocommerce_product_id: id } as any);
 
-      // If a product is selected, fetch its details and sync prices
-      if (id) {
-        try {
-          const chosenId = id;
-          const productDetails = await fetchWooProductDetails(chosenId, postId);
-          if (productDetails) {
-            // Validate price data before updating
-            const regularPrice = parseFloat(productDetails.regular_price);
-            const salePrice = parseFloat(productDetails.sale_price);
-            let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
-            let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
-            if (sale_price >= price) sale_price = 0;
-            // Last-write guard: ensure current entity still matches chosen id
-            const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
-            if ((current?.woocommerce_product_id || "") === chosenId) {
-              setCourseSettings({ ...(current || {}), price, sale_price } as any);
-            }
-          } else {
-            console.warn("No product details received for product ID:", productId);
+    // If a product is selected, fetch its details and sync prices
+    if (id) {
+      try {
+        const chosenId = id;
+        const productDetails = await fetchWooProductDetails(chosenId, postId);
+        if (productDetails) {
+          // Validate price data before updating
+          const regularPrice = parseFloat(productDetails.regular_price);
+          const salePrice = parseFloat(productDetails.sale_price);
+          let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
+          let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
+          if (sale_price >= price) sale_price = 0;
+          // Last-write guard: ensure current entity still matches chosen id
+          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+          if ((current?.woocommerce_product_id || "") === chosenId) {
+            setCourseSettings({ ...(current || {}), price, sale_price } as any);
           }
-        } catch (error) {
-          console.error("Error fetching WooCommerce product details:", error);
-          // Show user-friendly error message
-          setWooCommerceError(
-            __("Failed to load product details. Please try selecting the product again.", "tutorpress")
-          );
-          // Don't update prices if there's an error - keep existing values
+        } else {
+          console.warn("No product details received for product ID:", productId);
         }
-      } else {
-        // Reset prices when no product is selected
-        setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
+      } catch (error) {
+        console.error("Error fetching WooCommerce product details:", error);
+        // Show user-friendly error message
+        setWooCommerceError(
+          __("Failed to load product details. Please try selecting the product again.", "tutorpress")
+        );
+        // Don't update prices if there's an error - keep existing values
       }
+    } else {
+      // Reset prices when no product is selected
+      setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
+    }
 
-      // 5a.2: entity-only writes for product id (no legacy mirror)
-
-      // Clear any previous errors on successful update
-      if (woocommerceError) {
-        setWooCommerceError(null);
-      }
+    // 5a.2: entity-only writes for product id (no legacy mirror)
+    // Clear any previous errors on successful update
+    if (woocommerceError) {
+      setWooCommerceError(null);
     }
   };
 
   // Handle EDD product selection
   const handleEddProductChange = async (productId: string) => {
-    if (settings) {
-      // Update the product ID
-      const id = String(productId || "");
-      setCourseSettings({ ...(courseSettings || {}), edd_product_id: id } as any);
-      const updatedSettings = { ...settings, edd_product_id: id } as any;
+    // Update the product ID
+    const id = String(productId || "");
+    setCourseSettings({ ...(courseSettings || {}), edd_product_id: id } as any);
 
-      // If a product is selected, fetch its details and sync prices
-      if (id) {
-        try {
-          const chosenId = id;
-          const productDetails = await fetchEddProductDetails(chosenId, postId);
-          if (productDetails) {
-            // Validate price data before updating
-            const regularPrice = parseFloat(productDetails.regular_price);
-            const salePrice = parseFloat(productDetails.sale_price);
-            let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
-            let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
-            if (sale_price >= price) sale_price = 0;
-            // Last-write guard: ensure current entity still matches chosen id
-            const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
-            if ((current?.edd_product_id || "") === chosenId) {
-              setCourseSettings({ ...(current || {}), price, sale_price } as any);
-            }
-          } else {
-            console.warn("No product details received for product ID:", productId);
+    // If a product is selected, fetch its details and sync prices
+    if (id) {
+      try {
+        const chosenId = id;
+        const productDetails = await fetchEddProductDetails(chosenId, postId);
+        if (productDetails) {
+          // Validate price data before updating
+          const regularPrice = parseFloat(productDetails.regular_price);
+          const salePrice = parseFloat(productDetails.sale_price);
+          let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
+          let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
+          if (sale_price >= price) sale_price = 0;
+          // Last-write guard: ensure current entity still matches chosen id
+          const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
+          if ((current?.edd_product_id || "") === chosenId) {
+            setCourseSettings({ ...(current || {}), price, sale_price } as any);
           }
-        } catch (error) {
-          console.error("Error fetching EDD product details:", error);
-          // Show user-friendly error message
-          setEddError(__("Failed to load product details. Please try selecting the product again.", "tutorpress"));
-          // Don't update prices if there's an error - keep existing values
+        } else {
+          console.warn("No product details received for product ID:", productId);
         }
-      } else {
-        // Reset prices when no product is selected
-        setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
+      } catch (error) {
+        console.error("Error fetching EDD product details:", error);
+        // Show user-friendly error message
+        setEddError(__("Failed to load product details. Please try selecting the product again.", "tutorpress"));
+        // Don't update prices if there's an error - keep existing values
       }
+    } else {
+      // Reset prices when no product is selected
+      setCourseSettings({ ...(courseSettings || {}), price: 0, sale_price: 0 } as any);
+    }
 
-      // 5a.2: entity-only writes for product id (no legacy mirror)
-
-      // Clear any previous errors on successful update
-      if (eddError) {
-        setEddError(null);
-      }
+    // 5a.2: entity-only writes for product id (no legacy mirror)
+    // Clear any previous errors on successful update
+    if (eddError) {
+      setEddError(null);
     }
   };
 
   // Check if purchase options should be shown
-  const shouldShowPurchaseOptions =
-    settings?.pricing_model === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
+  const pricingModel = ((courseSettings as any)?.pricing_model || "free") as string;
+  const sellingOption = ((courseSettings as any)?.selling_option || "one_time") as string;
+
+  const shouldShowPurchaseOptions = pricingModel === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
 
   // Helper function to determine if price fields should be shown
   const shouldShowPriceFields = () => {
     // Don't show if pricing model is not "paid" or monetization is disabled
-    if (settings?.pricing_model !== "paid" || !isMonetizationEnabled()) {
+    if (pricingModel !== "paid" || !isMonetizationEnabled()) {
       return false;
     }
 
@@ -407,7 +368,6 @@ const CoursePricingPanel: React.FC = () => {
     }
 
     // If subscription addon is enabled, show based on selling option
-    const sellingOption = settings?.selling_option || "one_time";
     return ["one_time", "both", "all"].includes(sellingOption);
   };
 
@@ -465,7 +425,7 @@ const CoursePricingPanel: React.FC = () => {
         <RadioControl
           label={__("Pricing Type", "tutorpress")}
           help={__("Choose whether this course is free or paid.", "tutorpress")}
-          selected={settings?.pricing_model || "free"}
+          selected={pricingModel}
           options={[
             {
               label: __("Free", "tutorpress"),
@@ -486,7 +446,7 @@ const CoursePricingPanel: React.FC = () => {
       </PanelRow>
 
       {/* WooCommerce Product Selector - Only show when WooCommerce monetization is active and course is paid */}
-      {isWooCommerceMonetization() && settings?.pricing_model === "paid" && (
+      {isWooCommerceMonetization() && pricingModel === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("WooCommerce Product", "tutorpress")}
@@ -510,7 +470,7 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* EDD Product Selector - Only show when EDD monetization is active and course is paid */}
-      {isEddMonetization() && settings?.pricing_model === "paid" && (
+      {isEddMonetization() && pricingModel === "paid" && (
         <PanelRow>
           <SelectControl
             label={__("EDD Product", "tutorpress")}
@@ -539,7 +499,7 @@ const CoursePricingPanel: React.FC = () => {
           <SelectControl
             label={__("Purchase Options", "tutorpress")}
             help={__("Choose how this course can be purchased.", "tutorpress")}
-            value={settings?.selling_option || "one_time"}
+            value={sellingOption}
             options={getPurchaseOptions()}
             onChange={handlePurchaseOptionChange}
           />
@@ -557,7 +517,7 @@ const CoursePricingPanel: React.FC = () => {
                 type="number"
                 min="0"
                 step="0.01"
-                value={((courseSettings as any)?.price ?? (settings as any)?.price ?? 0).toString()}
+                value={((courseSettings as any)?.price ?? 0).toString()}
                 onChange={handlePriceChange}
               />
             </div>
@@ -571,7 +531,7 @@ const CoursePricingPanel: React.FC = () => {
                 type="number"
                 min="0"
                 step="0.01"
-                value={((courseSettings as any)?.sale_price ?? (settings as any)?.sale_price ?? 0).toString()}
+                value={((courseSettings as any)?.sale_price ?? 0).toString()}
                 onChange={handleSalePriceChange}
               />
             </div>
@@ -580,12 +540,10 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* Subscription Section - Show based on purchase option selection */}
-      {settings?.pricing_model === "paid" &&
+      {pricingModel === "paid" &&
         isMonetizationEnabled() &&
         isSubscriptionEnabled() &&
-        (settings?.selling_option === "subscription" ||
-          settings?.selling_option === "both" ||
-          settings?.selling_option === "all") && (
+        (sellingOption === "subscription" || sellingOption === "both" || sellingOption === "all") && (
           <PanelRow>
             <div className="subscription-section">
               {/* Existing Plans List */}
