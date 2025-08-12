@@ -192,6 +192,14 @@ const CoursePricingPanel: React.FC = () => {
         title={__("Pricing Model", "tutorpress")}
         className="tutorpress-course-pricing-panel"
       >
+        {/* Always mount modal so it can open even during loading states */}
+        <SubscriptionModal
+          isOpen={isSubscriptionModalOpen}
+          onClose={handleSubscriptionModalClose}
+          courseId={postId}
+          initialPlan={editingPlan}
+          shouldShowForm={shouldShowForm}
+        />
         <PanelRow>
           <div style={{ width: "100%", textAlign: "center", padding: "20px 0" }}>
             <Spinner />
