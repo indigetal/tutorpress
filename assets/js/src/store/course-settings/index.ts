@@ -38,12 +38,7 @@ interface State {
     isLoading: boolean;
     error: string | null;
   };
-  edd: {
-    products: any[];
-    productDetails: any | null;
-    isLoading: boolean;
-    error: string | null;
-  };
+  // EDD list/detail logic moved to `tutorpress/commerce`
   instructors: {
     courseInstructors: CourseInstructors | null;
     searchResults: InstructorSearchResult[];
@@ -66,12 +61,7 @@ const DEFAULT_STATE: State = {
     isLoading: false,
     error: null,
   },
-  edd: {
-    products: [],
-    productDetails: null,
-    isLoading: false,
-    error: null,
-  },
+  // EDD list/detail logic moved to `tutorpress/commerce`
   instructors: {
     courseInstructors: null,
     searchResults: [],
@@ -88,9 +78,7 @@ type CourseSettingsAction =
   // prerequisites list actions removed (moved to dedicated store)
   | { type: "SET_ATTACHMENTS_METADATA"; payload: CourseAttachment[] }
   | { type: "SET_ATTACHMENTS_STATE"; payload: Partial<State["attachments"]> }
-  | { type: "SET_EDD_PRODUCTS"; payload: any[] }
-  | { type: "SET_EDD_PRODUCT_DETAILS"; payload: any }
-  | { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> }
+  // EDD actions removed (migrated to tutorpress/commerce)
   | { type: "SET_COURSE_INSTRUCTORS"; payload: CourseInstructors }
   | { type: "SET_INSTRUCTOR_SEARCH_RESULTS"; payload: InstructorSearchResult[] }
   | { type: "SET_INSTRUCTORS_STATE"; payload: Partial<State["instructors"]> };
@@ -126,26 +114,7 @@ const actions = {
     };
   },
 
-  setEddProducts(products: any[]) {
-    return {
-      type: "SET_EDD_PRODUCTS" as const,
-      payload: products,
-    };
-  },
-
-  setEddProductDetails(productDetails: any) {
-    return {
-      type: "SET_EDD_PRODUCT_DETAILS" as const,
-      payload: productDetails,
-    };
-  },
-
-  setEddState(state: Partial<State["edd"]>) {
-    return {
-      type: "SET_EDD_STATE" as const,
-      payload: state,
-    };
-  },
+  // EDD actions removed (migrated to tutorpress/commerce)
 
   setCourseInstructors(instructors: CourseInstructors) {
     return {
@@ -218,102 +187,7 @@ const actions = {
     }
   },
 
-  // Fetch EDD products for product selection
-  *fetchEddProducts(
-    params: {
-      course_id?: number;
-      search?: string;
-      per_page?: number;
-      page?: number;
-    } = {}
-  ): Generator {
-    try {
-      yield actions.setEddState({ isLoading: true, error: null });
-
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-      if (params.course_id) {
-        queryParams.append("course_id", params.course_id.toString());
-      }
-      if (params.search) {
-        queryParams.append("search", params.search);
-      }
-      if (params.per_page) {
-        queryParams.append("per_page", params.per_page.toString());
-      }
-      if (params.page) {
-        queryParams.append("page", params.page.toString());
-      }
-
-      const queryString = queryParams.toString();
-      const path = `/tutorpress/v1/edd/products${queryString ? `?${queryString}` : ""}`;
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path,
-          method: "GET",
-        },
-      };
-
-      if (!response.success) {
-        throw createCurriculumError(
-          response.message || "API Error",
-          CurriculumErrorCode.FETCH_FAILED,
-          "fetchEddProducts",
-          "Failed to fetch EDD products"
-        );
-      }
-
-      yield actions.setEddProducts(response.data.products || []);
-      yield actions.setEddState({ isLoading: false, error: null });
-    } catch (error: any) {
-      yield actions.setEddState({ isLoading: false, error: error.message });
-      throw error;
-    }
-  },
-
-  // Fetch EDD product details for price synchronization
-  *fetchEddProductDetails(productId: string, courseId?: number): Generator {
-    try {
-      yield actions.setEddState({ isLoading: true, error: null });
-
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-      if (courseId) {
-        queryParams.append("course_id", courseId.toString());
-      }
-
-      const queryString = queryParams.toString();
-      const path = `/tutorpress/v1/edd/products/${productId}${queryString ? `?${queryString}` : ""}`;
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path,
-          method: "GET",
-        },
-      };
-
-      if (!response.success) {
-        throw createCurriculumError(
-          response.message || "API Error",
-          CurriculumErrorCode.FETCH_FAILED,
-          "fetchEddProductDetails",
-          "Failed to fetch EDD product details"
-        );
-      }
-
-      yield actions.setEddProductDetails(response.data);
-      yield actions.setEddState({ isLoading: false, error: null });
-
-      // Return the product details for immediate use
-      return response.data;
-    } catch (error: any) {
-      yield actions.setEddState({ isLoading: false, error: error.message });
-      throw error;
-    }
-  },
+  // EDD resolvers removed (migrated to tutorpress/commerce)
 
   // prerequisites list fetch moved to dedicated store
 
@@ -415,18 +289,7 @@ const selectors = {
   getAttachmentsError(state: State) {
     return state.attachments.error;
   },
-  getEddProducts(state: State) {
-    return state.edd.products;
-  },
-  getEddProductDetails(state: State) {
-    return state.edd.productDetails;
-  },
-  getEddLoading(state: State) {
-    return state.edd.isLoading;
-  },
-  getEddError(state: State) {
-    return state.edd.error;
-  },
+  // EDD selectors removed (migrated to tutorpress/commerce)
   getInstructors(state: State) {
     return state.instructors.courseInstructors;
   },
@@ -728,30 +591,7 @@ const store = createReduxStore("tutorpress/course-settings", {
           },
         };
       // WooCommerce slice removed (migrated to tutorpress/commerce)
-      case "SET_EDD_PRODUCTS":
-        return {
-          ...state,
-          edd: {
-            ...state.edd,
-            products: (action as { type: "SET_EDD_PRODUCTS"; payload: any[] }).payload,
-          },
-        };
-      case "SET_EDD_PRODUCT_DETAILS":
-        return {
-          ...state,
-          edd: {
-            ...state.edd,
-            productDetails: (action as { type: "SET_EDD_PRODUCT_DETAILS"; payload: any }).payload,
-          },
-        };
-      case "SET_EDD_STATE":
-        return {
-          ...state,
-          edd: {
-            ...state.edd,
-            ...(action as { type: "SET_EDD_STATE"; payload: Partial<State["edd"]> }).payload,
-          },
-        };
+      // EDD slice removed (migrated to tutorpress/commerce)
       case "SET_COURSE_INSTRUCTORS":
         return {
           ...state,
