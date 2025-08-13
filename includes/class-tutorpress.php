@@ -146,9 +146,11 @@ class TutorPress_Main {
         // Initialize course-specific functionality (migrated from individual metaboxes)
         new TutorPress_Course(); // Handles Certificate, Additional Content, and Course Settings
         
+        // Initialize lesson settings via post type class (settings-only)
+        new TutorPress_Lesson();
+        
         // Initialize settings panels that use static init pattern
         TutorPress_Assignment_Settings::init();
-        TutorPress_Lesson_Settings::init();
         TutorPress_Content_Drip_Helpers::init();
         TutorPress_Bundle_Settings::init();
     }

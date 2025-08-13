@@ -28,6 +28,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Dashboard_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
         'TutorPress_Dependency_Checker' => __DIR__ . '/../..' . '/includes/class-tutorpress-dependency-checker.php',
         'TutorPress_EDD_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
+        'TutorPress_Lesson' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-lesson.php',
         'TutorPress_Lesson_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-lesson-settings.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
         'TutorPress_Metadata_Handler' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',

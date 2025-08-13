@@ -23,6 +23,7 @@ return array(
     'TutorPress_Dashboard_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
     'TutorPress_Dependency_Checker' => $baseDir . '/includes/class-tutorpress-dependency-checker.php',
     'TutorPress_EDD_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
+    'TutorPress_Lesson' => $baseDir . '/includes/post-types/class-tutorpress-lesson.php',
     'TutorPress_Lesson_Settings' => $baseDir . '/includes/gutenberg/settings/class-lesson-settings.php',
     'TutorPress_Main' => $baseDir . '/includes/class-tutorpress.php',
     'TutorPress_Metadata_Handler' => $baseDir . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
