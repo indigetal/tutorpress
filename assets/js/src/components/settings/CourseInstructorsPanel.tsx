@@ -51,10 +51,24 @@ const CourseInstructorsPanel: React.FC = () => {
       const composedCo = Array.isArray(entityIds)
         ? entityIds
             .filter((id) => typeof id === "number")
-            .map(
-              (id) =>
-                storeMap.get(id) || searchMap.get(id) || { id, display_name: `#${id}`, user_email: "", avatar_url: "" }
-            )
+            .map((id) => {
+              const fromStore = storeMap.get(id) || searchMap.get(id);
+              if (fromStore) return fromStore;
+              const coreUser: any = (select as any)("core").getEntityRecord("root", "user", id);
+              if (coreUser) {
+                const avatar =
+                  (coreUser.avatar_urls &&
+                    (coreUser.avatar_urls[96] || coreUser.avatar_urls[48] || coreUser.avatar_urls[24])) ||
+                  "";
+                return {
+                  id,
+                  display_name: coreUser.name || `#${id}`,
+                  user_email: coreUser.email || "",
+                  avatar_url: avatar,
+                };
+              }
+              return { id, display_name: `#${id}`, user_email: "", avatar_url: "" };
+            })
         : storeCo;
 
       const authorObj =
@@ -63,12 +77,24 @@ const CourseInstructorsPanel: React.FC = () => {
             ? uiAuthor
             : storeAuthor && storeAuthor.id === authorId
               ? storeAuthor
-              : searchCo.find((u: any) => u && u.id === authorId) || {
-                  id: authorId,
-                  display_name: `#${authorId}`,
-                  user_email: "",
-                  avatar_url: "",
-                }
+              : (() => {
+                  const found = searchCo.find((u: any) => u && u.id === authorId);
+                  if (found) return found;
+                  const coreUser: any = (select as any)("core").getEntityRecord("root", "user", authorId);
+                  if (coreUser) {
+                    const avatar =
+                      (coreUser.avatar_urls &&
+                        (coreUser.avatar_urls[96] || coreUser.avatar_urls[48] || coreUser.avatar_urls[24])) ||
+                      "";
+                    return {
+                      id: authorId,
+                      display_name: coreUser.name || `#${authorId}`,
+                      user_email: coreUser.email || "",
+                      avatar_url: avatar,
+                    };
+                  }
+                  return { id: authorId, display_name: `#${authorId}`, user_email: "", avatar_url: "" };
+                })()
           : storeAuthor || null;
       const composed =
         authorObj || (composedCo && composedCo.length > 0) ? { author: authorObj, co_instructors: composedCo } : null;
@@ -160,6 +186,9 @@ const CourseInstructorsPanel: React.FC = () => {
     async (tokens: (string | { value: string })[]) => {
       const tokenStrings = tokens.map((token) => (typeof token === "string" ? token : token.value));
 
+      // Snapshot the previous author before changing
+      const prevAuthorId = (select as any)("core/editor").getEditedPostAttribute("author");
+
       // Find the instructor ID for the selected token
       const selectedInstructor = searchResults.find((instructor: InstructorSearchResult) =>
         tokenStrings.includes(`${instructor.display_name} (${instructor.user_email})`)
@@ -168,13 +197,12 @@ const CourseInstructorsPanel: React.FC = () => {
       if (selectedInstructor) {
         // Check if the selected instructor is already the current author
         if (instructors?.author?.id === selectedInstructor.id) {
-          // Already the current author, just close the search
           setAuthorSearchValue("");
           setIsAuthorExpanded(false);
           return;
         }
 
-        // Entity-only write of author + UI echo for immediate display
+        // Update author in entity
         editPost({ author: selectedInstructor.id });
         setUiAuthor({
           id: selectedInstructor.id,
@@ -182,11 +210,33 @@ const CourseInstructorsPanel: React.FC = () => {
           user_email: (selectedInstructor as any).user_email || "",
           avatar_url: (selectedInstructor as any).avatar_url || "",
         } as any);
+
+        // Replicate Tutor LMS Multi Instructors behavior: add previous author as co-instructor
+        if (isMultiInstructorsAddonEnabled && typeof prevAuthorId === "number" && prevAuthorId > 0) {
+          // Start from entity instructors or current UI store-derived list
+          const currentEntity = (select as any)("core/editor").getEditedPostAttribute("course_settings") || {};
+          const currentInstructorIds = Array.isArray(currentEntity?.instructors)
+            ? (currentEntity?.instructors as number[])
+            : instructors?.co_instructors?.map((i: InstructorUser) => i.id) || [];
+
+          // Ensure the newly selected author is not listed as co-instructor
+          let nextIds = currentInstructorIds.filter((id: number) => id !== selectedInstructor.id);
+
+          // Append previous author if not already present and not the same as new author
+          if (prevAuthorId !== selectedInstructor.id && !nextIds.includes(prevAuthorId)) {
+            nextIds = [...nextIds, prevAuthorId];
+          }
+
+          // Write to entity and echo locally for immediate UI feedback
+          (setCourseSettings as any)((prev: any) => ({ ...(prev || {}), instructors: nextIds }));
+          setUiCoIds(nextIds);
+        }
+
         setAuthorSearchValue("");
         setIsAuthorExpanded(false);
       }
     },
-    [searchResults, editPost]
+    [searchResults, instructors, isMultiInstructorsAddonEnabled, setCourseSettings, editPost]
   );
 
   // Clear uiAuthor echo when store author catches up or author id diverges
