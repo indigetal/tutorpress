@@ -41,3 +41,6 @@ export {
   type UseSortableListOptions,
   type UseSortableListReturn,
 } from "./useSortableList";
+
+export { useEntitySettings, type UseEntitySettingsReturn } from "./useEntitySettings";
+export { useCourseSettings, type UseCourseSettingsReturn } from "./useCourseSettings";

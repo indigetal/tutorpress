@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect } from "@wordpress/data";
-import { useEntityProp } from "@wordpress/core-data";
+// useEntityProp replaced by shared hook
 import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings, CourseDifficultyLevel } from "../../types/courses";
 import { courseDifficultyLevels } from "../../types/courses";
+import { useCourseSettings } from "../../hooks/common";
 
 const CourseDetailsPanel: React.FC = () => {
   // Get current post type
@@ -18,9 +19,8 @@ const CourseDetailsPanel: React.FC = () => {
     []
   );
 
-  // Bind Gutenberg composite course_settings for incremental migration
-  // Bind directly to the courses post type to avoid transient undefined postType during first render
-  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  // Shared hook for course settings
+  const { courseSettings, setCourseSettings, ready, safeSet } = useCourseSettings();
   const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
   const enableQna = cs?.enable_qna ?? false;
 
@@ -45,7 +45,7 @@ const CourseDetailsPanel: React.FC = () => {
     }
   }, [totalDuration.hours, totalDuration.minutes]);
 
-  const entityReady = typeof courseSettings !== "undefined" && courseSettings !== null;
+  const entityReady = !!ready;
 
   // Show loading state while entity not ready
   if (!entityReady) {
@@ -68,11 +68,7 @@ const CourseDetailsPanel: React.FC = () => {
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`
     : __("No duration set", "tutorpress");
 
-  // Sensei-style setter: spread latest object from hook; single source of truth
-  const safeSet = (partial: Partial<CourseSettings>) => {
-    const base = ((courseSettings as Partial<CourseSettings>) || {}) as Partial<CourseSettings>;
-    setCourseSettings({ ...base, ...partial } as Partial<CourseSettings>);
-  };
+  // safeSet provided by shared hook; shallow merge at top-level
 
   return (
     <PluginDocumentSettingPanel
