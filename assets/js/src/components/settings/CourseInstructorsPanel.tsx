@@ -20,11 +20,14 @@ const CourseInstructorsPanel: React.FC = () => {
   // Entity binding and local UI echo for immediate feedback
   const [entitySettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
   const [uiCoIds, setUiCoIds] = useState<number[] | null>(null);
+  const [uiAuthor, setUiAuthor] = useState<InstructorUser | null>(null);
 
   // Get instructor data from dedicated instructors store (read-only)
   const { postType, instructors, error, isLoading, searchResults, isSearching, searchError } = useSelect(
     (select: any) => {
-      const author = select("tutorpress/instructors").getAuthor();
+      // Derive author from the core entity (author id) and resolve to a user object if possible
+      const authorId = select("core/editor").getEditedPostAttribute("author");
+      const storeAuthor = select("tutorpress/instructors").getAuthor();
       const storeCo = select("tutorpress/instructors").getCoInstructors() || [];
       const searchCo = select("tutorpress/instructors").getSearchResults() || [];
       const entityIds = Array.isArray(uiCoIds)
@@ -54,7 +57,21 @@ const CourseInstructorsPanel: React.FC = () => {
             )
         : storeCo;
 
-      const composed = author || (composedCo && composedCo.length > 0) ? { author, co_instructors: composedCo } : null;
+      const authorObj =
+        typeof authorId === "number"
+          ? uiAuthor && uiAuthor.id === authorId
+            ? uiAuthor
+            : storeAuthor && storeAuthor.id === authorId
+              ? storeAuthor
+              : searchCo.find((u: any) => u && u.id === authorId) || {
+                  id: authorId,
+                  display_name: `#${authorId}`,
+                  user_email: "",
+                  avatar_url: "",
+                }
+          : storeAuthor || null;
+      const composed =
+        authorObj || (composedCo && composedCo.length > 0) ? { author: authorObj, co_instructors: composedCo } : null;
       return {
         postType: select("core/editor").getCurrentPostType(),
         instructors: composed,
@@ -65,11 +82,11 @@ const CourseInstructorsPanel: React.FC = () => {
         searchError: select("tutorpress/instructors").getSearchError(),
       };
     },
-    [uiCoIds, entitySettings]
+    [uiCoIds, entitySettings, uiAuthor]
   );
 
   // Get dispatch actions
-  const { fetchCourseInstructors, searchInstructors, updateCourseAuthor } = useDispatch("tutorpress/instructors");
+  const { fetchCourseInstructors, searchInstructors } = useDispatch("tutorpress/instructors");
   const { editPost } = useDispatch("core/editor");
 
   // Load instructors when component mounts
@@ -157,22 +174,34 @@ const CourseInstructorsPanel: React.FC = () => {
           return;
         }
 
-        try {
-          // Update the post author using our REST API
-          await updateCourseAuthor(selectedInstructor.id);
-
-          // Update the local editor state
-          editPost({ post_author: selectedInstructor.id });
-          setAuthorSearchValue("");
-          setIsAuthorExpanded(false);
-        } catch (error) {
-          console.error("Error updating author:", error);
-          // Could add user notification here in the future
-        }
+        // Entity-only write of author + UI echo for immediate display
+        editPost({ author: selectedInstructor.id });
+        setUiAuthor({
+          id: selectedInstructor.id,
+          display_name: selectedInstructor.display_name,
+          user_email: (selectedInstructor as any).user_email || "",
+          avatar_url: (selectedInstructor as any).avatar_url || "",
+        } as any);
+        setAuthorSearchValue("");
+        setIsAuthorExpanded(false);
       }
     },
-    [searchResults, editPost, updateCourseAuthor]
+    [searchResults, editPost]
   );
+
+  // Clear uiAuthor echo when store author catches up or author id diverges
+  useEffect(() => {
+    if (!uiAuthor) return;
+    const currentAuthorId = (select as any)("core/editor").getEditedPostAttribute("author");
+    if (typeof currentAuthorId !== "number") {
+      setUiAuthor(null);
+      return;
+    }
+    const storeAuthor = (select as any)("tutorpress/instructors").getAuthor?.();
+    if (storeAuthor && storeAuthor.id === currentAuthorId) {
+      setUiAuthor(null);
+    }
+  }, [uiAuthor]);
 
   // Generate suggestions for author search (exclude current author)
   const getAuthorSuggestions = useCallback(() => {

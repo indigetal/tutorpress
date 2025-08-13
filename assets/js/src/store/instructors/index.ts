@@ -161,79 +161,6 @@ const actions = {
       yield actions.setSearching(false);
     }
   },
-
-  /**
-   * Update course author, then refresh current instructors.
-   */
-  *updateCourseAuthor(authorId: number): Generator<any, any, any> {
-    const courseId: number | null = (yield select("core/editor").getCurrentPostId()) || null;
-    if (!courseId) {
-      return;
-    }
-    try {
-      yield actions.setLoading(true);
-      yield actions.setError(null);
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/courses/${courseId}/settings/author`,
-          method: "POST",
-          data: { author_id: authorId },
-        },
-      };
-
-      if (!response || response.success === false) {
-        const msg = (response && response.message) || "Failed to update author";
-        throw new Error(msg);
-      }
-
-      // Refresh (force bypass cache)
-      yield actions.fetchCourseInstructors(true);
-    } catch (error: any) {
-      yield actions.setError(error?.message || "Failed to update author");
-      throw error;
-    } finally {
-      yield actions.setLoading(false);
-    }
-  },
-
-  /**
-   * Update course co-instructors, then refresh current instructors.
-   * Retained during transition; panel will move writes to entity prop and drop this.
-   */
-  *updateCourseCoInstructors(instructorIds: number[]): Generator<any, any, any> {
-    const courseId: number | null = (yield select("core/editor").getCurrentPostId()) || null;
-    if (!courseId) {
-      return;
-    }
-    try {
-      yield actions.setLoading(true);
-      yield actions.setError(null);
-
-      const response = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/courses/${courseId}/settings/instructors`,
-          method: "POST",
-          data: { instructor_ids: Array.isArray(instructorIds) ? instructorIds : [] },
-        },
-      };
-
-      if (!response || response.success === false) {
-        const msg = (response && response.message) || "Failed to update instructors";
-        throw new Error(msg);
-      }
-
-      // Refresh (force bypass cache)
-      yield actions.fetchCourseInstructors(true);
-    } catch (error: any) {
-      yield actions.setError(error?.message || "Failed to update instructors");
-      throw error;
-    } finally {
-      yield actions.setLoading(false);
-    }
-  },
 };
 
 const selectors = {
@@ -298,8 +225,7 @@ register(store);
 
 export default store;
 export const instructorsStore = store;
-export const { fetchCourseInstructors, searchInstructors, updateCourseAuthor, updateCourseCoInstructors } =
-  actions as any;
+export const { fetchCourseInstructors, searchInstructors } = actions as any;
 export const {
   getAuthor,
   getCoInstructors,
