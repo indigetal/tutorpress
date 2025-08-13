@@ -12,27 +12,23 @@ import VideoIntroSection from "./VideoIntroSection";
 
 const CourseMediaPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
-  const { postType, settings, error, isLoading, attachmentsMetadata, attachmentsLoading, attachmentIds } = useSelect(
+  const { postType, attachmentsMetadata, attachmentsLoading, attachmentIds, entitySettings } = useSelect(
     (select: any) => {
-      const s = select("tutorpress/course-settings");
-      const cs = select("core/editor").getEditedPostAttribute("course_settings") || {};
+      const cs = select("core/editor").getEditedPostAttribute("course_settings");
       const ids = ((cs.attachments as number[]) || []) as number[];
       const metaStore = select("tutorpress/attachments-meta");
       return {
         postType: select("core/editor").getCurrentPostType(),
-        settings: s.getSettings(),
-        error: s.getError(),
-        isLoading: s.getFetchState().isLoading,
         attachmentsMetadata: metaStore.getAttachmentsMetadata(ids),
         attachmentsLoading: metaStore.getAttachmentsLoading(),
         attachmentIds: ids,
+        entitySettings: cs,
       };
     },
     []
   );
 
-  // Get dispatch actions
-  const { updateSettings, getSettings } = useDispatch("tutorpress/course-settings");
+  // No legacy course-settings dispatches remain
   const { fetchAttachmentsMetadata } = useDispatch("tutorpress/attachments-meta");
 
   // Bind Gutenberg composite course_settings for incremental migration
@@ -70,6 +66,24 @@ const CourseMediaPanel: React.FC = () => {
   // Only show for course post type
   if (postType !== "courses") {
     return null;
+  }
+
+  // Show loading while entity not ready
+  const entityReady = typeof entitySettings !== "undefined";
+  if (!entityReady) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-media-settings"
+        title={__("Course Media", "tutorpress")}
+        className="tutorpress-course-media-panel"
+      >
+        <PanelRow>
+          <div style={{ width: "100%", textAlign: "center", padding: "20px 0" }}>
+            <Spinner />
+          </div>
+        </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
   }
 
   // Course Attachments functions (following Exercise Files pattern)
@@ -113,8 +127,8 @@ const CourseMediaPanel: React.FC = () => {
 
   const attachmentCount = uiIds?.length || 0;
 
-  // Show loading state while fetching settings
-  if (isLoading) {
+  // Show loading while entity not ready (guard duplicated)
+  if (!entityReady) {
     return (
       <PluginDocumentSettingPanel
         name="course-media-settings"
@@ -136,13 +150,7 @@ const CourseMediaPanel: React.FC = () => {
       title={__("Course Media", "tutorpress")}
       className="tutorpress-course-media-panel"
     >
-      {error && (
-        <PanelRow>
-          <Notice status="error" isDismissible={false}>
-            {error}
-          </Notice>
-        </PanelRow>
-      )}
+      {/* No legacy error state; entity-only */}
 
       {/* Video Intro Section */}
       <VideoIntroSection />
@@ -209,13 +217,12 @@ const CourseMediaPanel: React.FC = () => {
         <div style={{ width: "100%" }}>
           <TextareaControl
             label={__("Materials Included", "tutorpress")}
-            value={cs?.course_material_includes ?? settings?.course_material_includes ?? ""}
+            value={cs?.course_material_includes ?? ""}
             onChange={(value) => {
               setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
                 ...(prev || {}),
                 course_material_includes: value,
               }));
-              updateSettings({ course_material_includes: value });
             }}
             placeholder={__(
               "A list of assets you will be providing for the students in this course (one per line)",

@@ -10,7 +10,7 @@
 
 import React, { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
-import { useSelect, useDispatch } from "@wordpress/data";
+import { useSelect } from "@wordpress/data";
 import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, Notice, Spinner, Button, TextControl, TextareaControl, SelectControl } from "@wordpress/components";
 
@@ -20,10 +20,9 @@ import { useVideoDetection } from "../../hooks/useVideoDetection";
 import VideoThumbnail from "../common/VideoThumbnail";
 
 const VideoIntroSection: React.FC = () => {
-  // Get settings from our store
-  const { settings, isSaving } = useSelect(
+  // Editor saving state
+  const { isSaving } = useSelect(
     (select: any) => ({
-      settings: select("tutorpress/course-settings").getSettings(),
       isSaving: select("core/editor").isSavingPost(),
     }),
     []
@@ -44,14 +43,8 @@ const VideoIntroSection: React.FC = () => {
     poster: "",
   };
   const courseSettingsTyped = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
-  const settingsTyped = (settings as CourseSettings | null) || null;
   const intro: CourseSettings["intro_video"] =
-    (courseSettingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
-    (settingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) ||
-    emptyIntro;
-
-  // Get dispatch actions
-  const { updateSettings } = useDispatch("tutorpress/course-settings");
+    (courseSettingsTyped?.intro_video as CourseSettings["intro_video"] | undefined) || emptyIntro;
 
   // Video detection hook (without duration detection as requested)
   const { isDetecting, error: videoError, isSourceSupported } = useVideoDetection();
@@ -60,16 +53,15 @@ const VideoIntroSection: React.FC = () => {
   const [videoMetaError, setVideoMetaError] = useState<string>("");
   const [isLoadingVideoMeta, setIsLoadingVideoMeta] = useState<boolean>(false);
 
-  // Deep-merge helper for intro_video (functional updater + mirrored legacy write during transition)
+  // Deep-merge helper for intro_video (functional updater; entity-only write)
   const applyIntro = useCallback(
     (updates: Partial<CourseSettings["intro_video"]>) => {
       setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
         ...(prev || {}),
         intro_video: { ...((prev?.intro_video as CourseSettings["intro_video"]) || emptyIntro), ...updates },
       }));
-      updateSettings({ intro_video: { ...intro, ...updates } });
     },
-    [setCourseSettings, updateSettings, intro]
+    [setCourseSettings, intro]
   );
 
   // Reset by source and clear helpers
@@ -163,7 +155,7 @@ const VideoIntroSection: React.FC = () => {
         />
 
         {/* Upload Video */}
-        {settings?.intro_video?.source === "html5" && (
+        {intro?.source === "html5" && (
           <div style={{ marginTop: "8px" }}>
             <Button
               variant="secondary"
