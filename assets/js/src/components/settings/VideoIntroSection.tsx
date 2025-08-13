@@ -11,7 +11,7 @@
 import React, { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
 import { useSelect } from "@wordpress/data";
-import { useEntityProp } from "@wordpress/core-data";
+import { useCourseSettings } from "../../hooks/common";
 import { PanelRow, Notice, Spinner, Button, TextControl, TextareaControl, SelectControl } from "@wordpress/components";
 
 // Import course settings types
@@ -28,8 +28,8 @@ const VideoIntroSection: React.FC = () => {
     []
   );
 
-  // Bind Gutenberg composite course_settings for incremental migration (entity prop with fallback)
-  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  // Shared course settings hook (parent panel gates readiness)
+  const { courseSettings, safeSet } = useCourseSettings();
 
   // Strongly-typed helpers
   const emptyIntro: CourseSettings["intro_video"] = {
@@ -53,15 +53,16 @@ const VideoIntroSection: React.FC = () => {
   const [videoMetaError, setVideoMetaError] = useState<string>("");
   const [isLoadingVideoMeta, setIsLoadingVideoMeta] = useState<boolean>(false);
 
-  // Deep-merge helper for intro_video (functional updater; entity-only write)
+  // Deep-merge helper for intro_video; build nested object and pass via shallow safeSet
   const applyIntro = useCallback(
     (updates: Partial<CourseSettings["intro_video"]>) => {
-      setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
-        ...(prev || {}),
-        intro_video: { ...((prev?.intro_video as CourseSettings["intro_video"]) || emptyIntro), ...updates },
-      }));
+      const nextIntro = {
+        ...((courseSettingsTyped?.intro_video as CourseSettings["intro_video"]) || emptyIntro),
+        ...updates,
+      };
+      safeSet({ intro_video: nextIntro });
     },
-    [setCourseSettings, intro]
+    [safeSet, courseSettingsTyped]
   );
 
   // Reset by source and clear helpers

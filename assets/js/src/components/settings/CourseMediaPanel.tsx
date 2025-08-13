@@ -2,38 +2,35 @@ import React, { useEffect, useRef, useState } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, Notice, Spinner, Button, TextareaControl } from "@wordpress/components";
 
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 import { isCourseAttachmentsEnabled } from "../../utils/addonChecker";
 import VideoIntroSection from "./VideoIntroSection";
+import { useCourseSettings } from "../../hooks/common";
 
 const CourseMediaPanel: React.FC = () => {
-  // Get settings from our store and Gutenberg store
-  const { postType, attachmentsMetadata, attachmentsLoading, attachmentIds, entitySettings } = useSelect(
+  // Shared hook for course settings
+  const { courseSettings, ready, safeSet } = useCourseSettings();
+  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
+  const attachmentIds = (cs?.attachments || []) as number[];
+
+  // Read editor post type and attachments metadata via store
+  const { postType, attachmentsMetadata, attachmentsLoading } = useSelect(
     (select: any) => {
-      const cs = select("core/editor").getEditedPostAttribute("course_settings");
-      const ids = ((cs.attachments as number[]) || []) as number[];
       const metaStore = select("tutorpress/attachments-meta");
       return {
         postType: select("core/editor").getCurrentPostType(),
-        attachmentsMetadata: metaStore.getAttachmentsMetadata(ids),
+        attachmentsMetadata: metaStore.getAttachmentsMetadata(attachmentIds),
         attachmentsLoading: metaStore.getAttachmentsLoading(),
-        attachmentIds: ids,
-        entitySettings: cs,
       };
     },
-    []
+    [attachmentIds.join(",")]
   );
 
   // No legacy course-settings dispatches remain
   const { fetchAttachmentsMetadata } = useDispatch("tutorpress/attachments-meta");
-
-  // Bind Gutenberg composite course_settings for incremental migration
-  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
-  const cs = (courseSettings as Partial<CourseSettings> | undefined) || undefined;
 
   // Removed legacy hydration on mount; rely on entity-prop/REST lifecycle
 
@@ -69,8 +66,7 @@ const CourseMediaPanel: React.FC = () => {
   }
 
   // Show loading while entity not ready
-  const entityReady = typeof entitySettings !== "undefined";
-  if (!entityReady) {
+  if (!ready) {
     return (
       <PluginDocumentSettingPanel
         name="course-media-settings"
@@ -107,7 +103,7 @@ const CourseMediaPanel: React.FC = () => {
       // Write via entity prop; show optimistic ids and fetch metadata
       setUiIds(allAttachmentIds);
       lastWriteRef.current = allAttachmentIds;
-      setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: allAttachmentIds }));
+      safeSet({ attachments: allAttachmentIds as any });
       // Ensure fetch sees updated ids on next tick
       setTimeout(() => fetchAttachmentsMetadata(allAttachmentIds), 0);
     });
@@ -121,28 +117,13 @@ const CourseMediaPanel: React.FC = () => {
     // Write via entity prop and schedule metadata refresh (remaining ids)
     setUiIds(updatedAttachments);
     lastWriteRef.current = updatedAttachments;
-    setCourseSettings((prev: any) => ({ ...(prev || {}), attachments: updatedAttachments }));
+    safeSet({ attachments: updatedAttachments as any });
     setTimeout(() => fetchAttachmentsMetadata(updatedAttachments), 0);
   };
 
   const attachmentCount = uiIds?.length || 0;
 
-  // Show loading while entity not ready (guard duplicated)
-  if (!entityReady) {
-    return (
-      <PluginDocumentSettingPanel
-        name="course-media-settings"
-        title={__("Course Media", "tutorpress")}
-        className="tutorpress-course-media-panel"
-      >
-        <PanelRow>
-          <div style={{ width: "100%", textAlign: "center", padding: "20px 0" }}>
-            <Spinner />
-          </div>
-        </PanelRow>
-      </PluginDocumentSettingPanel>
-    );
-  }
+  // Duplicate guard removed
 
   return (
     <PluginDocumentSettingPanel
@@ -218,12 +199,7 @@ const CourseMediaPanel: React.FC = () => {
           <TextareaControl
             label={__("Materials Included", "tutorpress")}
             value={cs?.course_material_includes ?? ""}
-            onChange={(value) => {
-              setCourseSettings((prev: Partial<CourseSettings> | undefined) => ({
-                ...(prev || {}),
-                course_material_includes: value,
-              }));
-            }}
+            onChange={(value) => safeSet({ course_material_includes: value })}
             placeholder={__(
               "A list of assets you will be providing for the students in this course (one per line)",
               "tutorpress"
