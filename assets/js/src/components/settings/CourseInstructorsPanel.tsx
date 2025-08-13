@@ -17,13 +17,44 @@ const CourseInstructorsPanel: React.FC = () => {
   const [authorSearchValue, setAuthorSearchValue] = useState("");
   const [isAuthorExpanded, setIsAuthorExpanded] = useState(false);
 
+  // Entity binding and local UI echo for immediate feedback
+  const [entitySettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+  const [uiCoIds, setUiCoIds] = useState<number[] | null>(null);
+
   // Get instructor data from dedicated instructors store (read-only)
   const { postType, instructors, error, isLoading, searchResults, isSearching, searchError } = useSelect(
     (select: any) => {
       const author = select("tutorpress/instructors").getAuthor();
-      const coInstructors = select("tutorpress/instructors").getCoInstructors();
-      const composed =
-        author || (coInstructors && coInstructors.length > 0) ? { author, co_instructors: coInstructors } : null;
+      const storeCo = select("tutorpress/instructors").getCoInstructors() || [];
+      const searchCo = select("tutorpress/instructors").getSearchResults() || [];
+      const entityIds = Array.isArray(uiCoIds)
+        ? uiCoIds
+        : Array.isArray(entitySettings?.instructors)
+          ? (entitySettings?.instructors as number[])
+          : [];
+
+      const idToUser = (list: any[]) => {
+        const entries: Array<[number, any]> = [];
+        for (const u of list) {
+          if (u && typeof u.id === "number") {
+            entries.push([u.id, u]);
+          }
+        }
+        return new Map<number, any>(entries);
+      };
+
+      const storeMap = idToUser(storeCo);
+      const searchMap = idToUser(searchCo);
+      const composedCo = Array.isArray(entityIds)
+        ? entityIds
+            .filter((id) => typeof id === "number")
+            .map(
+              (id) =>
+                storeMap.get(id) || searchMap.get(id) || { id, display_name: `#${id}`, user_email: "", avatar_url: "" }
+            )
+        : storeCo;
+
+      const composed = author || (composedCo && composedCo.length > 0) ? { author, co_instructors: composedCo } : null;
       return {
         postType: select("core/editor").getCurrentPostType(),
         instructors: composed,
@@ -34,12 +65,11 @@ const CourseInstructorsPanel: React.FC = () => {
         searchError: select("tutorpress/instructors").getSearchError(),
       };
     },
-    []
+    [uiCoIds, entitySettings]
   );
 
   // Get dispatch actions
-  const { fetchCourseInstructors, searchInstructors, updateCourseCoInstructors, updateCourseAuthor } =
-    useDispatch("tutorpress/instructors");
+  const { fetchCourseInstructors, searchInstructors, updateCourseAuthor } = useDispatch("tutorpress/instructors");
   const { editPost } = useDispatch("core/editor");
 
   // Load instructors when component mounts
@@ -56,6 +86,17 @@ const CourseInstructorsPanel: React.FC = () => {
 
   // Check if Multi Instructors addon is enabled
   const isMultiInstructorsAddonEnabled = isMultiInstructorsEnabled();
+
+  // Clear UI echo once entity reflects the pending ids
+  useEffect(() => {
+    if (Array.isArray(uiCoIds) && Array.isArray(entitySettings?.instructors)) {
+      const a = uiCoIds.slice().sort();
+      const b = (entitySettings?.instructors as number[]).slice().sort();
+      if (a.length === b.length && a.every((id, idx) => id === b[idx])) {
+        setUiCoIds(null);
+      }
+    }
+  }, [entitySettings, uiCoIds]);
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -147,9 +188,6 @@ const CourseInstructorsPanel: React.FC = () => {
     );
   }, [searchResults, instructors]);
 
-  // Bind to course_settings entity once for functional updates
-  const [entityCourseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
-
   // Handle instructor selection
   const handleInstructorSelection = useCallback(
     (tokens: (string | { value: string })[]) => {
@@ -163,42 +201,40 @@ const CourseInstructorsPanel: React.FC = () => {
 
       if (selectedInstructors.length > 0) {
         // Prefer entity instructors when available
-        const currentEntityInstructors =
-          (select("core/editor") as any).getEditedPostAttribute("course_settings")?.instructors || [];
-        const currentInstructorIds = (Array.isArray(currentEntityInstructors) ? currentEntityInstructors : [])
-          .concat(
-            !Array.isArray(currentEntityInstructors) && instructors?.co_instructors
-              ? instructors.co_instructors.map((i: InstructorUser) => i.id)
-              : []
-          )
-          .filter((v: any, idx: number, arr: any[]) => typeof v === "number" && arr.indexOf(v) === idx);
+        const currentInstructorIds = Array.isArray(entitySettings?.instructors)
+          ? (entitySettings?.instructors as number[])
+          : []
+              .concat(
+                !Array.isArray(entitySettings?.instructors) && instructors?.co_instructors
+                  ? instructors.co_instructors.map((i: InstructorUser) => i.id)
+                  : []
+              )
+              .filter((v: any, idx: number, arr: any[]) => typeof v === "number" && arr.indexOf(v) === idx);
         const newInstructorIds = selectedInstructors.map((i: InstructorSearchResult) => i.id);
         const updatedInstructorIds = [...new Set([...currentInstructorIds, ...newInstructorIds])];
-        // Write-through: entity first (source of truth), then endpoint (transition)
+        // Entity write and UI echo to render immediately before entity propagation
         setCourseSettings((prev: any) => ({ ...(prev || {}), instructors: updatedInstructorIds }));
-        updateCourseCoInstructors(updatedInstructorIds);
+        setUiCoIds(updatedInstructorIds);
         setSearchValue("");
         setSelectedTokens([]);
       }
     },
-    [searchResults, instructors, setCourseSettings, updateCourseCoInstructors]
+    [searchResults, instructors, setCourseSettings]
   );
 
   // Handle instructor removal
   const handleRemoveInstructor = useCallback(
     (instructorId: number) => {
       if (window.confirm(__("Are you sure you want to remove this instructor from the course?", "tutorpress"))) {
-        const currentEntityInstructors =
-          (select("core/editor") as any).getEditedPostAttribute("course_settings")?.instructors || [];
-        const currentInstructorIds = Array.isArray(currentEntityInstructors)
-          ? currentEntityInstructors
+        const currentInstructorIds = Array.isArray(entitySettings?.instructors)
+          ? (entitySettings?.instructors as number[])
           : instructors?.co_instructors?.map((i: InstructorUser) => i.id) || [];
         const updatedInstructorIds = currentInstructorIds.filter((id: number) => id !== instructorId);
         setCourseSettings((prev: any) => ({ ...(prev || {}), instructors: updatedInstructorIds }));
-        updateCourseCoInstructors(updatedInstructorIds);
+        setUiCoIds(updatedInstructorIds);
       }
     },
-    [instructors, setCourseSettings, updateCourseCoInstructors]
+    [entitySettings, instructors, setCourseSettings]
   );
 
   // Generate suggestions for FormTokenField
