@@ -191,6 +191,39 @@ class TutorPress_Course {
             ],
         ] );
 
+        // Register the additional_content meta field for Gutenberg editor
+        register_post_meta( $this->token, 'additional_content', [
+            'type'              => 'object',
+            'description'       => __( 'Additional content settings for TutorPress Gutenberg integration', 'tutorpress' ),
+            'single'            => true,
+            'default'           => [],
+            'sanitize_callback' => [ $this, 'sanitize_additional_content' ],
+            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+            'show_in_rest'      => [
+                'schema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'what_will_learn' => [
+                            'type' => 'string',
+                        ],
+                        'target_audience' => [
+                            'type' => 'string',
+                        ],
+                        'requirements' => [
+                            'type' => 'string',
+                        ],
+                        'content_drip_enabled' => [
+                            'type' => 'boolean',
+                        ],
+                        'content_drip_type' => [
+                            'type' => 'string',
+                            'enum' => [ 'unlock_by_date', 'specific_days', 'unlock_sequentially', 'after_finishing_prerequisites' ],
+                        ],
+                    ],
+                ],
+            ],
+        ] );
+
         // Register individual meta fields with auth callbacks for comprehensive security
         $individual_meta_fields = [
             '_tutor_course_level' => [
@@ -369,6 +402,16 @@ class TutorPress_Course {
             'update_callback' => [ $this, 'update_course_settings' ],
             'schema'          => [
                 'description' => __( 'Course settings', 'tutorpress' ),
+                'type'        => 'object',
+            ],
+        ] );
+
+        // Register REST API fields for additional content
+        register_rest_field( $this->token, 'additional_content', [
+            'get_callback'    => [ $this, 'get_additional_content' ],
+            'update_callback' => [ $this, 'update_additional_content' ],
+            'schema'          => [
+                'description' => __( 'Additional content settings', 'tutorpress' ),
                 'type'        => 'object',
             ],
         ] );
@@ -878,6 +921,95 @@ class TutorPress_Course {
     }
 
     /**
+     * Get additional content for REST API.
+     *
+     * @since 1.14.2
+     * @param array $post Post data.
+     * @return array Additional content settings.
+     */
+    public function get_additional_content( $post ) {
+        $post_id = $post['id'];
+        
+        // Read from Tutor LMS compatible meta fields
+        $what_will_learn = get_post_meta($post_id, '_tutor_course_benefits', true);
+        $target_audience = get_post_meta($post_id, '_tutor_course_target_audience', true);
+        $requirements = get_post_meta($post_id, '_tutor_course_requirements', true);
+        
+        // Get content drip settings from Tutor LMS course settings
+        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = [];
+        }
+        
+        $content_drip_enabled = isset($tutor_settings['enable_content_drip']) ? 
+            (bool) $tutor_settings['enable_content_drip'] : false;
+        $content_drip_type = isset($tutor_settings['content_drip_type']) ? 
+            $tutor_settings['content_drip_type'] : 'unlock_by_date';
+        
+        // Build additional content structure
+        $additional_content = [
+            'what_will_learn' => is_string($what_will_learn) ? $what_will_learn : '',
+            'target_audience' => is_string($target_audience) ? $target_audience : '',
+            'requirements' => is_string($requirements) ? $requirements : '',
+            'content_drip_enabled' => $content_drip_enabled,
+            'content_drip_type' => $content_drip_type,
+        ];
+        
+        return $additional_content;
+    }
+
+    /**
+     * Update additional content for REST API.
+     *
+     * @since 1.14.2
+     * @param array $value Additional content settings to update.
+     * @param WP_Post $post Post object.
+     * @return bool Whether the update was successful.
+     */
+    public function update_additional_content($value, $post) {
+        $post_id = $post->ID;
+        
+        if (!is_array($value)) {
+            return false;
+        }
+        
+        $results = [];
+        
+        // Update text fields to Tutor LMS compatible meta fields
+        if (isset($value['what_will_learn'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_benefits', $value['what_will_learn']);
+        }
+        
+        if (isset($value['target_audience'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_target_audience', $value['target_audience']);
+        }
+        
+        if (isset($value['requirements'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_requirements', $value['requirements']);
+        }
+        
+        // Update content drip settings in Tutor LMS course settings
+        if (isset($value['content_drip_enabled']) || isset($value['content_drip_type'])) {
+            $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+            if (!is_array($tutor_settings)) {
+                $tutor_settings = [];
+            }
+            
+            if (isset($value['content_drip_enabled'])) {
+                $tutor_settings['enable_content_drip'] = (bool) $value['content_drip_enabled'];
+            }
+            
+            if (isset($value['content_drip_type'])) {
+                $tutor_settings['content_drip_type'] = $value['content_drip_type'];
+            }
+            
+            $results[] = update_post_meta($post_id, '_tutor_course_settings', $tutor_settings);
+        }
+        
+        return !in_array(false, $results, true);
+    }
+
+    /**
      * Sanitize course settings.
      *
      * Foundation implementation for Phase 3.1.
@@ -1145,6 +1277,46 @@ class TutorPress_Course {
         
         // All settings panels have been migrated
         // Course Details, Course Media, Pricing Model, Course Access & Enrollment, and Course Instructors panels
+        
+        return $sanitized;
+    }
+
+    /**
+     * Sanitize additional content settings.
+     *
+     * @since 1.14.2
+     * @param array $settings Additional content settings to sanitize.
+     * @return array Sanitized settings.
+     */
+    public function sanitize_additional_content( $settings ) {
+        if (!is_array($settings)) {
+            return [];
+        }
+        
+        $sanitized = [];
+        
+        // Text fields
+        if (isset($settings['what_will_learn'])) {
+            $sanitized['what_will_learn'] = sanitize_textarea_field($settings['what_will_learn']);
+        }
+        
+        if (isset($settings['target_audience'])) {
+            $sanitized['target_audience'] = sanitize_textarea_field($settings['target_audience']);
+        }
+        
+        if (isset($settings['requirements'])) {
+            $sanitized['requirements'] = sanitize_textarea_field($settings['requirements']);
+        }
+        
+        // Content drip settings
+        if (isset($settings['content_drip_enabled'])) {
+            $sanitized['content_drip_enabled'] = (bool) $settings['content_drip_enabled'];
+        }
+        
+        if (isset($settings['content_drip_type'])) {
+            $allowed_types = ['unlock_by_date', 'specific_days', 'unlock_sequentially', 'after_finishing_prerequisites'];
+            $sanitized['content_drip_type'] = in_array($settings['content_drip_type'], $allowed_types) ? $settings['content_drip_type'] : 'unlock_by_date';
+        }
         
         return $sanitized;
     }
