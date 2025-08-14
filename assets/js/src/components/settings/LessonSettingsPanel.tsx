@@ -796,7 +796,7 @@ const LessonSettingsPanel: React.FC = () => {
                   : __("This lesson requires course enrollment to view", "tutorpress")
               }
               checked={lessonSettings.lesson_preview.enabled}
-              onChange={(enabled) => updateSetting("lesson_preview.enabled", enabled)}
+              onChange={(enabled) => safeSet({ lesson_preview: { ...lessonSettings.lesson_preview, enabled } } as any)}
               disabled={isSaving}
             />
 
