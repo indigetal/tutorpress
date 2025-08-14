@@ -20,6 +20,7 @@ import type { VideoSource } from "../../utils/videoDetection";
 // Import Content Drip Panel
 import ContentDripPanel from "./ContentDripPanel";
 import { useCourseId } from "../../hooks/curriculum/useCourseId";
+import { useLessonSettings } from "../../hooks/common";
 import type { ContentDripItemSettings } from "../../types/content-drip";
 
 // Import VideoThumbnail component
@@ -76,45 +77,38 @@ const LessonSettingsPanel: React.FC = () => {
   // Get course ID for content drip context
   const courseId = useCourseId();
 
-  const { postType, lessonSettings, isSaving, postId } = useSelect((select: any) => {
+  const { postType, isSaving, postId } = useSelect((select: any) => {
     const { getCurrentPostType } = select("core/editor");
-    const { getEditedPostAttribute } = select("core/editor");
     const { isSavingPost } = select("core/editor");
     const { getCurrentPostId } = select("core/editor");
 
     return {
       postType: getCurrentPostType(),
-      lessonSettings: getEditedPostAttribute("lesson_settings") || {
-        video: {
-          source: "",
-          source_video_id: 0,
-          source_external_url: "",
-          source_youtube: "",
-          source_vimeo: "",
-          source_embedded: "",
-          source_shortcode: "",
-          poster: "",
-        },
-        duration: {
-          hours: 0,
-          minutes: 0,
-          seconds: 0,
-        },
-        exercise_files: [],
-        lesson_preview: {
-          enabled: false,
-          addon_available: false,
-        },
-        content_drip: {
-          unlock_date: "",
-          after_xdays_of_enroll: 0,
-          prerequisites: [],
-        },
-      },
       isSaving: isSavingPost(),
       postId: getCurrentPostId(),
     };
   }, []);
+
+  const { lessonSettings: hookSettings, safeSet } = useLessonSettings();
+
+  const defaultLessonSettings: LessonSettings & { content_drip?: any } = {
+    video: {
+      source: "",
+      source_video_id: 0,
+      source_external_url: "",
+      source_youtube: "",
+      source_vimeo: "",
+      source_embedded: "",
+      source_shortcode: "",
+      poster: "",
+    },
+    duration: { hours: 0, minutes: 0, seconds: 0 },
+    exercise_files: [],
+    lesson_preview: { enabled: false, addon_available: false },
+    content_drip: { unlock_date: "", after_xdays_of_enroll: 0, prerequisites: [] },
+  };
+
+  const lessonSettings: LessonSettings & { content_drip?: any } = (hookSettings as any) || defaultLessonSettings;
 
   const { editPost } = useDispatch("core/editor");
 
@@ -201,11 +195,11 @@ const LessonSettingsPanel: React.FC = () => {
   }
 
   const updateSetting = (key: string, value: any) => {
-    const newSettings = { ...lessonSettings };
+    const newSettings: any = { ...lessonSettings };
 
     if (key.includes(".")) {
       const keys = key.split(".");
-      let current = newSettings;
+      let current: any = newSettings;
 
       for (let i = 0; i < keys.length - 1; i++) {
         current[keys[i]] = { ...current[keys[i]] };
@@ -676,7 +670,16 @@ const LessonSettingsPanel: React.FC = () => {
                   type="number"
                   min="0"
                   value={lessonSettings.duration.hours.toString()}
-                  onChange={(value) => updateSetting("duration.hours", parseInt(value) || 0)}
+                  onChange={(value) => {
+                    const hours = parseInt(value) || 0;
+                    safeSet({
+                      duration: {
+                        hours,
+                        minutes: lessonSettings.duration.minutes,
+                        seconds: lessonSettings.duration.seconds,
+                      },
+                    } as any);
+                  }}
                   disabled={isSaving}
                 />
               </div>
@@ -688,7 +691,16 @@ const LessonSettingsPanel: React.FC = () => {
                   min="0"
                   max="59"
                   value={lessonSettings.duration.minutes.toString()}
-                  onChange={(value) => updateSetting("duration.minutes", Math.min(59, parseInt(value) || 0))}
+                  onChange={(value) => {
+                    const minutes = Math.min(59, parseInt(value) || 0);
+                    safeSet({
+                      duration: {
+                        hours: lessonSettings.duration.hours,
+                        minutes,
+                        seconds: lessonSettings.duration.seconds,
+                      },
+                    } as any);
+                  }}
                   disabled={isSaving}
                 />
               </div>
@@ -700,7 +712,16 @@ const LessonSettingsPanel: React.FC = () => {
                   min="0"
                   max="59"
                   value={lessonSettings.duration.seconds.toString()}
-                  onChange={(value) => updateSetting("duration.seconds", Math.min(59, parseInt(value) || 0))}
+                  onChange={(value) => {
+                    const seconds = Math.min(59, parseInt(value) || 0);
+                    safeSet({
+                      duration: {
+                        hours: lessonSettings.duration.hours,
+                        minutes: lessonSettings.duration.minutes,
+                        seconds,
+                      },
+                    } as any);
+                  }}
                   disabled={isSaving}
                 />
               </div>
