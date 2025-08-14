@@ -317,11 +317,8 @@ const LessonSettingsPanel: React.FC = () => {
 
     mediaFrame.on("select", async () => {
       const attachment = mediaFrame.state().get("selection").first().toJSON();
-
       // Set video source to upload and store attachment ID
-      updateSetting("video.source", "html5");
-      updateSetting("video.source_video_id", attachment.id);
-
+      safeSet({ video: { ...lessonSettings.video, source: "html5", source_video_id: attachment.id } } as any);
       // Try to auto-detect video duration for uploaded videos
       await detectUploadedVideoDuration(attachment.id);
     });
@@ -359,28 +356,18 @@ const LessonSettingsPanel: React.FC = () => {
   };
 
   const clearVideo = () => {
-    // Create a completely new settings object to force re-render
-    const newSettings = {
-      ...lessonSettings,
-      video: {
-        source: "",
-        source_video_id: 0,
-        source_external_url: "",
-        source_youtube: "",
-        source_vimeo: "",
-        source_embedded: "",
-        source_shortcode: "",
-        poster: "",
-      },
-      duration: {
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-      },
+    const nextVideo = {
+      source: "",
+      source_video_id: 0,
+      source_external_url: "",
+      source_youtube: "",
+      source_vimeo: "",
+      source_embedded: "",
+      source_shortcode: "",
+      poster: "",
     };
-
     setVideoMetaError("");
-    editPost({ lesson_settings: newSettings });
+    safeSet({ video: nextVideo, duration: { hours: 0, minutes: 0, seconds: 0 } } as any);
   };
 
   // Handle content drip settings changes
@@ -435,24 +422,19 @@ const LessonSettingsPanel: React.FC = () => {
             options={videoSourceOptions}
             onChange={(value) => {
               if (value === "") {
-                // Clear video completely
                 clearVideo();
               } else {
-                // Clear other video source fields when changing source type
-                const newSettings = {
-                  ...lessonSettings,
-                  video: {
-                    source: value as VideoSettings["source"],
-                    source_video_id: 0,
-                    source_external_url: "",
-                    source_youtube: "",
-                    source_vimeo: "",
-                    source_embedded: "",
-                    source_shortcode: "",
-                    poster: "",
-                  },
+                const nextVideo = {
+                  source: value as VideoSettings["source"],
+                  source_video_id: 0,
+                  source_external_url: "",
+                  source_youtube: "",
+                  source_vimeo: "",
+                  source_embedded: "",
+                  source_shortcode: "",
+                  poster: "",
                 };
-                editPost({ lesson_settings: newSettings });
+                safeSet({ video: nextVideo } as any);
               }
             }}
             disabled={isSaving}
@@ -510,7 +492,7 @@ const LessonSettingsPanel: React.FC = () => {
                 placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                 value={lessonSettings.video.source_youtube}
                 onChange={(value) => {
-                  updateSetting("video.source_youtube", value);
+                  safeSet({ video: { ...lessonSettings.video, source_youtube: value } } as any);
                   if (value && isSourceSupported("youtube")) {
                     autoDetectVideoDuration("youtube", value);
                   }
@@ -547,7 +529,7 @@ const LessonSettingsPanel: React.FC = () => {
                 placeholder="https://vimeo.com/123456789"
                 value={lessonSettings.video.source_vimeo}
                 onChange={(value) => {
-                  updateSetting("video.source_vimeo", value);
+                  safeSet({ video: { ...lessonSettings.video, source_vimeo: value } } as any);
                   if (value) {
                     // Debounce auto-detection to avoid interfering with typing
                     setTimeout(() => {
@@ -583,7 +565,7 @@ const LessonSettingsPanel: React.FC = () => {
                 placeholder="https://example.com/video.mp4"
                 value={lessonSettings.video.source_external_url}
                 onChange={(value) => {
-                  updateSetting("video.source_external_url", value);
+                  safeSet({ video: { ...lessonSettings.video, source_external_url: value } } as any);
                   if (value) {
                     autoDetectVideoDuration("external_url", value);
                   }
@@ -608,7 +590,7 @@ const LessonSettingsPanel: React.FC = () => {
               label={__("Embedded Video Code", "tutorpress")}
               placeholder="<iframe src=...></iframe>"
               value={lessonSettings.video.source_embedded}
-              onChange={(value) => updateSetting("video.source_embedded", value)}
+              onChange={(value) => safeSet({ video: { ...lessonSettings.video, source_embedded: value } } as any)}
               disabled={isSaving}
               help={__("Paste the embed code (iframe, video tag, etc.)", "tutorpress")}
               rows={4}
@@ -621,7 +603,7 @@ const LessonSettingsPanel: React.FC = () => {
               label={__("Video Shortcode", "tutorpress")}
               placeholder="[video src='...']"
               value={lessonSettings.video.source_shortcode}
-              onChange={(value) => updateSetting("video.source_shortcode", value)}
+              onChange={(value) => safeSet({ video: { ...lessonSettings.video, source_shortcode: value } } as any)}
               disabled={isSaving}
               help={__("Enter a WordPress video shortcode", "tutorpress")}
             />
