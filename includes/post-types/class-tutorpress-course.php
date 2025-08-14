@@ -191,38 +191,7 @@ class TutorPress_Course {
             ],
         ] );
 
-        // Register the additional_content meta field for Gutenberg editor
-        register_post_meta( $this->token, 'additional_content', [
-            'type'              => 'object',
-            'description'       => __( 'Additional content settings for TutorPress Gutenberg integration', 'tutorpress' ),
-            'single'            => true,
-            'default'           => [],
-            'sanitize_callback' => [ $this, 'sanitize_additional_content' ],
-            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
-            'show_in_rest'      => [
-                'schema' => [
-                    'type'       => 'object',
-                    'properties' => [
-                        'what_will_learn' => [
-                            'type' => 'string',
-                        ],
-                        'target_audience' => [
-                            'type' => 'string',
-                        ],
-                        'requirements' => [
-                            'type' => 'string',
-                        ],
-                        'content_drip_enabled' => [
-                            'type' => 'boolean',
-                        ],
-                        'content_drip_type' => [
-                            'type' => 'string',
-                            'enum' => [ 'unlock_by_date', 'specific_days', 'unlock_sequentially', 'after_finishing_prerequisites' ],
-                        ],
-                    ],
-                ],
-            ],
-        ] );
+
 
         // Register individual meta fields with auth callbacks for comprehensive security
         $individual_meta_fields = [
@@ -406,7 +375,7 @@ class TutorPress_Course {
             ],
         ] );
 
-        // Register REST API fields for additional content
+        // Register additional_content as REST field
         register_rest_field( $this->token, 'additional_content', [
             'get_callback'    => [ $this, 'get_additional_content' ],
             'update_callback' => [ $this, 'update_additional_content' ],
@@ -875,7 +844,7 @@ class TutorPress_Course {
             $existing_tutor_settings['maximum_students'] = ($legacy_max === '') ? null : intval($legacy_max);
             $existing_tutor_settings['maximum_students_allowed'] = $existing_tutor_settings['maximum_students'];
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[TP] update_course_settings mirror maximum_students=' . var_export($existing_tutor_settings['maximum_students'], true) . ' legacy_max=' . var_export($legacy_max, true));
+        
             }
         }
 
@@ -928,7 +897,14 @@ class TutorPress_Course {
      * @return array Additional content settings.
      */
     public function get_additional_content( $post ) {
-        $post_id = $post['id'];
+        // Handle both array and WP_Post object
+        if (is_object($post) && isset($post->ID)) {
+            $post_id = $post->ID;
+        } elseif (is_array($post) && isset($post['id'])) {
+            $post_id = $post['id'];
+        } else {
+            return [];
+        }
         
         // Read from Tutor LMS compatible meta fields
         $what_will_learn = get_post_meta($post_id, '_tutor_course_benefits', true);
@@ -969,6 +945,215 @@ class TutorPress_Course {
     public function update_additional_content($value, $post) {
         $post_id = $post->ID;
         
+        if (!is_array($value)) {
+            return false;
+        }
+        
+        $results = [];
+        
+        // Update text fields to Tutor LMS compatible meta fields
+        if (isset($value['what_will_learn'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_benefits', $value['what_will_learn']);
+        }
+        
+        if (isset($value['target_audience'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_target_audience', $value['target_audience']);
+        }
+        
+        if (isset($value['requirements'])) {
+            $results[] = update_post_meta($post_id, '_tutor_course_requirements', $value['requirements']);
+        }
+        
+        // Update content drip settings in Tutor LMS course settings
+        if (isset($value['content_drip_enabled']) || isset($value['content_drip_type'])) {
+            $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+            if (!is_array($tutor_settings)) {
+                $tutor_settings = [];
+            }
+            
+            if (isset($value['content_drip_enabled'])) {
+                $tutor_settings['enable_content_drip'] = (bool) $value['content_drip_enabled'];
+            }
+            
+            if (isset($value['content_drip_type'])) {
+                $tutor_settings['content_drip_type'] = $value['content_drip_type'];
+            }
+            
+            $results[] = update_post_meta($post_id, '_tutor_course_settings', $tutor_settings);
+        }
+        
+        return !in_array(false, $results, true);
+    }
+
+    /**
+     * Filter to intercept get_post_meta calls for additional_content.
+     *
+     * @since 1.14.2
+     * @param mixed $value The meta value.
+     * @param int $post_id The post ID.
+     * @param string $meta_key The meta key.
+     * @param bool $single Whether to return a single value.
+     * @return mixed The filtered meta value.
+     */
+    public function filter_get_additional_content_meta($value, $post_id, $meta_key, $single) {
+        if ($meta_key === 'additional_content') {
+            // Read from Tutor LMS compatible meta fields
+            $what_will_learn = get_post_meta($post_id, '_tutor_course_benefits', true);
+            $target_audience = get_post_meta($post_id, '_tutor_course_target_audience', true);
+            $requirements = get_post_meta($post_id, '_tutor_course_requirements', true);
+            
+            // Get content drip settings from Tutor LMS course settings
+            $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+            if (!is_array($tutor_settings)) {
+                $tutor_settings = [];
+            }
+            
+            $content_drip_enabled = isset($tutor_settings['enable_content_drip']) ? 
+                (bool) $tutor_settings['enable_content_drip'] : false;
+            $content_drip_type = isset($tutor_settings['content_drip_type']) ? 
+                $tutor_settings['content_drip_type'] : 'unlock_by_date';
+            
+            // Build additional content structure
+            $additional_content = [
+                'what_will_learn' => is_string($what_will_learn) ? $what_will_learn : '',
+                'target_audience' => is_string($target_audience) ? $target_audience : '',
+                'requirements' => is_string($requirements) ? $requirements : '',
+                'content_drip_enabled' => $content_drip_enabled,
+                'content_drip_type' => $content_drip_type,
+            ];
+            
+            return $single ? $additional_content : [$additional_content];
+        }
+        
+        return $value;
+    }
+
+    /**
+     * Filter to intercept update_post_meta calls for additional_content.
+     *
+     * @since 1.14.2
+     * @param mixed $check Whether to allow updating metadata.
+     * @param int $post_id The post ID.
+     * @param string $meta_key The meta key.
+     * @param mixed $meta_value The meta value.
+     * @return mixed The filtered check value.
+     */
+    public function filter_update_additional_content_meta($check, $post_id, $meta_key, $meta_value) {
+        if ($meta_key === 'additional_content') {
+            if (!is_array($meta_value)) {
+                return $check;
+            }
+            
+            $results = [];
+            
+            // Update text fields to Tutor LMS compatible meta fields
+            if (isset($meta_value['what_will_learn'])) {
+                $results[] = update_post_meta($post_id, '_tutor_course_benefits', $meta_value['what_will_learn']);
+            }
+            
+            if (isset($meta_value['target_audience'])) {
+                $results[] = update_post_meta($post_id, '_tutor_course_target_audience', $meta_value['target_audience']);
+            }
+            
+            if (isset($meta_value['requirements'])) {
+                $results[] = update_post_meta($post_id, '_tutor_course_requirements', $meta_value['requirements']);
+            }
+            
+            // Update content drip settings in Tutor LMS course settings
+            if (isset($meta_value['content_drip_enabled']) || isset($meta_value['content_drip_type'])) {
+                $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+                if (!is_array($tutor_settings)) {
+                    $tutor_settings = [];
+                }
+                
+                if (isset($meta_value['content_drip_enabled'])) {
+                    $tutor_settings['enable_content_drip'] = (bool) $meta_value['content_drip_enabled'];
+                }
+                
+                if (isset($meta_value['content_drip_type'])) {
+                    $tutor_settings['content_drip_type'] = $meta_value['content_drip_type'];
+                }
+                
+                $results[] = update_post_meta($post_id, '_tutor_course_settings', $tutor_settings);
+            }
+            
+            // Return false to prevent WordPress from storing the meta value directly
+            return false;
+        }
+        
+        return $check;
+    }
+
+    /**
+     * Add additional_content to the meta object in REST API response.
+     *
+     * @since 1.14.2
+     * @param WP_REST_Response $response The response object.
+     * @param WP_Post $post The post object.
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response The modified response object.
+     */
+    public function add_additional_content_to_meta($response, $post, $request) {
+        // Get the additional content data
+        $additional_content = $this->get_additional_content($post);
+        
+        // Add it to the meta object in the response
+        $data = $response->get_data();
+        if (!isset($data['meta'])) {
+            $data['meta'] = [];
+        }
+        $data['meta']['additional_content'] = $additional_content;
+        $response->set_data($data);
+        
+        return $response;
+    }
+
+    /**
+     * Get additional content for meta field (custom getter for useEntityProp).
+     *
+     * @since 1.14.2
+     * @param mixed $value The meta value.
+     * @param int $post_id The post ID.
+     * @return array Additional content data.
+     */
+    public function get_additional_content_meta($value, $post_id) {
+        // Read from Tutor LMS compatible meta fields
+        $what_will_learn = get_post_meta($post_id, '_tutor_course_benefits', true);
+        $target_audience = get_post_meta($post_id, '_tutor_course_target_audience', true);
+        $requirements = get_post_meta($post_id, '_tutor_course_requirements', true);
+        
+        // Get content drip settings from Tutor LMS course settings
+        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = [];
+        }
+        
+        $content_drip_enabled = isset($tutor_settings['enable_content_drip']) ? 
+            (bool) $tutor_settings['enable_content_drip'] : false;
+        $content_drip_type = isset($tutor_settings['content_drip_type']) ? 
+            $tutor_settings['content_drip_type'] : 'unlock_by_date';
+        
+        // Build additional content structure
+        $additional_content = [
+            'what_will_learn' => is_string($what_will_learn) ? $what_will_learn : '',
+            'target_audience' => is_string($target_audience) ? $target_audience : '',
+            'requirements' => is_string($requirements) ? $requirements : '',
+            'content_drip_enabled' => $content_drip_enabled,
+            'content_drip_type' => $content_drip_type,
+        ];
+        
+        return $additional_content;
+    }
+
+    /**
+     * Update additional content for meta field (custom setter for useEntityProp).
+     *
+     * @since 1.14.2
+     * @param mixed $value The meta value to set.
+     * @param int $post_id The post ID.
+     * @return bool Whether the update was successful.
+     */
+    public function update_additional_content_meta($value, $post_id) {
         if (!is_array($value)) {
             return false;
         }

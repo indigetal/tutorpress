@@ -27,6 +27,7 @@ import React, { useEffect, useCallback, useRef } from "react";
 import { TextareaControl, Spinner, Flex, FlexBlock, Notice } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 
 // Components
 import { ContentDripSettings } from "./additional-content/ContentDripSettings";
@@ -63,36 +64,49 @@ const AdditionalContent: React.FC = (): JSX.Element => {
   const container = document.getElementById("tutorpress-additional-content-root");
   const courseId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
 
-  // Additional Content store selectors
-  const {
-    data,
-    contentDrip,
-    isLoading,
-    isSaving,
-    isDirty,
-    hasError,
-    error,
-    isContentDripAddonAvailable,
-    editorIsSaving,
-  } = useSelect((select) => {
-    const additionalContentStore = select(ADDITIONAL_CONTENT_STORE) as any;
-    const coreEditor = select("core/editor") as any;
-    return {
-      data: additionalContentStore.getAdditionalContentData(),
-      contentDrip: additionalContentStore.getContentDripSettings(),
-      isLoading: additionalContentStore.isLoading(),
-      isSaving: additionalContentStore.isSaving(),
-      isDirty: additionalContentStore.hasUnsavedChanges(),
-      hasError: additionalContentStore.hasError(),
-      error: additionalContentStore.getError(),
-      isContentDripAddonAvailable: additionalContentStore.isContentDripAddonAvailable(),
-      editorIsSaving: coreEditor?.isSavingPost?.() || false,
-    };
+  // Step D: Access additional_content using direct selector (more reliable than useEntityProp)
+  const additionalContent = useSelect((select: any) => {
+    return select("core/editor").getEditedPostAttribute("additional_content");
   }, []);
 
-  // Additional Content store actions
+  // Check if data is ready
+  const entityReady = additionalContent !== undefined && additionalContent !== null;
+
+  // Additional Content store selectors (for writes and other state)
+  const { isLoading, isSaving, isDirty, hasError, error, isContentDripAddonAvailable, editorIsSaving } = useSelect(
+    (select) => {
+      const additionalContentStore = select(ADDITIONAL_CONTENT_STORE) as any;
+      const coreEditor = select("core/editor") as any;
+      return {
+        isLoading: additionalContentStore.isLoading(),
+        isSaving: additionalContentStore.isSaving(),
+        isDirty: additionalContentStore.hasUnsavedChanges(),
+        hasError: additionalContentStore.hasError(),
+        error: additionalContentStore.getError(),
+        isContentDripAddonAvailable: additionalContentStore.isContentDripAddonAvailable(),
+        editorIsSaving: coreEditor?.isSavingPost?.() || false,
+      };
+    },
+    []
+  );
+
+  // Extract data from additionalContent hook
+  const data = additionalContent || {
+    what_will_learn: "",
+    target_audience: "",
+    requirements: "",
+    content_drip_enabled: false,
+    content_drip_type: "unlock_by_date",
+  };
+
+  // Extract content drip settings from additionalContent entity prop
+  const contentDrip = {
+    enabled: data.content_drip_enabled || false,
+    type: data.content_drip_type || "unlock_by_date",
+  };
+
+  // Additional Content store actions (for writes and other operations)
   const {
-    fetchAdditionalContent,
     saveAdditionalContent,
     updateWhatWillILearn,
     updateTargetAudience,
@@ -102,12 +116,8 @@ const AdditionalContent: React.FC = (): JSX.Element => {
     clearError,
   } = useDispatch(ADDITIONAL_CONTENT_STORE) as any;
 
-  // Load data on mount
-  useEffect(() => {
-    if (courseId > 0) {
-      fetchAdditionalContent(courseId);
-    }
-  }, [courseId, fetchAdditionalContent]);
+  // Step D: No need to fetch data since we're reading from entity prop
+  // The useEntityProp hook automatically loads the data from the REST API
 
   // Integrate with Gutenberg's dirty state system and update hidden form fields
   useEffect(() => {
@@ -191,8 +201,8 @@ const AdditionalContent: React.FC = (): JSX.Element => {
   // Render Methods
   // =============================
 
-  // Render loading state
-  if (isLoading) {
+  // Render loading state (show if store is loading OR entity prop is not ready)
+  if (isLoading || !entityReady) {
     return (
       <div className="tutorpress-additional-content">
         <Flex direction="column" align="center" gap={2} style={{ padding: "var(--space-xl)" }}>
