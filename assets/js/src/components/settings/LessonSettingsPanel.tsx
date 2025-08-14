@@ -343,7 +343,7 @@ const LessonSettingsPanel: React.FC = () => {
 
       // Combine existing files with new ones, avoiding duplicates
       const allAttachmentIds = [...new Set([...currentFiles, ...newAttachmentIds])];
-      updateSetting("exercise_files", allAttachmentIds);
+      safeSet({ exercise_files: allAttachmentIds } as any);
     });
 
     mediaFrame.open();
@@ -352,7 +352,7 @@ const LessonSettingsPanel: React.FC = () => {
   const removeExerciseFile = (attachmentId: number) => {
     const currentFiles = lessonSettings.exercise_files || [];
     const updatedFiles = currentFiles.filter((id: number) => id !== attachmentId);
-    updateSetting("exercise_files", updatedFiles);
+    safeSet({ exercise_files: updatedFiles } as any);
   };
 
   const clearVideo = () => {
