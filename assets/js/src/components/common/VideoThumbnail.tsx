@@ -124,24 +124,10 @@ const VideoThumbnail: React.FC<VideoThumbnailProps> = ({ videoData, className = 
     }
   };
 
-  // Fetch Vimeo thumbnail using oEmbed API
+  // Fetch Vimeo thumbnail without hitting Vimeo oEmbed (avoids CORS). Use public proxy.
   const fetchVimeoThumbnail = async (vimeoId: string) => {
-    try {
-      const oembedUrl = `https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`;
-      const response = await fetch(oembedUrl);
-
-      if (!response.ok) throw new Error("Failed to fetch Vimeo data");
-
-      const data = await response.json();
-
-      if (data.thumbnail_url) {
-        setThumbnail(data.thumbnail_url);
-      } else {
-        setError(__("No thumbnail available for this Vimeo video", "tutorpress"));
-      }
-    } catch (err) {
-      setError(__("Failed to load Vimeo thumbnail", "tutorpress"));
-    }
+    const proxyThumb = `https://vumbnail.com/${vimeoId}.jpg`;
+    setThumbnail(proxyThumb);
   };
 
   useEffect(() => {

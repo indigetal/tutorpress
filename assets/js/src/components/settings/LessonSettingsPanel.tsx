@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
-import { useSelect, useDispatch } from "@wordpress/data";
+import { useSelect } from "@wordpress/data";
 import {
   PanelRow,
   TextControl,
@@ -89,7 +89,7 @@ const LessonSettingsPanel: React.FC = () => {
     };
   }, []);
 
-  const { lessonSettings: hookSettings, safeSet } = useLessonSettings();
+  const { lessonSettings: hookSettings, setLessonSettings, safeSet } = useLessonSettings();
 
   const defaultLessonSettings: LessonSettings & { content_drip?: any } = {
     video: {
@@ -109,8 +109,6 @@ const LessonSettingsPanel: React.FC = () => {
   };
 
   const lessonSettings: LessonSettings & { content_drip?: any } = (hookSettings as any) || defaultLessonSettings;
-
-  const { editPost } = useDispatch("core/editor");
 
   // Fetch exercise files metadata when exercise files change
   useEffect(() => {
@@ -194,25 +192,7 @@ const LessonSettingsPanel: React.FC = () => {
     return null;
   }
 
-  const updateSetting = (key: string, value: any) => {
-    const newSettings: any = { ...lessonSettings };
-
-    if (key.includes(".")) {
-      const keys = key.split(".");
-      let current: any = newSettings;
-
-      for (let i = 0; i < keys.length - 1; i++) {
-        current[keys[i]] = { ...current[keys[i]] };
-        current = current[keys[i]];
-      }
-
-      current[keys[keys.length - 1]] = value;
-    } else {
-      newSettings[key] = value;
-    }
-
-    editPost({ lesson_settings: newSettings });
-  };
+  // Removed legacy updateSetting helper; all writes use safeSet with per-section deep merges
 
   // Auto-detect video duration using shared utilities
   const autoDetectVideoDuration = useCallback(
@@ -225,19 +205,16 @@ const LessonSettingsPanel: React.FC = () => {
         const detectedDuration = await detectDuration(source, url);
 
         if (detectedDuration) {
-          // Get the CURRENT editor state instead of component state to avoid stale data
-          const currentSettings =
-            (window as any).wp.data.select("core/editor").getEditedPostAttribute("lesson_settings") || {};
-          const newSettings = {
-            ...currentSettings,
+          const current = ((window as any).wp?.data?.select("core/editor").getEditedPostAttribute("lesson_settings") ||
+            {}) as LessonSettings;
+          setLessonSettings({
+            ...(current as any),
             duration: {
               hours: detectedDuration.hours,
               minutes: detectedDuration.minutes,
               seconds: detectedDuration.seconds,
             },
-          };
-
-          editPost({ lesson_settings: newSettings });
+          } as any);
         }
       } catch (err) {
         setVideoMetaError(error || __("Could not auto-detect video duration", "tutorpress"));
@@ -280,18 +257,16 @@ const LessonSettingsPanel: React.FC = () => {
         };
 
         // Get the CURRENT editor state instead of component state to avoid stale data
-        const currentSettings =
-          (window as any).wp.data.select("core/editor").getEditedPostAttribute("lesson_settings") || {};
-        const newSettings = {
-          ...currentSettings,
+        const current = ((window as any).wp?.data?.select("core/editor").getEditedPostAttribute("lesson_settings") ||
+          {}) as LessonSettings;
+        setLessonSettings({
+          ...(current as any),
           duration: {
             hours: duration.hours || 0,
             minutes: duration.minutes || 0,
             seconds: duration.seconds || 0,
           },
-        };
-
-        editPost({ lesson_settings: newSettings });
+        } as any);
       } else {
         setVideoMetaError(__("Could not extract video duration", "tutorpress"));
       }
