@@ -23,7 +23,7 @@
  * @subpackage Components/Metaboxes
  * @since 1.0.0
  */
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { TextareaControl, Spinner, Flex, FlexBlock, Notice } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
@@ -64,22 +64,31 @@ const AdditionalContent: React.FC = (): JSX.Element => {
   const courseId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
 
   // Additional Content store selectors
-  const { data, contentDrip, isLoading, isSaving, isDirty, hasError, error, isContentDripAddonAvailable } = useSelect(
-    (select) => {
-      const additionalContentStore = select(ADDITIONAL_CONTENT_STORE) as any;
-      return {
-        data: additionalContentStore.getAdditionalContentData(),
-        contentDrip: additionalContentStore.getContentDripSettings(),
-        isLoading: additionalContentStore.isLoading(),
-        isSaving: additionalContentStore.isSaving(),
-        isDirty: additionalContentStore.hasUnsavedChanges(),
-        hasError: additionalContentStore.hasError(),
-        error: additionalContentStore.getError(),
-        isContentDripAddonAvailable: additionalContentStore.isContentDripAddonAvailable(),
-      };
-    },
-    []
-  );
+  const {
+    data,
+    contentDrip,
+    isLoading,
+    isSaving,
+    isDirty,
+    hasError,
+    error,
+    isContentDripAddonAvailable,
+    editorIsSaving,
+  } = useSelect((select) => {
+    const additionalContentStore = select(ADDITIONAL_CONTENT_STORE) as any;
+    const coreEditor = select("core/editor") as any;
+    return {
+      data: additionalContentStore.getAdditionalContentData(),
+      contentDrip: additionalContentStore.getContentDripSettings(),
+      isLoading: additionalContentStore.isLoading(),
+      isSaving: additionalContentStore.isSaving(),
+      isDirty: additionalContentStore.hasUnsavedChanges(),
+      hasError: additionalContentStore.hasError(),
+      error: additionalContentStore.getError(),
+      isContentDripAddonAvailable: additionalContentStore.isContentDripAddonAvailable(),
+      editorIsSaving: coreEditor?.isSavingPost?.() || false,
+    };
+  }, []);
 
   // Additional Content store actions
   const {
@@ -114,6 +123,16 @@ const AdditionalContent: React.FC = (): JSX.Element => {
     // Update hidden form fields so they're available when the post is saved
     updateHiddenFormFields();
   }, [isDirty, data, contentDrip]);
+
+  // Persist via REST when the editor initiates a save
+  const prevEditorIsSaving = useRef<boolean>(false);
+  useEffect(() => {
+    if (courseId > 0 && isDirty && !prevEditorIsSaving.current && editorIsSaving) {
+      // Fire-and-forget; REST controller mirrors to Tutor LMS meta
+      (saveAdditionalContent as any)(courseId, data, contentDrip);
+    }
+    prevEditorIsSaving.current = editorIsSaving;
+  }, [courseId, editorIsSaving, isDirty, data, contentDrip, saveAdditionalContent]);
 
   // Update hidden form fields for WordPress save_post hook
   const updateHiddenFormFields = useCallback(() => {

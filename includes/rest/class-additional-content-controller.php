@@ -183,11 +183,12 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
 
         // Save directly to Tutor LMS meta fields
         try {
-            $benefits_saved = update_post_meta($course_id, '_tutor_course_benefits', $what_will_learn);
-            $audience_saved = update_post_meta($course_id, '_tutor_course_target_audience', $target_audience);
-            $requirements_saved = update_post_meta($course_id, '_tutor_course_requirements', $requirements);
+            // Note: update_post_meta() returns false when the value is unchanged – that is NOT an error.
+            update_post_meta($course_id, '_tutor_course_benefits', $what_will_learn);
+            update_post_meta($course_id, '_tutor_course_target_audience', $target_audience);
+            update_post_meta($course_id, '_tutor_course_requirements', $requirements);
 
-            $additional_saved = $benefits_saved !== false && $audience_saved !== false && $requirements_saved !== false;
+            $additional_saved = true;
         } catch (Exception $e) {
             error_log('TutorPress: Failed to save additional content meta fields: ' . $e->getMessage());
             return new WP_Error(
@@ -223,7 +224,9 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
                     unset($course_settings['content_drip_type']);
                 }
 
-                $content_drip_saved = update_post_meta($course_id, '_tutor_course_settings', $course_settings);
+                // As above, treat an unchanged value (false) as success
+                update_post_meta($course_id, '_tutor_course_settings', $course_settings);
+                $content_drip_saved = true;
             } catch (Exception $e) {
                 error_log('TutorPress: Failed to save content drip settings: ' . $e->getMessage());
                 $content_drip_saved = false;

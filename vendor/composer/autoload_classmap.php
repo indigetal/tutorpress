@@ -16,7 +16,7 @@ return array(
     'TutorPress_Assignment_Settings' => $baseDir . '/includes/gutenberg/settings/class-assignment-settings.php',
     'TutorPress_Bundle_Settings' => $baseDir . '/includes/gutenberg/settings/class-bundle-settings.php',
     'TutorPress_Certificate_Controller' => $baseDir . '/includes/rest/class-certificate-controller.php',
-    'TutorPress_Content_Drip_Helpers' => $baseDir . '/includes/gutenberg/settings/class-content-drip-helpers.php',
+    'TutorPress_Content_Drip_Helpers' => $baseDir . '/includes/shared/class-content-drip-helpers.php',
     'TutorPress_Course' => $baseDir . '/includes/post-types/class-tutorpress-course.php',
     'TutorPress_Course_Settings_Controller' => $baseDir . '/includes/rest/class-course-settings-controller.php',
     'TutorPress_Curriculum_Metabox' => $baseDir . '/includes/shared/class-tutorpress-curriculum-metabox.php',
