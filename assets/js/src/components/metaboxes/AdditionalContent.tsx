@@ -27,10 +27,12 @@ import React, { useEffect, useCallback, useRef } from "react";
 import { TextareaControl, Spinner, Flex, FlexBlock, Notice } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { useEntityProp } from "@wordpress/core-data";
 
 // Components
 import { ContentDripSettings } from "./additional-content/ContentDripSettings";
+
+// Hooks
+import { useAdditionalContentData, useContentDripSettings } from "../../hooks/common";
 
 // Types
 import type {
@@ -64,13 +66,12 @@ const AdditionalContent: React.FC = (): JSX.Element => {
   const container = document.getElementById("tutorpress-additional-content-root");
   const courseId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
 
-  // Step D: Access additional_content using direct selector (more reliable than useEntityProp)
-  const additionalContent = useSelect((select: any) => {
-    return select("core/editor").getEditedPostAttribute("additional_content");
-  }, []);
+  // Step E: Use new separate hooks for additional content data and content drip settings
+  const { additionalContentData, ready: textDataReady } = useAdditionalContentData();
+  const { contentDripSettings, ready: dripSettingsReady } = useContentDripSettings();
 
-  // Check if data is ready
-  const entityReady = additionalContent !== undefined && additionalContent !== null;
+  // Check if both data sources are ready
+  const entityReady = textDataReady && dripSettingsReady;
 
   // Additional Content store selectors (for writes and other state)
   const { isLoading, isSaving, isDirty, hasError, error, isContentDripAddonAvailable, editorIsSaving } = useSelect(
@@ -90,19 +91,17 @@ const AdditionalContent: React.FC = (): JSX.Element => {
     []
   );
 
-  // Extract data from additionalContent hook
-  const data = additionalContent || {
+  // Extract data from new hooks
+  const data = additionalContentData || {
     what_will_learn: "",
     target_audience: "",
     requirements: "",
-    content_drip_enabled: false,
-    content_drip_type: "unlock_by_date",
   };
 
-  // Extract content drip settings from additionalContent entity prop
-  const contentDrip = {
-    enabled: data.content_drip_enabled || false,
-    type: data.content_drip_type || "unlock_by_date",
+  // Extract content drip settings from new hook
+  const contentDrip = contentDripSettings || {
+    enabled: false,
+    type: "unlock_by_date",
   };
 
   // Additional Content store actions (for writes and other operations)
