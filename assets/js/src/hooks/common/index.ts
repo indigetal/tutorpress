@@ -45,3 +45,4 @@ export {
 export { useEntitySettings, type UseEntitySettingsReturn } from "./useEntitySettings";
 export { useCourseSettings, type UseCourseSettingsReturn } from "./useCourseSettings";
 export { useLessonSettings } from "./useLessonSettings";
+export { useAssignmentSettings } from "./useAssignmentSettings";
