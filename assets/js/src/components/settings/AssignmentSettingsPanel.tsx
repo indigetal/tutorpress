@@ -44,6 +44,11 @@ const AssignmentSettingsPanel: React.FC = () => {
 
   const { editPost } = useDispatch("core/editor");
 
+  // Only show for assignment post type
+  if (postType !== "tutor_assignments") {
+    return null;
+  }
+
   // Use composite assignment_settings field (following Course/Lesson patterns)
   const [assignmentSettings, setAssignmentSettings] = useEntityProp("postType", "tutor_assignments", "assignment_settings");
 
@@ -118,11 +123,6 @@ const AssignmentSettingsPanel: React.FC = () => {
 
     fetchAttachmentsMetadata();
   }, [assignmentSettings.instructor_attachments]);
-
-  // Only show for assignment post type
-  if (postType !== "tutor_assignments") {
-    return null;
-  }
 
   const updateSetting = (key: string, value: any) => {
     const newSettings = { ...assignmentSettings };
