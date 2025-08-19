@@ -18,6 +18,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
         'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
         'TutorPress_Assets' => __DIR__ . '/../..' . '/includes/class-tutorpress-assets.php',
+        'TutorPress_Assignment' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-assignment.php',
         'TutorPress_Assignment_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-assignment-settings.php',
         'TutorPress_Bundle_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-bundle-settings.php',
         'TutorPress_Certificate_Controller' => __DIR__ . '/../..' . '/includes/rest/class-certificate-controller.php',

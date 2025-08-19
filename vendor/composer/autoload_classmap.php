@@ -13,6 +13,7 @@ return array(
     'TutorPress_Addon_Checker' => $baseDir . '/includes/services/class-tutorpress-addon-checker.php',
     'TutorPress_Admin_Customizations' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
     'TutorPress_Assets' => $baseDir . '/includes/class-tutorpress-assets.php',
+    'TutorPress_Assignment' => $baseDir . '/includes/post-types/class-tutorpress-assignment.php',
     'TutorPress_Assignment_Settings' => $baseDir . '/includes/gutenberg/settings/class-assignment-settings.php',
     'TutorPress_Bundle_Settings' => $baseDir . '/includes/gutenberg/settings/class-bundle-settings.php',
     'TutorPress_Certificate_Controller' => $baseDir . '/includes/rest/class-certificate-controller.php',

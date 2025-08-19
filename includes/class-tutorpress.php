@@ -149,7 +149,11 @@ class TutorPress_Main {
         // Initialize lesson settings via post type class (settings-only)
         new TutorPress_Lesson();
         
+        // Initialize assignment settings via post type class (settings-only)
+        new TutorPress_Assignment();
+
         // Initialize settings panels that use static init pattern
+        // Keep legacy runtime during migration (Step 5 will remove this)
         TutorPress_Assignment_Settings::init();
         TutorPress_Content_Drip_Helpers::init();
         TutorPress_Bundle_Settings::init();
