@@ -109,17 +109,8 @@ const AdditionalContent: React.FC = (): JSX.Element => {
     }
   }, [courseId, fetchAdditionalContent]);
 
-  // Integrate with Gutenberg's dirty state system and update hidden form fields
+  // Update hidden form fields so they're available when the post is saved
   useEffect(() => {
-    if (isDirty && (window as any).wp?.data) {
-      // Mark the post as having unsaved changes so Gutenberg shows the save prompt
-      const { editPost } = (window as any).wp.data.dispatch("core/editor");
-      if (editPost) {
-        // Trigger a meta update to mark the post as dirty
-        editPost({ meta: { _tutorpress_additional_content_dirty: Date.now() } });
-      }
-    }
-
     // Update hidden form fields so they're available when the post is saved
     updateHiddenFormFields();
   }, [isDirty, data, contentDrip]);
