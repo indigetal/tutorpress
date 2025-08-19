@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
+import { useEntityProp } from "@wordpress/core-data";
 import { PanelRow, TextControl, SelectControl, Button, Notice, Spinner } from "@wordpress/components";
 
 // Import Content Drip Panel
@@ -29,34 +30,22 @@ const AssignmentSettingsPanel: React.FC = () => {
   // Get course ID for content drip context
   const courseId = useCourseId();
 
-  const { postType, assignmentSettings, isSaving, postId } = useSelect((select: any) => {
+  const { postType, isSaving, postId } = useSelect((select: any) => {
     const { getCurrentPostType } = select("core/editor");
-    const { getEditedPostAttribute } = select("core/editor");
     const { isSavingPost } = select("core/editor");
     const { getCurrentPostId } = select("core/editor");
 
     return {
       postType: getCurrentPostType(),
-      assignmentSettings: getEditedPostAttribute("assignment_settings") || {
-        time_duration: { value: 0, unit: "hours" },
-        total_points: 10,
-        pass_points: 5,
-        file_upload_limit: 1,
-        file_size_limit: 2,
-        attachments_enabled: true,
-        instructor_attachments: [],
-        content_drip: {
-          unlock_date: "",
-          after_xdays_of_enroll: 0,
-          prerequisites: [],
-        },
-      },
       isSaving: isSavingPost(),
       postId: getCurrentPostId(),
     };
   }, []);
 
   const { editPost } = useDispatch("core/editor");
+
+  // Use composite assignment_settings field (following Course/Lesson patterns)
+  const [assignmentSettings, setAssignmentSettings] = useEntityProp("postType", "tutor_assignments", "assignment_settings");
 
   // Fetch attachments metadata when attachments change
   useEffect(() => {
@@ -148,7 +137,7 @@ const AssignmentSettingsPanel: React.FC = () => {
       newSettings[key] = value;
     }
 
-    editPost({ assignment_settings: newSettings });
+    setAssignmentSettings(newSettings);
   };
 
   const openMediaLibrary = () => {
@@ -195,7 +184,7 @@ const AssignmentSettingsPanel: React.FC = () => {
     { label: __("Weeks", "tutorpress"), value: "weeks" },
   ];
 
-  // Validation warnings
+    // Validation warnings
   const warnings = [];
   if (assignmentSettings.total_points > 0 && assignmentSettings.pass_points > assignmentSettings.total_points) {
     warnings.push(__("Passing points cannot exceed total points.", "tutorpress"));
@@ -295,14 +284,18 @@ const AssignmentSettingsPanel: React.FC = () => {
       </PanelRow>
 
       <PanelRow>
-        <TextControl
-          label={__("Total Points", "tutorpress")}
-          type="number"
-          min="0"
-          value={assignmentSettings.total_points?.toString() || "0"}
-          onChange={(value) => updateSetting("total_points", Math.max(0, parseInt(value) || 0))}
-          disabled={isSaving}
-          help={__("Set to 0 for no points assignment", "tutorpress")}
+                <TextControl
+            label={__("Total Points", "tutorpress")}
+            type="number"
+            min="0"
+            value={assignmentSettings.total_points?.toString() || "0"}
+            onChange={(value) => {
+              const newSettings = { ...assignmentSettings };
+              newSettings.total_points = Math.max(0, parseInt(value) || 0);
+              setAssignmentSettings(newSettings);
+            }}
+            disabled={isSaving}
+            help={__("Set to 0 for no points assignment", "tutorpress")}
         />
       </PanelRow>
 
@@ -311,7 +304,7 @@ const AssignmentSettingsPanel: React.FC = () => {
           label={__("Minimum Pass Points", "tutorpress")}
           type="number"
           min="0"
-          max={assignmentSettings.total_points > 0 ? assignmentSettings.total_points : undefined}
+                      max={assignmentSettings.total_points > 0 ? assignmentSettings.total_points : undefined}
           value={assignmentSettings.pass_points?.toString() || "0"}
           onChange={(value) => {
             const passPoints = parseInt(value) || 0;

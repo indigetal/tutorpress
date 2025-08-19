@@ -20,7 +20,8 @@ class TutorPress_Assignment_Settings {
      */
     public static function init() {
         add_action('init', [__CLASS__, 'register_meta_fields']);
-        add_action('rest_api_init', [__CLASS__, 'register_rest_fields']);
+        // REST field registration - MIGRATED TO TutorPress_Assignment class
+        // add_action('rest_api_init', [__CLASS__, 'register_rest_fields']);
         
         // Lightweight bidirectional sync hooks
         add_action('updated_post_meta', [__CLASS__, 'handle_tutor_meta_update'], 10, 4);
@@ -57,45 +58,45 @@ class TutorPress_Assignment_Settings {
             'show_in_rest'      => true,
         ]);
 
-        // Total points
-        register_post_meta('tutor_assignments', '_assignment_total_points', [
-            'type'              => 'integer',
-            'description'       => __('Total points for assignment', 'tutorpress'),
-            'single'            => true,
-            'default'           => 10,
-            'sanitize_callback' => function($value) { return max(0, absint($value)); },
-            'show_in_rest'      => true,
-        ]);
+        // Total points - MIGRATED TO TutorPress_Assignment class (Field 1)
+        // register_post_meta('tutor_assignments', '_assignment_total_points', [
+        //     'type'              => 'integer',
+        //     'description'       => __('Total points for assignment', 'tutorpress'),
+        //     'single'            => true,
+        //     'default'           => 10,
+        //     'sanitize_callback' => function($value) { return max(0, absint($value)); },
+        //     'show_in_rest'      => true,
+        // ]);
 
-        // Minimum pass points
-        register_post_meta('tutor_assignments', '_assignment_pass_points', [
-            'type'              => 'integer',
-            'description'       => __('Minimum points required to pass assignment', 'tutorpress'),
-            'single'            => true,
-            'default'           => 5,
-            'sanitize_callback' => 'absint',
-            'show_in_rest'      => true,
-        ]);
+        // Minimum pass points - MIGRATED TO TutorPress_Assignment class (Field 2)
+        // register_post_meta('tutor_assignments', '_assignment_pass_points', [
+        //     'type'              => 'integer',
+        //     'description'       => __('Minimum points required to pass assignment', 'tutorpress'),
+        //     'single'            => true,
+        //     'default'           => 5,
+        //     'sanitize_callback' => 'absint',
+        //     'show_in_rest'      => true,
+        // ]);
 
-        // File upload limit
-        register_post_meta('tutor_assignments', '_assignment_file_upload_limit', [
-            'type'              => 'integer',
-            'description'       => __('Maximum number of files student can upload', 'tutorpress'),
-            'single'            => true,
-            'default'           => 1,
-            'sanitize_callback' => 'absint',
-            'show_in_rest'      => true,
-        ]);
+        // File upload limit - MIGRATED TO TutorPress_Assignment class (Field 3)
+        // register_post_meta('tutor_assignments', '_assignment_file_upload_limit', [
+        //     'type'              => 'integer',
+        //     'description'       => __('Maximum number of files student can upload', 'tutorpress'),
+        //     'single'            => true,
+        //     'default'           => 1,
+        //     'sanitize_callback' => 'absint',
+        //     'show_in_rest'      => true,
+        // ]);
 
-        // File size limit (in MB)
-        register_post_meta('tutor_assignments', '_assignment_file_size_limit', [
-            'type'              => 'integer',
-            'description'       => __('Maximum file size limit in MB', 'tutorpress'),
-            'single'            => true,
-            'default'           => 2,
-            'sanitize_callback' => function($value) { return max(1, absint($value)); },
-            'show_in_rest'      => true,
-        ]);
+        // File size limit (in MB) - MIGRATED TO TutorPress_Assignment class (Field 4)
+        // register_post_meta('tutor_assignments', '_assignment_file_size_limit', [
+        //     'type'              => 'integer',
+        //     'description'       => __('Maximum file size limit in MB', 'tutorpress'),
+        //     'single'            => true,
+        //     'default'           => 2,
+        //     'sanitize_callback' => function($value) { return max(1, absint($value)); },
+        //     'show_in_rest'      => true,
+        // ]);
 
         // Attachments enabled
         register_post_meta('tutor_assignments', '_assignment_attachments_enabled', [
