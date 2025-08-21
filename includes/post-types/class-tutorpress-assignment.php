@@ -46,7 +46,13 @@ class TutorPress_Assignment {
 		// Field 1: Bidirectional sync hooks for Tutor LMS compatibility
 		add_action( 'updated_post_meta', [ $this, 'handle_assignment_settings_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_assignment_option_update' ], 10, 4 );
+		// Catch initial creation of assignment_option as well
+		add_action( 'added_post_meta', [ $this, 'handle_tutor_assignment_option_update' ], 10, 4 );
 		add_action( 'save_post_tutor_assignments', [ $this, 'sync_on_assignment_save' ], 999, 3 );
+
+		// Also hook Tutor Pro's explicit assignment lifecycle events to ensure reverse sync
+		add_action( 'tutor_assignment_created', [ $this, 'sync_from_tutor_after_save' ], 10, 1 );
+		add_action( 'tutor_assignment_updated', [ $this, 'sync_from_tutor_after_save' ], 10, 1 );
 	}
 
 	/**
@@ -102,6 +108,49 @@ class TutorPress_Assignment {
 			'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest'      => true,
 		] );
+
+		// Step 3A.5: Register time_duration_value field
+		register_post_meta( $this->token, '_assignment_time_duration_value', [
+			'type'              => 'integer',
+			'description'       => __( 'Time limit value for assignment completion', 'tutorpress' ),
+			'single'            => true,
+			'default'           => 0,
+			'sanitize_callback' => 'absint',
+			'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+			'show_in_rest'      => true,
+		] );
+
+		// Step 3A.6: Register time_duration_unit field
+		register_post_meta( $this->token, '_assignment_time_duration_unit', [
+			'type'              => 'string',
+			'description'       => __( 'Time limit unit for assignment completion', 'tutorpress' ),
+			'single'            => true,
+			'default'           => 'hours',
+			'sanitize_callback' => [ $this, 'sanitize_time_unit' ],
+			'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+			'show_in_rest'      => true,
+		] );
+
+		// Instructor attachments (canonical Tutor LMS meta for assignments)
+		register_post_meta( $this->token, '_tutor_assignment_attachments', [
+			'type'              => 'array',
+			'description'       => __( 'Instructor attachments for the assignment (attachment IDs)', 'tutorpress' ),
+			'single'            => true,
+			'default'           => [],
+			'sanitize_callback' => function( $value ) {
+				if ( ! is_array( $value ) ) {
+					return [];
+				}
+				return array_map( 'absint', array_filter( $value ) );
+			},
+			'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+			'show_in_rest'      => [
+				'schema' => [
+					'type'  => 'array',
+					'items' => [ 'type' => 'integer' ],
+				],
+			],
+		] );
 	}
 
 
@@ -135,6 +184,32 @@ class TutorPress_Assignment {
 			'schema'          => [
 				'description' => __( 'Assignment settings', 'tutorpress' ),
 				'type'        => 'object',
+				'properties'  => [
+					'time_duration' => [
+						'type'       => 'object',
+						'properties' => [
+							'value' => [ 'type' => 'integer', 'minimum' => 0 ],
+							'unit'  => [ 'type' => 'string', 'enum' => [ 'weeks', 'days', 'hours' ] ],
+						],
+					],
+					'total_points' => [ 'type' => 'integer', 'minimum' => 0 ],
+					'pass_points'  => [ 'type' => 'integer', 'minimum' => 0 ],
+					'file_upload_limit' => [ 'type' => 'integer', 'minimum' => 0 ],
+					'file_size_limit'   => [ 'type' => 'integer', 'minimum' => 1 ],
+					'instructor_attachments' => [
+						'type'  => 'array',
+						'items' => [ 'type' => 'integer' ],
+					],
+					'content_drip' => [
+						'type'       => 'object',
+						'properties' => [
+							'enabled' => [ 'type' => 'boolean' ],
+							'type'    => [ 'type' => 'string' ],
+							'available_after_days' => [ 'type' => 'integer', 'minimum' => 0 ],
+							'show_days_field' => [ 'type' => 'boolean' ],
+						],
+					],
+				],
 			],
 		] );
 	}
@@ -177,7 +252,6 @@ class TutorPress_Assignment {
 			'pass_points'          => (int) get_post_meta( $post_id, '_assignment_pass_points', true ) ?: 5,
 			'file_upload_limit'    => (int) get_post_meta( $post_id, '_assignment_file_upload_limit', true ) ?: 1,
 			'file_size_limit'      => (int) get_post_meta( $post_id, '_assignment_file_size_limit', true ) ?: 2,
-			'attachments_enabled'  => (bool) get_post_meta( $post_id, '_assignment_attachments_enabled', true ),
 			'instructor_attachments' => array_map( 'intval', $instructor_attachments ),
 			// Content Drip settings
 			'content_drip' => [
@@ -246,10 +320,6 @@ class TutorPress_Assignment {
 
 		if ( isset( $value['file_size_limit'] ) ) {
 			update_post_meta( $post_id, '_assignment_file_size_limit', max( 1, absint( $value['file_size_limit'] ) ) );
-		}
-
-		if ( isset( $value['attachments_enabled'] ) ) {
-			update_post_meta( $post_id, '_assignment_attachments_enabled', rest_sanitize_boolean( $value['attachments_enabled'] ) );
 		}
 
 		// Handle instructor attachments (Tutor LMS compatible)
@@ -367,7 +437,7 @@ class TutorPress_Assignment {
 	/**
 	 * Handle assignment settings meta updates for bidirectional sync.
 	 *
-	 * Field 1, 2, 3 & 4: Sync individual meta fields to Tutor LMS format.
+	 * Field 1, 2, 3, 4, 5 & 6: Sync individual meta fields to Tutor LMS format.
 	 * Follows Lesson class patterns for sync timing and guards.
 	 *
 	 * @since 1.14.4
@@ -379,18 +449,18 @@ class TutorPress_Assignment {
 	 */
 	public function handle_assignment_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
 		// Only handle assignment settings updates
-		$assignment_meta_keys = [ '_assignment_total_points', '_assignment_pass_points', '_assignment_file_upload_limit', '_assignment_file_size_limit' ];
+		$assignment_meta_keys = [ '_assignment_total_points', '_assignment_pass_points', '_assignment_file_upload_limit', '_assignment_file_size_limit', '_assignment_time_duration_value', '_assignment_time_duration_unit' ];
 		if ( ! in_array( $meta_key, $assignment_meta_keys, true ) || get_post_type( $post_id ) !== 'tutor_assignments' ) {
 			return;
 		}
 
 		// Avoid infinite loops - check if this update came from our sync
-		$our_last_update = get_post_meta( $post_id, '_tutorpress_assignment_last_sync', true );
+		$our_last_update = get_post_meta( $post_id, '_tutorpress_last_sync', true );
 		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
 			return; // Skip if we just synced within the last 5 seconds
 		}
 
-		update_post_meta( $post_id, '_tutorpress_assignment_last_sync', time() );
+		update_post_meta( $post_id, '_tutorpress_last_sync', time() );
 
 		// Sync to Tutor LMS format
 		$this->sync_to_tutor_format( $post_id );
@@ -399,7 +469,7 @@ class TutorPress_Assignment {
 	/**
 	 * Handle Tutor LMS assignment_option updates to sync back to individual fields.
 	 *
-	 * Field 1, 2, 3 & 4: Sync from Tutor LMS format to individual meta fields.
+	 * Field 1, 2, 3, 4, 5 & 6: Sync from Tutor LMS format to individual meta fields.
 	 * Follows Lesson class patterns for sync timing and guards.
 	 *
 	 * @since 1.14.4
@@ -416,12 +486,12 @@ class TutorPress_Assignment {
 		}
 
 		// Avoid infinite loops - check if this update came from our sync
-		$our_last_update = get_post_meta( $post_id, '_tutorpress_assignment_last_sync', true );
+		$our_last_update = get_post_meta( $post_id, '_tutorpress_last_sync', true );
 		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
 			return; // Skip if we just synced within the last 5 seconds
 		}
 
-		update_post_meta( $post_id, '_tutorpress_assignment_last_sync', time() );
+		update_post_meta( $post_id, '_tutorpress_last_sync', time() );
 
 		// Sync from Tutor LMS format
 		$this->sync_from_tutor_format( $post_id, $meta_value );
@@ -444,13 +514,43 @@ class TutorPress_Assignment {
 			return;
 		}
 
+		// If Tutor LMS is saving via AJAX, let their update to assignment_option fire our meta hook
+		// to sync back to individual fields. Pushing here would set our sync guard just before
+		// Tutor LMS updates assignment_option, preventing the reverse sync.
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) {
+			$action = isset( $_REQUEST['action'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['action'] ) ) : '';
+			if ( $action === 'tutor_assignment_save' ) {
+				return;
+			}
+		}
+
 		$this->sync_to_tutor_format( $post_id );
+	}
+
+	/**
+	 * Ensure reverse sync after Tutor LMS saves assignments via its own flows.
+	 *
+	 * @since 1.14.4
+	 * @param int $assignment_id Assignment post ID.
+	 * @return void
+	 */
+	public function sync_from_tutor_after_save( $assignment_id ) {
+		$assignment_id = absint( $assignment_id );
+		if ( ! $assignment_id ) {
+			return;
+		}
+		// Avoid immediate loops if we just synced
+		$our_last_update = get_post_meta( $assignment_id, '_tutorpress_last_sync', true );
+		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
+			return;
+		}
+		$this->sync_from_tutor_format( $assignment_id );
 	}
 
 	/**
 	 * Sync individual meta fields to Tutor LMS format.
 	 *
-	 * Field 1, 2, 3 & 4: Sync total_points, pass_points, file_upload_limit and file_size_limit to Tutor LMS assignment_option format.
+	 * Field 1, 2, 3, 4, 5 & 6: Sync total_points, pass_points, file_upload_limit, file_size_limit, time_duration_value and time_duration_unit to Tutor LMS assignment_option format.
 	 * Follows Lesson class patterns for format conversion.
 	 *
 	 * @since 1.14.4
@@ -458,7 +558,7 @@ class TutorPress_Assignment {
 	 * @return void
 	 */
 	private function sync_to_tutor_format( $post_id ) {
-		update_post_meta( $post_id, '_tutorpress_assignment_last_sync', time() );
+		update_post_meta( $post_id, '_tutorpress_last_sync', time() );
 
 		// Get existing assignment_option or create new one
 		$assignment_option = get_post_meta( $post_id, 'assignment_option', true );
@@ -472,6 +572,8 @@ class TutorPress_Assignment {
 
 		// Sync pass_points
 		$pass_points = (int) get_post_meta( $post_id, '_assignment_pass_points', true );
+		// Tutor LMS default is 10
+		$total_points = $total_points === 0 ? 10 : $total_points;
 		$assignment_option['pass_mark'] = $pass_points;
 
 		// Sync file_upload_limit
@@ -482,6 +584,15 @@ class TutorPress_Assignment {
 		$file_size_limit = (int) get_post_meta( $post_id, '_assignment_file_size_limit', true );
 		$assignment_option['upload_file_size_limit'] = $file_size_limit;
 
+		// Sync time_duration (Fields 5 & 6)
+		$time_duration_value = (int) get_post_meta( $post_id, '_assignment_time_duration_value', true );
+		$time_duration_unit = get_post_meta( $post_id, '_assignment_time_duration_unit', true ) ?: 'hours';
+		
+		$assignment_option['time_duration'] = array(
+			'value' => $time_duration_value,
+			'time' => $time_duration_unit,
+		);
+
 		// Save back to Tutor LMS format
 		update_post_meta( $post_id, 'assignment_option', $assignment_option );
 	}
@@ -489,7 +600,7 @@ class TutorPress_Assignment {
 	/**
 	 * Sync from Tutor LMS format to individual meta fields.
 	 *
-	 * Field 1, 2, 3 & 4: Sync total_points, pass_points, file_upload_limit and file_size_limit from Tutor LMS assignment_option format.
+	 * Field 1, 2, 3, 4, 5 & 6: Sync total_points, pass_points, file_upload_limit, file_size_limit, time_duration_value and time_duration_unit from Tutor LMS assignment_option format.
 	 * Follows Lesson class patterns for format conversion.
 	 *
 	 * @since 1.14.4
@@ -505,8 +616,6 @@ class TutorPress_Assignment {
 		if ( empty( $assignment_option ) || ! is_array( $assignment_option ) ) {
 			return;
 		}
-
-		update_post_meta( $post_id, '_tutorpress_assignment_last_sync', time() );
 
 		// Sync total_points from Tutor LMS format
 		if ( isset( $assignment_option['total_mark'] ) ) {
@@ -527,6 +636,19 @@ class TutorPress_Assignment {
 		// Sync file_size_limit from Tutor LMS format
 		if ( isset( $assignment_option['upload_file_size_limit'] ) ) {
 			update_post_meta( $post_id, '_assignment_file_size_limit', max(1, absint( $assignment_option['upload_file_size_limit'] ) ) );
+		}
+
+		// Sync time_duration from Tutor LMS format (Fields 5 & 6)
+		if ( isset( $assignment_option['time_duration'] ) && is_array( $assignment_option['time_duration'] ) ) {
+			$time_duration = $assignment_option['time_duration'];
+			
+			if ( isset( $time_duration['value'] ) ) {
+				update_post_meta( $post_id, '_assignment_time_duration_value', absint( $time_duration['value'] ) );
+			}
+			
+			if ( isset( $time_duration['time'] ) ) {
+				update_post_meta( $post_id, '_assignment_time_duration_unit', $this->sanitize_time_unit( $time_duration['time'] ) );
+			}
 		}
 	}
 }
