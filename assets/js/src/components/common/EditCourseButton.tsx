@@ -124,7 +124,6 @@ const EditCourseButton: React.FC = () => {
       domContainerRef.current = container;
       root = createRoot(container);
       reactRootRef.current = root;
-      console.log("TutorPress: Created and inserted EditCourseButton container.");
     } else if (!root) {
       // Re-create root if container exists but root was somehow lost
       root = createRoot(container);

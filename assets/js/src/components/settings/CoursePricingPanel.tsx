@@ -82,32 +82,32 @@ const CoursePricingPanel: React.FC = () => {
 
   // Fetch subscription plans when component mounts and course ID is available
   useEffect(() => {
-    if (postId && isSubscriptionEnabled()) {
+    if (postType === "courses" && postId && isSubscriptionEnabled()) {
       getSubscriptionPlans();
     }
-  }, [postId, getSubscriptionPlans]);
+  }, [postType, postId, getSubscriptionPlans]);
 
   // Fetch WooCommerce products when component mounts and WooCommerce is active
   useEffect(() => {
-    if (postId && isWooCommerceMonetization()) {
+    if (postType === "courses" && postId && isWooCommerceMonetization()) {
       fetchWooProducts({
         course_id: postId,
         per_page: 50,
         exclude_linked_products: false,
       });
     }
-  }, [postId, fetchWooProducts]);
+  }, [postType, postId, fetchWooProducts]);
 
   // Fetch EDD products when component mounts and EDD monetization is active
   useEffect(() => {
-    if (postId && isEddMonetization()) {
+    if (postType === "courses" && postId && isEddMonetization()) {
       fetchEddProducts({
         course_id: postId,
         per_page: 50,
         exclude_linked_products: false,
       });
     }
-  }, [postId, fetchEddProducts]);
+  }, [postType, postId, fetchEddProducts]);
 
   // Remove legacy → entity seeding; entity is the source of truth now
 
