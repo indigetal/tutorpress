@@ -29,6 +29,9 @@ class TutorPress_Bundle {
         // Register metaboxes for legacy compatibility
         add_action( 'add_meta_boxes', [ $this, 'register_metaboxes' ] );
         
+        // Handle admin asset enqueuing
+        add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_editor_assets' ] );
+        
         // Handle metabox saves (traditional form posts)
         add_action( 'save_post', [ $this, 'meta_box_save' ] );
 
@@ -109,14 +112,14 @@ class TutorPress_Bundle {
             'show_in_rest'      => true,
         ] );
 
-        // Course IDs
+        // Course IDs (managed via dedicated REST endpoints, exclude from Gutenberg meta save)
         register_post_meta( $this->token, 'bundle-course-ids', [
             'type'              => 'string',
             'single'            => true,
             'default'           => '',
             'sanitize_callback' => [ __CLASS__, 'sanitize_course_ids' ],
             'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
-            'show_in_rest'      => true,
+            'show_in_rest'      => false, // Exclude from Gutenberg auto-save to prevent conflicts
         ] );
 
         // Benefits
@@ -143,6 +146,25 @@ class TutorPress_Bundle {
                 'type'        => 'object',
             ],
         ] );
+    }
+
+    /**
+     * Conditionally enqueue editor assets when on bundle edit screen.
+     *
+     * @param string $hook_suffix The current admin page.
+     * @return void
+     */
+    public function maybe_enqueue_editor_assets( $hook_suffix ) {
+        if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if ( ! $screen || $screen->post_type !== $this->token ) {
+            return;
+        }
+
+        // Assets handled by TutorPress_Assets class
     }
 
     /**
@@ -195,6 +217,7 @@ class TutorPress_Bundle {
 
     /**
      * Display the bundle courses metabox (renders a React root container)
+     * Enhanced with curriculum metabox patterns for better frontend integration
      */
     public function display_bundle_courses_metabox( $post ) {
         wp_nonce_field( 'tutorpress_bundle_courses_nonce', 'tutorpress_bundle_courses_nonce' );
@@ -207,6 +230,10 @@ class TutorPress_Bundle {
         <div
             id="tutorpress-bundle-courses-root"
             data-bundle-id="<?php echo esc_attr( $post->ID ); ?>"
+            data-post-type="<?php echo esc_attr( $post->post_type ); ?>"
+            data-nonce="<?php echo esc_attr( wp_create_nonce( 'tutorpress_bundle_courses_nonce' ) ); ?>"
+            data-rest-url="<?php echo esc_url( get_rest_url() ); ?>"
+            data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
             class="tutorpress-metabox-container"
         >
             <!-- React component will be rendered here -->
@@ -280,7 +307,7 @@ class TutorPress_Bundle {
         }
 
         // If there are other canonical bundle meta fields included in meta, write them as well
-        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'bundle-course-ids', 'tutor_bundle_ribbon_type' );
+        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type' );
         foreach ( $other_keys as $k ) {
             if ( array_key_exists( $k, $meta ) ) {
                 // Basic sanitization: strings -> sanitize_text_field, numbers -> floatval/absint where appropriate

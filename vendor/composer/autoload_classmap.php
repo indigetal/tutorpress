@@ -6,7 +6,6 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Bundle_Courses_Metabox' => $baseDir . '/includes/gutenberg/metaboxes/class-bundle-courses-metabox.php',
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'TutorPress_Additional_Content_Controller' => $baseDir . '/includes/rest/class-additional-content-controller.php',
     'TutorPress_Addon_Checker' => $baseDir . '/includes/services/class-tutorpress-addon-checker.php',

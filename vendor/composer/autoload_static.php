@@ -11,7 +11,6 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
     );
 
     public static $classMap = array (
-        'Bundle_Courses_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-bundle-courses-metabox.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
         'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
