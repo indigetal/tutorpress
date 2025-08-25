@@ -131,6 +131,16 @@ class TutorPress_Bundle {
             'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
             'show_in_rest'      => true,
         ] );
+
+        // Bundle Ribbon Type
+        register_post_meta( $this->token, 'tutor_bundle_ribbon_type', [
+            'type'              => 'string',
+            'single'            => true,
+            'default'           => 'none',
+            'sanitize_callback' => [ $this, 'sanitize_ribbon_type' ],
+            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+            'show_in_rest'      => true,
+        ] );
     }
 
     /**
@@ -144,6 +154,36 @@ class TutorPress_Bundle {
             'schema'          => [
                 'description' => __( 'Bundle settings', 'tutorpress' ),
                 'type'        => 'object',
+            ],
+        ] );
+
+        // Optional: read-only bundle_instructors composite for convenience
+        register_rest_field( $this->token, 'bundle_instructors', [
+            'get_callback'    => [ $this, 'get_bundle_instructors_for_rest' ],
+            'update_callback' => null,
+            'schema'          => [
+                'description' => __( 'Bundle instructors (computed from course relationships)', 'tutorpress' ),
+                'type'        => 'object',
+                'readonly'    => true,
+                'properties'  => [
+                    'instructors'       => [
+                        'type'  => 'array',
+                        'items' => [
+                            'type'       => 'object',
+                            'properties' => [
+                                'id'           => [ 'type' => 'integer' ],
+                                'display_name' => [ 'type' => 'string' ],
+                                'user_email'   => [ 'type' => 'string' ],
+                                'user_login'   => [ 'type' => 'string' ],
+                                'avatar_url'   => [ 'type' => 'string' ],
+                                'role'         => [ 'type' => 'string' ],
+                                'designation'  => [ 'type' => 'string' ],
+                            ],
+                        ],
+                    ],
+                    'total_instructors' => [ 'type' => 'integer' ],
+                    'total_courses'     => [ 'type' => 'integer' ],
+                ],
             ],
         ] );
     }
@@ -185,6 +225,51 @@ class TutorPress_Bundle {
             'ribbon_type'    => get_post_meta( $post_id, 'tutor_bundle_ribbon_type', true ),
             'course_ids'     => get_post_meta( $post_id, 'bundle-course-ids', true ),
             'benefits'       => get_post_meta( $post_id, '_tutor_course_benefits', true ),
+        ];
+    }
+
+    /**
+     * Get bundle instructors for REST API (computed field)
+     * Delegates to existing REST controller logic for consistency
+     */
+    public function get_bundle_instructors_for_rest( $object ) {
+        $post_id = isset( $object['id'] ) ? (int) $object['id'] : 0;
+        if ( ! $post_id ) {
+            return [
+                'instructors'       => [],
+                'total_instructors' => 0,
+                'total_courses'     => 0,
+            ];
+        }
+
+        // Delegate to existing REST controller logic to avoid code duplication
+        if ( ! class_exists( 'TutorPress_REST_Course_Bundles_Controller' ) ) {
+            return [
+                'instructors'       => [],
+                'total_instructors' => 0,
+                'total_courses'     => 0,
+            ];
+        }
+
+        $controller = new TutorPress_REST_Course_Bundles_Controller();
+        $request = new WP_REST_Request( 'GET' );
+        $request->set_param( 'id', $post_id );
+        
+        $response = $controller->get_bundle_instructors( $request );
+        
+        if ( is_wp_error( $response ) ) {
+            return [
+                'instructors'       => [],
+                'total_instructors' => 0,
+                'total_courses'     => 0,
+            ];
+        }
+        
+        $data = $response->get_data();
+        return [
+            'instructors'       => $data['data'] ?? [],
+            'total_instructors' => $data['total_instructors'] ?? 0,
+            'total_courses'     => $data['total_courses'] ?? 0,
         ];
     }
 
