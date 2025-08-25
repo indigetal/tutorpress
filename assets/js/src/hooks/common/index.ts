@@ -46,3 +46,4 @@ export { useEntitySettings, type UseEntitySettingsReturn } from "./useEntitySett
 export { useCourseSettings, type UseCourseSettingsReturn } from "./useCourseSettings";
 export { useLessonSettings } from "./useLessonSettings";
 export { useAssignmentSettings } from "./useAssignmentSettings";
+export { default as useBundleMeta, type UseBundleMetaReturn } from "./useBundleMeta";

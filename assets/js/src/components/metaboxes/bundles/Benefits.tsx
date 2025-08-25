@@ -1,116 +1,96 @@
 /**
  * Bundle Benefits Metabox Component
  *
- * Implements the "What Will I Learn" field for course bundles in Gutenberg.
- * Uses the exact same pattern as Additional Content metabox for consistency.
- *
- * Features:
- * - What Will I Learn textarea field
- * - Integration with Gutenberg's save system
- * - Loading and error states
- * - Integration with bundle meta for persistence
- *
- * State Management:
- * - Uses course-bundles store for global state (following Additional Content pattern)
- * - Loading and error states handled through established patterns
- * - Integration with bundle meta for persistence
+ * Manages the "What Will I Learn?" field for course bundles.
+ * Uses the dedicated course-bundles store following the exact pattern
+ * from Course Additional Content metabox.
  *
  * @package TutorPress
  * @subpackage Components/Metaboxes/Bundles
  * @since 1.0.0
  */
-import React, { useEffect, useCallback } from "react";
-import { TextareaControl, Spinner, Notice } from "@wordpress/components";
+import React, { useEffect, useCallback, useRef } from "react";
+import { TextareaControl, Spinner, Flex, Notice } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 
 // Store constant
 const COURSE_BUNDLES_STORE = "tutorpress/course-bundles";
 
-// ============================================================================
-// Bundle Benefits Metabox Component
-// ============================================================================
-
 /**
- * Main Bundle Benefits component for managing bundle benefits field.
- *
- * Features:
- * - What Will I Learn textarea field for bundle benefits
- * - Integration with Gutenberg's native save system
- * - Loading and error states with proper feedback
- * - Integration with WordPress Data Store
- *
- * State Management:
- * - Uses course-bundles store for global state (following Additional Content pattern)
- * - Follows established TutorPress data flow patterns
+ * Bundle Benefits component
  */
 const Benefits: React.FC = (): JSX.Element => {
   // Get bundle ID from data attribute (following established TutorPress pattern)
   const container = document.getElementById("tutorpress-bundle-benefits-root");
-  const postId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
+  const bundleId = container ? parseInt(container.getAttribute("data-post-id") || "0", 10) : 0;
 
-  // Course Bundles store selectors (following Additional Content pattern)
-  const { data, isLoading, isSaving, isDirty, hasError, error } = useSelect((select) => {
-    const courseBundlesStore = select(COURSE_BUNDLES_STORE) as any;
+  // Bundle Benefits store selectors
+  const { data, isLoading, isSaving, isDirty, hasError, error, editorIsSaving } = useSelect((select) => {
+    const bundleStore = select(COURSE_BUNDLES_STORE) as any;
+    const coreEditor = select("core/editor") as any;
     return {
-      data: courseBundlesStore.getBundleBenefitsData(),
-      isLoading: courseBundlesStore.getBundleBenefitsLoading(),
-      isSaving: courseBundlesStore.getBundleBenefitsSaving(),
-      isDirty: courseBundlesStore.hasBundleBenefitsUnsavedChanges(),
-      hasError: courseBundlesStore.getBundleBenefitsError() !== null,
-      error: courseBundlesStore.getBundleBenefitsError(),
+      data: bundleStore.getBundleBenefitsData(),
+      isLoading: bundleStore.getBundleBenefitsLoading(),
+      isSaving: bundleStore.getBundleBenefitsSaving(),
+      isDirty: bundleStore.hasBundleBenefitsUnsavedChanges(),
+      hasError: bundleStore.getBundleBenefitsError() !== null,
+      error: bundleStore.getBundleBenefitsError(),
+      editorIsSaving: coreEditor?.isSavingPost?.() || false,
     };
   }, []);
 
-  // Course Bundles store actions (following Additional Content pattern)
-  const { fetchBundleBenefits, updateBundleBenefits, clearError } = useDispatch(COURSE_BUNDLES_STORE) as any;
+  // Bundle Benefits store actions
+  const { fetchBundleBenefits, saveBundleBenefits, updateBundleBenefits } = useDispatch(COURSE_BUNDLES_STORE) as any;
 
-  // Load data on mount (following Additional Content pattern)
+  // Load data on mount
   useEffect(() => {
-    if (postId > 0) {
-      fetchBundleBenefits(postId);
+    if (bundleId > 0) {
+      fetchBundleBenefits(bundleId);
     }
-  }, [postId, fetchBundleBenefits]);
+  }, [bundleId, fetchBundleBenefits]);
 
-  // Integrate with Gutenberg's dirty state system and update hidden form fields (following Additional Content pattern)
+  // Update hidden form fields so they're available when the post is saved
   useEffect(() => {
-    if (isDirty && (window as any).wp?.data) {
-      // Mark the post as having unsaved changes so Gutenberg shows the save prompt
-      const { editPost } = (window as any).wp.data.dispatch("core/editor");
-      if (editPost) {
-        // Trigger a meta update to mark the post as dirty
-        editPost({ meta: { _tutorpress_bundle_benefits_dirty: Date.now() } });
-      }
-    }
-
-    // Update hidden form fields so they're available when the post is saved
     updateHiddenFormFields();
   }, [isDirty, data]);
 
-  // Update hidden form fields for WordPress save_post hook (following Additional Content pattern)
+  // Persist via REST when the editor initiates a save
+  const prevEditorIsSaving = useRef<boolean>(false);
+  useEffect(() => {
+    if (bundleId > 0 && isDirty && !prevEditorIsSaving.current && editorIsSaving) {
+      // Fire-and-forget; REST controller mirrors to Tutor LMS meta
+      saveBundleBenefits(bundleId, data);
+    }
+    prevEditorIsSaving.current = editorIsSaving;
+  }, [bundleId, editorIsSaving, isDirty, data, saveBundleBenefits]);
+
+  // Update hidden form fields for WordPress save_post hook (matches Course Additional Content pattern)
   const updateHiddenFormFields = useCallback(() => {
     const container = document.getElementById("tutorpress-bundle-benefits-root");
     if (!container) return;
 
     // Update or create hidden form field
-    let field = document.querySelector(`input[name="tutorpress_bundle_benefits"]`) as HTMLInputElement;
+    const fieldName = "tutorpress_bundle_benefits";
+    let field = document.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement;
     if (!field) {
       field = document.createElement("input");
       field.type = "hidden";
-      field.name = "tutorpress_bundle_benefits";
+      field.name = fieldName;
       container.appendChild(field);
     }
     field.value = data?.benefits || "";
   }, [data]);
 
-  // Handle benefits change (following Additional Content pattern)
+  // Handle benefits change
   const handleBenefitsChange = (value: string) => {
     updateBundleBenefits(value);
   };
 
-  // Handle error dismissal (following Additional Content pattern)
+  // Handle error dismissal
   const handleErrorDismiss = () => {
-    clearError();
+    // Clear error through store action if available
+    // For now, we'll rely on automatic error clearing on successful operations
   };
 
   // =============================
@@ -121,10 +101,10 @@ const Benefits: React.FC = (): JSX.Element => {
   if (isLoading) {
     return (
       <div className="tutorpress-bundle-benefits">
-        <div style={{ textAlign: "center", padding: "var(--space-xl)" }}>
+        <Flex direction="column" align="center" gap={2} style={{ padding: "var(--space-xl)" }}>
           <Spinner />
           <div>{__("Loading bundle benefits...", "tutorpress")}</div>
-        </div>
+        </Flex>
       </div>
     );
   }

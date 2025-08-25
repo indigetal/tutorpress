@@ -6,7 +6,6 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Bundle_Benefits_Metabox' => $baseDir . '/includes/gutenberg/metaboxes/class-bundle-benefits-metabox.php',
     'Bundle_Courses_Metabox' => $baseDir . '/includes/gutenberg/metaboxes/class-bundle-courses-metabox.php',
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'TutorPress_Additional_Content_Controller' => $baseDir . '/includes/rest/class-additional-content-controller.php',
@@ -14,7 +13,7 @@ return array(
     'TutorPress_Admin_Customizations' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
     'TutorPress_Assets' => $baseDir . '/includes/class-tutorpress-assets.php',
     'TutorPress_Assignment' => $baseDir . '/includes/post-types/class-tutorpress-assignment.php',
-    'TutorPress_Assignment_Settings' => $baseDir . '/includes/gutenberg/settings/class-assignment-settings.php',
+    'TutorPress_Bundle' => $baseDir . '/includes/post-types/class-tutorpress-bundle.php',
     'TutorPress_Bundle_Settings' => $baseDir . '/includes/gutenberg/settings/class-bundle-settings.php',
     'TutorPress_Certificate_Controller' => $baseDir . '/includes/rest/class-certificate-controller.php',
     'TutorPress_Content_Drip_Helpers' => $baseDir . '/includes/shared/class-content-drip-helpers.php',

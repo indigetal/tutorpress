@@ -11,7 +11,6 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
     );
 
     public static $classMap = array (
-        'Bundle_Benefits_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-bundle-benefits-metabox.php',
         'Bundle_Courses_Metabox' => __DIR__ . '/../..' . '/includes/gutenberg/metaboxes/class-bundle-courses-metabox.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
@@ -19,7 +18,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
         'TutorPress_Assets' => __DIR__ . '/../..' . '/includes/class-tutorpress-assets.php',
         'TutorPress_Assignment' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-assignment.php',
-        'TutorPress_Assignment_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-assignment-settings.php',
+        'TutorPress_Bundle' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-bundle.php',
         'TutorPress_Bundle_Settings' => __DIR__ . '/../..' . '/includes/gutenberg/settings/class-bundle-settings.php',
         'TutorPress_Certificate_Controller' => __DIR__ . '/../..' . '/includes/rest/class-certificate-controller.php',
         'TutorPress_Content_Drip_Helpers' => __DIR__ . '/../..' . '/includes/shared/class-content-drip-helpers.php',

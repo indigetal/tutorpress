@@ -16,7 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * TutorPress_Assignment class.
  *
  * Manages assignment settings for TutorPress addon functionality.
- * Foundation step: registers hooks and minimal REST field stubs.
  *
  * @since 1.14.4
  */
@@ -43,7 +42,7 @@ class TutorPress_Assignment {
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
 
-		// Field 1: Bidirectional sync hooks for Tutor LMS compatibility
+		// Bidirectional sync hooks for Tutor LMS compatibility
 		add_action( 'updated_post_meta', [ $this, 'handle_assignment_settings_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_assignment_option_update' ], 10, 4 );
 		// Catch initial creation of assignment_option as well
@@ -58,14 +57,11 @@ class TutorPress_Assignment {
 	/**
 	 * Set up meta fields for assignments.
 	 *
-	 * Step 3A.1: Register composite assignment_settings field and individual meta fields.
-	 * Individual meta fields will be added incrementally in subsequent steps.
-	 *
 	 * @since 1.14.4
 	 * @return void
 	 */
 	public function set_up_meta_fields() {
-		// Step 3A.1: Register individual meta fields following Course/Lesson patterns
+		// Register individual meta fields
 		register_post_meta( $this->token, '_assignment_total_points', [
 			'type'              => 'integer',
 			'description'       => __( 'Total points for assignment', 'tutorpress' ),
@@ -76,7 +72,7 @@ class TutorPress_Assignment {
 			'show_in_rest'      => true,
 		] );
 
-		// Step 3A.2: Register pass_points field  
+		// Register pass_points field  
 		register_post_meta( $this->token, '_assignment_pass_points', [
 			'type'              => 'integer',
 			'description'       => __( 'Minimum points required to pass assignment', 'tutorpress' ),
@@ -87,7 +83,7 @@ class TutorPress_Assignment {
 			'show_in_rest'      => true,
 		] );
 
-		// Step 3A.3: Register file_upload_limit field
+		// Register file_upload_limit field
 		register_post_meta( $this->token, '_assignment_file_upload_limit', [
 			'type'              => 'integer',
 			'description'       => __( 'Maximum number of files student can upload', 'tutorpress' ),
@@ -98,7 +94,7 @@ class TutorPress_Assignment {
 			'show_in_rest'      => true,
 		] );
 
-		// Step 3A.4: Register file_size_limit field
+		// Register file_size_limit field
 		register_post_meta( $this->token, '_assignment_file_size_limit', [
 			'type'              => 'integer',
 			'description'       => __( 'Maximum file size limit in MB', 'tutorpress' ),
@@ -109,7 +105,7 @@ class TutorPress_Assignment {
 			'show_in_rest'      => true,
 		] );
 
-		// Step 3A.5: Register time_duration_value field
+		// Register time_duration_value field
 		register_post_meta( $this->token, '_assignment_time_duration_value', [
 			'type'              => 'integer',
 			'description'       => __( 'Time limit value for assignment completion', 'tutorpress' ),
@@ -120,7 +116,7 @@ class TutorPress_Assignment {
 			'show_in_rest'      => true,
 		] );
 
-		// Step 3A.6: Register time_duration_unit field
+		// Register time_duration_unit field
 		register_post_meta( $this->token, '_assignment_time_duration_unit', [
 			'type'              => 'string',
 			'description'       => __( 'Time limit unit for assignment completion', 'tutorpress' ),
@@ -171,9 +167,6 @@ class TutorPress_Assignment {
 	/**
 	 * Register REST API fields for assignment settings.
 	 *
-	 * Foundation step: Registers a minimal stub for `assignment_settings`.
-	 * Full schema and mapping will be introduced incrementally.
-	 *
 	 * @since 1.14.4
 	 * @return void
 	 */
@@ -216,9 +209,6 @@ class TutorPress_Assignment {
 
 	/**
 	 * Get assignment settings for REST API.
-	 *
-	 * Step 2: Read from individual meta fields and return composite structure.
-	 * Will be expanded in Step 3 to include more fields.
 	 *
 	 * @since 1.14.4
 	 * @param array $post Post data.
@@ -265,9 +255,7 @@ class TutorPress_Assignment {
 
 	/**
 	 * Update assignment settings via REST API.
-	 *
-	 * Step 2: Write to individual meta fields from composite structure.
-	 * Will be expanded in Step 3 to include more fields.
+	 * Write to individual meta fields from composite structure.
 	 *
 	 * @since 1.14.4
 	 * @param array   $value New settings values.
@@ -437,9 +425,6 @@ class TutorPress_Assignment {
 	/**
 	 * Handle assignment settings meta updates for bidirectional sync.
 	 *
-	 * Field 1, 2, 3, 4, 5 & 6: Sync individual meta fields to Tutor LMS format.
-	 * Follows Lesson class patterns for sync timing and guards.
-	 *
 	 * @since 1.14.4
 	 * @param int    $meta_id   Meta ID.
 	 * @param int    $post_id   Post ID.
@@ -469,9 +454,6 @@ class TutorPress_Assignment {
 	/**
 	 * Handle Tutor LMS assignment_option updates to sync back to individual fields.
 	 *
-	 * Field 1, 2, 3, 4, 5 & 6: Sync from Tutor LMS format to individual meta fields.
-	 * Follows Lesson class patterns for sync timing and guards.
-	 *
 	 * @since 1.14.4
 	 * @param int    $meta_id   Meta ID.
 	 * @param int    $post_id   Post ID.
@@ -499,9 +481,6 @@ class TutorPress_Assignment {
 
 	/**
 	 * Sync on assignment save.
-	 *
-	 * Step 3A.1: Sync individual meta fields to Tutor LMS format on save.
-	 * Follows Lesson class patterns for save-time sync.
 	 *
 	 * @since 1.14.4
 	 * @param int     $post_id Post ID.
@@ -550,9 +529,6 @@ class TutorPress_Assignment {
 	/**
 	 * Sync individual meta fields to Tutor LMS format.
 	 *
-	 * Field 1, 2, 3, 4, 5 & 6: Sync total_points, pass_points, file_upload_limit, file_size_limit, time_duration_value and time_duration_unit to Tutor LMS assignment_option format.
-	 * Follows Lesson class patterns for format conversion.
-	 *
 	 * @since 1.14.4
 	 * @param int $post_id Assignment post ID.
 	 * @return void
@@ -584,7 +560,7 @@ class TutorPress_Assignment {
 		$file_size_limit = (int) get_post_meta( $post_id, '_assignment_file_size_limit', true );
 		$assignment_option['upload_file_size_limit'] = $file_size_limit;
 
-		// Sync time_duration (Fields 5 & 6)
+		// Sync time_duration
 		$time_duration_value = (int) get_post_meta( $post_id, '_assignment_time_duration_value', true );
 		$time_duration_unit = get_post_meta( $post_id, '_assignment_time_duration_unit', true ) ?: 'hours';
 		
@@ -599,9 +575,6 @@ class TutorPress_Assignment {
 
 	/**
 	 * Sync from Tutor LMS format to individual meta fields.
-	 *
-	 * Field 1, 2, 3, 4, 5 & 6: Sync total_points, pass_points, file_upload_limit, file_size_limit, time_duration_value and time_duration_unit from Tutor LMS assignment_option format.
-	 * Follows Lesson class patterns for format conversion.
 	 *
 	 * @since 1.14.4
 	 * @param int   $post_id Assignment post ID.
@@ -638,7 +611,7 @@ class TutorPress_Assignment {
 			update_post_meta( $post_id, '_assignment_file_size_limit', max(1, absint( $assignment_option['upload_file_size_limit'] ) ) );
 		}
 
-		// Sync time_duration from Tutor LMS format (Fields 5 & 6)
+		// Sync time_duration from Tutor LMS format
 		if ( isset( $assignment_option['time_duration'] ) && is_array( $assignment_option['time_duration'] ) ) {
 			$time_duration = $assignment_option['time_duration'];
 			
