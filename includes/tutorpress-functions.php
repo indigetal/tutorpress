@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_version' ) ) {
     function tutorpress_get_version() {
-        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.15.0';
+        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.15.1';
     }
 }
 
@@ -52,5 +52,30 @@ if ( ! function_exists( 'tutorpress_get_plugin_path' ) ) {
 if ( ! function_exists( 'tutorpress_is_dev_mode' ) ) {
     function tutorpress_is_dev_mode() {
         return defined( 'WP_DEBUG' ) && WP_DEBUG;
+    }
+}
+
+/**
+ * Get a service from the service container.
+ *
+ * @param string $service_id Service identifier
+ * @return mixed Service instance
+ * @since 1.13.17
+ */
+if ( ! function_exists( 'tutorpress_service' ) ) {
+    function tutorpress_service(string $service_id) {
+        return TutorPress_Service_Container::instance()->get($service_id);
+    }
+}
+
+/**
+ * Get the feature flags service instance (typed helper).
+ *
+ * @return TutorPress_Feature_Flags_Interface
+ * @since 1.13.17
+ */
+if ( ! function_exists( 'tutorpress_feature_flags' ) ) {
+    function tutorpress_feature_flags(): TutorPress_Feature_Flags_Interface {
+        return tutorpress_service('feature_flags');
     }
 } 

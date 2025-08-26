@@ -92,29 +92,35 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
     }
 
     /**
-     * Check if user can access a specific feature.
+     * Check if user can access a specific feature (delegating capability API).
      *
      * @since 1.0.0
      * @param string $feature Feature identifier
      * @param int|null $user_id User ID (null for current user)
+     * @param array $context Additional context for capability checks
      * @return bool True if user can access feature
      */
-    public function can_user_access_feature(string $feature, ?int $user_id = null): bool {
-        $features = $this->get_available_features();
+    public function can_user_access_feature(string $feature, ?int $user_id = null, array $context = []): bool {
+        // Step 1: Check if feature is available in environment
+        $available_features = $this->get_available_features();
+        if (!isset($available_features[$feature]) || !$available_features[$feature]) {
+            return false;
+        }
+
+        // Step 2: Get capability rule for feature (delegate to existing checks)
+        $capability_rule = $this->get_capability_rule_for_feature($feature);
         
-        // Check if feature exists
-        if (!isset($features[$feature])) {
-            return false;
-        }
-
-        // If feature is disabled, deny access
-        if (!$features[$feature]) {
-            return false;
-        }
-
-        // TODO: Add user capability checks in Step 1C
-        // For now, return feature availability
-        return true;
+        // Step 3: Evaluate permission (delegate to existing logic)
+        $has_permission = $this->evaluate_capability_rule($capability_rule, $user_id, $context);
+        
+        // Step 4: Apply filter for site-specific overrides
+        return apply_filters(
+            'tutorpress_can_user_access_feature', 
+            $has_permission, 
+            $feature, 
+            $user_id, 
+            $context
+        );
     }
 
     /**
@@ -220,5 +226,81 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
         }
 
         return $features;
+    }
+
+    /**
+     * Get capability rule for feature (maps to existing permission checks).
+     *
+     * @since 1.0.0
+     * @param string $feature Feature identifier
+     * @return mixed Capability string, array, or callable
+     */
+    private function get_capability_rule_for_feature(string $feature): mixed {
+        $rules = [
+            // Course and lesson management
+            'course_creation' => 'edit_courses',
+            'lesson_management' => 'edit_courses',
+            'gutenberg_blocks' => 'edit_posts',
+            'course_curriculum' => 'edit_courses',
+            'lesson_settings' => 'edit_courses', 
+            'assignment_settings' => 'edit_courses',
+            
+            // Admin/settings features
+            'pricing_models' => 'manage_options',
+            'course_bundles' => 'edit_courses',
+            
+            // Pro features with delegated logic
+            'h5p_integration' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'live_lessons' => function($user_id, $context) {
+                // Delegate to existing Tutor LMS capability checks
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'content_drip' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'certificates' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'advanced_quizzes' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            }
+        ];
+        
+        return $rules[$feature] ?? 'edit_posts';
+    }
+
+    /**
+     * Evaluate capability rule (delegates to existing WordPress/Tutor checks).
+     *
+     * @since 1.0.0
+     * @param mixed $rule Capability rule (string, array, or callable)
+     * @param int|null $user_id User ID
+     * @param array $context Additional context
+     * @return bool True if user has permission
+     */
+    private function evaluate_capability_rule(mixed $rule, ?int $user_id, array $context): bool {
+        $user_id = $user_id ?: get_current_user_id();
+        
+        if (is_callable($rule)) {
+            return $rule($user_id, $context);
+        }
+        
+        if (is_string($rule)) {
+            return user_can($user_id, $rule);
+        }
+        
+        if (is_array($rule)) {
+            // Multiple capabilities (OR logic)
+            foreach ($rule as $capability) {
+                if (user_can($user_id, $capability)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        return false;
     }
 }

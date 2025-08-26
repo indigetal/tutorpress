@@ -674,11 +674,16 @@ class TutorPress_Addon_Checker {
      * @return array
      */
     public static function allow_h5p_quiz_content($current_topic) {
-        // Check only H5P plugin status (ignore addon status)
-        $h5p_plugin_active = self::is_h5p_plugin_active();
+        // Use feature flags service for unified capability + availability check
+        if (function_exists('tutorpress_feature_flags')) {
+            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
+        } else {
+            // Fallback to direct check for backward compatibility
+            $can_access_h5p = self::is_h5p_plugin_active();
+        }
         
-        // If H5P plugin is active, allow all content including H5P quizzes
-        if ($h5p_plugin_active) {
+        // If H5P integration is available and user can access, allow all content including H5P quizzes
+        if ($can_access_h5p) {
             return $current_topic;
         }
 
@@ -710,11 +715,16 @@ class TutorPress_Addon_Checker {
      * @return \WP_Query
      */
     public static function allow_h5p_sidebar_contents($query, $topic_id) {
-        // Check only H5P plugin status (ignore addon status)
-        $h5p_plugin_active = self::is_h5p_plugin_active();
+        // Use feature flags service for unified capability + availability check
+        if (function_exists('tutorpress_feature_flags')) {
+            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
+        } else {
+            // Fallback to direct check for backward compatibility
+            $can_access_h5p = self::is_h5p_plugin_active();
+        }
         
-        // If H5P plugin is active, recreate the original query (no filtering)
-        if ($h5p_plugin_active) {
+        // If H5P integration is available and user can access, recreate the original query (no filtering)
+        if ($can_access_h5p) {
             $topics_id = tutor_utils()->get_post_id($topic_id);
             $lesson_post_type = tutor()->lesson_post_type;
             $post_type = array_unique(apply_filters('tutor_course_contents_post_types', array($lesson_post_type, 'tutor_quiz')));
@@ -766,8 +776,16 @@ class TutorPress_Addon_Checker {
      * @return array
      */
     public static function allow_h5p_attempt_answers($answers) {
-        // If H5P plugin is active, allow all answers including H5P
-        if (self::is_h5p_plugin_active()) {
+        // Use feature flags service for unified capability + availability check
+        if (function_exists('tutorpress_feature_flags')) {
+            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
+        } else {
+            // Fallback to direct check for backward compatibility
+            $can_access_h5p = self::is_h5p_plugin_active();
+        }
+        
+        // If H5P integration is available and user can access, allow all answers including H5P
+        if ($can_access_h5p) {
             return $answers;
         }
 
@@ -788,9 +806,16 @@ class TutorPress_Addon_Checker {
             return;
         }
         
+        // Use feature flags for debug info
+        $h5p_plugin_active = self::is_h5p_plugin_active();
+        $can_access_h5p = function_exists('tutorpress_feature_flags') 
+            ? tutorpress_feature_flags()->can_user_access_feature('h5p_integration')
+            : $h5p_plugin_active;
+        
         echo '<script>
             console.log("TutorPress H5P Filtering Debug:");
-            console.log("- H5P Plugin Active:", ' . (self::is_h5p_plugin_active() ? 'true' : 'false') . ');
+            console.log("- H5P Plugin Active:", ' . ($h5p_plugin_active ? 'true' : 'false') . ');
+            console.log("- Can Access H5P (Feature Flags):", ' . ($can_access_h5p ? 'true' : 'false') . ');
             console.log("- Tutor Pro H5P Addon Enabled:", ' . (self::is_h5p_enabled() ? 'true' : 'false') . ');
             console.log("- Current Filters:", {
                 "tutor_filter_course_content": ' . (has_filter('tutor_filter_course_content') ? 'true' : 'false') . ',

@@ -44,14 +44,15 @@ interface TutorPress_Feature_Flags_Interface {
     public function get_available_features(): array;
 
     /**
-     * Check if user can access a specific feature.
+     * Check if user can access a specific feature (delegating capability API).
      *
      * @since 1.0.0
      * @param string $feature Feature identifier
      * @param int|null $user_id User ID (null for current user)
+     * @param array $context Additional context for capability checks
      * @return bool True if user can access feature
      */
-    public function can_user_access_feature(string $feature, ?int $user_id = null): bool;
+    public function can_user_access_feature(string $feature, ?int $user_id = null, array $context = []): bool;
 
     /**
      * Get recommended payment engine for current environment.

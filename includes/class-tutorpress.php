@@ -45,6 +45,14 @@ class TutorPress_Main {
     public $plugin_path;
 
     /**
+     * Feature flags service instance.
+     *
+     * @var TutorPress_Feature_Flags_Interface
+     * @since 1.13.17
+     */
+    private $feature_flags;
+
+    /**
      * Constructor function.
      *
      * @param string $main_plugin_file_name The main plugin file name.
@@ -122,6 +130,35 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     private function init_core_components() {
+        // Initialize service container
+        $container = TutorPress_Service_Container::instance();
+
+        // Register core services (interface-based)
+        $this->feature_flags = new TutorPress_Feature_Flags();
+        $container->register('feature_flags', $this->feature_flags);
+
+        // Register post type services
+        $course = new TutorPress_Course();
+        $lesson = new TutorPress_Lesson();
+        $assignment = new TutorPress_Assignment();
+        $bundle = new TutorPress_Bundle();
+        
+        $container->register('course', $course);
+        $container->register('lesson', $lesson);
+        $container->register('assignment', $assignment);
+        $container->register('bundle', $bundle);
+
+        // Register existing services using factories for lazy loading
+        $container->register_factory('settings', function() {
+            TutorPress_Settings::init();
+            return new TutorPress_Settings();
+        });
+
+        $container->register_factory('assets', function() {
+            TutorPress_Assets::init();
+            return new TutorPress_Assets();
+        });
+        
         // Initialize Scripts first (for H5P filtering)
         TutorPress_Assets::init();
         
@@ -136,18 +173,6 @@ class TutorPress_Main {
         
         // Initialize metaboxes using constructor pattern (following Sensei LMS)
         new TutorPress_Curriculum_Metabox(); // Shared curriculum metabox for all post types
-        
-        // Initialize course-specific functionality (migrated from individual metaboxes)
-        new TutorPress_Course(); // Handles Certificate, Additional Content, and Course Settings
-        
-        // Initialize lesson settings via post type class (settings-only)
-        new TutorPress_Lesson();
-        
-        // Initialize assignment settings via post type class (settings-only)
-        new TutorPress_Assignment();
-        
-        // Initialize bundle post type class (migrated from legacy bundle settings)
-        new TutorPress_Bundle();
 
         // Initialize settings panels that use static init pattern
         TutorPress_Content_Drip_Helpers::init();
@@ -232,6 +257,16 @@ class TutorPress_Main {
      */
     public function get_plugin_path() {
         return $this->plugin_path;
+    }
+
+    /**
+     * Get the feature flags service instance.
+     *
+     * @return TutorPress_Feature_Flags_Interface
+     * @since 1.13.17
+     */
+    public function get_feature_flags(): TutorPress_Feature_Flags_Interface {
+        return $this->feature_flags;
     }
 
     /**

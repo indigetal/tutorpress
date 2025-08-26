@@ -38,6 +38,7 @@ return array(
     'TutorPress_REST_Quizzes_Controller' => $baseDir . '/includes/rest/class-quizzes-controller.php',
     'TutorPress_REST_Subscriptions_Controller' => $baseDir . '/includes/rest/class-subscriptions-controller.php',
     'TutorPress_REST_Topics_Controller' => $baseDir . '/includes/rest/class-topics-controller.php',
+    'TutorPress_Service_Container' => $baseDir . '/includes/class-tutorpress-service-container.php',
     'TutorPress_Settings' => $baseDir . '/includes/class-tutorpress-settings.php',
     'TutorPress_Sidebar_Tabs' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-sidebar-tabs.php',
     'TutorPress_Template_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
