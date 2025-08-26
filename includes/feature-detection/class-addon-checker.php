@@ -365,26 +365,7 @@ class TutorPress_Addon_Checker {
         return array_keys(self::$addon_configs);
     }
 
-    /**
-     * Check if Tutor Pro is enabled (for non-payment features)
-     *
-     * @return bool True if Tutor Pro is active and licensed
-     */
-    public static function is_tutor_pro_enabled() {
-        // Check if Tutor Pro function exists
-        if (!function_exists('tutor_pro')) {
-            return false;
-        }
-        
-        // Check for Tutor Pro license status
-        $license_info = get_option('tutor_license_info', null);
-        if (!$license_info) {
-            return false;
-        }
-        
-        // Check if license is activated
-        return !empty($license_info['activated']);
-    }
+
 
     /**
      * Check if Paid Memberships Pro is enabled
@@ -503,8 +484,12 @@ class TutorPress_Addon_Checker {
             return 'edd';
         }
         
-        if (self::is_tutor_pro_enabled()) {
-            return 'tutor_pro';
+        // Check Tutor Pro directly
+        if (function_exists('tutor_pro')) {
+            $license_info = get_option('tutor_license_info', null);
+            if ($license_info && !empty($license_info['activated'])) {
+                return 'tutor_pro';
+            }
         }
         
         return 'none';
@@ -534,8 +519,12 @@ class TutorPress_Addon_Checker {
             $engines['edd'] = 'Easy Digital Downloads';
         }
         
-        if (self::is_tutor_pro_enabled()) {
-            $engines['tutor_pro'] = 'Tutor LMS Pro';
+        // Check Tutor Pro directly
+        if (function_exists('tutor_pro')) {
+            $license_info = get_option('tutor_license_info', null);
+            if ($license_info && !empty($license_info['activated'])) {
+                $engines['tutor_pro'] = 'Tutor LMS Pro';
+            }
         }
         
         return $engines;
@@ -581,7 +570,12 @@ class TutorPress_Addon_Checker {
      * @return bool True if Tutor Pro monetization is enabled
      */
     private static function check_tutor_pro_monetization() {
-        if (!self::is_tutor_pro_enabled()) {
+        // Check Tutor Pro directly
+        if (!function_exists('tutor_pro')) {
+            return false;
+        }
+        $license_info = get_option('tutor_license_info', null);
+        if (!$license_info || empty($license_info['activated'])) {
             return false;
         }
         
@@ -633,7 +627,7 @@ class TutorPress_Addon_Checker {
         
         // Get all payment engine status in one batch
         $payment_status = [
-            'tutor_pro' => self::is_tutor_pro_enabled(),
+            'tutor_pro' => (function_exists('tutor_pro') && !empty(get_option('tutor_license_info', [])['activated'] ?? false)),
             'paid_memberships_pro' => self::is_pmp_enabled(),
             'surecart' => self::is_surecart_enabled(),
             'woocommerce' => self::is_woocommerce_enabled(),
@@ -804,6 +798,74 @@ class TutorPress_Addon_Checker {
                 "tutor_filter_attempt_answers": ' . (has_filter('tutor_filter_attempt_answers') ? 'true' : 'false') . '
             });
         </script>';
+    }
+
+    // ===================================================================
+    // DELEGATION METHODS FOR TUTORPRESS_FEATURE_FLAGS
+    // ===================================================================
+
+    /**
+     * Check if Tutor LMS is active and available.
+     *
+     * @since 1.0.0
+     * @return bool True if Tutor LMS is active
+     */
+    public function is_tutor_lms_active(): bool {
+        return class_exists('TUTOR\\Tutor') || function_exists('tutor');
+    }
+
+    /**
+     * Check if Tutor Pro is active and available.
+     *
+     * @since 1.0.0
+     * @return bool True if Tutor Pro is active
+     */
+    public function is_tutor_pro_active(): bool {
+        // Check if Tutor Pro function exists
+        if (!function_exists('tutor_pro')) {
+            return false;
+        }
+        
+        // Check for Tutor Pro license status
+        $license_info = get_option('tutor_license_info', null);
+        if (!$license_info) {
+            return false;
+        }
+        
+        // Check if license is activated (matches static method logic)
+        return !empty($license_info['activated']);
+    }
+
+    /**
+     * Get Tutor LMS version if available.
+     *
+     * @since 1.0.0
+     * @return string|null Version string or null if not available
+     */
+    public function get_tutor_version(): ?string {
+        if (!$this->is_tutor_lms_active()) {
+            return null;
+        }
+
+        // Try different version constants/methods
+        if (defined('TUTOR_VERSION')) {
+            return TUTOR_VERSION;
+        }
+
+        if (function_exists('tutor') && method_exists(tutor(), 'version')) {
+            return tutor()->version;
+        }
+
+        // Fallback: try to get from plugin data
+        if (function_exists('get_plugin_data')) {
+            $plugin_file = WP_PLUGIN_DIR . '/tutor/tutor.php';
+            if (file_exists($plugin_file)) {
+                $plugin_data = get_plugin_data($plugin_file);
+                return $plugin_data['Version'] ?? null;
+            }
+        }
+
+        return null;
     }
 
 } 

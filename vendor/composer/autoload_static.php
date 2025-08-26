@@ -13,7 +13,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'TutorPress_Additional_Content_Controller' => __DIR__ . '/../..' . '/includes/rest/class-additional-content-controller.php',
-        'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/services/class-tutorpress-addon-checker.php',
+        'TutorPress_Addon_Checker' => __DIR__ . '/../..' . '/includes/feature-detection/class-addon-checker.php',
         'TutorPress_Admin_Customizations' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
         'TutorPress_Assets' => __DIR__ . '/../..' . '/includes/class-tutorpress-assets.php',
         'TutorPress_Assignment' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-assignment.php',
@@ -26,6 +26,8 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Dashboard_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
         'TutorPress_Dependency_Checker' => __DIR__ . '/../..' . '/includes/class-tutorpress-dependency-checker.php',
         'TutorPress_EDD_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
+        'TutorPress_Feature_Flags' => __DIR__ . '/../..' . '/includes/feature-detection/class-feature-flags.php',
+        'TutorPress_Feature_Flags_Interface' => __DIR__ . '/../..' . '/includes/feature-detection/class-feature-flags-interface.php',
         'TutorPress_Lesson' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-lesson.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
         'TutorPress_Metadata_Handler' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',

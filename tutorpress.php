@@ -2,15 +2,12 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.14.36
+ * Version: 1.15.0
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
- *
- * @fs_premium_only /includes/gutenberg/
  */
 
-// Freemius Integration Start
-if ( ! function_exists( 'tutorpress_fs' ) ) {
+ if ( ! function_exists( 'tutorpress_fs' ) ) {
     // Create a helper function for easy SDK access.
     function tutorpress_fs() {
         global $tutorpress_fs;
@@ -30,18 +27,18 @@ if ( ! function_exists( 'tutorpress_fs' ) ) {
                 'type'                => 'plugin',
                 'public_key'          => 'pk_703b19a55bb9391b8f8dabb350543',
                 'is_premium'          => true,
-                'premium_suffix'      => 'Pro',
+                'premium_suffix'      => 'pro',
                 // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
+                'is_org_compliant'    => false,
                 'trial'               => array(
-                    'days'               => 7,
+                    'days'               => 14,
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'tutorpress-settings',
-                    'contact'        => false,
+                    'slug'           => 'tutorpress_settings',
                     'support'        => false,
                     'parent'         => array(
                         'slug' => 'tutor',
@@ -58,7 +55,6 @@ if ( ! function_exists( 'tutorpress_fs' ) ) {
     // Signal that SDK was initiated.
     do_action( 'tutorpress_fs_loaded' );
 }
-// Freemius Integration End
 
 // Exit if accessed directly.
 if (!defined('ABSPATH')) {

@@ -8,7 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'TutorPress_Additional_Content_Controller' => $baseDir . '/includes/rest/class-additional-content-controller.php',
-    'TutorPress_Addon_Checker' => $baseDir . '/includes/services/class-tutorpress-addon-checker.php',
+    'TutorPress_Addon_Checker' => $baseDir . '/includes/feature-detection/class-addon-checker.php',
     'TutorPress_Admin_Customizations' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-admin-customizations.php',
     'TutorPress_Assets' => $baseDir . '/includes/class-tutorpress-assets.php',
     'TutorPress_Assignment' => $baseDir . '/includes/post-types/class-tutorpress-assignment.php',
@@ -21,6 +21,8 @@ return array(
     'TutorPress_Dashboard_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',
     'TutorPress_Dependency_Checker' => $baseDir . '/includes/class-tutorpress-dependency-checker.php',
     'TutorPress_EDD_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
+    'TutorPress_Feature_Flags' => $baseDir . '/includes/feature-detection/class-feature-flags.php',
+    'TutorPress_Feature_Flags_Interface' => $baseDir . '/includes/feature-detection/class-feature-flags-interface.php',
     'TutorPress_Lesson' => $baseDir . '/includes/post-types/class-tutorpress-lesson.php',
     'TutorPress_Main' => $baseDir . '/includes/class-tutorpress.php',
     'TutorPress_Metadata_Handler' => $baseDir . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
