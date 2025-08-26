@@ -1,8 +1,8 @@
 /**
  * Bundle Pricing Panel Component
  *
- * Skeleton component for bundle pricing and ribbon settings.
- * Will be expanded in Setting 3: Pricing & Ribbon Display.
+ * Modern entity-based bundle pricing panel using useEntityProp pattern.
+ * Follows Course Pricing Model architecture for simplified data flow.
  *
  * @package TutorPress
  * @since 0.1.0
@@ -12,11 +12,20 @@ import React, { useEffect, useState } from "react";
 import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
-import { PanelRow, Notice, Spinner, TextControl, SelectControl } from "@wordpress/components";
+import { PanelRow, Notice, Spinner, TextControl, SelectControl, RadioControl, Button } from "@wordpress/components";
+import { plus, edit } from "@wordpress/icons";
 import { store as noticesStore } from "@wordpress/notices";
 
 // Import bundle types
-import type { BundlePricing, BundleRibbonType } from "../../types/bundle";
+import type { BundleRibbonType } from "../../types/bundle";
+// Import subscription types
+import type { SubscriptionPlan } from "../../types/subscriptions";
+// Import the shared bundle meta hook
+import { useBundleMeta } from "../../hooks/common";
+// Import addon checker for subscription functionality
+import { isSubscriptionEnabled } from "../../utils/addonChecker";
+// Import subscription modal
+import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 
 /**
  * Extract numeric price from course price string
@@ -71,34 +80,47 @@ const BundlePricingPanel: React.FC = () => {
   const [calculatedRegularPrice, setCalculatedRegularPrice] = useState<number>(0);
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
 
-  // Get bundle data from our store and Gutenberg store
-  const { postType, postId, pricingData, isLoading, error, bundleCourseIds } = useSelect(
+  // Modal state for subscription functionality
+  const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [shouldShowForm, setShouldShowForm] = useState(false);
+
+  // Modern entity-based approach using useBundleMeta hook
+  const { meta, safeSet, ready } = useBundleMeta();
+  const { postType, postId, subscriptionPlans, subscriptionPlansLoading } = useSelect(
     (select: any) => ({
       postType: select("core/editor").getCurrentPostType(),
       postId: select("core/editor").getCurrentPostId(),
-      pricingData: select("tutorpress/course-bundles").getBundlePricingData(),
-      isLoading: select("tutorpress/course-bundles").getBundlePricingLoading(),
-      error: select("tutorpress/course-bundles").getBundlePricingError(),
-      bundleCourseIds: select("core/editor").getEditedPostAttribute("meta")?.["bundle-course-ids"] || "",
+      subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans() || [],
+      subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
     }),
     []
   );
 
   // Get dispatch actions
-  const { getBundlePricing, updateBundlePricing } = useDispatch("tutorpress/course-bundles");
+  const { editPost } = useDispatch("core/editor");
   const { createNotice } = useDispatch(noticesStore);
+  const { getSubscriptionPlans } = useDispatch("tutorpress/subscriptions");
 
-  // Fetch bundle pricing when component mounts
-  useEffect(() => {
-    if (postId && postType === "course-bundle") {
-      getBundlePricing(postId);
-    }
-  }, [postId, postType, getBundlePricing]);
+  // Extract pricing data from meta fields (entity-based)
+  const pricingData = ready
+    ? {
+        regular_price: (meta?.tutor_course_price as number) || 0,
+        sale_price: (meta?.tutor_course_sale_price as number) || 0,
+        price_type: (meta?._tutor_course_price_type as string) || "free",
+        ribbon_type: (meta?.tutor_bundle_ribbon_type as BundleRibbonType) || "none",
+        selling_option: (meta?.tutor_course_selling_option as string) || "one_time",
+        product_id: (meta?._tutor_course_product_id as number) || 0,
+      }
+    : null;
 
-  // Calculate regular price when bundle courses change
+  // Get bundle course IDs from meta
+  const bundleCourseIds = (meta?.["bundle-course-ids"] as string) || "";
+
+  // Calculate regular price when bundle courses change (entity-based)
   useEffect(() => {
     const updateRegularPrice = async () => {
-      if (!postId || !bundleCourseIds) {
+      if (!postId || !bundleCourseIds || !ready) {
         setCalculatedRegularPrice(0);
         return;
       }
@@ -109,7 +131,7 @@ const BundlePricingPanel: React.FC = () => {
         const regularPrice = await calculateBundleRegularPrice(postId);
         setCalculatedRegularPrice(regularPrice);
 
-        // Update the pricing data with the calculated regular price
+        // Update the pricing data with the calculated regular price using entity approach
         if (pricingData && regularPrice !== pricingData.regular_price) {
           // Check if sale price needs adjustment
           let adjustedSalePrice = pricingData.sale_price;
@@ -117,17 +139,19 @@ const BundlePricingPanel: React.FC = () => {
             adjustedSalePrice = regularPrice;
             // Show notice about auto-adjustment
             createNotice(
-              "warning", 
-              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"), 
+              "warning",
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
               { type: "snackbar" }
             );
           }
 
-          updateBundlePricing(postId, {
-            ...pricingData,
-            regular_price: regularPrice,
-            sale_price: adjustedSalePrice,
-          });
+          // Entity-based update (following Course Pricing pattern)
+          const metaUpdates = {
+            tutor_course_price: regularPrice,
+            tutor_course_sale_price: adjustedSalePrice,
+          };
+          safeSet(metaUpdates);
+          editPost({ meta: { ...meta, ...metaUpdates } });
         }
       } catch (error) {
         console.error("Error updating regular price:", error);
@@ -138,19 +162,26 @@ const BundlePricingPanel: React.FC = () => {
     };
 
     // Only calculate if we have pricing data and bundle courses have changed
-    if (pricingData && bundleCourseIds) {
+    if (pricingData && bundleCourseIds && ready) {
       updateRegularPrice();
     }
-  }, [postId, bundleCourseIds]); // Removed pricingData to prevent infinite loops
+  }, [postId, bundleCourseIds, ready]); // Removed pricingData to prevent infinite loops
 
-  // Listen for course changes via custom events
+  // Fetch subscription plans when component mounts and bundle ID is available
+  useEffect(() => {
+    if (postType === "course-bundle" && postId && isSubscriptionEnabled()) {
+      getSubscriptionPlans();
+    }
+  }, [postType, postId, getSubscriptionPlans]);
+
+  // Listen for course changes via custom events (entity-based)
   useEffect(() => {
     const handleCourseChange = async (event: Event) => {
       const customEvent = event as CustomEvent;
       // Only respond to events for this bundle
       if (customEvent.detail?.bundleId !== postId) return;
 
-      if (!postId || !pricingData) return;
+      if (!postId || !pricingData || !ready) return;
 
       setIsCalculating(true);
       try {
@@ -164,17 +195,19 @@ const BundlePricingPanel: React.FC = () => {
             adjustedSalePrice = regularPrice;
             // Show notice about auto-adjustment
             createNotice(
-              "warning", 
-              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"), 
+              "warning",
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
               { type: "snackbar" }
             );
           }
 
-          updateBundlePricing(postId, {
-            ...pricingData,
-            regular_price: regularPrice,
-            sale_price: adjustedSalePrice,
-          });
+          // Entity-based update (following Course Pricing pattern)
+          const metaUpdates = {
+            tutor_course_price: regularPrice,
+            tutor_course_sale_price: adjustedSalePrice,
+          };
+          safeSet(metaUpdates);
+          editPost({ meta: { ...meta, ...metaUpdates } });
         }
       } catch (error) {
         console.error("Error updating regular price:", error);
@@ -189,38 +222,96 @@ const BundlePricingPanel: React.FC = () => {
     return () => {
       window.removeEventListener("tutorpress-bundle-courses-updated", handleCourseChange);
     };
-  }, [postId, pricingData]);
+  }, [postId, pricingData, ready]);
 
-  // Handle sale price change (immediate Gutenberg update like Course Settings)
+  // Handle sale price change (entity-based following Course Pricing pattern)
   const handleSalePriceChange = (value: string) => {
-    if (pricingData && postId) {
-      const bundlePrice = parseFloat(value) || 0;
-      const totalValue = calculatedRegularPrice || pricingData?.regular_price || 0;
+    if (!pricingData || !ready) return;
 
-      // Validate that bundle price cannot exceed total value
-      if (bundlePrice > totalValue) {
-        // Show error notice
-        createNotice("error", __("Bundle price cannot exceed the total value of the bundled courses.", "tutorpress"), {
-          type: "snackbar",
-        });
-        return; // Don't update if validation fails
-      }
+    const bundlePrice = parseFloat(value) || 0;
+    const totalValue = calculatedRegularPrice || pricingData?.regular_price || 0;
 
-      updateBundlePricing(postId, {
-        ...pricingData,
-        sale_price: bundlePrice,
+    // Validate that bundle price cannot exceed total value
+    if (bundlePrice > totalValue) {
+      // Show error notice
+      createNotice("error", __("Bundle price cannot exceed the total value of the bundled courses.", "tutorpress"), {
+        type: "snackbar",
       });
+      return; // Don't update if validation fails
     }
+
+    // Entity-based update (following Course Pricing pattern)
+    const metaUpdates = { tutor_course_sale_price: bundlePrice };
+    safeSet(metaUpdates);
+    editPost({ meta: { ...meta, ...metaUpdates } });
   };
 
-  // Handle ribbon type change (immediate Gutenberg update like Course Settings)
+  // Handle purchase option change (selling_option)
+  const handlePurchaseOptionChange = (value: string) => {
+    if (!pricingData || !ready) return;
+
+    // Entity-based update (following Course Pricing pattern)
+    const metaUpdates = { tutor_course_selling_option: value };
+    safeSet(metaUpdates);
+    editPost({ meta: { ...meta, ...metaUpdates } });
+  };
+
+  // Handle ribbon type change (entity-based following Course Pricing pattern)
   const handleRibbonTypeChange = (value: string) => {
-    if (pricingData && postId) {
-      updateBundlePricing(postId, {
-        ...pricingData,
-        ribbon_type: value as BundleRibbonType,
-      });
-    }
+    if (!pricingData || !ready) return;
+
+    // Entity-based update (following Course Pricing pattern)
+    const metaUpdates = { tutor_bundle_ribbon_type: value as BundleRibbonType };
+    safeSet(metaUpdates);
+    editPost({ meta: { ...meta, ...metaUpdates } });
+  };
+
+  // Subscription modal handlers
+  const handleSubscriptionModalClose = () => {
+    setSubscriptionModalOpen(false);
+    setEditingPlan(null);
+    setShouldShowForm(false);
+  };
+
+  const handleAddSubscription = () => {
+    setEditingPlan(null);
+    setShouldShowForm(true);
+    setSubscriptionModalOpen(true);
+  };
+
+  const handleEditPlan = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setShouldShowForm(false);
+    setSubscriptionModalOpen(true);
+  };
+
+  // Bundle-specific purchase options (only 3 options, unlike Course Pricing)
+  const getPurchaseOptions = () => [
+    { label: __("One-time purchase only", "tutorpress"), value: "one_time" },
+    { label: __("Subscription only", "tutorpress"), value: "subscription" },
+    { label: __("Subscription and one-time purchase", "tutorpress"), value: "both" },
+  ];
+
+  // Conditional display logic for Bundle pricing
+  const shouldShowPurchaseOptions = isSubscriptionEnabled();
+
+  // Bundle-specific conditional display logic based on purchase option selection
+  const shouldShowPriceFields = () => {
+    // Always show if subscriptions are disabled
+    if (!isSubscriptionEnabled()) return true;
+
+    // If subscriptions are enabled, show price fields for one_time and both
+    const sellingOption = pricingData?.selling_option || "one_time";
+    return ["one_time", "both"].includes(sellingOption);
+  };
+
+  const shouldShowSubscriptionSection = () => {
+    // Only show if subscriptions are enabled
+    if (!isSubscriptionEnabled()) return false;
+
+    // Show subscriptions for subscription and both
+    const sellingOption = pricingData?.selling_option || "one_time";
+    return ["subscription", "both"].includes(sellingOption);
   };
 
   // Ribbon type options
@@ -229,6 +320,10 @@ const BundlePricingPanel: React.FC = () => {
     { label: __("Show Discount Amount ($)", "tutorpress"), value: "in_amount" },
     { label: __("Show None", "tutorpress"), value: "none" },
   ];
+
+  // Panel loading state - includes subscription plans loading when applicable
+  const panelLoading =
+    !ready || (isSubscriptionEnabled() && shouldShowSubscriptionSection() && subscriptionPlansLoading);
 
   // Don't render if not on a course-bundle post
   if (postType !== "course-bundle") {
@@ -241,55 +336,118 @@ const BundlePricingPanel: React.FC = () => {
       title={__("Bundle Pricing", "tutorpress")}
       className="tutorpress-bundle-pricing-panel"
     >
-      {isLoading && (
+      {/* Render the SubscriptionModal at the root of the panel */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={handleSubscriptionModalClose}
+        courseId={postId}
+        postType={postType}
+        initialPlan={editingPlan}
+        shouldShowForm={shouldShowForm}
+      />
+
+      {panelLoading && (
         <PanelRow>
           <Spinner />
           <span>{__("Loading bundle pricing...", "tutorpress")}</span>
         </PanelRow>
       )}
 
-      {error && (
-        <PanelRow>
-          <Notice status="error" isDismissible={false}>
-            {error}
-          </Notice>
-        </PanelRow>
-      )}
-
-      {!isLoading && pricingData && (
+      {ready && pricingData && (
         <>
-          {/* Total Value of Bundled Courses Display (Read-Only) */}
-          <PanelRow>
-            <div className="price-display">
-              <label className="components-base-control__label">
-                {__("Total Value of Bundled Courses", "tutorpress")}
-              </label>
-              <div className="price-value">
-                {isCalculating ? (
-                  <Spinner />
-                ) : (
-                  `$${(calculatedRegularPrice || pricingData?.regular_price || 0)?.toFixed(2) || "0.00"}`
+          {/* Purchase Options - Show only when subscriptions addon is enabled */}
+          {shouldShowPurchaseOptions && (
+            <PanelRow>
+              <SelectControl
+                label={__("Purchase Options", "tutorpress")}
+                help={__("Choose how this bundle can be purchased.", "tutorpress")}
+                value={pricingData.selling_option || "one_time"}
+                options={getPurchaseOptions()}
+                onChange={handlePurchaseOptionChange}
+              />
+            </PanelRow>
+          )}
+
+          {/* Price Fields Section - Conditional based on purchase option */}
+          {shouldShowPriceFields() && (
+            <>
+              {/* Total Value of Bundled Courses Display (Read-Only) */}
+              <PanelRow>
+                <div className="price-display">
+                  <label className="components-base-control__label">
+                    {__("Total Value of Bundled Courses", "tutorpress")}
+                  </label>
+                  <div className="price-value">
+                    {isCalculating ? (
+                      <Spinner />
+                    ) : (
+                      `$${(calculatedRegularPrice || pricingData?.regular_price || 0)?.toFixed(2) || "0.00"}`
+                    )}
+                  </div>
+                  <p className="components-base-control__help">{__("Calculated from bundle courses", "tutorpress")}</p>
+                </div>
+              </PanelRow>
+
+              {/* Bundle Price Input */}
+              <PanelRow>
+                <TextControl
+                  label={__("Bundle Price", "tutorpress")}
+                  value={pricingData.sale_price?.toString() || "0"}
+                  onChange={handleSalePriceChange}
+                  type="number"
+                  min="0"
+                  max={(calculatedRegularPrice || pricingData?.regular_price || 0)?.toString()}
+                  step="0.01"
+                  help={__("Enter the bundle price (cannot exceed total value)", "tutorpress")}
+                />
+              </PanelRow>
+            </>
+          )}
+
+          {/* Subscription Section - Conditional based on purchase option */}
+          {shouldShowSubscriptionSection() && (
+            <PanelRow>
+              <div className="subscription-section">
+                {/* Existing Subscription Plans List */}
+                {subscriptionPlans.length > 0 && (
+                  <div className="tutorpress-saved-files-list">
+                    <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
+                      {__("Subscription Plans:", "tutorpress")}
+                    </div>
+                    {subscriptionPlans.map((plan: SubscriptionPlan) => (
+                      <div key={plan.id} className="tutorpress-saved-file-item">
+                        <div className="file-info">
+                          <span className="file-name">{plan.plan_name}</span>
+                          <span className="file-meta">
+                            ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                            {plan.recurring_limit > 0 && ` (${plan.recurring_limit} cycles)`}
+                          </span>
+                        </div>
+                        <div className="file-actions">
+                          <Button
+                            variant="tertiary"
+                            icon={edit}
+                            onClick={() => handleEditPlan(plan)}
+                            className="edit-button"
+                            aria-label={__("Edit subscription plan", "tutorpress")}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
+
+                {/* Add Subscription Button */}
+                <div style={{ marginTop: subscriptionPlans.length > 0 ? "12px" : "0" }}>
+                  <Button icon={plus} variant="secondary" onClick={handleAddSubscription}>
+                    {__("Add Subscription", "tutorpress")}
+                  </Button>
+                </div>
               </div>
-              <p className="components-base-control__help">{__("Calculated from bundle courses", "tutorpress")}</p>
-            </div>
-          </PanelRow>
+            </PanelRow>
+          )}
 
-          {/* Bundle Price Input */}
-          <PanelRow>
-            <TextControl
-              label={__("Bundle Price", "tutorpress")}
-              value={pricingData.sale_price?.toString() || "0"}
-              onChange={handleSalePriceChange}
-              type="number"
-              min="0"
-              max={(calculatedRegularPrice || pricingData?.regular_price || 0)?.toString()}
-              step="0.01"
-              help={__("Enter the bundle price (cannot exceed total value)", "tutorpress")}
-            />
-          </PanelRow>
-
-          {/* Ribbon Type Selection */}
+          {/* Ribbon Type Selection - Always shown */}
           <PanelRow>
             <SelectControl
               label={__("Ribbon Display", "tutorpress")}

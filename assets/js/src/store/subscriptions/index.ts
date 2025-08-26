@@ -483,6 +483,8 @@ const resolvers = {
   *getSubscriptionPlans(): Generator<unknown, SubscriptionPlansResponse, any> {
     try {
       const courseId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
       if (!courseId) {
         throw createCurriculumError(
           "No course ID available",
@@ -503,10 +505,16 @@ const resolvers = {
 
       yield { type: "FETCH_SUBSCRIPTION_PLANS_START", payload: { courseId } };
 
+      // Determine the correct endpoint based on post type
+      const endpoint =
+        postType === "course-bundle"
+          ? `/tutorpress/v1/bundles/${courseId}/subscriptions`
+          : `/tutorpress/v1/courses/${courseId}/subscriptions`;
+
       const response = yield {
         type: "API_FETCH",
         request: {
-          path: `/tutorpress/v1/courses/${courseId}/subscriptions`,
+          path: endpoint,
           method: "GET",
         },
       };
@@ -539,14 +547,16 @@ const resolvers = {
     planData: CreateSubscriptionPlanData
   ): Generator<unknown, CreateSubscriptionPlanResponse, any> {
     try {
-      // Get course ID from current post
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
+      // Get object ID and post type from current post
+      const objectId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
+      if (!objectId) {
         throw createCurriculumError(
-          "No course ID available",
+          "No object ID available",
           CurriculumErrorCode.VALIDATION_ERROR,
           "createSubscriptionPlan",
-          "Failed to get course ID"
+          "Failed to get object ID"
         );
       }
 
@@ -556,15 +566,15 @@ const resolvers = {
         payload: { planData },
       };
 
+      // Use object_id consistently for both courses and bundles
+      const requestData = { ...planData, object_id: objectId };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: "/tutorpress/v1/subscriptions",
           method: "POST",
-          data: {
-            ...planData,
-            course_id: courseId,
-          },
+          data: requestData,
         },
       };
 
@@ -599,14 +609,16 @@ const resolvers = {
     planData: UpdateSubscriptionPlanData
   ): Generator<unknown, UpdateSubscriptionPlanResponse, any> {
     try {
-      // Get course ID from current post
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
+      // Get object ID and post type from current post
+      const objectId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
+      if (!objectId) {
         throw createCurriculumError(
-          "No course ID available",
+          "No object ID available",
           CurriculumErrorCode.VALIDATION_ERROR,
           "updateSubscriptionPlan",
-          "Failed to get course ID"
+          "Failed to get object ID"
         );
       }
 
@@ -616,15 +628,15 @@ const resolvers = {
         payload: { planId, planData },
       };
 
+      // Use object_id consistently for both courses and bundles
+      const requestData = { ...planData, object_id: objectId };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}`,
           method: "PUT",
-          data: {
-            ...planData,
-            course_id: courseId,
-          },
+          data: requestData,
         },
       };
 
@@ -656,14 +668,16 @@ const resolvers = {
 
   *deleteSubscriptionPlan(planId: number): Generator<unknown, DeleteSubscriptionPlanResponse, any> {
     try {
-      // Get course ID from current post
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
+      // Get object ID and post type from current post
+      const objectId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
+      if (!objectId) {
         throw createCurriculumError(
-          "No course ID available",
+          "No object ID available",
           CurriculumErrorCode.VALIDATION_ERROR,
           "deleteSubscriptionPlan",
-          "Failed to get course ID"
+          "Failed to get object ID"
         );
       }
 
@@ -673,14 +687,15 @@ const resolvers = {
         payload: { planId },
       };
 
+      // Use object_id consistently for both courses and bundles
+      const requestData = { object_id: objectId };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}`,
           method: "DELETE",
-          data: {
-            course_id: courseId,
-          },
+          data: requestData,
         },
       };
 
@@ -712,14 +727,16 @@ const resolvers = {
 
   *duplicateSubscriptionPlan(planId: number): Generator<unknown, DuplicateSubscriptionPlanResponse, any> {
     try {
-      // Get course ID from current post
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
+      // Get object ID and post type from current post
+      const objectId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
+      if (!objectId) {
         throw createCurriculumError(
-          "No course ID available",
+          "No object ID available",
           CurriculumErrorCode.VALIDATION_ERROR,
           "duplicateSubscriptionPlan",
-          "Failed to get course ID"
+          "Failed to get object ID"
         );
       }
 
@@ -729,14 +746,15 @@ const resolvers = {
         payload: { planId },
       };
 
+      // Use object_id consistently for both courses and bundles
+      const requestData = { object_id: objectId };
+
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `/tutorpress/v1/subscriptions/${planId}/duplicate`,
           method: "POST",
-          data: {
-            course_id: courseId,
-          },
+          data: requestData,
         },
       };
 
@@ -769,14 +787,16 @@ const resolvers = {
   // Sorting
   *sortSubscriptionPlans(planOrder: number[]): Generator<unknown, SortSubscriptionPlansResponse, any> {
     try {
-      // Get course ID from current post
-      const courseId = yield select("core/editor").getCurrentPostId();
-      if (!courseId) {
+      // Get object ID and post type from current post
+      const objectId = yield select("core/editor").getCurrentPostId();
+      const postType = yield select("core/editor").getCurrentPostType();
+
+      if (!objectId) {
         throw createCurriculumError(
-          "No course ID available",
+          "No object ID available",
           CurriculumErrorCode.VALIDATION_ERROR,
           "sortSubscriptionPlans",
-          "Failed to get course ID"
+          "Failed to get object ID"
         );
       }
 
@@ -786,10 +806,16 @@ const resolvers = {
         payload: { planOrder },
       };
 
+      // Determine the correct endpoint based on post type
+      const endpoint =
+        postType === "course-bundle"
+          ? `/tutorpress/v1/bundles/${objectId}/subscriptions/sort`
+          : `/tutorpress/v1/courses/${objectId}/subscriptions/sort`;
+
       const response = yield {
         type: "API_FETCH",
         request: {
-          path: `/tutorpress/v1/courses/${courseId}/subscriptions/sort`,
+          path: endpoint,
           method: "PUT",
           data: {
             plan_order: planOrder,

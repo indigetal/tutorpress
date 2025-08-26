@@ -61,6 +61,37 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 ]
             );
 
+            // Get subscription plans for a bundle
+            register_rest_route(
+                $this->namespace,
+                '/bundles/(?P<bundle_id>[\d]+)/subscriptions',
+                [
+                    [
+                        'methods'             => WP_REST_Server::READABLE,
+                        'callback'            => [$this, 'get_bundle_subscriptions'],
+                        'permission_callback' => function($request) {
+                            $bundle_id = (int) $request->get_param('bundle_id');
+                            
+                            // Check if user can edit the specific bundle
+                            if ($bundle_id && current_user_can('edit_post', $bundle_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
+                        'args'               => [
+                            'bundle_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the bundle to get subscription plans for.', 'tutorpress'),
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
             // Create new subscription plan
             register_rest_route(
                 $this->namespace,
@@ -70,10 +101,11 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'create_subscription_plan'],
                         'permission_callback' => function($request) {
-                            $course_id = (int) $request->get_param('course_id');
+                            // Support both course_id and object_id
+                            $object_id = (int) ($request->get_param('object_id') ?? $request->get_param('course_id'));
                             
-                            // Check if user can edit the specific course
-                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                            // Check if user can edit the specific object (course or bundle)
+                            if ($object_id && current_user_can('edit_post', $object_id)) {
                                 return true;
                             }
                             
@@ -82,10 +114,16 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                         },
                         'args'               => [
                             'course_id' => [
-                                'required'          => true,
+                                'required'          => false,
                                 'type'             => 'integer',
                                 'sanitize_callback' => 'absint',
-                                'description'       => __('The ID of the course to create the plan for.', 'tutorpress'),
+                                'description'       => __('The ID of the course to create the plan for (legacy).', 'tutorpress'),
+                            ],
+                            'object_id' => [
+                                'required'          => false,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the object (course or bundle) to create the plan for.', 'tutorpress'),
                             ],
                             'plan_name' => [
                                 'required'          => true,
@@ -202,10 +240,11 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                         'methods'             => WP_REST_Server::EDITABLE,
                         'callback'            => [$this, 'update_subscription_plan'],
                         'permission_callback' => function($request) {
-                            $course_id = (int) $request->get_param('course_id');
+                            // Support both course_id and object_id
+                            $object_id = (int) ($request->get_param('object_id') ?? $request->get_param('course_id'));
                             
-                            // Check if user can edit the specific course
-                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                            // Check if user can edit the specific object (course or bundle)
+                            if ($object_id && current_user_can('edit_post', $object_id)) {
                                 return true;
                             }
                             
@@ -220,10 +259,16 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('The ID of the subscription plan to update.', 'tutorpress'),
                             ],
                             'course_id' => [
-                                'required'          => true,
+                                'required'          => false,
                                 'type'             => 'integer',
                                 'sanitize_callback' => 'absint',
-                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                                'description'       => __('The ID of the course the plan belongs to (legacy).', 'tutorpress'),
+                            ],
+                            'object_id' => [
+                                'required'          => false,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the object (course or bundle) the plan belongs to.', 'tutorpress'),
                             ],
                             'plan_name' => [
                                 'required'          => true,
@@ -332,10 +377,11 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                         'methods'             => WP_REST_Server::DELETABLE,
                         'callback'            => [$this, 'delete_subscription_plan'],
                         'permission_callback' => function($request) {
-                            $course_id = (int) $request->get_param('course_id');
+                            // Support both course_id and object_id
+                            $object_id = (int) ($request->get_param('object_id') ?? $request->get_param('course_id'));
                             
-                            // Check if user can edit the specific course
-                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                            // Check if user can edit the specific object (course or bundle)
+                            if ($object_id && current_user_can('edit_post', $object_id)) {
                                 return true;
                             }
                             
@@ -350,10 +396,16 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('The ID of the subscription plan to delete.', 'tutorpress'),
                             ],
                             'course_id' => [
-                                'required'          => true,
+                                'required'          => false,
                                 'type'             => 'integer',
                                 'sanitize_callback' => 'absint',
-                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                                'description'       => __('The ID of the course the plan belongs to (legacy).', 'tutorpress'),
+                            ],
+                            'object_id' => [
+                                'required'          => false,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the object (course or bundle) the plan belongs to.', 'tutorpress'),
                             ],
                         ],
                     ],
@@ -369,10 +421,11 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                         'methods'             => WP_REST_Server::CREATABLE,
                         'callback'            => [$this, 'duplicate_subscription_plan'],
                         'permission_callback' => function($request) {
-                            $course_id = (int) $request->get_param('course_id');
+                            // Support both course_id and object_id
+                            $object_id = (int) ($request->get_param('object_id') ?? $request->get_param('course_id'));
                             
-                            // Check if user can edit the specific course
-                            if ($course_id && current_user_can('edit_post', $course_id)) {
+                            // Check if user can edit the specific object (course or bundle)
+                            if ($object_id && current_user_can('edit_post', $object_id)) {
                                 return true;
                             }
                             
@@ -387,10 +440,16 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'description'       => __('The ID of the subscription plan to duplicate.', 'tutorpress'),
                             ],
                             'course_id' => [
-                                'required'          => true,
+                                'required'          => false,
                                 'type'             => 'integer',
                                 'sanitize_callback' => 'absint',
-                                'description'       => __('The ID of the course the plan belongs to.', 'tutorpress'),
+                                'description'       => __('The ID of the course the plan belongs to (legacy).', 'tutorpress'),
+                            ],
+                            'object_id' => [
+                                'required'          => false,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the object (course or bundle) the plan belongs to.', 'tutorpress'),
                             ],
                         ],
                     ],
@@ -422,6 +481,45 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                                 'type'             => 'integer',
                                 'sanitize_callback' => 'absint',
                                 'description'       => __('The ID of the course the plans belong to.', 'tutorpress'),
+                            ],
+                            'plan_order' => [
+                                'required'          => true,
+                                'type'             => 'array',
+                                'description'       => __('Array of plan IDs in the desired order.', 'tutorpress'),
+                                'items'             => [
+                                    'type' => 'integer',
+                                ],
+                            ],
+                        ],
+                    ],
+                ]
+            );
+
+            // Sort subscription plans for bundles
+            register_rest_route(
+                $this->namespace,
+                '/bundles/(?P<bundle_id>[\d]+)/subscriptions/sort',
+                [
+                    [
+                        'methods'             => WP_REST_Server::EDITABLE,
+                        'callback'            => [$this, 'sort_bundle_subscription_plans'],
+                        'permission_callback' => function($request) {
+                            $bundle_id = (int) $request->get_param('bundle_id');
+                            
+                            // Check if user can edit the specific bundle
+                            if ($bundle_id && current_user_can('edit_post', $bundle_id)) {
+                                return true;
+                            }
+                            
+                            // Fallback to general permission check
+                            return $this->check_permission($request);
+                        },
+                        'args'               => [
+                            'bundle_id' => [
+                                'required'          => true,
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('The ID of the bundle the plans belong to.', 'tutorpress'),
                             ],
                             'plan_order' => [
                                 'required'          => true,
@@ -494,6 +592,58 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
     }
 
     /**
+     * Get subscription plans for a specific bundle.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response or error.
+     */
+    public function get_bundle_subscriptions($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
+
+            $bundle_id = $request->get_param('bundle_id');
+
+            // Validate bundle
+            $validation_result = $this->validate_bundle_id($bundle_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Get subscription plans for this bundle
+            $plans = $this->get_subscription_plans($bundle_id);
+
+            return rest_ensure_response(
+                $this->format_response(
+                    $plans,
+                    __('Bundle subscription plans retrieved successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: get_bundle_subscriptions error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plans_fetch_error',
+                __('Failed to fetch bundle subscription plans.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
      * Create a new subscription plan.
      *
      * @since 1.0.0
@@ -508,10 +658,19 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 return $tutor_check;
             }
 
-            $course_id = $request->get_param('course_id');
+            // Support both course_id (legacy) and object_id (universal)
+            $object_id = $request->get_param('object_id') ?? $request->get_param('course_id');
+            
+            if (!$object_id) {
+                return new WP_Error(
+                    'missing_object_id',
+                    __('Object ID is required (course_id or object_id).', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
 
-            // Validate course
-            $validation_result = $this->validate_course_id($course_id);
+            // Validate object (course or bundle)
+            $validation_result = $this->validate_object_id($object_id);
             if (is_wp_error($validation_result)) {
                 return $validation_result;
             }
@@ -529,7 +688,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             $plan_data = $this->prepare_plan_data($request);
             
             // Create the plan
-            $plan_id = $this->create_subscription_plan_in_db($course_id, $plan_data);
+            $plan_id = $this->create_subscription_plan_in_db($object_id, $plan_data);
 
             if (is_wp_error($plan_id)) {
                 return $plan_id;
@@ -579,10 +738,20 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
 
             $plan_id = (int) $request->get_param('id');
-            $course_id = (int) $request->get_param('course_id');
+            
+            // Support both course_id (legacy) and object_id (universal)
+            $object_id = $request->get_param('object_id') ?? $request->get_param('course_id');
+            
+            if (!$object_id) {
+                return new WP_Error(
+                    'missing_object_id',
+                    __('Object ID is required (course_id or object_id).', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
 
-            // Validate course
-            $validation_result = $this->validate_course_id($course_id);
+            // Validate object (course or bundle)
+            $validation_result = $this->validate_object_id($object_id);
             if (is_wp_error($validation_result)) {
                 return $validation_result;
             }
@@ -597,7 +766,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
 
             // Validate plan exists and belongs to the course
-            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            $plan_validation = $this->validate_plan_belongs_to_object($plan_id, $object_id);
             if (is_wp_error($plan_validation)) {
                 return $plan_validation;
             }
@@ -662,10 +831,20 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
 
             $plan_id = (int) $request->get_param('id');
-            $course_id = (int) $request->get_param('course_id');
+            
+            // Support both course_id (legacy) and object_id (universal)
+            $object_id = $request->get_param('object_id') ?? $request->get_param('course_id');
+            
+            if (!$object_id) {
+                return new WP_Error(
+                    'missing_object_id',
+                    __('Object ID is required (course_id or object_id).', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
 
-            // Validate course
-            $validation_result = $this->validate_course_id($course_id);
+            // Validate object (course or bundle)
+            $validation_result = $this->validate_object_id($object_id);
             if (is_wp_error($validation_result)) {
                 return $validation_result;
             }
@@ -680,7 +859,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
 
             // Validate plan exists and belongs to the course
-            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            $plan_validation = $this->validate_plan_belongs_to_object($plan_id, $object_id);
             if (is_wp_error($plan_validation)) {
                 return $plan_validation;
             }
@@ -725,10 +904,20 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             }
 
             $plan_id = (int) $request->get_param('id');
-            $course_id = (int) $request->get_param('course_id');
+            
+            // Support both course_id (legacy) and object_id (universal)
+            $object_id = $request->get_param('object_id') ?? $request->get_param('course_id');
+            
+            if (!$object_id) {
+                return new WP_Error(
+                    'missing_object_id',
+                    __('Object ID is required (course_id or object_id).', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
 
-            // Validate course
-            $validation_result = $this->validate_course_id($course_id);
+            // Validate object (course or bundle)
+            $validation_result = $this->validate_object_id($object_id);
             if (is_wp_error($validation_result)) {
                 return $validation_result;
             }
@@ -742,14 +931,14 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 );
             }
 
-            // Validate plan exists and belongs to the course
-            $plan_validation = $this->validate_plan_belongs_to_course($plan_id, $course_id);
+            // Validate plan exists and belongs to the object (course or bundle)
+            $plan_validation = $this->validate_plan_belongs_to_object($plan_id, $object_id);
             if (is_wp_error($plan_validation)) {
                 return $plan_validation;
             }
 
             // Duplicate the plan
-            $duplicate_result = $this->duplicate_subscription_plan_in_db($plan_id, $course_id);
+            $duplicate_result = $this->duplicate_subscription_plan_in_db($plan_id, $object_id);
 
             if (is_wp_error($duplicate_result)) {
                 return $duplicate_result;
@@ -847,7 +1036,74 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         }
     }
 
+    /**
+     * Sort subscription plans for a specific bundle.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response or error.
+     */
+    public function sort_bundle_subscription_plans($request) {
+        try {
+            // Check Tutor LMS availability
+            $tutor_check = $this->ensure_tutor_lms();
+            if (is_wp_error($tutor_check)) {
+                return $tutor_check;
+            }
 
+            $bundle_id = (int) $request->get_param('bundle_id');
+            $plan_order = $request->get_param('plan_order');
+
+            // Validate bundle
+            $validation_result = $this->validate_bundle_id($bundle_id);
+            if (is_wp_error($validation_result)) {
+                return $validation_result;
+            }
+
+            // Check if subscription tables exist
+            if (!$this->subscription_tables_exist()) {
+                return new WP_Error(
+                    'subscription_tables_not_found',
+                    __('Subscription tables not found. Please ensure the Tutor LMS subscription addon is properly installed.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            // Validate plan order array
+            if (!is_array($plan_order) || empty($plan_order)) {
+                return new WP_Error(
+                    'invalid_plan_order',
+                    __('Plan order must be a non-empty array.', 'tutorpress'),
+                    ['status' => 400]
+                );
+            }
+
+            // Sort the plans (same logic as course plans)
+            $result = $this->sort_subscription_plans_in_db($plan_order);
+            
+            if (is_wp_error($result)) {
+                return $result;
+            }
+
+            // Get updated plans
+            $plans = $this->get_subscription_plans($bundle_id);
+
+            return rest_ensure_response(
+                $this->format_response(
+                    $plans,
+                    __('Bundle subscription plans sorted successfully.', 'tutorpress')
+                )
+            );
+
+        } catch (Exception $e) {
+            error_log('TutorPress Subscriptions Controller: sort_bundle_subscription_plans error - ' . $e->getMessage());
+            return new WP_Error(
+                'subscription_plan_sort_error',
+                __('Failed to sort bundle subscription plans.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+    }
 
     /**
      * Validate course ID.
@@ -862,6 +1118,85 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 'invalid_course',
                 __('Invalid course ID.', 'tutorpress'),
                 ['status' => 404]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate bundle ID.
+     *
+     * @since 1.0.0
+     * @param int $bundle_id Bundle ID to validate.
+     * @return bool|WP_Error True if valid, WP_Error if invalid.
+     */
+    private function validate_bundle_id($bundle_id) {
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== tutor()->bundle_post_type) {
+            return new WP_Error(
+                'invalid_bundle',
+                __('Invalid bundle ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate object ID (course or bundle).
+     *
+     * @since 1.0.0
+     * @param int $object_id Object ID to validate.
+     * @return bool|WP_Error True if valid, WP_Error if invalid.
+     */
+    private function validate_object_id($object_id) {
+        $post = get_post($object_id);
+        if (!$post) {
+            return new WP_Error(
+                'invalid_object_id',
+                __('Invalid object ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
+        // Check if it's a valid course or bundle
+        $valid_types = [tutor()->course_post_type, tutor()->bundle_post_type];
+        if (!in_array($post->post_type, $valid_types, true)) {
+            return new WP_Error(
+                'invalid_object_type',
+                __('Object must be a course or bundle.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate that a plan belongs to the specified object (course or bundle).
+     *
+     * @since 1.0.0
+     * @param int $plan_id Plan ID to validate.
+     * @param int $object_id Object ID (course or bundle) to validate against.
+     * @return bool|WP_Error True if valid, WP_Error if invalid.
+     */
+    private function validate_plan_belongs_to_object($plan_id, $object_id) {
+        global $wpdb;
+
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}tutor_subscription_plan_items 
+             WHERE plan_id = %d AND object_id = %d",
+            $plan_id,
+            $object_id
+        ));
+
+        if (!$exists) {
+            return new WP_Error(
+                'plan_object_mismatch',
+                __('Plan does not belong to the specified object.', 'tutorpress'),
+                ['status' => 400]
             );
         }
 
@@ -1390,10 +1725,10 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
      * Duplicate subscription plan in database.
      *
      * @param int $plan_id The plan ID to duplicate.
-     * @param int $course_id The course ID.
+     * @param int $object_id The object ID (course or bundle).
      * @return int|WP_Error New plan ID on success, error on failure.
      */
-    private function duplicate_subscription_plan_in_db($plan_id, $course_id) {
+    private function duplicate_subscription_plan_in_db($plan_id, $object_id) {
         global $wpdb;
         
         // Get the original plan
@@ -1490,13 +1825,13 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
         
         $new_plan_id = $wpdb->insert_id;
         
-        // Associate duplicate plan with course
+        // Associate duplicate plan with object (course or bundle)
         $result = $wpdb->insert(
             $wpdb->prefix . 'tutor_subscription_plan_items',
             [
                 'plan_id' => $new_plan_id,
                 'object_name' => $duplicate_data['plan_type'],
-                'object_id' => $course_id,
+                'object_id' => $object_id,
             ],
             ['%d', '%s', '%d']
         );
@@ -1506,7 +1841,7 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
             $wpdb->delete($wpdb->prefix . 'tutor_subscription_plans', ['id' => $new_plan_id], ['%d']);
             return new WP_Error(
                 'database_error',
-                __('Failed to associate duplicated subscription plan with course.', 'tutorpress'),
+                __('Failed to associate duplicated subscription plan with object.', 'tutorpress'),
                 ['status' => 500]
             );
         }

@@ -9,6 +9,7 @@ interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   courseId: number;
+  postType?: string;
   initialPlan?: SubscriptionPlan | null;
   shouldShowForm?: boolean;
 }
@@ -17,6 +18,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   isOpen,
   onClose,
   courseId,
+  postType = "courses",
   initialPlan,
   shouldShowForm = false,
 }) => {
@@ -76,6 +78,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       <div className="tutorpress-modal-content">
         <SubscriptionPlanSection
           courseId={courseId}
+          postType={postType}
           onFormSave={handleFormSave}
           onFormCancel={handleFormCancel}
           editingPlanId={editingPlanId}

@@ -32,6 +32,7 @@ import type { AvailableCourse, BundlePricing } from "../../../types/bundle";
 import { CourseSelectionModal } from "../../modals/bundles/CourseSelectionModal";
 import { useSortableList } from "../../../hooks/common/useSortableList";
 import { useError } from "../../../hooks/useError";
+import { useBundleMeta } from "../../../hooks/common";
 
 const COURSE_BUNDLES_STORE = "tutorpress/course-bundles";
 
@@ -198,13 +199,11 @@ export const BundleCourseSelection: React.FC<BundleCourseSelectionProps> = ({ bu
   // Store dispatch
   const { getBundleCourses, updateBundleCourses } = useDispatch(COURSE_BUNDLES_STORE);
 
-  // Get bundle pricing data for validation
-  const { pricingData } = useSelect(
-    (select: any) => ({
-      pricingData: select("tutorpress/course-bundles").getBundlePricingData(),
-    }),
-    []
-  );
+  // Get bundle pricing data for validation (entity-based)
+  const { meta } = useBundleMeta();
+  const pricingData = {
+    sale_price: (meta?.tutor_course_sale_price as number) || 0,
+  };
 
   // We load courses via loadBundleCourses into local state
 

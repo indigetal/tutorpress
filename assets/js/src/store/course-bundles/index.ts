@@ -50,22 +50,7 @@ const initialState: CourseBundlesState = {
     error: null,
     lastSaved: null,
   },
-  // Bundle Pricing state
-  bundlePricing: {
-    data: {
-      regular_price: 0,
-      sale_price: 0,
-      price_type: "free",
-      ribbon_type: "none" as const,
-      selling_option: "one_time",
-      product_id: 0,
-    },
-    isLoading: false,
-    isSaving: false,
-    isDirty: false,
-    error: null,
-    lastSaved: null,
-  },
+  // Bundle Pricing state - REMOVED (now uses entity-based approach)
   // Bundle Instructors state
   bundleInstructors: {
     data: {
@@ -101,18 +86,7 @@ const ACTION_TYPES = {
   SET_BUNDLE_BENEFITS_DATA: "SET_BUNDLE_BENEFITS_DATA",
   UPDATE_BUNDLE_BENEFITS: "UPDATE_BUNDLE_BENEFITS",
   SET_DIRTY_STATE: "SET_DIRTY_STATE",
-  // Bundle Pricing actions
-  FETCH_BUNDLE_PRICING: "FETCH_BUNDLE_PRICING",
-  FETCH_BUNDLE_PRICING_START: "FETCH_BUNDLE_PRICING_START",
-  FETCH_BUNDLE_PRICING_SUCCESS: "FETCH_BUNDLE_PRICING_SUCCESS",
-  FETCH_BUNDLE_PRICING_ERROR: "FETCH_BUNDLE_PRICING_ERROR",
-  SAVE_BUNDLE_PRICING: "SAVE_BUNDLE_PRICING",
-  SAVE_BUNDLE_PRICING_START: "SAVE_BUNDLE_PRICING_START",
-  SAVE_BUNDLE_PRICING_SUCCESS: "SAVE_BUNDLE_PRICING_SUCCESS",
-  SAVE_BUNDLE_PRICING_ERROR: "SAVE_BUNDLE_PRICING_ERROR",
-  SET_BUNDLE_PRICING_DATA: "SET_BUNDLE_PRICING_DATA",
-  UPDATE_BUNDLE_PRICING: "UPDATE_BUNDLE_PRICING",
-  SET_PRICING_DIRTY_STATE: "SET_PRICING_DIRTY_STATE",
+  // Bundle Pricing actions - REMOVED (now uses entity-based approach)
   // Bundle Instructors actions
   FETCH_BUNDLE_INSTRUCTORS: "FETCH_BUNDLE_INSTRUCTORS",
   FETCH_BUNDLE_INSTRUCTORS_START: "FETCH_BUNDLE_INSTRUCTORS_START",
@@ -141,16 +115,7 @@ export type CourseBundlesAction =
   | { type: "SET_BUNDLE_BENEFITS_DATA"; payload: { benefits: string } }
   | { type: "UPDATE_BUNDLE_BENEFITS"; payload: string }
   | { type: "SET_DIRTY_STATE"; payload: boolean }
-  // Bundle Pricing actions
-  | { type: "FETCH_BUNDLE_PRICING_START" }
-  | { type: "FETCH_BUNDLE_PRICING_SUCCESS"; payload: CourseBundlesState["bundlePricing"]["data"] }
-  | { type: "FETCH_BUNDLE_PRICING_ERROR"; payload: string }
-  | { type: "SAVE_BUNDLE_PRICING_START" }
-  | { type: "SAVE_BUNDLE_PRICING_SUCCESS"; payload: CourseBundlesState["bundlePricing"]["data"] }
-  | { type: "SAVE_BUNDLE_PRICING_ERROR"; payload: string }
-  | { type: "SET_BUNDLE_PRICING_DATA"; payload: CourseBundlesState["bundlePricing"]["data"] }
-  | { type: "UPDATE_BUNDLE_PRICING"; payload: Partial<CourseBundlesState["bundlePricing"]["data"]> }
-  | { type: "SET_PRICING_DIRTY_STATE"; payload: boolean }
+  // Bundle Pricing actions - REMOVED (now uses entity-based approach)
   // Bundle Instructors actions
   | { type: "FETCH_BUNDLE_INSTRUCTORS_START" }
   | { type: "FETCH_BUNDLE_INSTRUCTORS_SUCCESS"; payload: CourseBundlesState["bundleInstructors"]["data"] }
@@ -315,101 +280,11 @@ const actions = {
     }
   },
 
-  *getBundlePricing(id: number): Generator<any, any, any> {
-    try {
-      // Get pricing data from the bundle's meta fields via REST API
-      const response: any = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/wp/v2/course-bundle/${id}?_fields=id,meta`,
-          method: "GET",
-        },
-      };
+  // getBundlePricing - REMOVED (now uses entity-based approach)
 
-      // Extract pricing data from meta fields
-      const meta = response.meta || {};
-      const pricing = {
-        regular_price: meta.tutor_course_price || 0,
-        sale_price: meta.tutor_course_sale_price || 0,
-        price_type: meta._tutor_course_price_type || "free",
-        ribbon_type: meta.tutor_bundle_ribbon_type || "none",
-        selling_option: meta.tutor_course_selling_option || "one_time",
-        product_id: meta._tutor_course_product_id || 0,
-      };
+  // updateBundlePricing - REMOVED (now uses entity-based approach)
 
-      yield { type: ACTION_TYPES.SET_BUNDLE_PRICING_DATA, payload: pricing };
-      return pricing;
-    } catch (error: any) {
-      const bundleError: BundleError = {
-        code: BundleErrorCode.NETWORK_ERROR,
-        message: error.message || "Failed to fetch bundle pricing",
-        context: {
-          action: "getBundlePricing",
-          bundleId: id,
-          details: error.message,
-        },
-      };
-      throw bundleError;
-    }
-  },
-
-  *updateBundlePricing(id: number, pricing: Partial<BundlePricing>): Generator<any, any, any> {
-    try {
-      // Get current pricing from both stores (like Course Settings pattern)
-      const currentStorePricing = yield select("tutorpress/course-bundles").getBundlePricingData();
-      const currentGutenbergMeta = yield select("core/editor").getEditedPostAttribute("meta") || {};
-
-      // Merge current data with updates (like Course Settings pattern)
-      const updatedPricing = {
-        ...currentStorePricing,
-        ...pricing,
-      };
-
-      // Update Gutenberg store immediately (like Course Settings pattern)
-      const editorDispatch = wpDispatch("core/editor") as any;
-      if (editorDispatch && editorDispatch.editPost) {
-        editorDispatch.editPost({
-          meta: {
-            ...currentGutenbergMeta,
-            tutor_course_price: updatedPricing.regular_price,
-            tutor_course_sale_price: updatedPricing.sale_price,
-            _tutor_course_price_type: updatedPricing.price_type,
-            tutor_bundle_ribbon_type: updatedPricing.ribbon_type,
-            tutor_course_selling_option: updatedPricing.selling_option,
-            _tutor_course_product_id: updatedPricing.product_id,
-          },
-        });
-      }
-
-      // Update our local store state (like Course Settings pattern)
-      yield { type: ACTION_TYPES.SET_BUNDLE_PRICING_DATA, payload: updatedPricing };
-      return updatedPricing;
-    } catch (error: any) {
-      const bundleError: BundleError = {
-        code: BundleErrorCode.NETWORK_ERROR,
-        message: error.message || "Failed to update bundle pricing",
-        context: {
-          action: "updateBundlePricing",
-          bundleId: id,
-          details: error.message,
-        },
-      };
-      throw bundleError;
-    }
-  },
-
-  /**
-   * Refresh bundle pricing when courses are updated.
-   * This ensures the regular price is recalculated based on current bundle courses.
-   */
-  *refreshBundlePricing(id: number): Generator<any, any, any> {
-    try {
-      // Fetch fresh pricing data from the server
-      yield actions.getBundlePricing(id);
-    } catch (error: any) {
-      console.error("Failed to refresh bundle pricing:", error);
-    }
-  },
+  // refreshBundlePricing - REMOVED (now uses entity-based approach)
 
   *getBundleInstructors(id: number) {
     yield { type: ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_START };
@@ -558,7 +433,7 @@ const resolvers = {
   getBundles: actions.getBundles,
   getBundle: actions.getBundle,
   getBundleCourses: actions.getBundleCourses,
-  getBundlePricing: actions.getBundlePricing,
+  // getBundlePricing - REMOVED (now uses entity-based approach)
   getBundleInstructors: actions.getBundleInstructors,
   fetchAvailableCourses: actions.fetchAvailableCourses,
   // Bundle Benefits resolvers
@@ -588,30 +463,7 @@ const selectors = {
   hasBundleBenefitsUnsavedChanges: (state: CourseBundlesState) => state.bundleBenefits.isDirty,
   canSaveBundleBenefits: (state: CourseBundlesState) =>
     !state.bundleBenefits.isLoading && !state.bundleBenefits.isSaving && state.bundleBenefits.isDirty,
-  // Bundle Pricing selectors (following Course Settings pattern)
-  getBundlePricingData: (state: CourseBundlesState) => {
-    // Get pricing data from both stores and merge (like Course Settings pattern)
-    const gutenbergMeta = select("core/editor").getEditedPostAttribute("meta") || {};
-    const storeData = state.bundlePricing.data;
-
-    // Merge data, prioritizing Gutenberg meta (like Course Settings pattern)
-    return {
-      regular_price: gutenbergMeta.tutor_course_price ?? storeData?.regular_price ?? 0,
-      sale_price: gutenbergMeta.tutor_course_sale_price ?? storeData?.sale_price ?? 0,
-      price_type: gutenbergMeta._tutor_course_price_type ?? storeData?.price_type ?? "free",
-      ribbon_type: gutenbergMeta.tutor_bundle_ribbon_type ?? storeData?.ribbon_type ?? "none",
-      selling_option: gutenbergMeta.tutor_course_selling_option ?? storeData?.selling_option ?? "one_time",
-      product_id: gutenbergMeta._tutor_course_product_id ?? storeData?.product_id ?? 0,
-    };
-  },
-  getBundlePricingLoading: (state: CourseBundlesState) => state.bundlePricing.isLoading,
-  getBundlePricingSaving: (state: CourseBundlesState) => state.bundlePricing.isSaving,
-  getBundlePricingDirty: (state: CourseBundlesState) => state.bundlePricing.isDirty,
-  getBundlePricingError: (state: CourseBundlesState) => state.bundlePricing.error,
-  getBundlePricingLastSaved: (state: CourseBundlesState) => state.bundlePricing.lastSaved,
-  hasBundlePricingUnsavedChanges: (state: CourseBundlesState) => state.bundlePricing.isDirty,
-  canSaveBundlePricing: (state: CourseBundlesState) =>
-    !state.bundlePricing.isLoading && !state.bundlePricing.isSaving && state.bundlePricing.isDirty,
+  // Bundle Pricing selectors - REMOVED (now uses entity-based approach)
   // Bundle Instructors selectors (following Bundle Benefits pattern)
   getBundleInstructorsData: (state: CourseBundlesState) => state.bundleInstructors.data,
   getBundleInstructorsLoading: (state: CourseBundlesState) => state.bundleInstructors.isLoading,
@@ -791,95 +643,9 @@ const store = createReduxStore("tutorpress/course-bundles", {
           },
         };
 
-      // Bundle Pricing cases
-      case ACTION_TYPES.FETCH_BUNDLE_PRICING_START:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            isLoading: true,
-            error: null,
-          },
-        };
-      case ACTION_TYPES.FETCH_BUNDLE_PRICING_SUCCESS:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            data: (action as { type: string; payload: CourseBundlesState["bundlePricing"]["data"] }).payload,
-            isLoading: false,
-            isDirty: false,
-            lastSaved: Date.now(),
-            error: null,
-          },
-        };
-      case ACTION_TYPES.FETCH_BUNDLE_PRICING_ERROR:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            isLoading: false,
-            error: (action as { type: string; payload: string }).payload,
-          },
-        };
-      case ACTION_TYPES.SAVE_BUNDLE_PRICING_START:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            isSaving: true,
-            error: null,
-          },
-        };
-      case ACTION_TYPES.SAVE_BUNDLE_PRICING_SUCCESS:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            data: (action as { type: string; payload: CourseBundlesState["bundlePricing"]["data"] }).payload,
-            isSaving: false,
-            isDirty: false,
-            lastSaved: Date.now(),
-            error: null,
-          },
-        };
-      case ACTION_TYPES.SAVE_BUNDLE_PRICING_ERROR:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            isSaving: false,
-            error: (action as { type: string; payload: string }).payload,
-          },
-        };
-      case ACTION_TYPES.SET_BUNDLE_PRICING_DATA:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            data: (action as { type: string; payload: CourseBundlesState["bundlePricing"]["data"] }).payload,
-          },
-        };
-      case ACTION_TYPES.UPDATE_BUNDLE_PRICING:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            data: {
-              ...state.bundlePricing.data,
-              ...(action as { type: string; payload: Partial<CourseBundlesState["bundlePricing"]["data"]> }).payload,
-            },
-            isDirty: true,
-          },
-        };
-      case ACTION_TYPES.SET_PRICING_DIRTY_STATE:
-        return {
-          ...state,
-          bundlePricing: {
-            ...state.bundlePricing,
-            isDirty: (action as { type: string; payload: boolean }).payload,
-          },
-        };
+      // Bundle Pricing cases - REMOVED (now uses entity-based approach)
+      // Removed all Bundle Pricing reducer cases
+      // All Bundle Pricing reducer cases removed
 
       // Bundle Instructors reducer cases (following Bundle Benefits pattern)
       case ACTION_TYPES.FETCH_BUNDLE_INSTRUCTORS_START:
@@ -946,9 +712,7 @@ export const {
   updateBundle,
   getBundleCourses,
   updateBundleCourses,
-  getBundlePricing,
-  updateBundlePricing,
-  refreshBundlePricing,
+  // Bundle Pricing actions removed (now uses entity-based approach)
   getBundleInstructors,
   fetchAvailableCourses,
   clearError,
@@ -979,15 +743,7 @@ export const {
   getBundleBenefitsLastSaved,
   hasBundleBenefitsUnsavedChanges,
   canSaveBundleBenefits,
-  // Bundle Pricing selectors
-  getBundlePricingData,
-  getBundlePricingLoading,
-  getBundlePricingSaving,
-  getBundlePricingDirty,
-  getBundlePricingError,
-  getBundlePricingLastSaved,
-  hasBundlePricingUnsavedChanges,
-  canSaveBundlePricing,
+  // Bundle Pricing selectors - REMOVED (now uses entity-based approach)
   // Bundle Instructors selectors
   getBundleInstructorsData,
   getBundleInstructorsLoading,

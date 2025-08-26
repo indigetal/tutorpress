@@ -203,6 +203,7 @@ const SortableSubscriptionPlanCard: React.FC<{
  */
 interface SubscriptionPlanSectionProps {
   courseId: number;
+  postType?: string;
   onFormSave: (planData: Partial<SubscriptionPlan>) => void;
   onFormCancel: () => void;
   editingPlanId?: number | null;
@@ -216,6 +217,7 @@ interface SubscriptionPlanSectionProps {
  */
 export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = ({
   courseId,
+  postType = "courses",
   onFormSave,
   onFormCancel,
   editingPlanId = null,
