@@ -58,7 +58,7 @@ import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { useSortableList } from "../../../hooks/common/useSortableList";
 import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
-import { isH5pPluginActive, isGoogleMeetEnabled, isZoomEnabled } from "../../../utils/addonChecker";
+import { isH5pPluginActive } from "../../../utils/addonChecker";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { useError } from "../../../hooks/useError";
@@ -400,7 +400,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   // Live Lessons modal handlers
   const handleGoogleMeetModalOpen = () => {
-    if (!isGoogleMeetEnabled()) {
+    if (!(window.tutorpressAddons?.google_meet ?? false)) {
       showGoogleMeetDisabledNotice();
       return;
     }
@@ -413,7 +413,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   };
 
   const handleZoomModalOpen = () => {
-    if (!isZoomEnabled()) {
+    if (!(window.tutorpressAddons?.zoom ?? false)) {
       showZoomDisabledNotice();
       return;
     }
@@ -434,7 +434,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   // Live lesson duplicate handler (Google Meet only)
   const handleGoogleMeetDuplicate = (liveLessonId: number, topicId: number) => {
-    if (!isGoogleMeetEnabled()) {
+    if (!(window.tutorpressAddons?.google_meet ?? false)) {
       showGoogleMeetDisabledNotice();
       return;
     }
@@ -555,7 +555,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                                 }
                               : item.type === "meet_lesson"
                                 ? () => {
-                                    if (!isGoogleMeetEnabled()) {
+                                    if (!(window.tutorpressAddons?.google_meet ?? false)) {
                                       showGoogleMeetDisabledNotice();
                                       return;
                                     }
@@ -564,7 +564,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                                   }
                                 : item.type === "zoom_lesson"
                                   ? () => {
-                                      if (!isZoomEnabled()) {
+                                      if (!(window.tutorpressAddons?.zoom ?? false)) {
                                         showZoomDisabledNotice();
                                         return;
                                       }
@@ -609,7 +609,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                                 }
                               : item.type === "meet_lesson"
                                 ? () => {
-                                    if (!isGoogleMeetEnabled()) {
+                                    if (!(window.tutorpressAddons?.google_meet ?? false)) {
                                       showGoogleMeetDisabledNotice();
                                       return;
                                     }
@@ -617,7 +617,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                                   }
                                 : item.type === "zoom_lesson"
                                   ? () => {
-                                      if (!isZoomEnabled()) {
+                                      if (!(window.tutorpressAddons?.zoom ?? false)) {
                                         showZoomDisabledNotice();
                                         return;
                                       }
@@ -691,7 +691,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   {__("Interactive Quiz", "tutorpress")}
                 </Button>
               )}
-              {isGoogleMeetEnabled() && (
+              {(window.tutorpressAddons?.google_meet ?? false) && (
                 <Button
                   variant="secondary"
                   isSmall
@@ -702,7 +702,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                   {__("Google Meet", "tutorpress")}
                 </Button>
               )}
-              {isZoomEnabled() && (
+              {(window.tutorpressAddons?.zoom ?? false) && (
                 <Button
                   variant="secondary"
                   isSmall
@@ -749,7 +749,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                     </MenuItem>
                   )}
                   {/* Live Lessons options in overflow */}
-                  {isGoogleMeetEnabled() && (
+                  {(window.tutorpressAddons?.google_meet ?? false) && (
                     <MenuItem
                       icon={plus}
                       onClick={() => {
@@ -761,7 +761,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                       {__("Google Meet", "tutorpress")}
                     </MenuItem>
                   )}
-                  {isZoomEnabled() && (
+                  {(window.tutorpressAddons?.zoom ?? false) && (
                     <MenuItem
                       icon={plus}
                       onClick={() => {

@@ -25,7 +25,7 @@ import CertificatePreviewModal from "../modals/certificate/CertificatePreviewMod
 
 // Types
 import type { CertificateTemplate, CertificateFilters } from "../../types/certificate";
-import { isCertificateEnabled, isCertificateBuilderEnabled } from "../../utils/addonChecker";
+import { isCertificateBuilderEnabled } from "../../utils/addonChecker";
 
 // Store constant
 const CERTIFICATE_STORE = "tutorpress/certificate";
@@ -50,7 +50,7 @@ const CERTIFICATE_STORE = "tutorpress/certificate";
  */
 const Certificate: React.FC = (): JSX.Element | null => {
   // Early return if Certificate addon is not enabled
-  if (!isCertificateEnabled()) {
+  if (!(window.tutorpressAddons?.certificate ?? false)) {
     return null;
   }
 

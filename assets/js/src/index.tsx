@@ -15,7 +15,7 @@ import CourseInstructorsPanel from "./components/settings/CourseInstructorsPanel
 import BundlePricingPanel from "./components/settings/BundlePricingPanel";
 import BundleInstructorsPanel from "./components/settings/BundleInstructorsPanel";
 import EditCourseButton from "./components/common/EditCourseButton";
-import { AddonChecker, isH5pEnabled } from "./utils/addonChecker";
+import { AddonChecker } from "./utils/addonChecker";
 import "./utils/overrides";
 
 // Import stores to ensure they are registered
@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Prevent tree-shaking of AddonChecker methods by referencing them
 void AddonChecker.isPrerequisitesEnabled;
 void AddonChecker.isEnrollmentsEnabled;
-void AddonChecker.isH5pEnabled;
+// H5P status now comes from backend data (window.tutorpressAddons?.h5p)
 // Certificate status now comes from backend data (window.tutorpressAddons?.certificate)
 void AddonChecker.isContentDripEnabled;
 void AddonChecker.isGoogleMeetEnabled;
@@ -175,7 +175,7 @@ void AddonChecker.isMonetizationEnabled;
 };
 
 // Conditionally expose Interactive Quiz components only when H5P is enabled
-if (isH5pEnabled()) {
+if (window.tutorpressAddons?.h5p ?? false) {
   // Dynamic import to avoid loading H5P components when H5P addon is not available
   import("./components/modals/QuizModal").then(({ QuizModal }) => {
     (window as any).tutorpress.QuizModal = QuizModal;
