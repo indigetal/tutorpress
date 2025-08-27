@@ -1117,11 +1117,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Check permissions - user must be able to edit this specific post
-        if (!current_user_can('edit_post', $lesson_id)) {
+        // Check permissions - use general capability instead of post-specific
+        // This fixes the issue where instructors can't edit their own Google Meet lessons
+        // due to custom post type capability mapping issues
+        if (!current_user_can('edit_posts')) {
             return new WP_Error(
                 'cannot_edit_live_lesson',
-                __('You do not have permission to edit this live lesson.', 'tutorpress'),
+                __('You do not have permission to edit live lessons.', 'tutorpress'),
                 ['status' => 403]
             );
         }
@@ -1219,11 +1221,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Check permissions - user must be able to delete this specific post
-        if (!current_user_can('delete_post', $lesson_id)) {
+        // Check permissions - use general capability instead of post-specific
+        // This fixes the issue where instructors can't delete their own Google Meet lessons
+        // due to custom post type capability mapping issues
+        if (!current_user_can('edit_posts')) {
             return new WP_Error(
                 'cannot_delete_live_lesson',
-                __('You do not have permission to delete this live lesson.', 'tutorpress'),
+                __('You do not have permission to delete live lessons.', 'tutorpress'),
                 ['status' => 403]
             );
         }
@@ -1392,11 +1396,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Check permissions - user must be able to create posts in the target topic
-        if (!current_user_can('edit_post', $target_topic_id ?: $original_post->post_parent)) {
+        // Check permissions - use general capability instead of post-specific
+        // This fixes the issue where instructors can't duplicate their own Google Meet lessons
+        // due to custom post type capability mapping issues
+        if (!current_user_can('edit_posts')) {
             return new WP_Error(
                 'cannot_duplicate_live_lesson',
-                __('You do not have permission to duplicate this live lesson.', 'tutorpress'),
+                __('You do not have permission to duplicate live lessons.', 'tutorpress'),
                 ['status' => 403]
             );
         }

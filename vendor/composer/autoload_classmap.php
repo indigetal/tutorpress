@@ -26,6 +26,7 @@ return array(
     'TutorPress_Lesson' => $baseDir . '/includes/post-types/class-tutorpress-lesson.php',
     'TutorPress_Main' => $baseDir . '/includes/class-tutorpress.php',
     'TutorPress_Metadata_Handler' => $baseDir . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
+    'TutorPress_Permissions' => $baseDir . '/includes/shared/class-tutorpress-permissions.php',
     'TutorPress_Product_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
     'TutorPress_REST_API' => $baseDir . '/includes/rest/class-tutorpress-rest-api.php',
     'TutorPress_REST_Assignments_Controller' => $baseDir . '/includes/rest/class-assignments-controller.php',

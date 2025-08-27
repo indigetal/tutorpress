@@ -251,40 +251,40 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
     private function get_capability_rule_for_feature(string $feature): mixed {
         $rules = [
             // Course and lesson management
-            'course_creation' => 'edit_courses',
-            'lesson_management' => 'edit_courses',
+            'course_creation' => 'edit_posts',
+            'lesson_management' => 'edit_posts',
             'gutenberg_blocks' => 'edit_posts',
-            'course_curriculum' => 'edit_courses',
-            'lesson_settings' => 'edit_courses', 
-            'assignment_settings' => 'edit_courses',
+            'course_curriculum' => 'edit_posts',
+            'lesson_settings' => 'edit_posts', 
+            'assignment_settings' => 'edit_posts',
             
             // Admin/settings features
             'pricing_models' => 'manage_options',
-            'course_bundles' => 'edit_courses',
-            'course_preview' => 'edit_courses',
+            'course_bundles' => 'edit_posts',
+            'course_preview' => 'edit_posts',
             
-            // Pro features with delegated logic
+            // Pro features with delegated logic  
             'h5p_integration' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'live_lessons' => function($user_id, $context) {
                 // Delegate to existing Tutor LMS capability checks
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'content_drip' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'prerequisites' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'subscriptions' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'certificates' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             },
             'advanced_quizzes' => function($user_id, $context) {
-                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+                return user_can($user_id ?: get_current_user_id(), 'edit_posts');
             }
         ];
         
