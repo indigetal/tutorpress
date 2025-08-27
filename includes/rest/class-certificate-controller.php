@@ -403,7 +403,7 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
      * @return bool|WP_Error True if active, WP_Error if not.
      */
     private function ensure_certificate_addon() {
-        if (!TutorPress_Addon_Checker::is_certificate_enabled()) {
+        if (!tutorpress_feature_flags()->can_user_access_feature('certificates')) {
             return new WP_Error(
                 'certificate_addon_disabled',
                 __('Certificate addon is not enabled. Contact the site admin.', 'tutorpress'),

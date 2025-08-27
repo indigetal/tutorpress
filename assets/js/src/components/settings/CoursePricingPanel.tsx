@@ -9,12 +9,7 @@ import { useEntityProp } from "@wordpress/core-data";
 // Import course settings types
 import type { CourseSettings, WcProduct } from "../../types/courses";
 import type { SubscriptionPlan } from "../../types/subscriptions";
-import {
-  isMonetizationEnabled,
-  isSubscriptionEnabled,
-  isWooCommerceMonetization,
-  isEddMonetization,
-} from "../../utils/addonChecker";
+import { isMonetizationEnabled, isWooCommerceMonetization, isEddMonetization } from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 
 const CoursePricingPanel: React.FC = () => {
@@ -82,7 +77,7 @@ const CoursePricingPanel: React.FC = () => {
 
   // Fetch subscription plans when component mounts and course ID is available
   useEffect(() => {
-    if (postType === "courses" && postId && isSubscriptionEnabled()) {
+    if (postType === "courses" && postId && (window.tutorpressAddons?.subscription ?? false)) {
       getSubscriptionPlans();
     }
   }, [postType, postId, getSubscriptionPlans]);
@@ -183,7 +178,7 @@ const CoursePricingPanel: React.FC = () => {
   const panelLoading =
     (isMonetizationEnabled() && isWooCommerceMonetization() && woocommerceLoading) ||
     (isMonetizationEnabled() && isEddMonetization() && eddLoading) ||
-    (isSubscriptionEnabled() && subscriptionPlansLoading);
+    ((window.tutorpressAddons?.subscription ?? false) && subscriptionPlansLoading);
 
   if (panelLoading) {
     return (
@@ -365,7 +360,8 @@ const CoursePricingPanel: React.FC = () => {
     }
   };
 
-  const shouldShowPurchaseOptions = uiPricingModel === "paid" && isMonetizationEnabled() && isSubscriptionEnabled();
+  const shouldShowPurchaseOptions =
+    uiPricingModel === "paid" && isMonetizationEnabled() && (window.tutorpressAddons?.subscription ?? false);
 
   // Helper function to determine if price fields should be shown
   const shouldShowPriceFields = () => {
@@ -385,7 +381,7 @@ const CoursePricingPanel: React.FC = () => {
     }
 
     // If subscription addon is disabled, always show price fields for "paid" courses
-    if (!isSubscriptionEnabled()) {
+    if (!(window.tutorpressAddons?.subscription ?? false)) {
       return true;
     }
 
@@ -558,7 +554,7 @@ const CoursePricingPanel: React.FC = () => {
       {/* Subscription Section - Show based on purchase option selection */}
       {uiPricingModel === "paid" &&
         isMonetizationEnabled() &&
-        isSubscriptionEnabled() &&
+        (window.tutorpressAddons?.subscription ?? false) &&
         (sellingOption === "subscription" || sellingOption === "both" || sellingOption === "all") && (
           <PanelRow>
             <div className="subscription-section">

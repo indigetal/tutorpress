@@ -44,8 +44,8 @@ class TutorPress_REST_API {
                 'quizzes'     => new TutorPress_REST_Quizzes_Controller(),
             ];
 
-            // Conditionally load Certificate controller only if Certificate addon is available
-            if (TutorPress_Addon_Checker::is_certificate_enabled()) {
+            // Conditionally load Certificate controller only if certificates feature is available
+            if (tutorpress_feature_flags()->can_user_access_feature('certificates')) {
                 $controllers['certificate'] = new TutorPress_Certificate_Controller();
             }
 
@@ -60,18 +60,18 @@ class TutorPress_REST_API {
                 $controllers['h5p'] = new TutorPress_REST_H5P_Controller();
             }
 
-            // Conditionally load Live Lessons controller only if either Live Lessons addon is available
-            if (TutorPress_Addon_Checker::is_google_meet_enabled() || TutorPress_Addon_Checker::is_zoom_enabled()) {
+            // Conditionally load Live Lessons controller only if live lessons feature is available
+            if (tutorpress_feature_flags()->can_user_access_feature('live_lessons')) {
                 $controllers['live_lessons'] = new TutorPress_REST_Live_Lessons_Controller();
             }
 
-            // Conditionally load Content Drip controller only if Content Drip addon is available
-            if (TutorPress_Addon_Checker::is_content_drip_enabled()) {
+            // Conditionally load Content Drip controller only if content drip feature is available
+            if (tutorpress_feature_flags()->can_user_access_feature('content_drip')) {
                 $controllers['content_drip'] = new TutorPress_REST_Content_Drip_Controller();
             }
 
-            // Conditionally load Subscriptions controller only if Subscription addon is available
-            if (TutorPress_Addon_Checker::is_subscription_enabled()) {
+            // Conditionally load Subscriptions controller only if subscriptions feature is available
+            if (tutorpress_feature_flags()->can_user_access_feature('subscriptions')) {
                 $controllers['subscriptions'] = new TutorPress_REST_Subscriptions_Controller();
             }
 

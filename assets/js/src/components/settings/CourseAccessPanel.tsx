@@ -85,8 +85,8 @@ const CourseAccessPanel: React.FC = () => {
     return null;
   }
 
-  // Check if prerequisites addon is enabled
-  const isPrerequisitesEnabled = AddonChecker.isPrerequisitesEnabled();
+  // Check if prerequisites feature is available 
+  const isPrerequisitesEnabled = (window.tutorpressAddons?.prerequisites ?? false);
 
   // Load available courses for prerequisites when addon is enabled
   useEffect(() => {

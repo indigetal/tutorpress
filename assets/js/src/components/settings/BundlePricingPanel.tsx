@@ -23,7 +23,7 @@ import type { SubscriptionPlan } from "../../types/subscriptions";
 // Import the shared bundle meta hook
 import { useBundleMeta } from "../../hooks/common";
 // Import addon checker for subscription functionality
-import { isSubscriptionEnabled } from "../../utils/addonChecker";
+// Note: subscription status now comes from backend data
 // Import subscription modal
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 
@@ -169,7 +169,7 @@ const BundlePricingPanel: React.FC = () => {
 
   // Fetch subscription plans when component mounts and bundle ID is available
   useEffect(() => {
-    if (postType === "course-bundle" && postId && isSubscriptionEnabled()) {
+    if (postType === "course-bundle" && postId && (window.tutorpressAddons?.subscription ?? false)) {
       getSubscriptionPlans();
     }
   }, [postType, postId, getSubscriptionPlans]);
@@ -293,12 +293,12 @@ const BundlePricingPanel: React.FC = () => {
   ];
 
   // Conditional display logic for Bundle pricing
-  const shouldShowPurchaseOptions = isSubscriptionEnabled();
+  const shouldShowPurchaseOptions = window.tutorpressAddons?.subscription ?? false;
 
   // Bundle-specific conditional display logic based on purchase option selection
   const shouldShowPriceFields = () => {
     // Always show if subscriptions are disabled
-    if (!isSubscriptionEnabled()) return true;
+    if (!(window.tutorpressAddons?.subscription ?? false)) return true;
 
     // If subscriptions are enabled, show price fields for one_time and both
     const sellingOption = pricingData?.selling_option || "one_time";
@@ -307,7 +307,7 @@ const BundlePricingPanel: React.FC = () => {
 
   const shouldShowSubscriptionSection = () => {
     // Only show if subscriptions are enabled
-    if (!isSubscriptionEnabled()) return false;
+    if (!(window.tutorpressAddons?.subscription ?? false)) return false;
 
     // Show subscriptions for subscription and both
     const sellingOption = pricingData?.selling_option || "one_time";
@@ -323,7 +323,8 @@ const BundlePricingPanel: React.FC = () => {
 
   // Panel loading state - includes subscription plans loading when applicable
   const panelLoading =
-    !ready || (isSubscriptionEnabled() && shouldShowSubscriptionSection() && subscriptionPlansLoading);
+    !ready ||
+    ((window.tutorpressAddons?.subscription ?? false) && shouldShowSubscriptionSection() && subscriptionPlansLoading);
 
   // Don't render if not on a course-bundle post
   if (postType !== "course-bundle") {

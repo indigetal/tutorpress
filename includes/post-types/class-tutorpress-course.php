@@ -405,7 +405,7 @@ class TutorPress_Course {
      */
     public function meta_box_setup() {
         // Certificate Metabox (addon-dependent)
-        if ( TutorPress_Addon_Checker::is_certificate_enabled() ) {
+        if ( tutorpress_feature_flags()->can_user_access_feature('certificates') ) {
             add_meta_box(
                 'tutorpress_certificate_metabox', // Keep original ID for compatibility
                 __( 'Certificate', 'tutorpress' ),
@@ -564,7 +564,7 @@ class TutorPress_Course {
 
         // Get current addon status for JavaScript
         $addon_status = array(
-            'content_drip' => TutorPress_Addon_Checker::is_content_drip_enabled(),
+            'content_drip' => tutorpress_feature_flags()->can_user_access_feature('content_drip'),
         );
 
         ?>

@@ -212,13 +212,28 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
             'min_version_met' => $this->meets_tutor_version_requirement('2.4.0'),
         ];
 
+        // Get addon checker for feature detection
+        $addon_checker = $this->get_addon_checker();
+
         // Add Pro-specific features
         if ($is_pro) {
             $features['advanced_quizzes'] = true;
-            $features['certificates'] = true;
-            $features['content_drip'] = true;
-            $features['live_lessons'] = true;
         }
+
+        // Certificates available if addon is enabled (delegate to existing working logic)
+        $features['certificates'] = $addon_checker->is_certificate_enabled();
+
+        // Content drip available if addon is enabled (delegate to existing working logic)
+        $features['content_drip'] = $addon_checker->is_content_drip_enabled();
+
+        // Prerequisites available if addon is enabled (delegate to existing working logic)  
+        $features['prerequisites'] = $addon_checker->is_prerequisites_enabled();
+
+        // Subscriptions available if addon is enabled (delegate to existing working logic)
+        $features['subscriptions'] = $addon_checker->is_subscription_enabled();
+
+        // Live lessons available if either Google Meet or Zoom addon is enabled (delegate to existing logic)
+        $features['live_lessons'] = ($addon_checker->is_google_meet_enabled() || $addon_checker->is_zoom_enabled());
 
         return $features;
     }
@@ -253,6 +268,12 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
                 return user_can($user_id ?: get_current_user_id(), 'edit_courses');
             },
             'content_drip' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'prerequisites' => function($user_id, $context) {
+                return user_can($user_id ?: get_current_user_id(), 'edit_courses');
+            },
+            'subscriptions' => function($user_id, $context) {
                 return user_can($user_id ?: get_current_user_id(), 'edit_courses');
             },
             'certificates' => function($user_id, $context) {
