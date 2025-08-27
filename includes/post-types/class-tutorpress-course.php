@@ -478,7 +478,7 @@ class TutorPress_Course {
             update_post_meta( $post_id, '_tutor_course_requirements', $requirements );
 
             // Save content drip settings (only if content drip addon is enabled)
-            if ( class_exists( 'TutorPress_Addon_Checker' ) && TutorPress_Addon_Checker::is_content_drip_enabled() ) {
+            if ( tutorpress_feature_flags()->can_user_access_feature('content_drip') ) {
                 // Get existing course settings
                 $course_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
                 if ( ! is_array( $course_settings ) ) {

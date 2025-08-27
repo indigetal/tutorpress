@@ -277,7 +277,7 @@ class TutorPress_Lesson {
 	public function get_lesson_settings( $post ) {
 		$post_id = $post['id'];
 
-		$course_preview_available = class_exists( 'TutorPress_Addon_Checker' ) ? TutorPress_Addon_Checker::is_course_preview_enabled() : false;
+		$course_preview_available = tutorpress_feature_flags()->can_user_access_feature('course_preview');
 
 		$gutenberg_preview = get_post_meta( $post_id, '_lesson_is_preview', true );
 		$tutor_preview = get_post_meta( $post_id, '_is_preview', true );
@@ -385,7 +385,7 @@ class TutorPress_Lesson {
 		}
 
 		// Lesson preview (addon-gated)
-		if ( isset( $value['lesson_preview']['enabled'] ) && class_exists( 'TutorPress_Addon_Checker' ) && TutorPress_Addon_Checker::is_course_preview_enabled() ) {
+		if ( isset( $value['lesson_preview']['enabled'] ) && tutorpress_feature_flags()->can_user_access_feature('course_preview') ) {
 			$is_preview = rest_sanitize_boolean( $value['lesson_preview']['enabled'] );
 			update_post_meta( $post_id, '_lesson_is_preview', $is_preview );
 			$this->sync_lesson_preview( $post_id );

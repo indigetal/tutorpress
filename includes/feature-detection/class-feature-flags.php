@@ -223,6 +223,9 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
         // Certificates available if addon is enabled (delegate to existing working logic)
         $features['certificates'] = $addon_checker->is_certificate_enabled();
 
+        // Course preview available if addon is enabled (delegate to existing working logic)
+        $features['course_preview'] = $addon_checker->is_course_preview_enabled();
+
         // Content drip available if addon is enabled (delegate to existing working logic)
         $features['content_drip'] = $addon_checker->is_content_drip_enabled();
 
@@ -258,6 +261,7 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
             // Admin/settings features
             'pricing_models' => 'manage_options',
             'course_bundles' => 'edit_courses',
+            'course_preview' => 'edit_courses',
             
             // Pro features with delegated logic
             'h5p_integration' => function($user_id, $context) {

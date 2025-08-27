@@ -202,7 +202,7 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
         $content_drip_saved = true;
         $content_drip_addon_enabled = false;
         
-        if (class_exists('TutorPress_Addon_Checker') && TutorPress_Addon_Checker::is_content_drip_enabled()) {
+        if (tutorpress_feature_flags()->can_user_access_feature('content_drip')) {
             $content_drip_addon_enabled = true;
             
             try {

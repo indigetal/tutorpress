@@ -15,14 +15,14 @@ import CourseInstructorsPanel from "./components/settings/CourseInstructorsPanel
 import BundlePricingPanel from "./components/settings/BundlePricingPanel";
 import BundleInstructorsPanel from "./components/settings/BundleInstructorsPanel";
 import EditCourseButton from "./components/common/EditCourseButton";
-import { AddonChecker, isH5pEnabled, isCertificateEnabled } from "./utils/addonChecker";
+import { AddonChecker, isH5pEnabled } from "./utils/addonChecker";
 import "./utils/overrides";
 
 // Import stores to ensure they are registered
 import "./store/h5p"; // H5P store registration
 
 // Conditionally import certificate store only when Certificate addon is enabled
-if (isCertificateEnabled()) {
+if (window.tutorpressAddons?.certificate ?? false) {
   // Use synchronous import to ensure store is registered immediately
   require("./store/certificate");
 }
@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Conditionally render Certificate metabox only when Certificate addon is enabled
-  if (isCertificateEnabled()) {
+  if (window.tutorpressAddons?.certificate ?? false) {
     const certificateRoot = document.getElementById("tutorpress-certificate-root");
     if (certificateRoot) {
       // Use synchronous import to match store loading strategy and avoid race conditions
@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
 void AddonChecker.isPrerequisitesEnabled;
 void AddonChecker.isEnrollmentsEnabled;
 void AddonChecker.isH5pEnabled;
-void AddonChecker.isCertificateEnabled;
+// Certificate status now comes from backend data (window.tutorpressAddons?.certificate)
 void AddonChecker.isContentDripEnabled;
 void AddonChecker.isGoogleMeetEnabled;
 void AddonChecker.isZoomEnabled;

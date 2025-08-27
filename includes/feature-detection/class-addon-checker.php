@@ -2,9 +2,12 @@
 /**
  * TutorPress Addon Checker Utility
  *
- * @description Reusable utility class for checking Tutor LMS Pro addon availability.
+ * @description Low-level utility class for checking Tutor LMS Pro addon availability.
  *              Provides consistent methods for detecting enabled addons across the plugin.
- *              Replaces one-off addon detection implementations with centralized logic.
+ *              
+ *              For high-level feature availability with business logic and capability checks,
+ *              prefer using TutorPress_Feature_Flags via tutorpress_feature_flags()->can_user_access_feature().
+ *              This class serves as the foundation detector while TutorPress_Feature_Flags provides orchestration.
  *
  * @package TutorPress
  * @subpackage Gutenberg\Utilities
