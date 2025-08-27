@@ -125,7 +125,7 @@ class TutorPress_Admin_Customizations {
         if (!isset($_POST['action']) || $_POST['action'] !== 'tutor_create_new_draft_course') {
             return;
         }
-        if (!current_user_can('edit_courses')) {
+        if (!current_user_can('edit_posts')) {
             wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
         }
         
@@ -185,7 +185,7 @@ class TutorPress_Admin_Customizations {
         }
 
         // Check if user has permission
-        if (!current_user_can('edit_courses')) {
+        if (!current_user_can('edit_posts')) {
             wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
         }
 

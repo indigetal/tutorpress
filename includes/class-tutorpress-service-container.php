@@ -2,8 +2,8 @@
 /**
  * TutorPress Service Container
  *
- * Provides dependency injection capabilities and centralized service management.
- * Follows Sensei LMS architectural patterns for service registration and discovery.
+ * Provides dependency injection capabilities and centralized service management
+ * for service registration and discovery.
  *
  * @package TutorPress
  * @since 1.13.17
