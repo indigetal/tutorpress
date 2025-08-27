@@ -536,7 +536,7 @@ class TutorPress_Addon_Checker {
      * @return bool True if monetization is enabled
      */
     public static function is_monetization_enabled() {
-        $payment_engine = self::get_payment_engine();
+        $payment_engine = tutorpress_feature_flags()->get_payment_engine();
         
         switch ($payment_engine) {
             case 'pmp':
@@ -634,7 +634,7 @@ class TutorPress_Addon_Checker {
             'woocommerce_monetization' => self::is_woocommerce_monetization(),
             'edd' => self::is_edd_enabled(),
             'edd_monetization' => self::is_edd_monetization(),
-            'payment_engine' => self::get_payment_engine(),
+            'payment_engine' => tutorpress_feature_flags()->get_payment_engine(),
             'monetization_enabled' => self::is_monetization_enabled(),
             'available_payment_engines' => self::get_available_payment_engines(),
         ];
@@ -675,12 +675,7 @@ class TutorPress_Addon_Checker {
      */
     public static function allow_h5p_quiz_content($current_topic) {
         // Use feature flags service for unified capability + availability check
-        if (function_exists('tutorpress_feature_flags')) {
-            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
-        } else {
-            // Fallback to direct check for backward compatibility
-            $can_access_h5p = self::is_h5p_plugin_active();
-        }
+        $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
         
         // If H5P integration is available and user can access, allow all content including H5P quizzes
         if ($can_access_h5p) {
@@ -716,12 +711,7 @@ class TutorPress_Addon_Checker {
      */
     public static function allow_h5p_sidebar_contents($query, $topic_id) {
         // Use feature flags service for unified capability + availability check
-        if (function_exists('tutorpress_feature_flags')) {
-            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
-        } else {
-            // Fallback to direct check for backward compatibility
-            $can_access_h5p = self::is_h5p_plugin_active();
-        }
+        $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
         
         // If H5P integration is available and user can access, recreate the original query (no filtering)
         if ($can_access_h5p) {
@@ -777,12 +767,7 @@ class TutorPress_Addon_Checker {
      */
     public static function allow_h5p_attempt_answers($answers) {
         // Use feature flags service for unified capability + availability check
-        if (function_exists('tutorpress_feature_flags')) {
-            $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
-        } else {
-            // Fallback to direct check for backward compatibility
-            $can_access_h5p = self::is_h5p_plugin_active();
-        }
+        $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
         
         // If H5P integration is available and user can access, allow all answers including H5P
         if ($can_access_h5p) {
@@ -808,9 +793,7 @@ class TutorPress_Addon_Checker {
         
         // Use feature flags for debug info
         $h5p_plugin_active = self::is_h5p_plugin_active();
-        $can_access_h5p = function_exists('tutorpress_feature_flags') 
-            ? tutorpress_feature_flags()->can_user_access_feature('h5p_integration')
-            : $h5p_plugin_active;
+        $can_access_h5p = tutorpress_feature_flags()->can_user_access_feature('h5p_integration');
         
         echo '<script>
             console.log("TutorPress H5P Filtering Debug:");

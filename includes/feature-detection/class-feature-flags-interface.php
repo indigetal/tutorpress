@@ -55,12 +55,12 @@ interface TutorPress_Feature_Flags_Interface {
     public function can_user_access_feature(string $feature, ?int $user_id = null, array $context = []): bool;
 
     /**
-     * Get recommended payment engine for current environment.
+     * Get payment engine for current environment.
      *
      * @since 1.0.0
-     * @return string Payment engine identifier ('tutor_ecommerce', 'woocommerce', etc.)
+     * @return string Payment engine identifier ('tutor_pro', 'wc', 'edd', etc.)
      */
-    public function get_recommended_payment_engine(): string;
+    public function get_payment_engine(): string;
 
     /**
      * Check if Tutor LMS is available and meets minimum requirements.

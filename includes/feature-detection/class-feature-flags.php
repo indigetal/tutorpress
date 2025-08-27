@@ -124,19 +124,14 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
     }
 
     /**
-     * Get recommended payment engine for current environment.
+     * Get payment engine for current environment.
      *
      * @since 1.0.0
      * @return string Payment engine identifier
      */
-    public function get_recommended_payment_engine(): string {
-        // TODO: Implement business logic in Step 1C
-        // For now, return basic recommendation
-        if ($this->is_tutor_pro_available()) {
-            return 'tutor_ecommerce';
-        }
-        
-        return 'woocommerce';
+    public function get_payment_engine(): string {
+        // Delegate to addon checker for the established logic
+        return $this->get_addon_checker()->get_payment_engine();
     }
 
     /**
