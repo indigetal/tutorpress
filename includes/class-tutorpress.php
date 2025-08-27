@@ -137,6 +137,10 @@ class TutorPress_Main {
         $this->feature_flags = new TutorPress_Feature_Flags();
         $container->register('feature_flags', $this->feature_flags);
 
+        // Register Phase 3 data providers and permissions
+        $container->register('course_provider', new TutorPress_Course_Provider());
+        $container->register('permissions', new TutorPress_Permissions());
+
         // Register post type services
         $course = new TutorPress_Course();
         $lesson = new TutorPress_Lesson();

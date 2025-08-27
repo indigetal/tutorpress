@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_version' ) ) {
     function tutorpress_get_version() {
-        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.15.5';
+        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.15.6';
     }
 }
 
@@ -77,5 +77,29 @@ if ( ! function_exists( 'tutorpress_service' ) ) {
 if ( ! function_exists( 'tutorpress_feature_flags' ) ) {
     function tutorpress_feature_flags(): TutorPress_Feature_Flags_Interface {
         return tutorpress_service('feature_flags');
+    }
+}
+
+/**
+ * Get the course provider service instance (typed helper).
+ *
+ * @return TutorPress_Course_Provider
+ * @since 1.13.17
+ */
+if ( ! function_exists( 'tutorpress_course_provider' ) ) {
+    function tutorpress_course_provider(): TutorPress_Course_Provider {
+        return tutorpress_service('course_provider');
+    }
+}
+
+/**
+ * Get the permissions service instance (typed helper).
+ *
+ * @return TutorPress_Permissions
+ * @since 1.13.17
+ */
+if ( ! function_exists( 'tutorpress_permissions' ) ) {
+    function tutorpress_permissions(): TutorPress_Permissions {
+        return tutorpress_service('permissions');
     }
 } 

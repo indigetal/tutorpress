@@ -16,6 +16,7 @@ return array(
     'TutorPress_Certificate_Controller' => $baseDir . '/includes/rest/class-certificate-controller.php',
     'TutorPress_Content_Drip_Helpers' => $baseDir . '/includes/shared/class-content-drip-helpers.php',
     'TutorPress_Course' => $baseDir . '/includes/post-types/class-tutorpress-course.php',
+    'TutorPress_Course_Provider' => $baseDir . '/includes/course-management/class-tutorpress-course-provider.php',
     'TutorPress_Course_Settings_Controller' => $baseDir . '/includes/rest/class-course-settings-controller.php',
     'TutorPress_Curriculum_Metabox' => $baseDir . '/includes/shared/class-tutorpress-curriculum-metabox.php',
     'TutorPress_Dashboard_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',

@@ -21,6 +21,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Certificate_Controller' => __DIR__ . '/../..' . '/includes/rest/class-certificate-controller.php',
         'TutorPress_Content_Drip_Helpers' => __DIR__ . '/../..' . '/includes/shared/class-content-drip-helpers.php',
         'TutorPress_Course' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-course.php',
+        'TutorPress_Course_Provider' => __DIR__ . '/../..' . '/includes/course-management/class-tutorpress-course-provider.php',
         'TutorPress_Course_Settings_Controller' => __DIR__ . '/../..' . '/includes/rest/class-course-settings-controller.php',
         'TutorPress_Curriculum_Metabox' => __DIR__ . '/../..' . '/includes/shared/class-tutorpress-curriculum-metabox.php',
         'TutorPress_Dashboard_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-dashboard-overrides.php',

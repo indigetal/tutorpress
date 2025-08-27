@@ -388,11 +388,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             $course_duration = array('hours' => 0, 'minutes' => 0);
         }
         
-        // Get _tutor_course_settings array
-        $tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($tutor_settings)) {
-            $tutor_settings = array();
-        }
+        // Use Phase 3 Course Provider for centralized settings retrieval
+        $tutor_settings = tutorpress_course_provider()->get_course_settings($course_id);
 
         // Build course settings structure
         $course_settings = array(
@@ -623,8 +620,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
     public function check_read_permission($request) {
         $course_id = (int) $request->get_param('course_id');
 
-        // Check if user can edit the specific course
-        if (!current_user_can('edit_post', $course_id)) {
+        // Use Phase 3 permissions service for consistent capability checking
+        if (!tutorpress_permissions()->can_user_edit_course_settings($course_id)) {
             return new WP_Error(
                 'rest_forbidden',
                 __('You do not have permission to view this course\'s settings.', 'tutorpress'),
@@ -903,9 +900,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
     public function get_item($request) {
         $course_id = $request->get_param('id');
 
-        // Use TutorPress_Course to get settings (migrated from TutorPress_Course_Settings)
-        $course_instance = new TutorPress_Course();
-        $settings = $course_instance->get_course_settings(['id' => $course_id]);
+        // Use Phase 3 Course Provider for centralized settings retrieval
+        $settings = tutorpress_course_provider()->get_course_settings($course_id);
 
         if (empty($settings)) {
             return new WP_Error(
@@ -988,9 +984,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Use TutorPress_Course to update (migrated from TutorPress_Course_Settings)
-        $course_instance = new TutorPress_Course();
-        $result = $course_instance->update_course_settings($merged_settings, $post);
+        // Use Phase 3 Course Provider for centralized settings saving
+        $result = tutorpress_course_provider()->save_course_settings($course_id, $merged_settings);
 
         if (!$result) {
             return new WP_Error(
