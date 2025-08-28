@@ -68,8 +68,12 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         setUsersError(null);
 
         // Call TutorPress REST API endpoint that integrates with Tutor LMS Zoom
+        // Include course_id for collaborative instructor access
+        const apiPath = courseId
+          ? `/tutorpress/v1/live-lessons/zoom/users?course_id=${courseId}`
+          : `/tutorpress/v1/live-lessons/zoom/users`;
         const response = await (window as any).wp.apiFetch({
-          path: `/tutorpress/v1/live-lessons/zoom/users`,
+          path: apiPath,
           method: "GET",
         });
 
@@ -119,7 +123,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
     };
 
     fetchZoomUsers();
-  }, []);
+  }, [courseId]);
 
   /**
    * Handle form field updates

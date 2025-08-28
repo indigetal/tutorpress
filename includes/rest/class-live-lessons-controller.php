@@ -181,6 +181,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_zoom_users'],
                     'permission_callback' => [$this, 'check_permission'],
+                    'args'               => [
+                        'course_id' => [
+                            'type'              => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('Course ID for collaborative instructor Zoom access.', 'tutorpress'),
+                        ],
+                    ],
                 ],
             ]
         );
@@ -356,6 +363,35 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     }
 
     /**
+     * Get course instructor IDs (including co-instructors)
+     * Reused from H5P controller for collaborative access
+     *
+     * @param int $course_id Course ID
+     * @return array Array of instructor user IDs
+     */
+    private function get_course_instructor_ids($course_id) {
+        if (!function_exists('tutor_utils')) {
+            return [];
+        }
+
+        // Get course instructors (includes main instructor and co-instructors)
+        $instructors = tutor_utils()->get_instructors_by_course($course_id);
+        
+        if (empty($instructors)) {
+            return [];
+        }
+
+        $instructor_ids = [];
+        foreach ($instructors as $instructor) {
+            if (isset($instructor->ID)) {
+                $instructor_ids[] = (int) $instructor->ID;
+            }
+        }
+
+        return array_unique($instructor_ids);
+    }
+
+    /**
      * Get Zoom users for Meeting Host dropdown.
      * 
      * Integrates with Tutor LMS Zoom addon to fetch available Zoom users
@@ -376,45 +412,101 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         }
 
         try {
-            // Initialize Tutor LMS Zoom class (without hooks to avoid conflicts)
-            $zoom_instance = new \TUTOR_ZOOM\Zoom(false);
+            $course_id = $request->get_param('course_id') ?? 0;
             
-            // Get current user's Zoom API credentials (same as Tutor LMS)
-            $user_id = get_current_user_id();
-            $api_data = json_decode(get_user_meta($user_id, 'tutor_zoom_api', true), true);
+            // Determine which instructors' Zoom configurations to check
+            $instructor_ids = [get_current_user_id()]; // Start with current user
             
-            // Check if user has configured Zoom API credentials
-            if (empty($api_data) || empty($api_data['api_key']) || empty($api_data['api_secret'])) {
+            // If course context is provided, add collaborative access
+            if ($course_id > 0) {
+                $course_instructors = $this->get_course_instructor_ids($course_id);
+                if (!empty($course_instructors)) {
+                    $instructor_ids = array_unique(array_merge($instructor_ids, $course_instructors));
+                }
+            }
+            
+            // Collect Zoom users from all instructors' configurations
+            $all_zoom_users = [];
+            $working_instructor_count = 0;
+            
+            foreach ($instructor_ids as $instructor_id) {
+                // Get instructor's Zoom API credentials
+                $api_data = json_decode(get_user_meta($instructor_id, 'tutor_zoom_api', true), true);
+                
+                // Skip instructors without Zoom configuration
+                if (empty($api_data) || empty($api_data['api_key']) || empty($api_data['api_secret'])) {
+                    continue;
+                }
+                
+                // Initialize Zoom instance with this instructor's credentials
+                $zoom_instance = new \TUTOR_ZOOM\Zoom(false);
+                
+                // Temporarily set the API credentials for this instructor
+                $original_user_id = get_current_user_id();
+                wp_set_current_user($instructor_id);
+                
+                // Get Zoom users for this instructor
+                $instructor_zoom_users = $zoom_instance->tutor_zoom_get_users();
+                
+                // Restore original user
+                wp_set_current_user($original_user_id);
+                
+                if (!empty($instructor_zoom_users)) {
+                    $working_instructor_count++;
+                    
+                    // Add instructor context to each user
+                    foreach ($instructor_zoom_users as &$user) {
+                        $user['instructor_id'] = $instructor_id;
+                        $instructor_info = get_userdata($instructor_id);
+                        $user['instructor_name'] = $instructor_info ? $instructor_info->display_name : '';
+                    }
+                    
+                    $all_zoom_users = array_merge($all_zoom_users, $instructor_zoom_users);
+                }
+            }
+            
+            // Check if any instructors have working Zoom configurations
+            if ($working_instructor_count === 0) {
+                $error_message = $course_id > 0 
+                    ? __('No Zoom API credentials configured for course instructors. At least one instructor needs to configure Zoom API settings.', 'tutorpress')
+                    : __('Zoom API credentials are not configured. Please configure your Zoom API settings in Tutor LMS.', 'tutorpress');
+                    
                 return new WP_Error(
                     'zoom_api_not_configured',
-                    __('Zoom API credentials are not configured. Please configure your Zoom API settings in Tutor LMS.', 'tutorpress'),
+                    $error_message,
                     ['status' => 400]
                 );
             }
-
-            // Get Zoom users using Tutor LMS method (includes caching)
-            $zoom_users = $zoom_instance->tutor_zoom_get_users();
             
-            if (empty($zoom_users)) {
+            if (empty($all_zoom_users)) {
                 return new WP_Error(
                     'no_zoom_users',
-                    __('No Zoom users found. Please check your Zoom API credentials and account.', 'tutorpress'),
+                    __('No Zoom users found. Please check Zoom API credentials and account settings.', 'tutorpress'),
                     ['status' => 404]
                 );
             }
 
-            // Format users for frontend dropdown (matches Tutor LMS format exactly)
+            // Remove duplicates based on Zoom user ID and format for frontend
             $formatted_users = [];
-            foreach ($zoom_users as $user) {
+            $seen_user_ids = [];
+            
+            foreach ($all_zoom_users as $user) {
                 $first_name = $user['first_name'] ?? '';
                 $last_name = $user['last_name'] ?? '';
                 $email = $user['email'] ?? '';
                 $id = $user['id'] ?? '';
+                $instructor_name = $user['instructor_name'] ?? '';
                 
                 // Skip users with missing essential data
                 if (empty($id) || empty($email)) {
                     continue;
                 }
+                
+                // Skip duplicates (same Zoom user from multiple instructor accounts)
+                if (in_array($id, $seen_user_ids)) {
+                    continue;
+                }
+                $seen_user_ids[] = $id;
                 
                 $formatted_users[] = [
                     'id' => $id,
@@ -422,6 +514,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                     'last_name' => $last_name,
                     'email' => $email,
                     'display_name' => trim($first_name . ' ' . $last_name),
+                    'instructor_name' => $instructor_name, // For potential future use
                 ];
             }
 
