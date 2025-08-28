@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.15.11
+ * Version: 1.15.12
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  */
@@ -13,11 +13,6 @@
         global $tutorpress_fs;
 
         if ( ! isset( $tutorpress_fs ) ) {
-            // Activate multisite network integration.
-            if ( ! defined( 'WP_FS__PRODUCT_18606_MULTISITE' ) ) {
-                define( 'WP_FS__PRODUCT_18606_MULTISITE', true );
-            }
-
             // Include Freemius SDK.
             require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
             $tutorpress_fs = fs_dynamic_init( array(
@@ -27,9 +22,7 @@
                 'type'                => 'plugin',
                 'public_key'          => 'pk_703b19a55bb9391b8f8dabb350543',
                 'is_premium'          => true,
-                'premium_suffix'      => 'pro',
-                // If your plugin is a serviceware, set this option to false.
-                'has_premium_version' => true,
+                'is_premium_only'     => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
                 'is_org_compliant'    => false,
@@ -38,7 +31,7 @@
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'tutorpress_settings',
+                    'slug'           => 'tutorpress-settings',
                     'support'        => false,
                     'parent'         => array(
                         'slug' => 'tutor',

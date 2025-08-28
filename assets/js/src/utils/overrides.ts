@@ -43,13 +43,8 @@ function overrideFrontendEditIcons(): void {
     const href = item.getAttribute("href");
     if (!href) return;
 
-    // Course edit link override
-    if (href.includes("post.php?post=")) {
-      const postId = href.match(/post=(\d+)/)?.[1];
-      if (postId) {
-        item.setAttribute("href", "post.php?post=" + postId + "&action=edit");
-      }
-    }
+    // Course edit links are now handled by PHP filter 'tutor_dashboard_course_list_edit_link'
+    // This section can be removed as the URLs are corrected at the source
 
     // Bundle edit link override
     if (href.includes("dashboard/create-bundle?action=edit&id=")) {

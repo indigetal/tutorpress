@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return; // Exit before we modify anything
     }
 
-    let createCourseButton = document.querySelector(".tutor-dashboard-create-course");
+    let createCourseButton = document.querySelector(".tutor-header-right-side .tutor-create-new-course");
     if (!createCourseButton) {
       return; // If button is missing, do nothing
     }

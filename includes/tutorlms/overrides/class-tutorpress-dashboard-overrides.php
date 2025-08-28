@@ -21,6 +21,7 @@ class TutorPress_Dashboard_Overrides {
         // Dashboard redirects
         if (!empty($options['enable_dashboard_redirects'])) {
             add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
+            add_filter('tutor_dashboard_course_list_edit_link', [__CLASS__, 'override_course_edit_links'], 10, 2);
         }
     }
 
@@ -62,6 +63,17 @@ class TutorPress_Dashboard_Overrides {
         return $url;
     }
 
+    /**
+     * Override course edit links in dashboard course cards
+     * 
+     * @param string $url The original edit URL
+     * @param WP_Post $post The course post object
+     * @return string Modified URL pointing to Gutenberg editor
+     */
+    public static function override_course_edit_links($url, $post) {
+        // Redirect all course edit links to Gutenberg editor
+        return admin_url('post.php?post=' . intval($post->ID) . '&action=edit');
+    }
 
     
 }
