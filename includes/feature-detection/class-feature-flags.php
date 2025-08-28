@@ -238,6 +238,9 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
         // Live lessons available if either Google Meet or Zoom addon is enabled (delegate to existing logic)
         $features['live_lessons'] = ($addon_checker->is_google_meet_enabled() || $addon_checker->is_zoom_enabled());
 
+        // H5P integration available if H5P plugin is enabled (delegate to existing working logic)
+        $features['h5p_integration'] = $addon_checker->is_h5p_plugin_active();
+
         return $features;
     }
 

@@ -45,6 +45,9 @@ interface H5PContentTableProps {
 
   /** Whether data is loading */
   isLoading?: boolean;
+
+  /** Current user ID for showing collaborative content indicators */
+  currentUserId?: number;
 }
 
 /**
@@ -57,6 +60,7 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
   pagination,
   onPageChange,
   isLoading = false,
+  currentUserId,
 }) => {
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -105,7 +109,17 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
                   <td className="column-type">
                     <span className="h5p-type-badge">{content.library || content.content_type}</span>
                   </td>
-                  <td className="column-author">{content.user_name}</td>
+                  <td className="column-author">
+                    {content.user_name}
+                    {currentUserId && content.user_id !== currentUserId && (
+                      <span
+                        className="collaborative-indicator"
+                        title={__("Shared by collaborating instructor", "tutorpress")}
+                      >
+                        🤝
+                      </span>
+                    )}
+                  </td>
                   <td className="column-date">{formatDate(content.updated_at)}</td>
                 </tr>
               ))
@@ -241,6 +255,17 @@ export const H5PContentTable: React.FC<H5PContentTableProps> = ({
         .column-type { width: 20%; }
         .column-author { width: 20%; }
         .column-date { width: 15%; }
+
+        .collaborative-indicator {
+          margin-left: 8px;
+          font-size: 14px;
+          opacity: 0.8;
+          cursor: help;
+        }
+
+        .collaborative-indicator:hover {
+          opacity: 1;
+        }
 
                   @media (max-width: 768px) {
             .tutorpress-h5p-pagination {

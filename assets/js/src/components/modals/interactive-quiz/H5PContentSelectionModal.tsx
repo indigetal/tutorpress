@@ -42,6 +42,9 @@ interface H5PContentSelectionModalProps {
 
   /** Array of H5P content IDs that should be excluded from the table */
   excludeContentIds?: number[];
+
+  /** Course ID for collaborative instructor access */
+  courseId?: number;
 }
 
 /**
@@ -56,6 +59,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   selectedContent = [],
   title = __("Select H5P Content", "tutorpress"),
   excludeContentIds = [],
+  courseId,
 }) => {
   // Local state for search and filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,15 +69,17 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
   const [localSelectedContent, setLocalSelectedContent] = useState<H5PContent[]>([]);
 
   // Get H5P data from store
-  const { contents, pagination, searchParams, isLoading, hasError, error } = useSelect((select) => {
-    const store = select("tutorpress/h5p") as any;
+  const { contents, pagination, searchParams, isLoading, hasError, error, currentUserId } = useSelect((select) => {
+    const h5pStore = select("tutorpress/h5p") as any;
+    const coreStore = select("core") as any;
     return {
-      contents: store.getH5PContents(),
-      pagination: store.getH5PPagination(),
-      searchParams: store.getH5PSearchParams(),
-      isLoading: store.isH5PContentLoading(),
-      hasError: store.hasH5PContentError(),
-      error: store.getH5PContentError(),
+      contents: h5pStore.getH5PContents(),
+      pagination: h5pStore.getH5PPagination(),
+      searchParams: h5pStore.getH5PSearchParams(),
+      isLoading: h5pStore.isH5PContentLoading(),
+      hasError: h5pStore.hasH5PContentError(),
+      error: h5pStore.getH5PContentError(),
+      currentUserId: coreStore.getCurrentUser()?.id,
     };
   }, []);
 
@@ -86,12 +92,13 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
       // Always reset selection state when modal opens
       setLocalSelectedContent([]);
 
-      // Fetch content if needed
-      if (contents.length === 0) {
-        fetchH5PContents({});
-      }
+      // Always fetch content when modal opens (don't rely on cache)
+      // This ensures we get the correct content for the current course context
+      fetchH5PContents({
+        course_id: courseId,
+      });
     }
-  }, [isOpen, contents.length, fetchH5PContents]);
+  }, [isOpen, courseId, fetchH5PContents]);
 
   // Handle search term changes with debouncing
   useEffect(() => {
@@ -99,6 +106,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
       const newSearchParams: H5PContentSearchParams = {
         search: searchTerm,
         contentType: contentTypeFilter,
+        course_id: courseId,
         per_page: 20,
         page: 1,
       };
@@ -108,20 +116,21 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, contentTypeFilter, setH5PSearchParams, fetchH5PContents]);
+  }, [searchTerm, contentTypeFilter, courseId, setH5PSearchParams, fetchH5PContents]);
 
   // Handle pagination
   const handlePageChange = useCallback(
     (newPage: number) => {
       const newSearchParams: H5PContentSearchParams = {
         ...searchParams,
+        course_id: courseId,
         page: newPage,
       };
 
       setH5PSearchParams(newSearchParams);
       fetchH5PContents(newSearchParams);
     },
-    [searchParams, setH5PSearchParams, fetchH5PContents]
+    [searchParams, courseId, setH5PSearchParams, fetchH5PContents]
   );
 
   // Handle content selection (toggle for multi-select)
@@ -214,6 +223,7 @@ export const H5PContentSelectionModal: React.FC<H5PContentSelectionModalProps> =
               pagination={pagination}
               onPageChange={handlePageChange}
               isLoading={isLoading}
+              currentUserId={currentUserId}
             />
           )}
 

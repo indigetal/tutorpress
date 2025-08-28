@@ -18,6 +18,7 @@ interface H5PContentPreviewProps {
   contentId: number;
   className?: string;
   showHeader?: boolean;
+  courseId?: number;
 }
 
 interface H5PPreviewData {
@@ -41,6 +42,7 @@ export const H5PContentPreview: React.FC<H5PContentPreviewProps> = ({
   contentId,
   className = "",
   showHeader = true,
+  courseId,
 }) => {
   const [previewData, setPreviewData] = useState<H5PPreviewData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,8 +54,9 @@ export const H5PContentPreview: React.FC<H5PContentPreviewProps> = ({
     setIsLoading(true);
     setError(null);
 
+    const queryParams = courseId ? `?course_id=${courseId}` : '';
     apiFetch<H5PPreviewResponse>({
-      path: `/tutorpress/v1/h5p/preview/${contentId}`,
+      path: `/tutorpress/v1/h5p/preview/${contentId}${queryParams}`,
       method: "GET",
     })
       .then((response) => {
@@ -70,7 +73,7 @@ export const H5PContentPreview: React.FC<H5PContentPreviewProps> = ({
       .finally(() => {
         setIsLoading(false);
       });
-  }, [contentId]);
+  }, [contentId, courseId]);
 
   if (isLoading) {
     return (

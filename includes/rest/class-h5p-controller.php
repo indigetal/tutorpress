@@ -62,6 +62,11 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                                 'sanitize_callback' => 'sanitize_text_field',
                                 'description'       => __('Legacy: Filter by H5P content type.', 'tutorpress'),
                             ],
+                            'course_id' => [
+                                'type'              => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('Course ID for collaborative instructor access.', 'tutorpress'),
+                            ],
                             'per_page' => [
                                 'type'              => 'integer',
                                 'default'           => 20,
@@ -90,6 +95,11 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                                 'default'           => 'title',
                                 'sanitize_callback' => 'sanitize_text_field',
                                 'description'       => __('Sort by field.', 'tutorpress'),
+                            ],
+                            'course_id' => [
+                                'type'              => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('Course ID to include instructor-shared content.', 'tutorpress'),
                             ],
                         ],
                     ],
@@ -237,10 +247,17 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                                 'sanitize_callback' => 'absint',
                                 'description'       => __('The H5P content ID to preview.', 'tutorpress'),
                             ],
+                            'course_id' => [
+                                'type'             => 'integer',
+                                'sanitize_callback' => 'absint',
+                                'description'       => __('Course ID for collaborative access context.', 'tutorpress'),
+                            ],
                         ],
                     ],
                 ]
             );
+
+
 
         } catch (Exception $e) {
             error_log('TutorPress H5P Controller: Failed to register routes - ' . $e->getMessage());
@@ -272,6 +289,7 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
             // Get request parameters (supporting both new and legacy parameter names)
             $search_filter = $request->get_param('search') ?? $request->get_param('search_filter') ?? '';
             $content_type = $request->get_param('contentType') ?? $request->get_param('content_type') ?? '';
+            $course_id = $request->get_param('course_id') ?? 0;
             $per_page = $request->get_param('per_page') ?? 20;
             $page = $request->get_param('page') ?? 1;
             $order = $request->get_param('order') ?? 'asc';
@@ -307,27 +325,77 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                 ];
             }
 
-            // Add user filter (only show current user's content like Tutor LMS)
-            if (!isset($filter)) {
-                $filter = [
-                    [
-                        'user_id',
-                        get_current_user_id(),
-                        '=',
-                    ],
-                ];
-            } else {
-                $filter[] = [
-                    'user_id',
-                    get_current_user_id(),
-                    '=',
-                ];
+            // Add user filter - start with current user only (preserve original behavior)
+            $user_ids = [get_current_user_id()];
+            
+            // If course context is provided and collaborative access is enabled, expand visibility
+            if ($course_id > 0 && tutorpress_feature_flags()->can_user_access_feature('h5p_integration')) {
+                $course_instructors = $this->get_course_instructor_ids($course_id);
+                
+                if (!empty($course_instructors) && count($course_instructors) > 1) {
+                    // Only apply collaborative filtering if there are multiple instructors
+                    $user_ids = $course_instructors;
+                }
+            }
+            
+            // H5PContentQuery doesn't support multiple user filters (treats them as AND, not OR)
+            // Solution: Query each user separately and merge results
+            $all_h5p_contents = [];
+            $fields = ['title', 'content_type', 'user_name', 'tags', 'updated_at', 'id', 'user_id'];
+            
+            foreach ($user_ids as $user_id) {
+                // Build filter for this specific user
+                $user_filter = [];
+                if (!empty($search_filter)) {
+                    // Include search filters if they exist
+                    global $wpdb;
+                    $search_filter_escaped = '%' . $wpdb->esc_like($search_filter) . '%';
+                    $user_filter = [
+                        [
+                            'title',
+                            $search_filter_escaped,
+                            'LIKE',
+                        ],
+                        [
+                            'content_type',
+                            $search_filter_escaped,
+                            'LIKE',
+                        ],
+                        [
+                            'user_id',
+                            $user_id,
+                            '=',
+                        ],
+                    ];
+                } else {
+                    // Just user filter
+                    $user_filter = [
+                        [
+                            'user_id',
+                            $user_id,
+                            '=',
+                        ],
+                    ];
+                }
+                
+                // Query this user's content
+                $user_query = new \H5PContentQuery($fields, null, null, $order_field, $reverse, $user_filter);
+                $user_contents = $user_query->get_rows();
+                
+                // Add to combined results
+                $all_h5p_contents = array_merge($all_h5p_contents, $user_contents);
+            }
+            
+            // Remove duplicates based on content ID
+            $seen_ids = [];
+            $h5p_contents = [];
+            foreach ($all_h5p_contents as $content) {
+                if (!in_array($content->id, $seen_ids)) {
+                    $seen_ids[] = $content->id;
+                    $h5p_contents[] = $content;
+                }
             }
 
-            // Query H5P content using the same fields as Tutor LMS
-            $fields = ['title', 'content_type', 'user_name', 'tags', 'updated_at', 'id', 'user_id'];
-            $h5p_contents_query = new \H5PContentQuery($fields, null, null, $order_field, $reverse, $filter);
-            $h5p_contents = $h5p_contents_query->get_rows();
 
             // Apply Tutor LMS filtering logic (exclude certain content types from quizzes)
             $filtered_h5p_contents = [];
@@ -373,6 +441,8 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                 $response_data['debug'] = [
                     'search_filter' => $search_filter,
                     'content_type' => $content_type,
+                    'course_id' => $course_id,
+                    'user_ids_included' => $user_ids,
                     'filter' => $filter,
                     'raw_contents' => count($h5p_contents),
                     'filtered_contents' => count($filtered_h5p_contents),
@@ -380,6 +450,7 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                     'total_items' => $total_items,
                     'total_pages' => $total_pages,
                     'excluded_content_types' => $excluded_content_types,
+                    'collaborative_access_enabled' => $course_id > 0 && tutorpress_feature_flags()->can_user_access_feature('h5p_integration'),
                 ];
             }
 
@@ -414,24 +485,60 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
         }
 
         $content_id = absint($request['content_id']);
+        $course_id = $request->get_param('course_id') ?? 0; // Get course context from request
         
         if (!$content_id) {
             return new WP_Error('invalid_content_id', __('Invalid H5P content ID.', 'tutorpress'), ['status' => 400]);
         }
 
         try {
-            // Fetch content with description field (tags) using the same H5P query we use elsewhere
-            $h5p_contents_query = new \H5PContentQuery(['id', 'title', 'content_type', 'tags'], null, null, null, null, [
-                ['id', $content_id, '='],
-                ['user_id', get_current_user_id(), '=']
+            // First, check if the content exists at all
+            $content_query = new \H5PContentQuery(['id', 'title', 'content_type', 'tags', 'user_id'], null, null, null, null, [
+                ['id', $content_id, '=']
             ]);
-            $h5p_contents = $h5p_contents_query->get_rows();
+            $content_check = $content_query->get_rows();
             
-            if (empty($h5p_contents)) {
+            if (empty($content_check)) {
+                return new WP_Error('content_not_found', __('H5P content not found.', 'tutorpress'), ['status' => 404]);
+            }
+            
+            $content_info = $content_check[0];
+            $current_user_id = get_current_user_id();
+            
+            // Check access: user's own content OR collaborative access
+            $has_access = false;
+            
+            // User always has access to their own content
+            if ($content_info->user_id == $current_user_id) {
+                $has_access = true;
+            }
+            // Check collaborative access - use course context if available
+            else if (tutorpress_feature_flags()->can_user_access_feature('h5p_integration')) {
+                // If we have course context, use the same logic as content listing
+                if ($course_id > 0) {
+                    $course_instructors = $this->get_course_instructor_ids($course_id);
+                    
+                    // Check if both users are instructors of this course
+                    if (in_array($current_user_id, $course_instructors) && in_array($content_info->user_id, $course_instructors)) {
+                        $has_access = true;
+                    }
+                } else {
+                    // Fallback: check all shared courses (keep original logic as backup)
+                    $current_user_courses = $this->get_user_instructor_courses($current_user_id);
+                    $content_creator_courses = $this->get_user_instructor_courses($content_info->user_id);
+                    
+                    $shared_courses = array_intersect($current_user_courses, $content_creator_courses);
+                    if (!empty($shared_courses)) {
+                        $has_access = true;
+                    }
+                }
+            }
+            
+            if (!$has_access) {
                 return new WP_Error('content_not_found', __('H5P content not found or access denied.', 'tutorpress'), ['status' => 404]);
             }
             
-            $content_info = $h5p_contents[0];
+            // User has access, content_info is already set from the content_check above
 
             // Get metadata including description from the query result
             $metadata = [
@@ -552,4 +659,92 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
             return new WP_Error('preview_error', __('Failed to generate H5P preview: ' . $e->getMessage(), 'tutorpress'), ['status' => 500]);
         }
     }
+
+    /**
+     * Get all instructor user IDs for a course (author + co-instructors)
+     * Enables H5P content sharing between course collaborators
+     *
+     * @param int $course_id Course ID
+     * @return array Array of user IDs who are instructors for this course
+     */
+    private function get_course_instructor_ids(int $course_id): array {
+        $instructor_ids = [];
+        
+        // Get course author (main instructor)
+        $course_author = get_post_field('post_author', $course_id);
+        if ($course_author) {
+            $instructor_ids[] = (int) $course_author;
+        }
+        
+        // Get co-instructors from Tutor LMS meta
+        if (function_exists('tutor_utils')) {
+            $co_instructors = get_post_meta($course_id, '_tutor_course_instructors', true);
+            if (is_array($co_instructors) && !empty($co_instructors)) {
+                foreach ($co_instructors as $instructor_id) {
+                    $instructor_ids[] = (int) $instructor_id;
+                }
+            }
+        }
+        
+        // Apply filters for extensibility
+        $instructor_ids = apply_filters('tutorpress_h5p_course_instructor_ids', $instructor_ids, $course_id);
+        
+        // Remove duplicates and current user (already included in main filter)
+        $instructor_ids = array_unique($instructor_ids);
+        $instructor_ids = array_filter($instructor_ids, function($id) {
+            return $id > 0; // Ensure valid user IDs
+        });
+        
+        return array_values($instructor_ids);
+    }
+
+    /**
+     * Get all course IDs where the user is an instructor (author or co-instructor)
+     * Used for expanding H5P content access through course relationships
+     *
+     * @param int $user_id User ID
+     * @return array Array of course IDs where user is an instructor
+     */
+    private function get_user_instructor_courses(int $user_id): array {
+        $course_ids = [];
+        
+        // Get courses where user is the author
+        $authored_courses = get_posts([
+            'post_type' => 'courses',
+            'author' => $user_id,
+            'post_status' => ['publish', 'draft', 'private'],
+            'numberposts' => -1,
+            'fields' => 'ids',
+        ]);
+        
+        if (!empty($authored_courses)) {
+            $course_ids = array_merge($course_ids, $authored_courses);
+        }
+        
+        // Get courses where user is a co-instructor
+        if (function_exists('tutor_utils')) {
+            global $wpdb;
+            
+            $co_instructor_courses = $wpdb->get_col($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} 
+                 WHERE meta_key = '_tutor_course_instructors' 
+                 AND meta_value LIKE %s",
+                '%' . $wpdb->esc_like('"' . $user_id . '"') . '%'
+            ));
+            
+            if (!empty($co_instructor_courses)) {
+                $course_ids = array_merge($course_ids, array_map('intval', $co_instructor_courses));
+            }
+        }
+        
+        // Remove duplicates and ensure valid IDs
+        $course_ids = array_unique($course_ids);
+        $course_ids = array_filter($course_ids, function($id) {
+            return $id > 0 && get_post_type($id) === 'courses';
+        });
+        
+        return array_values($course_ids);
+    }
+
+
 } 

@@ -2180,8 +2180,10 @@ const resolvers = {
         payload: (currentTopics: Topic[]) => {
           return currentTopics.map((topic) => {
             if (topic.id === topicId) {
-              // Default to regular quiz type - API will determine correct type on next load if needed
-              const contentType = "tutor_quiz";
+              // Determine correct content type based on quiz_type in quiz_option
+              const quizType = (sanitizedQuizData.quiz_option as any)?.quiz_type;
+              const isInteractiveQuiz = quizType === "tutor_h5p_quiz";
+              const contentType = isInteractiveQuiz ? "interactive_quiz" : "tutor_quiz";
 
               // Check if quiz already exists (editing) or is new
               const existingQuizIndex = topic.contents?.findIndex((item) => item.id === savedQuiz.ID) ?? -1;

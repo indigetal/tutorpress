@@ -439,6 +439,9 @@ const resolvers = {
       if (searchParams.contentType) {
         queryParams.append("content_type", searchParams.contentType);
       }
+      if (searchParams.course_id) {
+        queryParams.append("course_id", searchParams.course_id.toString());
+      }
       if (searchParams.per_page) {
         queryParams.append("per_page", searchParams.per_page.toString());
       }

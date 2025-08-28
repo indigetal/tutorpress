@@ -365,7 +365,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
             <h4 className="quiz-modal-h5p-content-title">{selectedQuestion.question_title}</h4>
           </div>
           <div className="quiz-modal-h5p-preview-content">
-            <H5PContentPreview contentId={h5pContentId} className="quiz-modal-h5p-content" showHeader={false} />
+            <H5PContentPreview
+              contentId={h5pContentId}
+              className="quiz-modal-h5p-content"
+              showHeader={false}
+              courseId={courseId}
+            />
           </div>
         </div>
       );
@@ -708,7 +713,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       {/* H5P Content Selection Modal */}
       <H5PContentSelectionModal
         isOpen={isH5PModalOpen}
-        onClose={handleH5PModalClose}
+        onClose={() => setIsH5PModalOpen(false)}
         onContentSelect={handleH5PContentSelect}
         selectedContent={[]} // Always start with empty selection for adding new content
         title={__("Select H5P Content for Interactive Quiz", "tutorpress")}
@@ -716,6 +721,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
           .filter((q) => q.question_type === "h5p")
           .map((q) => parseInt(q.question_description))
           .filter((id) => !isNaN(id))}
+        courseId={courseId}
       />
     </BaseModalLayout>
   );

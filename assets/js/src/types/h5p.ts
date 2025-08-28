@@ -50,6 +50,9 @@ export interface H5PContentSearchParams {
   /** Filter by content type */
   contentType?: string;
 
+  /** Course ID for collaborative instructor access */
+  course_id?: number;
+
   /** Pagination: items per page */
   per_page?: number;
 
