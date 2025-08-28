@@ -487,12 +487,11 @@ class TutorPress_Addon_Checker {
             return 'edd';
         }
         
-        // Check Tutor Pro directly
-        if (function_exists('tutor_pro')) {
-            $license_info = get_option('tutor_license_info', null);
-            if ($license_info && !empty($license_info['activated'])) {
-                return 'tutor_pro';
-            }
+        // Check for Tutor native monetization (works with Free and Pro)
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        if ($monetize_by === 'tutor') {
+            return 'tutor_pro'; // Keep the same engine name for backwards compatibility
         }
         
         return 'none';
@@ -522,12 +521,11 @@ class TutorPress_Addon_Checker {
             $engines['edd'] = 'Easy Digital Downloads';
         }
         
-        // Check Tutor Pro directly
-        if (function_exists('tutor_pro')) {
-            $license_info = get_option('tutor_license_info', null);
-            if ($license_info && !empty($license_info['activated'])) {
-                $engines['tutor_pro'] = 'Tutor LMS Pro';
-            }
+        // Check for Tutor native monetization (available in Free and Pro)
+        $tutor_options = get_option('tutor_option', []);
+        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+        if ($monetize_by === 'tutor') {
+            $engines['tutor_pro'] = 'Tutor LMS Native';
         }
         
         return $engines;
@@ -559,8 +557,8 @@ class TutorPress_Addon_Checker {
                 return self::is_edd_monetization();
                 
             case 'tutor_pro':
-                // Check Tutor Pro monetization settings
-                return self::check_tutor_pro_monetization();
+                // Check Tutor native monetization settings
+                return self::check_native_monetization();
                 
             default:
                 return false;
@@ -568,25 +566,18 @@ class TutorPress_Addon_Checker {
     }
 
     /**
-     * Check Tutor Pro monetization settings
+     * Check Tutor native monetization settings (works with both Free and Pro)
      *
-     * @return bool True if Tutor Pro monetization is enabled
+     * @return bool True if Tutor native monetization is enabled
      */
-    private static function check_tutor_pro_monetization() {
-        // Check Tutor Pro directly
-        if (!function_exists('tutor_pro')) {
-            return false;
-        }
-        $license_info = get_option('tutor_license_info', null);
-        if (!$license_info || empty($license_info['activated'])) {
-            return false;
-        }
-        
-        // Check Tutor Pro monetization settings
+    private static function check_native_monetization() {
+        // Check Tutor LMS monetization settings (available in both Free and Pro)
         $tutor_options = get_option('tutor_option', []);
         $monetize_by = $tutor_options['monetize_by'] ?? 'none';
         
-        return in_array($monetize_by, ['wc', 'edd', 'tutor']);
+        // Return true if "tutor" (native) monetization is selected
+        // This works with both Tutor Free and Pro - no license check needed
+        return $monetize_by === 'tutor';
     }
 
     /**
