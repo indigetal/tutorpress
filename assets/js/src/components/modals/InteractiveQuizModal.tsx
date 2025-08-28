@@ -100,8 +100,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     setLoadError(null);
 
     try {
-      console.log(`TutorPress: Loading Interactive Quiz data for ID ${id}`);
-
       // Use the curriculum store to get quiz details (same as QuizModal)
       await getQuizDetails(id);
 
@@ -116,7 +114,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       }
 
       const data = response.data;
-      console.log("TutorPress: Loaded Interactive Quiz data:", data);
 
       // Set quiz data for form initialization
       setQuizData(data);
@@ -137,7 +134,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         }));
 
         setQuestions(loadedQuestions);
-        console.log(`TutorPress: Loaded ${loadedQuestions.length} Interactive Quiz questions`);
 
         // Select first H5P question if available
         if (loadedQuestions.length > 0) {
@@ -149,9 +145,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
             const h5pContentId = parseInt(firstQuestion.question_description);
             if (!isNaN(h5pContentId)) {
               try {
-                // Fetch H5P content metadata from the API (get all user's content)
+                // Fetch H5P content metadata from the API (include course_id for collaborative access)
+                const apiPath = courseId
+                  ? `/tutorpress/v1/h5p/contents?per_page=100&course_id=${courseId}`
+                  : `/tutorpress/v1/h5p/contents?per_page=100`;
                 const h5pResponse = (await (window as any).wp.apiFetch({
-                  path: `/tutorpress/v1/h5p/contents?per_page=100`,
+                  path: apiPath,
                   method: "GET",
                 })) as any;
 
@@ -167,7 +166,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                       user_name: h5pContent.user_name || __("Unknown", "tutorpress"),
                       updated_at: h5pContent.updated_at || __("Unknown", "tutorpress"),
                     });
-                    console.log("TutorPress: Loaded H5P content metadata:", h5pContent);
                   } else {
                     // Content not found in user's content list
                     setSelectedH5PContent({
@@ -178,7 +176,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                       user_name: __("Unknown", "tutorpress"),
                       updated_at: __("Unknown", "tutorpress"),
                     });
-                    console.warn(`TutorPress: H5P content ${h5pContentId} not found in user's content list`);
                   }
                 } else {
                   // No H5P content found for this user
@@ -190,7 +187,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                     user_name: __("Unknown", "tutorpress"),
                     updated_at: __("Unknown", "tutorpress"),
                   });
-                  console.warn("TutorPress: No H5P content found for this user");
                 }
               } catch (h5pError) {
                 console.error("TutorPress: Failed to load H5P content metadata:", h5pError);
@@ -265,9 +261,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       const h5pContentId = parseInt(selectedQuestion.question_description);
       if (!isNaN(h5pContentId)) {
         try {
-          // Fetch H5P content metadata from the API
+          // Fetch H5P content metadata from the API (include course_id for collaborative access)
+          const apiPath = courseId
+            ? `/tutorpress/v1/h5p/contents?per_page=100&course_id=${courseId}`
+            : `/tutorpress/v1/h5p/contents?per_page=100`;
           const h5pResponse = (await (window as any).wp.apiFetch({
-            path: `/tutorpress/v1/h5p/contents?per_page=100`, // Get all user's content
+            path: apiPath,
             method: "GET",
           })) as any;
 
@@ -283,7 +282,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                 user_name: h5pContent.user_name || __("Unknown", "tutorpress"),
                 updated_at: h5pContent.updated_at || __("Unknown", "tutorpress"),
               });
-              console.log("TutorPress: Loaded H5P content metadata on question select:", h5pContent);
             } else {
               // Content not found in user's content list
               setSelectedH5PContent({
@@ -294,7 +292,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                 user_name: __("Unknown", "tutorpress"),
                 updated_at: __("Unknown", "tutorpress"),
               });
-              console.warn(`TutorPress: H5P content ${h5pContentId} not found in user's content list`);
             }
           }
         } catch (h5pError) {
@@ -459,9 +456,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       // Add quiz ID for updates
       if (quizId) {
         formData.ID = quizId;
-        console.log(`TutorPress: Updating Interactive Quiz ${quizId} with ${questions.length} questions`);
-      } else {
-        console.log(`TutorPress: Creating new Interactive Quiz with ${questions.length} questions`);
       }
 
       // Use the curriculum store saveQuiz action (same as QuizModal)

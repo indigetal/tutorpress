@@ -86,10 +86,16 @@ export function createStandardDuplicateResolver(config: StandardDuplicateConfig)
         payload: successPayload,
       };
 
+      // Determine correct content type - special handling for quizzes that might be Interactive Quizzes
+      let finalContentType = config.contentType;
+      if (config.entityName === "quiz" && (response.data as any)?.quiz_option?.quiz_type === "tutor_h5p_quiz") {
+        finalContentType = "interactive_quiz";
+      }
+
       // Update topics directly to add the duplicated content (preserves toggle states)
       yield {
         type: "SET_TOPICS",
-        payload: createDuplicateContentPayload(targetId, entityData.id, entityData.title, config.contentType),
+        payload: createDuplicateContentPayload(targetId, entityData.id, entityData.title, finalContentType),
       };
 
       // Return the duplicated entity data for immediate use (e.g., redirects)
