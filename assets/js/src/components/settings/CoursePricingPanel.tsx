@@ -11,6 +11,7 @@ import type { CourseSettings, WcProduct } from "../../types/courses";
 import type { SubscriptionPlan } from "../../types/subscriptions";
 import { isMonetizationEnabled, isWooCommerceMonetization, isEddMonetization } from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
+import { useCourseSettings } from "../../hooks/common";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -45,6 +46,9 @@ const CoursePricingPanel: React.FC = () => {
 
   // Entity-prop for course settings (Step 3b: product ids only)
   const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
+
+  // Get shared course settings to access is_public_course
+  const { courseSettings: sharedCourseSettings } = useCourseSettings();
 
   // Legacy mirror removed; entity is sole write target
 
@@ -116,6 +120,23 @@ const CoursePricingPanel: React.FC = () => {
   useEffect(() => {
     setUiPricingModel(pricingModelEntity);
   }, [pricingModelEntity]);
+
+  // Auto-reset to "free" when public course is enabled and course is currently paid
+  useEffect(() => {
+    const isPublicCourse = sharedCourseSettings?.is_public_course ?? false;
+    if (isPublicCourse && pricingModelEntity === "paid") {
+      // Auto-reset to free when public course is enabled
+      const next = {
+        ...(courseSettings || {}),
+        pricing_model: "free",
+        is_free: true,
+        price: 0,
+        sale_price: 0,
+      } as any;
+      setCourseSettings(next);
+      editorDispatch.editPost({ course_settings: next });
+    }
+  }, [sharedCourseSettings?.is_public_course, pricingModelEntity, courseSettings, setCourseSettings, editorDispatch]);
 
   // Validate EDD product selection when products are loaded
   useEffect(() => {
@@ -206,6 +227,13 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle pricing model change — 5a.1 entity-only writes for simple flags
   const handlePricingModelChange = (value: string) => {
+    // Check if trying to select "paid" while public course is enabled
+    const isPublicCourse = sharedCourseSettings?.is_public_course ?? false;
+    if (value === "paid" && isPublicCourse) {
+      // Don't allow paid courses to be public - this should be prevented by UI but adding safety
+      return;
+    }
+
     setUiPricingModel(value); // immediate UI update for responsiveness
     // Entity write + mark post dirty via editor
     const next = {
@@ -436,15 +464,22 @@ const CoursePricingPanel: React.FC = () => {
       <PanelRow>
         <RadioControl
           label={__("Pricing Type", "tutorpress")}
-          help={__("Choose whether this course is free or paid.", "tutorpress")}
+          help={
+            (sharedCourseSettings?.is_public_course ?? false)
+              ? __(
+                  "Public courses cannot be paid. Disable 'Public Course' in Course Details to enable paid pricing.",
+                  "tutorpress"
+                )
+              : __("Choose whether this course is free or paid.", "tutorpress")
+          }
           selected={uiPricingModel}
           options={[
             {
               label: __("Free", "tutorpress"),
               value: "free",
             },
-            // Only show "Paid" option if monetization is enabled
-            ...(isMonetizationEnabled()
+            // Only show "Paid" option if monetization is enabled AND public course is not enabled
+            ...(isMonetizationEnabled() && !(sharedCourseSettings?.is_public_course ?? false)
               ? [
                   {
                     label: __("Paid", "tutorpress"),

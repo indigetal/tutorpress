@@ -1050,6 +1050,19 @@ class TutorPress_Course {
             $sanitized['pricing_model'] = in_array($settings['pricing_model'], $allowed_models) ? $settings['pricing_model'] : 'free';
         }
         
+        // Business Rule: Public courses cannot be paid - enforce at backend level
+        // Check both new settings and existing settings to handle partial updates
+        $is_public = isset($sanitized['is_public_course']) ? $sanitized['is_public_course'] : (isset($settings['is_public_course']) ? $settings['is_public_course'] : false);
+        $pricing_model = isset($sanitized['pricing_model']) ? $sanitized['pricing_model'] : (isset($settings['pricing_model']) ? $settings['pricing_model'] : 'free');
+        
+        if ($is_public && $pricing_model === 'paid') {
+            // Force to free pricing if public course is enabled
+            $sanitized['pricing_model'] = 'free';
+            $sanitized['is_free'] = true;
+            $sanitized['price'] = 0;
+            $sanitized['sale_price'] = 0;
+        }
+        
         if (isset($settings['price'])) {
             $sanitized['price'] = round(max(0, (float) $settings['price']), 2);
         }

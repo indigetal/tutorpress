@@ -104,7 +104,11 @@ const CourseDetailsPanel: React.FC = () => {
                 : __("This course requires enrollment to view", "tutorpress")
             }
             checked={!!(cs?.is_public_course ?? false)}
-            onChange={(enabled) => safeSet({ is_public_course: !!enabled })}
+            onChange={(enabled) => {
+              // If enabling public course and course is currently paid, show warning but allow the change
+              // The CoursePricingPanel will auto-reset to free when this changes
+              safeSet({ is_public_course: !!enabled });
+            }}
           />
 
           <p
@@ -116,6 +120,18 @@ const CourseDetailsPanel: React.FC = () => {
           >
             {__("Public courses can be viewed by anyone without enrollment", "tutorpress")}
           </p>
+
+          {/* Show notice when public course is enabled and pricing model is paid */}
+          {(cs?.is_public_course ?? false) && cs?.pricing_model === "paid" && (
+            <div style={{ marginTop: "8px" }}>
+              <Notice status="info" isDismissible={false}>
+                {__(
+                  "This course will be automatically set to free pricing since public courses cannot be paid.",
+                  "tutorpress"
+                )}
+              </Notice>
+            </div>
+          )}
         </div>
       </PanelRow>
 
@@ -173,7 +189,11 @@ const CourseDetailsPanel: React.FC = () => {
                     Math.max(0, parseInt(minutesInput || String(totalDuration.minutes), 10) || 0)
                   );
                   setHoursInput(String(hours));
-                  const nextDuration = { ...(cs?.course_duration || {}), hours, minutes } as CourseSettings["course_duration"];
+                  const nextDuration = {
+                    ...(cs?.course_duration || {}),
+                    hours,
+                    minutes,
+                  } as CourseSettings["course_duration"];
                   safeSet({ course_duration: nextDuration } as Partial<CourseSettings>);
                 }}
               />
@@ -193,7 +213,11 @@ const CourseDetailsPanel: React.FC = () => {
                   const hours = Math.max(0, parseInt(hoursInput || String(totalDuration.hours), 10) || 0);
                   const minutes = Math.min(59, Math.max(0, parseInt(minutesInput || "0", 10) || 0));
                   setMinutesInput(String(minutes));
-                  const nextDuration = { ...(cs?.course_duration || {}), hours, minutes } as CourseSettings["course_duration"];
+                  const nextDuration = {
+                    ...(cs?.course_duration || {}),
+                    hours,
+                    minutes,
+                  } as CourseSettings["course_duration"];
                   safeSet({ course_duration: nextDuration } as Partial<CourseSettings>);
                 }}
               />
