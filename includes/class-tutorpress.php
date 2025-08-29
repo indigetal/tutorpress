@@ -180,6 +180,9 @@ class TutorPress_Main {
 
         // Initialize settings panels that use static init pattern
         TutorPress_Content_Drip_Helpers::init();
+        
+        // Initialize Freemius integration
+        TutorPress_Freemius::init();
     }
 
     /**

@@ -177,6 +177,27 @@ class TutorPress_Assets {
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorpressAddons', 
             TutorPress_Addon_Checker::get_comprehensive_status()
         );
+
+        // Localize Freemius license status for feature gating
+        // Pass structured data instead of raw HTML for better security
+        $upgrade_url = '#';
+        if (function_exists('tutorpress_fs')) {
+            $upgrade_url = tutorpress_fs()->get_upgrade_url();
+        } elseif (function_exists('my_fs')) {
+            $upgrade_url = my_fs()->get_upgrade_url();
+        }
+        
+        wp_localize_script('tutorpress-curriculum-metabox', 'tutorpress_fs', [
+            'canUsePremium' => tutorpress_fs_can_use_premium(),
+            'upgradeUrl'    => $upgrade_url,
+            'promo' => [
+                'title'   => __('Unlock TutorPress Pro', 'tutorpress'),
+                'message' => __('Activate to continue using this feature.', 'tutorpress'),
+                'button'  => __('Upgrade', 'tutorpress')
+            ],
+            // Keep promoHtml for backward compatibility during transition
+            'promoHtml'     => tutorpress_promo_html()
+        ]);
     }
 
     /**

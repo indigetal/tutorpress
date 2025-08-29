@@ -259,6 +259,20 @@ declare global {
       wc?: any; // WooCommerce service
       edd?: any; // EDD service
     };
+
+    /**
+     * TutorPress Freemius integration data
+     */
+    tutorpress_fs?: {
+      canUsePremium: boolean;
+      upgradeUrl: string;
+      promo: {
+        title: string;
+        message: string;
+        button: string;
+      };
+      promoHtml: string; // Legacy for backward compatibility
+    };
   }
 }
 

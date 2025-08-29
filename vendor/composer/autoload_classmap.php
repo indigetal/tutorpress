@@ -24,6 +24,7 @@ return array(
     'TutorPress_EDD_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
     'TutorPress_Feature_Flags' => $baseDir . '/includes/feature-detection/class-feature-flags.php',
     'TutorPress_Feature_Flags_Interface' => $baseDir . '/includes/feature-detection/class-feature-flags-interface.php',
+    'TutorPress_Freemius' => $baseDir . '/includes/shared/class-tutorpress-freemius.php',
     'TutorPress_Lesson' => $baseDir . '/includes/post-types/class-tutorpress-lesson.php',
     'TutorPress_Main' => $baseDir . '/includes/class-tutorpress.php',
     'TutorPress_Metadata_Handler' => $baseDir . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',

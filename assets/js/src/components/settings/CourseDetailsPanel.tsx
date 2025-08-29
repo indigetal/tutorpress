@@ -9,6 +9,7 @@ import { PanelRow, TextControl, SelectControl, ToggleControl, Notice, Spinner } 
 import type { CourseSettings, CourseDifficultyLevel } from "../../types/courses";
 import { courseDifficultyLevels } from "../../types/courses";
 import { useCourseSettings } from "../../hooks/common";
+import PromoPanel from "../common/PromoPanel";
 
 const CourseDetailsPanel: React.FC = () => {
   // Get current post type
@@ -60,6 +61,22 @@ const CourseDetailsPanel: React.FC = () => {
             <Spinner />
           </div>
         </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
+  }
+
+  // Check Freemius premium access
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false; // Default to false (fail closed) if Freemius data not available
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-details-settings"
+        title={__("Course Details", "tutorpress")}
+        className="tutorpress-course-details-panel"
+      >
+        <PromoPanel />
       </PluginDocumentSettingPanel>
     );
   }

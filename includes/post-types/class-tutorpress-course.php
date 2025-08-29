@@ -513,6 +513,13 @@ class TutorPress_Course {
      * @return void
      */
     public function certificate_metabox_content( $post ) {
+        // Check Freemius permissions first
+        if ( ! tutorpress_fs_can_use_premium() ) {
+            // Display promo content for non-premium users
+            echo tutorpress_promo_html();
+            return;
+        }
+
         // Nonce action for the metabox
         $nonce_action = 'tutorpress_certificate_nonce';
         
@@ -556,6 +563,13 @@ class TutorPress_Course {
     public function additional_content_metabox_content( $post ) {
         // Ensure we have a valid course post
         if ( ! $post || $post->post_type !== 'courses' ) {
+            return;
+        }
+
+        // Check Freemius permissions first
+        if ( ! tutorpress_fs_can_use_premium() ) {
+            // Display promo content for non-premium users
+            echo tutorpress_promo_html();
             return;
         }
 

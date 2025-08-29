@@ -29,6 +29,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_EDD_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
         'TutorPress_Feature_Flags' => __DIR__ . '/../..' . '/includes/feature-detection/class-feature-flags.php',
         'TutorPress_Feature_Flags_Interface' => __DIR__ . '/../..' . '/includes/feature-detection/class-feature-flags-interface.php',
+        'TutorPress_Freemius' => __DIR__ . '/../..' . '/includes/shared/class-tutorpress-freemius.php',
         'TutorPress_Lesson' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-lesson.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
         'TutorPress_Metadata_Handler' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
