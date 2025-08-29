@@ -12,6 +12,7 @@ import type { SubscriptionPlan } from "../../types/subscriptions";
 import { isMonetizationEnabled, isWooCommerceMonetization, isEddMonetization } from "../../utils/addonChecker";
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 import { useCourseSettings } from "../../hooks/common";
+import PromoPanel from "../common/PromoPanel";
 
 const CoursePricingPanel: React.FC = () => {
   // Get settings from our store and Gutenberg store
@@ -221,6 +222,22 @@ const CoursePricingPanel: React.FC = () => {
             <Spinner />
           </div>
         </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-pricing-settings"
+        title={__("Pricing Model", "tutorpress")}
+        className="tutorpress-course-pricing-panel"
+      >
+        <PromoPanel />
       </PluginDocumentSettingPanel>
     );
   }

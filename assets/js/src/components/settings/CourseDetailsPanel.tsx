@@ -80,6 +80,7 @@ const CourseDetailsPanel: React.FC = () => {
       </PluginDocumentSettingPanel>
     );
   }
+
   const hasDuration = totalDuration.hours > 0 || totalDuration.minutes > 0;
   const durationText = hasDuration
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`

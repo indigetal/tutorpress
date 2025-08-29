@@ -9,6 +9,7 @@ import { PanelRow, TextControl, SelectControl, Button, Notice, Spinner } from "@
 import ContentDripPanel from "./ContentDripPanel";
 import { useCourseId } from "../../hooks/curriculum/useCourseId";
 import type { ContentDripItemSettings } from "../../types/content-drip";
+import PromoPanel from "../common/PromoPanel";
 
 interface AssignmentSettings {
   time_duration: {
@@ -49,8 +50,28 @@ const AssignmentSettingsPanel: React.FC = () => {
     return null;
   }
 
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name={"assignment-settings"}
+        title={__("Assignment Settings", "tutorpress")}
+        className={"assignment-settings-panel"}
+      >
+        <PromoPanel />
+      </PluginDocumentSettingPanel>
+    );
+  }
+
   // Use composite assignment_settings field (following Course/Lesson patterns)
-  const [assignmentSettings, setAssignmentSettings] = useEntityProp("postType", "tutor_assignments", "assignment_settings");
+  const [assignmentSettings, setAssignmentSettings] = useEntityProp(
+    "postType",
+    "tutor_assignments",
+    "assignment_settings"
+  );
 
   // Fetch attachments metadata when attachments change
   useEffect(() => {
@@ -184,7 +205,7 @@ const AssignmentSettingsPanel: React.FC = () => {
     { label: __("Weeks", "tutorpress"), value: "weeks" },
   ];
 
-    // Validation warnings
+  // Validation warnings
   const warnings = [];
   if (assignmentSettings.total_points > 0 && assignmentSettings.pass_points > assignmentSettings.total_points) {
     warnings.push(__("Passing points cannot exceed total points.", "tutorpress"));
@@ -284,18 +305,18 @@ const AssignmentSettingsPanel: React.FC = () => {
       </PanelRow>
 
       <PanelRow>
-                <TextControl
-            label={__("Total Points", "tutorpress")}
-            type="number"
-            min="0"
-            value={assignmentSettings.total_points?.toString() || "0"}
-            onChange={(value) => {
-              const newSettings = { ...assignmentSettings };
-              newSettings.total_points = Math.max(0, parseInt(value) || 0);
-              setAssignmentSettings(newSettings);
-            }}
-            disabled={isSaving}
-            help={__("Set to 0 for no points assignment", "tutorpress")}
+        <TextControl
+          label={__("Total Points", "tutorpress")}
+          type="number"
+          min="0"
+          value={assignmentSettings.total_points?.toString() || "0"}
+          onChange={(value) => {
+            const newSettings = { ...assignmentSettings };
+            newSettings.total_points = Math.max(0, parseInt(value) || 0);
+            setAssignmentSettings(newSettings);
+          }}
+          disabled={isSaving}
+          help={__("Set to 0 for no points assignment", "tutorpress")}
         />
       </PanelRow>
 
@@ -304,7 +325,7 @@ const AssignmentSettingsPanel: React.FC = () => {
           label={__("Minimum Pass Points", "tutorpress")}
           type="number"
           min="0"
-                      max={assignmentSettings.total_points > 0 ? assignmentSettings.total_points : undefined}
+          max={assignmentSettings.total_points > 0 ? assignmentSettings.total_points : undefined}
           value={assignmentSettings.pass_points?.toString() || "0"}
           onChange={(value) => {
             const passPoints = parseInt(value) || 0;

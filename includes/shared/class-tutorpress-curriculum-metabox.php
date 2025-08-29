@@ -89,6 +89,12 @@ class TutorPress_Curriculum_Metabox {
      * @return void
      */
     public static function render_curriculum_metabox( $post ) {
+        // Check Freemius permissions first (UI-only gating)
+        if ( ! tutorpress_fs_can_use_premium() ) {
+            echo tutorpress_promo_html();
+            return;
+        }
+
         wp_nonce_field( self::NONCE_ACTION, 'tutorpress_curriculum_nonce' );
 
         $post_type_object = get_post_type_object( $post->post_type );

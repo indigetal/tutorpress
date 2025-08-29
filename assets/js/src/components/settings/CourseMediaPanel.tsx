@@ -9,6 +9,7 @@ import type { CourseSettings } from "../../types/courses";
 import { isCourseAttachmentsEnabled } from "../../utils/addonChecker";
 import VideoIntroSection from "./VideoIntroSection";
 import { useCourseSettings } from "../../hooks/common";
+import PromoPanel from "../common/PromoPanel";
 
 const CourseMediaPanel: React.FC = () => {
   // Shared hook for course settings
@@ -78,6 +79,22 @@ const CourseMediaPanel: React.FC = () => {
             <Spinner />
           </div>
         </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-media-settings"
+        title={__("Course Media", "tutorpress")}
+        className="tutorpress-course-media-panel"
+      >
+        <PromoPanel />
       </PluginDocumentSettingPanel>
     );
   }

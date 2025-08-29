@@ -26,6 +26,7 @@ import { useBundleMeta } from "../../hooks/common";
 // Note: subscription status now comes from backend data
 // Import subscription modal
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
+import PromoPanel from "../common/PromoPanel";
 
 /**
  * Extract numeric price from course price string
@@ -329,6 +330,22 @@ const BundlePricingPanel: React.FC = () => {
   // Don't render if not on a course-bundle post
   if (postType !== "course-bundle") {
     return null;
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="bundle-pricing"
+        title={__("Bundle Pricing", "tutorpress")}
+        className="tutorpress-bundle-pricing-panel"
+      >
+        <PromoPanel />
+      </PluginDocumentSettingPanel>
+    );
   }
 
   return (

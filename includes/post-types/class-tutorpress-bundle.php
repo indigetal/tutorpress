@@ -305,6 +305,12 @@ class TutorPress_Bundle {
      * Enhanced with curriculum metabox patterns for better frontend integration
      */
     public function display_bundle_courses_metabox( $post ) {
+        // UI-only Freemius gating: show promo when premium not available
+        if ( ! tutorpress_fs_can_use_premium() ) {
+            echo tutorpress_promo_html();
+            return;
+        }
+
         wp_nonce_field( 'tutorpress_bundle_courses_nonce', 'tutorpress_bundle_courses_nonce' );
 
         $post_type_object = get_post_type_object( $post->post_type );
@@ -330,6 +336,12 @@ class TutorPress_Bundle {
      * Display the bundle benefits metabox (renders a React root container)
      */
     public function display_bundle_benefits_metabox( $post ) {
+        // UI-only Freemius gating: show promo when premium not available
+        if ( ! tutorpress_fs_can_use_premium() ) {
+            echo tutorpress_promo_html();
+            return;
+        }
+
         wp_nonce_field( 'tutorpress_bundle_benefits_nonce', 'tutorpress_bundle_benefits_nonce' );
 
         $post_type_object = get_post_type_object( $post->post_type );

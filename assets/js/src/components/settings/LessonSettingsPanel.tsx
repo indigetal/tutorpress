@@ -25,6 +25,7 @@ import type { ContentDripItemSettings } from "../../types/content-drip";
 
 // Import VideoThumbnail component
 import VideoThumbnail from "../common/VideoThumbnail";
+import PromoPanel from "../common/PromoPanel";
 
 interface VideoSettings {
   source: "" | "html5" | "youtube" | "vimeo" | "external_url" | "embedded" | "shortcode";
@@ -190,6 +191,22 @@ const LessonSettingsPanel: React.FC = () => {
   // Only show for lesson post type
   if (postType !== "lesson") {
     return null;
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name={"lesson-settings"}
+        title={__("Lesson Settings", "tutorpress")}
+        className={"lesson-settings-panel"}
+      >
+        <PromoPanel />
+      </PluginDocumentSettingPanel>
+    );
   }
 
   // Removed legacy updateSetting helper; all writes use safeSet with per-section deep merges

@@ -195,8 +195,6 @@ class TutorPress_Assets {
                 'message' => __('Activate to continue using this feature.', 'tutorpress'),
                 'button'  => __('Upgrade', 'tutorpress')
             ],
-            // Keep promoHtml for backward compatibility during transition
-            'promoHtml'     => tutorpress_promo_html()
         ]);
     }
 

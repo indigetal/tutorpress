@@ -23,6 +23,7 @@ import { AddonChecker } from "../../utils/addonChecker";
 // Import course settings types
 import type { CourseSettings } from "../../types/courses";
 import { useCourseSettings } from "../../hooks/common";
+import PromoPanel from "../common/PromoPanel";
 
 // Import our reusable datetime validation utilities
 import {
@@ -85,8 +86,8 @@ const CourseAccessPanel: React.FC = () => {
     return null;
   }
 
-  // Check if prerequisites feature is available 
-  const isPrerequisitesEnabled = (window.tutorpressAddons?.prerequisites ?? false);
+  // Check if prerequisites feature is available
+  const isPrerequisitesEnabled = window.tutorpressAddons?.prerequisites ?? false;
 
   // Load available courses for prerequisites when addon is enabled
   useEffect(() => {
@@ -107,6 +108,22 @@ const CourseAccessPanel: React.FC = () => {
             <Spinner />
           </div>
         </PanelRow>
+      </PluginDocumentSettingPanel>
+    );
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="course-access-panel"
+        title={__("Course Access & Enrollment", "tutorpress")}
+        className="tutorpress-course-access-panel"
+      >
+        <PromoPanel />
       </PluginDocumentSettingPanel>
     );
   }

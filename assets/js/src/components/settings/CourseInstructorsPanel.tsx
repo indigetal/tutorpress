@@ -9,6 +9,7 @@ import { chevronDown, chevronUp } from "@wordpress/icons";
 // Import course settings types
 import type { CourseInstructors, InstructorSearchResult, InstructorUser } from "../../types/courses";
 import { isMultiInstructorsEnabled } from "../../utils/addonChecker";
+import PromoPanel from "../common/PromoPanel";
 
 const CourseInstructorsPanel: React.FC = () => {
   // State for search functionality
@@ -125,6 +126,22 @@ const CourseInstructorsPanel: React.FC = () => {
   // Only show for course post type
   if (postType !== "courses") {
     return null;
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name="tutorpress-course-instructors"
+        title={__("Course Instructors", "tutorpress")}
+        className="tutorpress-course-instructors-panel"
+      >
+        <PromoPanel />
+      </PluginDocumentSettingPanel>
+    );
   }
 
   // Check if Multi Instructors addon is enabled

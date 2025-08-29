@@ -13,6 +13,7 @@ import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { Spinner, Notice } from "@wordpress/components";
+import PromoPanel from "../common/PromoPanel";
 
 // Import types
 import type { BundleInstructor } from "../../types/bundle";
@@ -112,6 +113,22 @@ const BundleInstructorsPanel: React.FC = () => {
   // Only show for course-bundle post type
   if (postType !== "course-bundle") {
     return null;
+  }
+
+  // Check Freemius premium access (fail-closed)
+  const canUsePremium = window.tutorpress_fs?.canUsePremium ?? false;
+
+  // Show promo content if user doesn't have premium access
+  if (!canUsePremium) {
+    return (
+      <PluginDocumentSettingPanel
+        name={"tutorpress-bundle-instructors"}
+        title={__("Bundle Instructors", "tutorpress")}
+        className={"tutorpress-bundle-instructors-panel"}
+      >
+        <PromoPanel />
+      </PluginDocumentSettingPanel>
+    );
   }
 
   // Show loading state

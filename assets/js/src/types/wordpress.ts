@@ -271,7 +271,6 @@ declare global {
         message: string;
         button: string;
       };
-      promoHtml: string; // Legacy for backward compatibility
     };
   }
 }
