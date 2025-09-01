@@ -9,14 +9,14 @@ class TutorPress_Admin_Customizations {
 
     public static function init() {
         $options = get_option('tutorpress_settings', []);
-        
+
         // Always add these basic menu customizations
         add_action('admin_menu', [__CLASS__, 'add_lessons_menu_item']);
         add_action('admin_menu', [__CLASS__, 'reorder_tutor_submenus'], 100);
         add_action('init', [__CLASS__, 'conditionally_hide_builder_button']);
 
-        // Only add AJAX handlers if admin redirects are enabled
-        if (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) {
+        // Only add AJAX handlers if admin redirects are enabled (use wrapper to respect Freemius gating)
+        if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) ) {
             // Add hook to ensure our script runs after Tutor's course list is loaded
             add_action('tutor_admin_after_course_list_action', [__CLASS__, 'enqueue_admin_overrides']);
             // Intercept course creation via AJAX, create draft and redirect to Gutenberg
@@ -44,7 +44,7 @@ class TutorPress_Admin_Customizations {
 
         // Add TutorPressData for overrides
         wp_localize_script('tutorpress-admin', 'TutorPressData', [
-            'enableAdminRedirects' => true,
+            'enableAdminRedirects' => (function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : false),
             'adminUrl' => admin_url(),
         ]);
     }
@@ -54,8 +54,10 @@ class TutorPress_Admin_Customizations {
      */
     public static function conditionally_hide_builder_button() {
         $options = get_option('tutorpress_settings', []);
-        
-        if (!empty($options['remove_frontend_builder_button']) && '1' === $options['remove_frontend_builder_button']) {
+
+        // Use Freemius-aware wrapper to decide whether to remove the frontend builder button
+        $remove_button = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('remove_frontend_builder_button', '0') : ($options['remove_frontend_builder_button'] ?? '0');
+        if ($remove_button && '1' === $remove_button) {
             add_action('admin_head', [__CLASS__, 'hide_builder_button_css']);
         }
     }
@@ -73,8 +75,9 @@ class TutorPress_Admin_Customizations {
      */
     public static function remove_tutor_admin_bar_button_action() {
         $options = get_option('tutorpress_settings', []);
-        
-        if (empty($options['remove_frontend_builder_button']) || '1' !== $options['remove_frontend_builder_button']) {
+
+        $remove_button = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('remove_frontend_builder_button', '0') : ($options['remove_frontend_builder_button'] ?? '0');
+        if (empty($remove_button) || '1' !== $remove_button) {
             return;
         }
 

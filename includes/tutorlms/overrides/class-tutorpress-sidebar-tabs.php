@@ -7,12 +7,13 @@ defined('ABSPATH') || exit;
 
 class TutorPress_Sidebar_Tabs {
     public static function init() {
-        // Check if the feature is enabled in the settings
+        // Check if the feature is enabled in the settings (use Freemius-aware wrapper)
         $options = get_option('tutorpress_settings', []);
-        if (!isset($options['enable_sidebar_tabs']) || !$options['enable_sidebar_tabs']) {
+        $enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_sidebar_tabs', false) : (!isset($options['enable_sidebar_tabs']) || $options['enable_sidebar_tabs']);
+        if (!$enabled) {
             return;
         }
-        
+
         add_filter('tutor_lesson/single/lesson_sidebar', [__CLASS__, 'modify_sidebar']);
         add_filter('tutor_get_template', [__CLASS__, 'block_tutor_comments_templates'], 10, 2);
     }

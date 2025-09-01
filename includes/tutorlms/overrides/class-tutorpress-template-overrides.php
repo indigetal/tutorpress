@@ -12,8 +12,13 @@ class TutorPress_Template_Overrides {
     }
 
     public static function template_loader( $template ) {
-        $options = get_option('tutorpress_settings', []);
-        $template_overrides = isset($options['template_overrides']) ? $options['template_overrides'] : [];
+        // Use Freemius-aware wrapper to read template override settings safely
+        if ( function_exists('tutorpress_get_setting') ) {
+            $template_overrides = tutorpress_get_setting('template_overrides', []);
+        } else {
+            $options = get_option('tutorpress_settings', []);
+            $template_overrides = isset($options['template_overrides']) ? $options['template_overrides'] : [];
+        }
 
         // Check if course archive override is enabled
         if (isset($template_overrides['course_archive']) && '1' === $template_overrides['course_archive']) {

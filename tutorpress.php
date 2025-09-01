@@ -2,12 +2,12 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 1.15.15
+ * Version: 1.16.0
  * Author: Indigetal WebCraft
  * Author URI: https://tutorpress.indigetal.com
  */
 
- if ( ! function_exists( 'tutorpress_fs' ) ) {
+if ( ! function_exists( 'tutorpress_fs' ) ) {
     // Create a helper function for easy SDK access.
     function tutorpress_fs() {
         global $tutorpress_fs;

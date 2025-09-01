@@ -12,14 +12,14 @@ class TutorPress_Dashboard_Overrides {
 
     public static function init() {
         $options = get_option('tutorpress_settings', []);
-        
+
         // Extra dashboard links
-        if (!empty($options['enable_extra_dashboard_links'])) {
+        if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_extra_dashboard_links', false) : (!empty($options['enable_extra_dashboard_links'])) ) {
             add_filter('tutor_dashboard/instructor_nav_items', [__CLASS__, 'add_extra_dashboard_links']);
         }
         
         // Dashboard redirects
-        if (!empty($options['enable_dashboard_redirects'])) {
+        if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_dashboard_redirects', false) : (!empty($options['enable_dashboard_redirects'])) ) {
             add_filter('tutor_dashboard_url', [__CLASS__, 'override_dashboard_edit_buttons'], 10, 2);
             add_filter('tutor_dashboard_course_list_edit_link', [__CLASS__, 'override_course_edit_links'], 10, 2);
         }

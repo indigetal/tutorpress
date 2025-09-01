@@ -63,6 +63,12 @@ class TutorPress_Settings {
      * @return array The sanitized settings array
      */
     public static function sanitize_settings($input) {
+        // Prevent settings updates when not paying (server-side enforcement)
+        if ( function_exists('tutorpress_fs_is_not_paying') && tutorpress_fs_is_not_paying() ) {
+            // Return current stored settings unchanged
+            return get_option('tutorpress_settings', []);
+        }
+
         $sanitized = [];
         $defined_settings = self::get_defined_settings();
         
@@ -116,8 +122,9 @@ class TutorPress_Settings {
     }
 
     public static function render_toggle($args) {
-        $options = get_option('tutorpress_settings', []);
-        $checked = isset($options[$args['key']]) && $options[$args['key']] === '1' ? 'checked' : '';
+        // Use wrapper to respect Freemius gating; returns default if not paying
+        $val = function_exists('tutorpress_get_setting') ? tutorpress_get_setting($args['key'], '0') : (get_option('tutorpress_settings', [])[$args['key']] ?? '0');
+        $checked = $val === '1' ? 'checked' : '';
         echo "<label class='tutorpress-switch'>
                 <input type='checkbox' name='tutorpress_settings[{$args['key']}]' value='1' $checked />
                 <span class='tutorpress-slider'></span>
@@ -128,8 +135,8 @@ class TutorPress_Settings {
     }
     
     public static function render_template_override_checkboxes() {
-        $options = get_option('tutorpress_settings', []);
-        $template_overrides = isset($options['template_overrides']) ? $options['template_overrides'] : [];
+        // Use wrapper to read stored template overrides safely
+        $template_overrides = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('template_overrides', []) : (get_option('tutorpress_settings', [])['template_overrides'] ?? []);
         
         $course_archive_checked = isset($template_overrides['course_archive']) && '1' === $template_overrides['course_archive'] ? 'checked' : '';
         ?>

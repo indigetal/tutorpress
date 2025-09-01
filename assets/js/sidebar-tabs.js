@@ -1,4 +1,15 @@
 document.addEventListener("DOMContentLoaded", function () {
+  // Fail-closed: check dedicated localized flag `TutorPressSidebar.enableSidebarTabs`
+  try {
+    if (window.TutorPressSidebar && typeof window.TutorPressSidebar.enableSidebarTabs !== "undefined") {
+      if (!window.TutorPressSidebar.enableSidebarTabs) {
+        return;
+      }
+    }
+  } catch (e) {
+    // If localization isn't available, fail-closed by returning early
+    return;
+  }
   // Remove unnecessary tabs in lesson pages
   let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
   tabsToRemove.forEach((selector) => {

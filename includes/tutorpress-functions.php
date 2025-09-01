@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_version' ) ) {
     function tutorpress_get_version() {
-        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.15.15';
+        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.16.0';
     }
 }
 
@@ -190,7 +190,8 @@ if ( ! function_exists( 'tutorpress_get_setting' ) ) {
         if (tutorpress_fs_is_not_paying()) {
             return $default;
         }
-        $opts = get_option('tutorpress_options', []);
+        // Prefer modern settings key but fall back for older installs
+        $opts = get_option('tutorpress_settings', get_option('tutorpress_options', []));
         return $opts[$key] ?? $default;
     }
 } 

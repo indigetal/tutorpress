@@ -61,9 +61,10 @@ class TutorPress_Assets {
      * @return void
      */
     public static function enqueue_dashboard_assets() {
-        // Only load if setting is enabled
+        // Only load if setting is enabled (use wrapper to respect Freemius gating)
         $options = get_option('tutorpress_settings', []);
-        if (empty($options['enable_dashboard_redirects'])) {
+        $enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_dashboard_redirects', false) : (!empty($options['enable_dashboard_redirects']));
+        if (!$enabled) {
             return;
         }
 
@@ -77,8 +78,10 @@ class TutorPress_Assets {
         );
 
         // Add TutorPressData for overrides
+        $enabledExtraLinks = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_extra_dashboard_links', false) : (!empty($options['enable_extra_dashboard_links']));
         wp_localize_script('tutorpress-override-tutorlms', 'TutorPressData', [
-            'enableDashboardRedirects' => true,  // We're already inside the if(enabled) check
+            'enableDashboardRedirects' => $enabled,
+            'enableExtraDashboardLinks' => $enabledExtraLinks,
             'adminUrl' => admin_url(),
         ]);
     }
@@ -95,7 +98,9 @@ class TutorPress_Assets {
         }
         
         $options = get_option('tutorpress_settings', []);
-        if (empty($options['enable_sidebar_tabs'])) {
+        // Use Freemius-aware wrapper to decide if sidebar tabs should be enabled
+        $enabledSidebar = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_sidebar_tabs', false) : (!empty($options['enable_sidebar_tabs']));
+        if (!$enabledSidebar) {
             return;
         }
 
@@ -114,6 +119,11 @@ class TutorPress_Assets {
             filemtime(TUTORPRESS_PATH . 'assets/js/sidebar-tabs.js'),
             true
         );
+
+        // Localize a small object specifically for sidebar tabs to avoid coupling with other flags
+        wp_localize_script('tutorpress-sidebar-tabs', 'TutorPressSidebar', [
+            'enableSidebarTabs' => $enabledSidebar,
+        ]);
     }
 
     /**
@@ -157,10 +167,12 @@ class TutorPress_Assets {
         // Get settings for localization
         $options = get_option('tutorpress_settings', []);
 
-        // Add TutorPressData for overrides
+        // Add TutorPressData for overrides (use wrapper to respect Freemius gating)
+        $dashboard_enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_dashboard_redirects', false) : !empty($options['enable_dashboard_redirects']);
+        $admin_enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : !empty($options['enable_admin_redirects']);
         wp_localize_script('tutorpress-curriculum-metabox', 'TutorPressData', [
-            'enableDashboardRedirects' => !empty($options['enable_dashboard_redirects']),
-            'enableAdminRedirects' => !empty($options['enable_admin_redirects']),
+            'enableDashboardRedirects' => $dashboard_enabled,
+            'enableAdminRedirects' => $admin_enabled,
             'adminUrl' => admin_url(),
         ]);
 
