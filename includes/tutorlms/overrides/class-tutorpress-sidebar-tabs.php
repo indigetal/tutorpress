@@ -9,7 +9,8 @@ class TutorPress_Sidebar_Tabs {
     public static function init() {
         // Check if the feature is enabled in the settings (use Freemius-aware wrapper)
         $options = get_option('tutorpress_settings', []);
-        $enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_sidebar_tabs', false) : (!isset($options['enable_sidebar_tabs']) || $options['enable_sidebar_tabs']);
+        // Use Freemius-aware wrapper; default to disabled when option is missing
+        $enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_sidebar_tabs', false) : (!empty($options['enable_sidebar_tabs']));
         if (!$enabled) {
             return;
         }

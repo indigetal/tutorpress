@@ -122,7 +122,7 @@ class TutorPress_Freemius {
         <div class="notice notice-info is-dismissible">
             <p>
                 <strong><?php echo esc_html__('TutorPress Premium Features Locked', 'tutorpress'); ?></strong> -
-                <?php echo esc_html__('Your trial period has ended. Your content is safe, but premium features are now disabled.', 'tutorpress'); ?>
+                <?php echo esc_html__('Your trial period of TutorPress has ended. Manage courses with Tutor LMS or activate a license to restore premium features of TutorPress.', 'tutorpress'); ?>
                 <a href="<?php echo esc_url($upgrade_url); ?>"><?php echo esc_html__('Activate License', 'tutorpress'); ?></a>
             </p>
         </div>
