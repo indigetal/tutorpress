@@ -32,16 +32,20 @@ class TutorPress_Settings {
         );
 
         add_settings_section('tutorpress_main_section', __('Enable or Disable Features', 'tutorpress'), null, 'tutorpress-settings');
+        // New section for editor and dashboard related redirects
+        add_settings_section('tutorpress_dashboard_section', __('Editor & Dashboard Redirects', 'tutorpress'), null, 'tutorpress-settings');
 
         // Register toggle settings
         $settings = self::get_defined_settings();
         foreach ($settings as $key => $setting) {
+            // Place editor/dashboard related fields into the dashboard section for grouping
+            $section = in_array($key, ['enable_admin_redirects', 'remove_frontend_builder_button', 'enable_dashboard_redirects'], true) ? 'tutorpress_dashboard_section' : 'tutorpress_main_section';
             add_settings_field(
                 $key,
                 $setting['label'],
                 [__CLASS__, 'render_toggle'],
                 'tutorpress-settings',
-                'tutorpress_main_section',
+                $section,
                 ['key' => $key, 'helper' => $setting['helper']]
             );
         }
@@ -93,10 +97,6 @@ class TutorPress_Settings {
      */
     private static function get_defined_settings() {
         return [
-            'enable_sidebar_tabs' => [
-                'label' => __('Enable Sidebar Tabs in Lessons', 'tutorpress'),
-                'helper' => ''
-            ],
             'enable_admin_redirects' => [
                 'label' => __('Redirect Backend Course Editing to Gutenberg', 'tutorpress'),
                 'helper' => ''
@@ -109,9 +109,13 @@ class TutorPress_Settings {
                 'label' => __('Redirect Frontend Dashboard Editing to Gutenberg', 'tutorpress'),
                 'helper' => ''
             ],
+            'enable_sidebar_tabs' => [
+                'label' => __('Enable Discussion Tab in Lessons', 'tutorpress'),
+                'helper' => __('Adds a Discussion tab to the sidebar of inner course pages and removes the Comments link from the main content area. This feature also adds compatibility with many comment plugins to enhance the social learning experience.', 'tutorpress')
+            ],
             'enable_extra_dashboard_links' => [
                 'label' => __('Add Media Library & H5P Links to Instructor Dashboard', 'tutorpress'),
-                'helper' => ''
+                'helper' => __('Includes links to the Instructor menu in the frontend dashboard. If you do not want instructors to use these backend pages, leave this disabled.', 'tutorpress')
             ],
         ];
     }
@@ -142,12 +146,27 @@ class TutorPress_Settings {
             </label>
             <!-- Future checkboxes can be added here -->
         </div>
+        <p class="description" style="max-width: 600px; margin-top: 8px;">
+            <?php echo esc_html__("Reverts Tutor LMS’s template loader back to the WordPress default for specific templates in order to make it compatible with the Blocksy theme's Content Blocks and similar features.", 'tutorpress'); ?>
+        </p>
         <?php
     }
 
     public static function render_settings_page() {
         ?>
         <div class="wrap">
+            <style>
+                /* Visual frame for the Editor & Dashboard Redirects section */
+                #tutorpress_dashboard_section + table.form-table {
+                    border: 1px solid #e5e7eb;
+                    padding: 12px;
+                    border-radius: 6px;
+                    background: #fff;
+                }
+                #tutorpress_dashboard_section {
+                    margin-bottom: 8px;
+                }
+            </style>
             <h1><?php _e('TutorPress', 'tutorpress'); ?></h1>
             <form method="post" action="options.php">
                 <?php
