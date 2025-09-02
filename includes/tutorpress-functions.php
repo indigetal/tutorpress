@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_version' ) ) {
     function tutorpress_get_version() {
-        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.16.0';
+        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '1.16.1';
     }
 }
 
@@ -187,9 +187,21 @@ if ( ! function_exists( 'tutorpress_promo_html' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_setting' ) ) {
     function tutorpress_get_setting($key, $default = null) {
-        if (tutorpress_fs_is_not_paying()) {
-            return $default;
+        // If Freemius SDK is available, prefer explicit checks to include trial
+        if ( function_exists('tutorpress_fs') ) {
+            $fs = tutorpress_fs();
+            $can_use = method_exists($fs, 'can_use_premium_code') ? (bool) $fs->can_use_premium_code() : false;
+            $is_trial = method_exists($fs, 'is_trial') ? (bool) $fs->is_trial() : false;
+            if ( ! $can_use && ! $is_trial ) {
+                return $default;
+            }
+        } else {
+            // Fallback to cached helper if SDK not present
+            if ( function_exists('tutorpress_fs_can_use_premium') && ! tutorpress_fs_can_use_premium() ) {
+                return $default;
+            }
         }
+
         // Prefer modern settings key but fall back for older installs
         $opts = get_option('tutorpress_settings', get_option('tutorpress_options', []));
         return $opts[$key] ?? $default;
