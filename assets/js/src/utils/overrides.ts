@@ -155,22 +155,70 @@ function overrideBackendButtons(): void {
  * Override backend edit links in dropdown menus
  */
 function overrideBackendEditLinks(): void {
-  document.querySelectorAll(".tutor-dropdown-item").forEach((item) => {
-    const href = item.getAttribute("href");
-    if (!href) return;
+  /**
+   * Rewrite any anchors that point to Tutor LMS's legacy create-course / course-bundle
+   * admin pages so they open in the WP post editor (Gutenberg).
+   *
+   * This targets:
+   * - Anchors with href containing `admin.php?page=create-course&course_id=` (courses)
+   * - Anchors with href containing `admin.php?page=course-bundle&action=edit&id=` (bundles)
+   * - Existing `.tutor-dropdown-item` items (keeps backward compatibility)
+   */
+  function rewriteAnchors(root: ParentNode = document): void {
+    const selector =
+      'a[href*="admin.php?page=create-course&course_id="], a[href*="admin.php?page=course-bundle&action=edit&id="], .tutor-dropdown-item';
 
-    // Course edit link override
-    if (href.includes("admin.php?page=create-course&course_id=")) {
-      const courseId = href.split("course_id=")[1].split("#")[0];
-      item.setAttribute("href", "post.php?post=" + courseId + "&action=edit");
-    }
+    Array.from(root.querySelectorAll<HTMLElement>(selector)).forEach((item) => {
+      let anchor: HTMLAnchorElement | null = null;
 
-    // Bundle edit link override
-    if (href.includes("admin.php?page=course-bundle&action=edit&id=")) {
-      const bundleId = href.split("id=")[1].split("#")[0];
-      item.setAttribute("href", "post.php?post=" + bundleId + "&action=edit");
-    }
-  });
+      if (item instanceof HTMLAnchorElement) {
+        anchor = item;
+      } else if (item.querySelector) {
+        anchor = item.querySelector("a");
+      }
+
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href") || "";
+
+      // Course edit link override
+      if (href.includes("admin.php?page=create-course&course_id=")) {
+        const courseId = href.split("course_id=")[1]?.split("#")[0];
+        if (courseId) {
+          anchor.setAttribute("href", "post.php?post=" + courseId + "&action=edit");
+        }
+      }
+
+      // Bundle edit link override
+      if (href.includes("admin.php?page=course-bundle&action=edit&id=")) {
+        const bundleId = href.split("id=")[1]?.split("#")[0];
+        if (bundleId) {
+          anchor.setAttribute("href", "post.php?post=" + bundleId + "&action=edit");
+        }
+      }
+    });
+  }
+
+  // Run immediately and again shortly after to catch elements rendered asynchronously
+  rewriteAnchors();
+  setTimeout(() => rewriteAnchors(document), 500);
+
+  // Use a short-lived MutationObserver to catch dynamic updates (disconnect after 10s)
+  if (typeof MutationObserver !== "undefined") {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        if (m.addedNodes && m.addedNodes.length) {
+          m.addedNodes.forEach((n) => {
+            if (n instanceof Element) {
+              rewriteAnchors(n);
+            }
+          });
+        }
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), 10000);
+  }
 }
 
 /**
