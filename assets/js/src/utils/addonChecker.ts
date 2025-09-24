@@ -31,7 +31,7 @@ export type AddonKey =
 /**
  * Payment engine types
  */
-export type PaymentEngine = "pmp" | "surecart" | "tutor_pro" | "wc" | "edd" | "none";
+export type PaymentEngine = "pmpro" | "surecart" | "tutor_pro" | "wc" | "edd" | "none";
 
 /**
  * Addon status interface
@@ -366,7 +366,7 @@ export class AddonChecker {
    */
   public static isMonetizationEnabled(): boolean {
     const addonData = this.getAddonData();
-    return addonData.monetization_enabled || false;
+    return !!addonData.monetization_enabled;
   }
 }
 
@@ -400,3 +400,7 @@ export const isEddMonetization = (): boolean => AddonChecker.isEddMonetization()
 export const getPaymentEngine = (): PaymentEngine => AddonChecker.getPaymentEngine();
 export const getAvailablePaymentEngines = (): Record<string, string> => AddonChecker.getAvailablePaymentEngines();
 export const isMonetizationEnabled = (): boolean => AddonChecker.isMonetizationEnabled();
+
+export const isPmproMonetization = (): boolean => AddonChecker.getPaymentEngine() === "pmpro";
+
+export const isPmproAvailable = (): boolean => !!(window as any).tutorpressAddons?.paid_memberships_pro;

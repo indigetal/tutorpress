@@ -376,8 +376,8 @@ class TutorPress_Addon_Checker {
      * @return bool True if PMP is active and functional
      */
     public static function is_pmp_enabled() {
-        return class_exists('Paid_Memberships_Pro') && 
-               function_exists('pmpro_getMembershipLevels');
+        return defined('PMPRO_VERSION') && 
+               function_exists('pmpro_getAllLevels');
     }
 
     /**
@@ -461,7 +461,7 @@ class TutorPress_Addon_Checker {
     /**
      * Get the current payment engine based on available systems and user preference
      *
-     * @return string Payment engine identifier ('pmp', 'surecart', 'tutor_pro', 'wc', 'edd', 'none')
+     * @return string Payment engine identifier ('pmpro', 'surecart', 'tutor_pro', 'wc', 'edd', 'none')
      */
     public static function get_payment_engine() {
         // Check TutorPress settings first (user preference)
@@ -470,31 +470,49 @@ class TutorPress_Addon_Checker {
             return $tutorpress_engine;
         }
         
-        // Auto-detect with priority order
-        if (self::is_pmp_enabled()) {
-            return 'pmp';
-        }
+        // Read Tutor LMS monetization setting directly
+        $tutor_monetize_by = function_exists('tutor_utils') ? tutor_utils()->get_option('monetize_by') : '';
         
-        if (self::is_surecart_enabled()) {
-            return 'surecart';
+        switch ($tutor_monetize_by) {
+            case 'pmpro':
+                return 'pmpro';
+            case 'wc':
+                return 'wc';
+            case 'edd':
+                return 'edd';
+            case 'tutor':
+                return 'tutor_pro';
+            case 'free':
+            case '':
+            case 'none':
+                return 'none';
+            default:
+                // Fallback to auto-detect with priority order
+                if (self::is_pmp_enabled()) {
+                    return 'pmpro';
+                }
+                
+                if (self::is_surecart_enabled()) {
+                    return 'surecart';
+                }
+                
+                if (self::is_woocommerce_monetization()) {
+                    return 'wc';
+                }
+                
+                if (self::is_edd_monetization()) {
+                    return 'edd';
+                }
+                
+                // Check for Tutor native monetization (works with Free and Pro)
+                $tutor_options = get_option('tutor_option', []);
+                $monetize_by = $tutor_options['monetize_by'] ?? 'none';
+                if ($monetize_by === 'tutor') {
+                    return 'tutor_pro'; // Keep the same engine name for backwards compatibility
+                }
+                
+                return 'none';
         }
-        
-        if (self::is_woocommerce_monetization()) {
-            return 'wc';
-        }
-        
-        if (self::is_edd_monetization()) {
-            return 'edd';
-        }
-        
-        // Check for Tutor native monetization (works with Free and Pro)
-        $tutor_options = get_option('tutor_option', []);
-        $monetize_by = $tutor_options['monetize_by'] ?? 'none';
-        if ($monetize_by === 'tutor') {
-            return 'tutor_pro'; // Keep the same engine name for backwards compatibility
-        }
-        
-        return 'none';
     }
 
     /**
@@ -506,7 +524,7 @@ class TutorPress_Addon_Checker {
         $engines = [];
         
         if (self::is_pmp_enabled()) {
-            $engines['pmp'] = 'Paid Memberships Pro';
+            $engines['pmpro'] = 'Paid Memberships Pro';
         }
         
         if (self::is_surecart_enabled()) {
@@ -539,13 +557,18 @@ class TutorPress_Addon_Checker {
     public static function is_monetization_enabled() {
         $payment_engine = tutorpress_feature_flags()->get_payment_engine();
         
+        // If payment engine is none, monetization is explicitly disabled
+        if ($payment_engine === 'none') {
+            return false;
+        }
+        
         switch ($payment_engine) {
-            case 'pmp':
-                // PMP is always "monetization enabled" when active
+            case 'pmpro':
+                // PMPro is "monetization enabled" when selected as payment engine
                 return true;
                 
             case 'surecart':
-                // SureCart is always "monetization enabled" when active
+                // SureCart is "monetization enabled" when selected as payment engine
                 return true;
                 
             case 'wc':
