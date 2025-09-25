@@ -44,6 +44,7 @@ return array(
     'TutorPress_Service_Container' => $baseDir . '/includes/class-tutorpress-service-container.php',
     'TutorPress_Settings' => $baseDir . '/includes/class-tutorpress-settings.php',
     'TutorPress_Sidebar_Tabs' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-sidebar-tabs.php',
+    'TutorPress_Subscription_Utils' => $baseDir . '/includes/shared/class-subscription-utils.php',
     'TutorPress_Template_Overrides' => $baseDir . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
     'TutorPress_WooCommerce_Controller' => $baseDir . '/includes/rest/class-product-controller.php',
 );

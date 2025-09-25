@@ -49,6 +49,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Service_Container' => __DIR__ . '/../..' . '/includes/class-tutorpress-service-container.php',
         'TutorPress_Settings' => __DIR__ . '/../..' . '/includes/class-tutorpress-settings.php',
         'TutorPress_Sidebar_Tabs' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-sidebar-tabs.php',
+        'TutorPress_Subscription_Utils' => __DIR__ . '/../..' . '/includes/shared/class-subscription-utils.php',
         'TutorPress_Template_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-template-overrides.php',
         'TutorPress_WooCommerce_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
     );
