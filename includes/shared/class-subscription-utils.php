@@ -22,7 +22,23 @@ class TutorPress_Subscription_Utils {
      * @return true|WP_Error True if valid, WP_Error if invalid
      */
     public static function validate_course_id($course_id) {
-        // TODO: Implement course validation logic
+        if (!function_exists('tutor')) {
+            return new WP_Error(
+                'tutor_unavailable',
+                __('Tutor LMS is not available.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== tutor()->course_post_type) {
+            return new WP_Error(
+                'invalid_course',
+                __('Invalid course ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
         return true;
     }
 
@@ -33,7 +49,23 @@ class TutorPress_Subscription_Utils {
      * @return true|WP_Error True if valid, WP_Error if invalid
      */
     public static function validate_bundle_id($bundle_id) {
-        // TODO: Implement bundle validation logic
+        if (!function_exists('tutor')) {
+            return new WP_Error(
+                'tutor_unavailable',
+                __('Tutor LMS is not available.', 'tutorpress'),
+                ['status' => 500]
+            );
+        }
+
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== tutor()->bundle_post_type) {
+            return new WP_Error(
+                'invalid_bundle',
+                __('Invalid bundle ID.', 'tutorpress'),
+                ['status' => 404]
+            );
+        }
+
         return true;
     }
 }
