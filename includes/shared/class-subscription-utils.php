@@ -68,4 +68,35 @@ class TutorPress_Subscription_Utils {
 
         return true;
     }
+
+    /**
+     * Format success response data with consistent structure
+     *
+     * @param mixed  $data    The data to format
+     * @param string $message Optional message to include
+     * @return array Formatted response data
+     */
+    public static function format_success_response($data, $message = '') {
+        return [
+            'success' => true,
+            'message' => $message ?: __('Request successful.', 'tutorpress'),
+            'data'    => $data,
+        ];
+    }
+
+    /**
+     * Create error response with consistent structure
+     *
+     * @param string $message Error message
+     * @param string $code    Error code (default: 'error')
+     * @param int    $status  HTTP status code (default: 400)
+     * @return WP_Error Formatted error response
+     */
+    public static function format_error_response($message, $code = 'error', $status = 400) {
+        return new WP_Error(
+            $code,
+            $message,
+            ['status' => $status]
+        );
+    }
 }
