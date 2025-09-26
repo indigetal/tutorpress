@@ -33,6 +33,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Lesson' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-lesson.php',
         'TutorPress_Main' => __DIR__ . '/../..' . '/includes/class-tutorpress.php',
         'TutorPress_Metadata_Handler' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/class-tutorpress-metadata-handler.php',
+        'TutorPress_Monetization_Helper' => __DIR__ . '/../..' . '/includes/shared/class-monetization-helper.php',
         'TutorPress_Permissions' => __DIR__ . '/../..' . '/includes/shared/class-tutorpress-permissions.php',
         'TutorPress_Product_Controller' => __DIR__ . '/../..' . '/includes/rest/class-product-controller.php',
         'TutorPress_REST_API' => __DIR__ . '/../..' . '/includes/rest/class-tutorpress-rest-api.php',

@@ -34,6 +34,14 @@ import {
 } from "../../types/subscriptions";
 import { createCurriculumError } from "../../utils/errors";
 import { CurriculumErrorCode } from "../../types/curriculum";
+import {
+  buildFetchRequest,
+  buildCreateRequest,
+  buildUpdateRequest,
+  buildDeleteRequest,
+  buildDuplicateRequest,
+  buildSortRequest,
+} from "../../utils/subscriptions";
 
 // ============================================================================
 // STATE INTERFACE
@@ -505,18 +513,10 @@ const resolvers = {
 
       yield { type: "FETCH_SUBSCRIPTION_PLANS_START", payload: { courseId } };
 
-      // Determine the correct endpoint based on post type
-      const endpoint =
-        postType === "course-bundle"
-          ? `/tutorpress/v1/bundles/${courseId}/subscriptions`
-          : `/tutorpress/v1/courses/${courseId}/subscriptions`;
-
+      // Determine the correct endpoint based on post type (via request builder)
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: endpoint,
-          method: "GET",
-        },
+        request: buildFetchRequest(courseId, postType === "course-bundle" ? "course-bundle" : "course"),
       };
 
       if (!response.success) {
@@ -571,11 +571,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: "/tutorpress/v1/subscriptions",
-          method: "POST",
-          data: requestData,
-        },
+        request: buildCreateRequest(objectId, planData),
       };
 
       if (!response.success) {
@@ -633,11 +629,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/subscriptions/${planId}`,
-          method: "PUT",
-          data: requestData,
-        },
+        request: buildUpdateRequest(planId, requestData),
       };
 
       if (!response.success) {
@@ -692,11 +684,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/subscriptions/${planId}`,
-          method: "DELETE",
-          data: requestData,
-        },
+        request: buildDeleteRequest(planId, objectId),
       };
 
       if (!response.success) {
@@ -751,11 +739,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/subscriptions/${planId}/duplicate`,
-          method: "POST",
-          data: requestData,
-        },
+        request: buildDuplicateRequest(planId, objectId),
       };
 
       if (!response.success) {
@@ -814,13 +798,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: {
-          path: endpoint,
-          method: "PUT",
-          data: {
-            plan_order: planOrder,
-          },
-        },
+        request: buildSortRequest(objectId, postType === "course-bundle" ? "course-bundle" : "course", planOrder),
       };
 
       if (!response.success) {

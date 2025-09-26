@@ -61,10 +61,7 @@ docs
 !LICENSE.md
 
 # Development plugins/themes used for testing
-tutor-master
-tutor-pro
-sensei-lms
-sensei-trunk
+references
 
 # Debug files
 *.log
