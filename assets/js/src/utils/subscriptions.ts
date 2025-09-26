@@ -1,5 +1,3 @@
-import { isPmproMonetization } from "./addonChecker";
-
 const API_ROOT = "/tutorpress/v1";
 
 export const buildFetchRequest = (objectId: number, postType: "course" | "course-bundle" = "course") => {
