@@ -108,6 +108,49 @@ class TutorPress_REST_API {
                     }
                 }
             }
+
+            /**
+             * Allow external integrations to register their own REST controllers.
+             *
+             * Plugins can hook into `tutorpress_register_rest_controllers` and
+             * instantiate/register additional controllers that extend
+             * `TutorPress_REST_Controller`. This action is fired after TutorPress
+             * has registered its core controllers and is safe to use because the
+             * base controller class and feature flags are available at this point.
+             *
+             * Example usage (in integration plugin):
+             *
+             * add_action( 'tutorpress_register_rest_controllers', function() {
+             *     require_once plugin_dir_path(__FILE__) . 'includes/rest/class-pmpro-subscriptions-controller.php';
+             *     if ( class_exists( 'TutorPress_REST_Controller' ) && class_exists( '\\TutorPress_PMPro_Subscriptions_Controller' ) ) {
+             *         ( new \\TutorPress_PMPro_Subscriptions_Controller() )->register_routes();
+             *     }
+             * } );
+             *
+             * For a filter-based approach, integrations may also add class names to
+             * the `tutorpress_rest_controllers` filter which returns an array of
+             * fully-qualified class names to instantiate and register.
+             */
+            do_action( 'tutorpress_register_rest_controllers' );
+
+            // Backward-compatible filter to allow plugins to return controller FQCNs
+            $external_controllers = apply_filters( 'tutorpress_rest_controllers', [] );
+            if ( is_array( $external_controllers ) && ! empty( $external_controllers ) ) {
+                foreach ( $external_controllers as $ext_class ) {
+                    if ( is_string( $ext_class ) && class_exists( $ext_class ) ) {
+                        try {
+                            $inst = new $ext_class();
+                            if ( method_exists( $inst, 'register_routes' ) ) {
+                                $inst->register_routes();
+                            }
+                        } catch ( Exception $e ) {
+                            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                                error_log( sprintf( '[TutorPress] Error registering external controller %s: %s', $ext_class, $e->getMessage() ) );
+                            }
+                        }
+                    }
+                }
+            }
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log(sprintf(
