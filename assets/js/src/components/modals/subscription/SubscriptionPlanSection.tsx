@@ -331,29 +331,55 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
     },
   });
 
-  // Handle plan duplicate
+  // Handle plan duplicate (optimistic: add temp copy, revert on failure)
   const handlePlanDuplicate = async (plan: SubscriptionPlan) => {
+    const prev = storePlans;
+    const tempId = `temp-${Date.now()}`;
+    const tempPlan: SubscriptionPlan = {
+      ...plan,
+      id: tempId as any,
+      plan_name: `${plan.plan_name} (Copy)`,
+    } as SubscriptionPlan;
+    // Optimistically add
+    setLocalPlansOrder([...prev, tempPlan]);
     try {
-      await duplicateSubscriptionPlan(plan.id);
+      const resp = await duplicateSubscriptionPlan(plan.id);
+      // On success the store will be updated by resolver; sync will occur via effect
       createNotice("success", __("Subscription plan duplicated successfully.", "tutorpress"), {
         type: "snackbar",
       });
     } catch (error) {
+      // Revert
+      setLocalPlansOrder(prev);
+      createNotice("error", String(error || __("Failed to duplicate subscription plan.", "tutorpress")), {
+        type: "snackbar",
+      });
       console.error("Error duplicating subscription plan:", error);
     }
   };
 
-  // Handle plan delete
+  // Handle plan delete (optimistic: remove locally, revert on failure)
   const handlePlanDelete = async (plan: SubscriptionPlan) => {
-    if (window.confirm(__("Are you sure you want to delete this subscription plan?", "tutorpress"))) {
-      try {
-        await deleteSubscriptionPlan(plan.id);
-        createNotice("success", __("Subscription plan deleted successfully.", "tutorpress"), {
-          type: "snackbar",
-        });
-      } catch (error) {
-        console.error("Error deleting subscription plan:", error);
-      }
+    if (!window.confirm(__("Are you sure you want to delete this subscription plan?", "tutorpress"))) {
+      return;
+    }
+
+    const prev = storePlans;
+    // Optimistically remove
+    setLocalPlansOrder(prev.filter((p: SubscriptionPlan) => p.id !== plan.id));
+
+    try {
+      await deleteSubscriptionPlan(plan.id);
+      createNotice("success", __("Subscription plan deleted successfully.", "tutorpress"), {
+        type: "snackbar",
+      });
+    } catch (error) {
+      // Revert
+      setLocalPlansOrder(prev);
+      createNotice("error", String(error || __("Failed to delete subscription plan.", "tutorpress")), {
+        type: "snackbar",
+      });
+      console.error("Error deleting subscription plan:", error);
     }
   };
 
@@ -414,6 +440,34 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
                   {plans.map((plan: SubscriptionPlan) => {
                     const isEditing = editingPlanId === plan.id;
 
+                    const handleSaveWrapper = async (data: Partial<SubscriptionPlan>) => {
+                      const prev = storePlans;
+                      // If creating (no id), add optimistic temp plan
+                      if (!data.id) {
+                        const tempId = `temp-${Date.now()}`;
+                        const tempPlan = { ...(data as SubscriptionPlan), id: tempId as any } as SubscriptionPlan;
+                        setLocalPlansOrder([...prev, tempPlan]);
+                      } else {
+                        // Optimistically update existing
+                        setLocalPlansOrder(
+                          prev.map((p: SubscriptionPlan) => (p.id === data.id ? { ...p, ...data } : p))
+                        );
+                      }
+
+                      try {
+                        await onFormSave(data);
+                        // Success: store will sync and effect will update localPlansOrder
+                        createNotice("success", __("Subscription plan saved.", "tutorpress"), { type: "snackbar" });
+                      } catch (err) {
+                        // Revert
+                        setLocalPlansOrder(prev);
+                        createNotice("error", String(err || __("Failed to save subscription plan.", "tutorpress")), {
+                          type: "snackbar",
+                        });
+                        console.error("Error saving subscription plan:", err);
+                      }
+                    };
+
                     return (
                       <SortableSubscriptionPlanCard
                         key={plan.id}
@@ -422,7 +476,7 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
                         onEditToggle={() => handlePlanEditToggle(plan.id)}
                         onDuplicate={() => handlePlanDuplicate(plan)}
                         onDelete={() => handlePlanDelete(plan)}
-                        onSave={onFormSave}
+                        onSave={handleSaveWrapper}
                         onCancel={onFormCancel}
                         className={getItemClasses(plan, dragState.isDragging)}
                       />
