@@ -21,6 +21,7 @@ import { useSelect, useDispatch } from "@wordpress/data";
 import { calendar } from "@wordpress/icons";
 import type { SubscriptionPlan, SubscriptionValidationErrors } from "../../../types/subscriptions";
 import { defaultSubscriptionPlan, subscriptionIntervals } from "../../../types/subscriptions";
+import { isPmproMonetization } from "../../../utils/addonChecker";
 
 // Import our reusable datetime validation utilities
 import {
@@ -273,11 +274,53 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
               className={validationErrors.plan_name ? "has-error" : ""}
             />
 
+            {/* Price and Billing Section - moved below Enrollment/Initial Payment per UX spec */}
+
+            {/* Enrollment / Initial Payment */}
+            <div>
+              {isPmproMonetization() ? (
+                <TextControl
+                  label={__("Initial Payment", "tutorpress")}
+                  placeholder="0"
+                  type="number"
+                  value={String(formData.enrollment_fee || 0)}
+                  onChange={(enrollment_fee: string) => updateField("enrollment_fee", parseFloat(enrollment_fee) || 0)}
+                  min={0}
+                  step={0.01}
+                  help={validationErrors.enrollment_fee}
+                  className={validationErrors.enrollment_fee ? "has-error" : ""}
+                />
+              ) : (
+                <>
+                  <CheckboxControl
+                    label={__("Charge Enrollment Fee", "tutorpress")}
+                    checked={!!(formData.enrollment_fee && formData.enrollment_fee > 0)}
+                    onChange={(checked) => updateField("enrollment_fee", checked ? formData.enrollment_fee || 10 : 0)}
+                  />
+                  {formData.enrollment_fee && formData.enrollment_fee > 0 ? (
+                    <TextControl
+                      label={__("Enrollment Fee", "tutorpress")}
+                      placeholder="0"
+                      type="number"
+                      value={String(formData.enrollment_fee)}
+                      onChange={(enrollment_fee: string) =>
+                        updateField("enrollment_fee", parseFloat(enrollment_fee) || 0)
+                      }
+                      min={0}
+                      step={0.01}
+                      help={validationErrors.enrollment_fee}
+                      className={validationErrors.enrollment_fee ? "has-error" : ""}
+                    />
+                  ) : null}
+                </>
+              )}
+            </div>
+
             {/* Price and Billing Section - 4 fields on same line */}
             <div className="tutorpress-subscription-plan-grid-row">
               <div className="plan-regular-price">
                 <TextControl
-                  label={__("Regular Price", "tutorpress")}
+                  label={isPmproMonetization() ? __("Renewal Price", "tutorpress") : __("Regular Price", "tutorpress")}
                   placeholder="0"
                   type="number"
                   value={String(formData.regular_price || 0)}
@@ -320,28 +363,6 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
                   required
                 />
               </div>
-            </div>
-
-            {/* Enrollment Fee */}
-            <div>
-              <CheckboxControl
-                label={__("Charge Enrollment Fee", "tutorpress")}
-                checked={!!(formData.enrollment_fee && formData.enrollment_fee > 0)}
-                onChange={(checked) => updateField("enrollment_fee", checked ? formData.enrollment_fee || 10 : 0)}
-              />
-              {formData.enrollment_fee && formData.enrollment_fee > 0 ? (
-                <TextControl
-                  label={__("Enrollment Fee", "tutorpress")}
-                  placeholder="0"
-                  type="number"
-                  value={String(formData.enrollment_fee)}
-                  onChange={(enrollment_fee: string) => updateField("enrollment_fee", parseFloat(enrollment_fee) || 0)}
-                  min={0}
-                  step={0.01}
-                  help={validationErrors.enrollment_fee}
-                  className={validationErrors.enrollment_fee ? "has-error" : ""}
-                />
-              ) : null}
             </div>
 
             {/* Certificate Option */}
