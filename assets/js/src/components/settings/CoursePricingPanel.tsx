@@ -89,7 +89,9 @@ const CoursePricingPanel: React.FC = () => {
 
   // Fetch subscription plans when component mounts and course ID is available
   useEffect(() => {
-    if (postType === "courses" && postId && (window.tutorpressAddons?.subscription ?? false)) {
+    // Also fetch when Paid Memberships Pro is the active engine so PMPro-backed plans appear
+    const shouldFetchSubscriptionPlans = (window.tutorpressAddons?.subscription ?? false) || isPmproMonetization();
+    if (postType === "courses" && postId && shouldFetchSubscriptionPlans) {
       getSubscriptionPlans();
     }
   }, [postType, postId, getSubscriptionPlans]);
