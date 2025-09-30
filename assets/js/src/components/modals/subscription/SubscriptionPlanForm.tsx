@@ -105,6 +105,12 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
   // Local validation errors state
   const [validationErrors, setValidationErrors] = useState<SubscriptionValidationErrors>({});
 
+  // Read selling option and post title from editor to support one-time mapping when PMPro active
+  const sellingOption = useSelect((select: any) => {
+    return (select("core/editor").getEditedPostAttribute?.("course_settings") || {})?.selling_option || "one_time";
+  }, []);
+  const postTitle = useSelect((select: any) => select("core/editor").getEditedPostAttribute?.("title") || "", []);
+
   // Initialize form data when component mounts or initialData changes
   useEffect(() => {
     if (initialData) {
@@ -173,7 +179,7 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
     if (validateForm()) {
       try {
         // Sanitize form data before submission
-        const sanitizedData = {
+        const sanitizedData: any = {
           ...formData,
           // Ensure proper data types
           recurring_value: parseInt(String(formData.recurring_value || 1)),
@@ -205,6 +211,23 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
           sale_price_to:
             formData.sale_price_to && formData.sale_price_to !== "0000-00-00 00:00:00" ? formData.sale_price_to : null,
         };
+
+        // If PMPro is active and the purchase option is one_time, normalize payload for PMPro one-time level
+        if (isPmproMonetization() && sellingOption === "one_time") {
+          sanitizedData.payment_type = "one_time";
+          // Ensure plan_name exists: generate from post title when empty
+          if (!sanitizedData.plan_name || !String(sanitizedData.plan_name).trim()) {
+            sanitizedData.plan_name = `${postTitle || "Course"} one time`;
+          }
+          // Clear recurring fields for one-time purchases
+          sanitizedData.recurring_value = 0;
+          sanitizedData.recurring_interval = null;
+          sanitizedData.recurring_limit = 0;
+          // Recurring monetary amount should be ignored for one-time
+          if (typeof sanitizedData.recurring_price !== "undefined") {
+            sanitizedData.recurring_price = 0;
+          }
+        }
 
         if (formMode === "add") {
           await createSubscriptionPlan(sanitizedData as any);

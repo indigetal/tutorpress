@@ -260,6 +260,19 @@ const CoursePricingPanel: React.FC = () => {
       return;
     }
 
+    // PMPro-specific warning: switching to Free removes attached PMPro levels
+    if (isPmproMonetization() && value === "free" && pricingModelEntity !== "free") {
+      const confirmed = window.confirm(
+        __(
+          "Switching to Free will remove all existing price settings for this course. This action cannot be undone. Continue?",
+          "tutorpress"
+        )
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setUiPricingModel(value); // immediate UI update for responsiveness
     // Entity write + mark post dirty via editor
     const next = {
@@ -300,6 +313,32 @@ const CoursePricingPanel: React.FC = () => {
 
   // Handle purchase option change — 5a.1 entity-only writes for simple flags
   const handlePurchaseOptionChange = (value: string) => {
+    // PMPro-specific warnings when switching between one-time and subscription
+    if (isPmproMonetization()) {
+      const current = sellingOption;
+      if (value === "subscription" && current !== "subscription") {
+        const ok = window.confirm(
+          __(
+            "Switching to Subscription will remove the existing one-time purchase setting for this course. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
+      } else if (value === "one_time" && current !== "one_time") {
+        const ok = window.confirm(
+          __(
+            "Switching to One-time purchase will remove existing subscription plans for this course. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
+      }
+    }
+
     // Entity write
     const next = {
       ...(courseSettings || {}),
