@@ -141,7 +141,7 @@ const CoursePricingPanel: React.FC = () => {
         pricing_model: "free",
         is_free: true,
         price: 0,
-        sale_price: 0,
+        sale_price: null,
       } as any;
       setCourseSettings(next);
       editorDispatch.editPost({ course_settings: next });
@@ -279,7 +279,7 @@ const CoursePricingPanel: React.FC = () => {
       ...(courseSettings || {}),
       pricing_model: value,
       is_free: value === "free",
-      ...(value === "paid" ? { price: 10, sale_price: 0 } : { price: 0, sale_price: 0 }),
+      ...(value === "paid" ? { price: 10, sale_price: null } : { price: 0, sale_price: null }),
     } as any;
     setCourseSettings(next);
     editorDispatch.editPost({ course_settings: next });
@@ -298,15 +298,26 @@ const CoursePricingPanel: React.FC = () => {
     editorDispatch.editPost({ course_settings: next });
   };
 
-  // Handle sale price change
+  // Handle sale price change (allow empty -> null)
   const handleSalePriceChange = (value: string) => {
-    const raw = parseFloat(value);
-    let sale_price = isNaN(raw) || raw < 0 ? 0 : raw;
-    const currentPrice = Number((courseSettings as any)?.price ?? 0) || 0;
-    if (sale_price >= currentPrice) sale_price = 0;
-    sale_price = Math.round(sale_price * 100) / 100;
+    let nextSale: number | null;
+    if (value === "" || value === null) {
+      nextSale = null;
+    } else {
+      const raw = parseFloat(value);
+      if (isNaN(raw) || raw < 0) {
+        nextSale = null;
+      } else {
+        const currentPrice = Number((courseSettings as any)?.price ?? 0) || 0;
+        if (raw >= currentPrice) {
+          nextSale = null;
+        } else {
+          nextSale = Math.round(raw * 100) / 100;
+        }
+      }
+    }
     lastManualPriceEditRef.current = Date.now();
-    const next = { ...(courseSettings || {}), sale_price } as any;
+    const next = { ...(courseSettings || {}), sale_price: nextSale } as any;
     setCourseSettings(next);
     editorDispatch.editPost({ course_settings: next });
   };
@@ -369,8 +380,8 @@ const CoursePricingPanel: React.FC = () => {
           const regularPrice = parseFloat(productDetails.regular_price);
           const salePrice = parseFloat(productDetails.sale_price);
           let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
-          let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
-          if (sale_price >= price) sale_price = 0;
+          let sale_price: number | null = !isNaN(salePrice) && salePrice >= 0 ? salePrice : null;
+          if (sale_price !== null && sale_price >= price) sale_price = null;
           // Last-write guard: ensure current entity still matches chosen id and do not overwrite recent manual edits
           const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
           const manualWindowMs = 800;
@@ -390,7 +401,7 @@ const CoursePricingPanel: React.FC = () => {
       }
     } else {
       // Reset prices when no product is selected
-      const next = { ...(courseSettings || {}), price: 0, sale_price: 0 } as any;
+      const next = { ...(courseSettings || {}), price: 0, sale_price: null } as any;
       setCourseSettings(next);
       editorDispatch.editPost({ course_settings: next });
     }
@@ -422,8 +433,8 @@ const CoursePricingPanel: React.FC = () => {
           const regularPrice = parseFloat(productDetails.regular_price);
           const salePrice = parseFloat(productDetails.sale_price);
           let price = !isNaN(regularPrice) && regularPrice >= 0 ? regularPrice : 0;
-          let sale_price = !isNaN(salePrice) && salePrice >= 0 ? salePrice : 0;
-          if (sale_price >= price) sale_price = 0;
+          let sale_price: number | null = !isNaN(salePrice) && salePrice >= 0 ? salePrice : null;
+          if (sale_price !== null && sale_price >= price) sale_price = null;
           // Last-write guard: ensure current entity still matches chosen id and do not overwrite recent manual edits
           const current = wpSelect("core/editor").getEditedPostAttribute("course_settings") as any;
           const manualWindowMs = 800;
@@ -441,7 +452,7 @@ const CoursePricingPanel: React.FC = () => {
       }
     } else {
       // Reset prices when no product is selected
-      const next = { ...(courseSettings || {}), price: 0, sale_price: 0 } as any;
+      const next = { ...(courseSettings || {}), price: 0, sale_price: null } as any;
       setCourseSettings(next);
       editorDispatch.editPost({ course_settings: next });
     }
@@ -646,7 +657,11 @@ const CoursePricingPanel: React.FC = () => {
                 type="number"
                 min="0"
                 step="0.01"
-                value={((courseSettings as any)?.sale_price ?? 0).toString()}
+                value={
+                  typeof (courseSettings as any)?.sale_price === "number"
+                    ? (courseSettings as any)?.sale_price?.toString()
+                    : ""
+                }
                 onChange={handleSalePriceChange}
               />
             </div>

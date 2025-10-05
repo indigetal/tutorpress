@@ -132,7 +132,7 @@ export interface CourseSettings {
   is_free: boolean;
   pricing_model: string;
   price: number;
-  sale_price: number;
+  sale_price: number | null;
   subscription_enabled: boolean;
   selling_option: string; // Purchase option: "one_time", "subscription", "both", "membership", "all"
   woocommerce_product_id?: string; // WooCommerce product ID for product linking
@@ -187,7 +187,7 @@ export const defaultCourseSettings: CourseSettings = {
   is_free: true,
   pricing_model: "",
   price: 0,
-  sale_price: 0,
+  sale_price: null,
   subscription_enabled: false,
   selling_option: "one_time",
   woocommerce_product_id: "",

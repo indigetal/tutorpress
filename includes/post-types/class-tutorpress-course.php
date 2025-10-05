@@ -165,10 +165,10 @@ class TutorPress_Course {
                             'type'    => 'number',
                             'minimum' => 0,
                         ],
-                        'sale_price' => [
-                            'type'    => 'number',
-                            'minimum' => 0,
-                        ],
+						'sale_price' => [
+							'type'    => [ 'number', 'null' ],
+							'minimum' => 0,
+						],
                         'selling_option' => [
                             'type' => 'string',
                             'enum' => [ 'one_time', 'subscription', 'both', 'membership', 'all' ],
@@ -702,7 +702,13 @@ class TutorPress_Course {
             'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
             'pricing_model' => get_post_meta($post_id, '_tutor_course_price_type', true) ?: 'free',
             'price' => (float) get_post_meta($post_id, 'tutor_course_price', true) ?: 0,
-            'sale_price' => (float) get_post_meta($post_id, 'tutor_course_sale_price', true) ?: 0,
+			'sale_price' => (function() use ($post_id) {
+				$raw = get_post_meta($post_id, 'tutor_course_sale_price', true);
+				if ($raw === '' || $raw === null) {
+					return null;
+				}
+				return (float) $raw;
+			})(),
             'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
             'woocommerce_product_id' => TutorPress_Addon_Checker::is_woocommerce_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
             'edd_product_id' => TutorPress_Addon_Checker::is_edd_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
@@ -802,9 +808,14 @@ class TutorPress_Course {
             $results[] = update_post_meta($post_id, 'tutor_course_price', (float) $value['price']);
         }
         
-        if (isset($value['sale_price'])) {
-            $results[] = update_post_meta($post_id, 'tutor_course_sale_price', (float) $value['sale_price']);
-        }
+		if (array_key_exists('sale_price', $value)) {
+			if ($value['sale_price'] === null || $value['sale_price'] === '') {
+				// Remove or set empty to avoid $0 being considered on front-end
+				$results[] = update_post_meta($post_id, 'tutor_course_sale_price', '');
+			} else {
+				$results[] = update_post_meta($post_id, 'tutor_course_sale_price', (float) $value['sale_price']);
+			}
+		}
         
         if (isset($value['selling_option'])) {
             $selling_option = $value['selling_option'];
@@ -1081,9 +1092,14 @@ class TutorPress_Course {
             $sanitized['price'] = round(max(0, (float) $settings['price']), 2);
         }
         
-        if (isset($settings['sale_price'])) {
-            $sanitized['sale_price'] = round(max(0, (float) $settings['sale_price']), 2);
-        }
+		if (array_key_exists('sale_price', $settings)) {
+			// Allow null to represent no sale; otherwise coerce to non-negative number
+			if ($settings['sale_price'] === null || $settings['sale_price'] === '') {
+				$sanitized['sale_price'] = null;
+			} else {
+				$sanitized['sale_price'] = round(max(0, (float) $settings['sale_price']), 2);
+			}
+		}
         
         if (isset($settings['selling_option'])) {
             $allowed_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
@@ -1453,9 +1469,13 @@ class TutorPress_Course {
                 update_post_meta($post_id, 'tutor_course_price', (float) $meta_value['price']);
             }
             
-            if (isset($meta_value['sale_price'])) {
-                update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
-            }
+			if (array_key_exists('sale_price', $meta_value)) {
+				if ($meta_value['sale_price'] === null || $meta_value['sale_price'] === '') {
+					update_post_meta($post_id, 'tutor_course_sale_price', '');
+				} else {
+					update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
+				}
+			}
             
             if (isset($meta_value['selling_option'])) {
                 $selling_option = $meta_value['selling_option'];

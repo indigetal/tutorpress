@@ -154,9 +154,12 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                                 'description'       => __('The regular price of the course.', 'tutorpress'),
                             ],
                             'sale_price' => [
-                                'type'              => 'number',
+                                'type'              => ['number', 'null'],
                                 'minimum'           => 0,
                                 'sanitize_callback' => function($value) {
+                                    if ($value === null || $value === '') {
+                                        return null;
+                                    }
                                     return max(0, (float) $value);
                                 },
                                 'description'       => __('The sale price of the course.', 'tutorpress'),
@@ -571,9 +574,15 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         if ($request->has_param('sale_price')) {
-            $sale_price = max(0, (float) $request->get_param('sale_price'));
-            $new_settings['sale_price'] = $sale_price;
-            update_post_meta($course_id, 'tutor_course_sale_price', $sale_price);
+            $sp = $request->get_param('sale_price');
+            if ($sp === null || $sp === '') {
+                $new_settings['sale_price'] = null;
+                update_post_meta($course_id, 'tutor_course_sale_price', '');
+            } else {
+                $sale_price = max(0, (float) $sp);
+                $new_settings['sale_price'] = $sale_price;
+                update_post_meta($course_id, 'tutor_course_sale_price', $sale_price);
+            }
         }
 
         if ($request->has_param('subscription_enabled')) {
