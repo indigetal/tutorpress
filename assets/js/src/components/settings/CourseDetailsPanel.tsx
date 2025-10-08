@@ -123,9 +123,22 @@ const CourseDetailsPanel: React.FC = () => {
             }
             checked={!!(cs?.is_public_course ?? false)}
             onChange={(enabled) => {
-              // If enabling public course and course is currently paid, show warning but allow the change
-              // The CoursePricingPanel will auto-reset to free when this changes
-              safeSet({ is_public_course: !!enabled });
+              const nextEnabled = !!enabled;
+              // If enabling public course and course is currently paid, confirm destructive change
+              if (nextEnabled && cs?.pricing_model === "paid") {
+                const ok = window.confirm(
+                  __(
+                    "Public courses cannot be paid. Switching to a public course will remove all existing price settings for this course. This action cannot be undone. Continue?",
+                    "tutorpress"
+                  )
+                );
+                if (!ok) {
+                  // User cancelled; do not change the toggle
+                  return;
+                }
+              }
+              // Proceed with update; Pricing panel will auto-reset to Free if needed
+              safeSet({ is_public_course: nextEnabled });
             }}
           />
 
