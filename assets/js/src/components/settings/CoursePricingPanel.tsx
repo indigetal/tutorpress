@@ -543,6 +543,7 @@ const CoursePricingPanel: React.FC = () => {
         courseId={postId}
         initialPlan={editingPlan}
         shouldShowForm={shouldShowForm}
+        sellingOption={sellingOption}
       />
       {/* No legacy error state */}
 

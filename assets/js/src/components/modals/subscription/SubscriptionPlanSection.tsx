@@ -210,6 +210,7 @@ interface SubscriptionPlanSectionProps {
   onPlanEditToggle?: (planId: number) => void;
   isNewPlanFormVisible?: boolean;
   onAddNewPlan?: () => void;
+  sellingOption?: "one_time" | "subscription" | "both" | "all";
 }
 
 /**
@@ -224,6 +225,7 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
   onPlanEditToggle,
   isNewPlanFormVisible = false,
   onAddNewPlan,
+  sellingOption = "subscription",
 }): JSX.Element => {
   // Get store state and actions
   const {
@@ -437,51 +439,61 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
             >
               <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
                 <div className="tutorpress-subscription-plan-items">
-                  {plans.map((plan: SubscriptionPlan) => {
-                    const isEditing = editingPlanId === plan.id;
-
-                    const handleSaveWrapper = async (data: Partial<SubscriptionPlan>) => {
-                      const prev = storePlans;
-                      // If creating (no id), add optimistic temp plan
-                      if (!data.id) {
-                        const tempId = `temp-${Date.now()}`;
-                        const tempPlan = { ...(data as SubscriptionPlan), id: tempId as any } as SubscriptionPlan;
-                        setLocalPlansOrder([...prev, tempPlan]);
-                      } else {
-                        // Optimistically update existing
-                        setLocalPlansOrder(
-                          prev.map((p: SubscriptionPlan) => (p.id === data.id ? { ...p, ...data } : p))
-                        );
+                  {plans
+                    .filter((plan: SubscriptionPlan) => {
+                      // Filter plans by payment_type matching current UI-selected selling_option
+                      if (sellingOption === "subscription") {
+                        // Show only recurring plans when subscription mode is selected
+                        return plan.payment_type === "recurring";
                       }
+                      // 'both', 'all', or 'one_time' show all plans
+                      return true;
+                    })
+                    .map((plan: SubscriptionPlan) => {
+                      const isEditing = editingPlanId === plan.id;
 
-                      try {
-                        await onFormSave(data);
-                        // Success: store will sync and effect will update localPlansOrder
-                        createNotice("success", __("Subscription plan saved.", "tutorpress"), { type: "snackbar" });
-                      } catch (err) {
-                        // Revert
-                        setLocalPlansOrder(prev);
-                        createNotice("error", String(err || __("Failed to save subscription plan.", "tutorpress")), {
-                          type: "snackbar",
-                        });
-                        console.error("Error saving subscription plan:", err);
-                      }
-                    };
+                      const handleSaveWrapper = async (data: Partial<SubscriptionPlan>) => {
+                        const prev = storePlans;
+                        // If creating (no id), add optimistic temp plan
+                        if (!data.id) {
+                          const tempId = `temp-${Date.now()}`;
+                          const tempPlan = { ...(data as SubscriptionPlan), id: tempId as any } as SubscriptionPlan;
+                          setLocalPlansOrder([...prev, tempPlan]);
+                        } else {
+                          // Optimistically update existing
+                          setLocalPlansOrder(
+                            prev.map((p: SubscriptionPlan) => (p.id === data.id ? { ...p, ...data } : p))
+                          );
+                        }
 
-                    return (
-                      <SortableSubscriptionPlanCard
-                        key={plan.id}
-                        plan={plan}
-                        isEditing={isEditing}
-                        onEditToggle={() => handlePlanEditToggle(plan.id)}
-                        onDuplicate={() => handlePlanDuplicate(plan)}
-                        onDelete={() => handlePlanDelete(plan)}
-                        onSave={handleSaveWrapper}
-                        onCancel={onFormCancel}
-                        className={getItemClasses(plan, dragState.isDragging)}
-                      />
-                    );
-                  })}
+                        try {
+                          await onFormSave(data);
+                          // Success: store will sync and effect will update localPlansOrder
+                          createNotice("success", __("Subscription plan saved.", "tutorpress"), { type: "snackbar" });
+                        } catch (err) {
+                          // Revert
+                          setLocalPlansOrder(prev);
+                          createNotice("error", String(err || __("Failed to save subscription plan.", "tutorpress")), {
+                            type: "snackbar",
+                          });
+                          console.error("Error saving subscription plan:", err);
+                        }
+                      };
+
+                      return (
+                        <SortableSubscriptionPlanCard
+                          key={plan.id}
+                          plan={plan}
+                          isEditing={isEditing}
+                          onEditToggle={() => handlePlanEditToggle(plan.id)}
+                          onDuplicate={() => handlePlanDuplicate(plan)}
+                          onDelete={() => handlePlanDelete(plan)}
+                          onSave={handleSaveWrapper}
+                          onCancel={onFormCancel}
+                          className={getItemClasses(plan, dragState.isDragging)}
+                        />
+                      );
+                    })}
                 </div>
               </SortableContext>
             </DndContext>
