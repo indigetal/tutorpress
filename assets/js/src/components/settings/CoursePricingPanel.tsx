@@ -87,14 +87,22 @@ const CoursePricingPanel: React.FC = () => {
     setSubscriptionModalOpen(true);
   };
 
-  // Fetch subscription plans when component mounts and course ID is available
+  // Derive sellingOption early (before useEffect that uses it)
+  const sellingOption = ((courseSettings as any)?.selling_option || "one_time") as
+    | "one_time"
+    | "subscription"
+    | "both"
+    | "all";
+
+  // Fetch subscription plans when component mounts, course ID is available, or selling option changes
+  // Refetching on sellingOption change ensures fresh plans are displayed when switching purchase options
   useEffect(() => {
     // Also fetch when Paid Memberships Pro is the active engine so PMPro-backed plans appear
     const shouldFetchSubscriptionPlans = (window.tutorpressAddons?.subscription ?? false) || isPmproMonetization();
     if (postType === "courses" && postId && shouldFetchSubscriptionPlans) {
       getSubscriptionPlans();
     }
-  }, [postType, postId, getSubscriptionPlans]);
+  }, [postType, postId, getSubscriptionPlans, sellingOption]);
 
   // Fetch WooCommerce products when component mounts and WooCommerce is active
   useEffect(() => {
@@ -125,7 +133,6 @@ const CoursePricingPanel: React.FC = () => {
 
   // Derive entity values and keep an immediate UI shadow for responsiveness (hooks must be before any early return)
   const pricingModelEntity = ((courseSettings as any)?.pricing_model || "free") as string;
-  const sellingOption = ((courseSettings as any)?.selling_option || "one_time") as string;
   const [uiPricingModel, setUiPricingModel] = useState<string>(pricingModelEntity);
   useEffect(() => {
     setUiPricingModel(pricingModelEntity);
@@ -682,27 +689,38 @@ const CoursePricingPanel: React.FC = () => {
                   <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
                     {__("Subscription Plans:", "tutorpress")}
                   </div>
-                  {subscriptionPlans.map((plan: SubscriptionPlan) => (
-                    <div key={plan.id} className="tutorpress-saved-file-item">
-                      <div className="plan-info">
-                        <div className="plan-name">
-                          {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
+                  {subscriptionPlans
+                    .filter((plan: SubscriptionPlan) => {
+                      // Filter plans by payment_type matching current UI-selected selling_option
+                      // Note: This section only renders when sellingOption is "subscription", "both", or "all"
+                      if (sellingOption === "subscription") {
+                        // Show only recurring plans when subscription mode is selected
+                        return plan.payment_type === "recurring";
+                      }
+                      // 'both' or 'all' shows all plans
+                      return true;
+                    })
+                    .map((plan: SubscriptionPlan) => (
+                      <div key={plan.id} className="tutorpress-saved-file-item">
+                        <div className="plan-info">
+                          <div className="plan-name">
+                            {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
+                          </div>
+                          <div className="plan-details">
+                            ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                            {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
+                            {plan.is_featured && " • Featured"}
+                          </div>
                         </div>
-                        <div className="plan-details">
-                          ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
-                          {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
-                          {plan.is_featured && " • Featured"}
-                        </div>
+                        <Button
+                          variant="tertiary"
+                          icon={edit}
+                          onClick={() => handleEditPlan(plan)}
+                          className="edit-button"
+                          aria-label={__("Edit subscription plan", "tutorpress")}
+                        />
                       </div>
-                      <Button
-                        variant="tertiary"
-                        icon={edit}
-                        onClick={() => handleEditPlan(plan)}
-                        className="edit-button"
-                        aria-label={__("Edit subscription plan", "tutorpress")}
-                      />
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
 

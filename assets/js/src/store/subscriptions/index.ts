@@ -50,9 +50,7 @@ import {
 /**
  * Subscription Store State Interface
  */
-interface State extends SubscriptionState {
-  lastLoadedCourseId?: number | null;
-}
+interface State extends SubscriptionState {}
 
 // ============================================================================
 // INITIAL STATE
@@ -74,7 +72,6 @@ const DEFAULT_STATE: State = {
     isReordering: false,
     error: null,
   },
-  lastLoadedCourseId: null,
 };
 
 // ============================================================================
@@ -142,7 +139,6 @@ const reducer = (state = DEFAULT_STATE, action: SubscriptionAction): State => {
           isLoading: false,
           error: null,
         },
-        lastLoadedCourseId: (action as any).payload.courseId ?? state.lastLoadedCourseId,
       };
 
     case "FETCH_SUBSCRIPTION_PLANS_ERROR":
@@ -503,14 +499,7 @@ const resolvers = {
       }
 
       // Dispatch start action
-      // Cache guard: if already loaded for this course and not loading, avoid refetch
-      const alreadyLoadedForCourse =
-        (yield select("tutorpress/subscriptions")).getSubscriptionPlans()?.length > 0 &&
-        (yield select("tutorpress/subscriptions")).getState?.()?.lastLoadedCourseId === courseId;
-      if (alreadyLoadedForCourse) {
-        return { success: true, data: (yield select("tutorpress/subscriptions")).getSubscriptionPlans() } as any;
-      }
-
+      // Always fetch fresh subscription plans from the API (disable cache guard to avoid stale data)
       yield { type: "FETCH_SUBSCRIPTION_PLANS_START", payload: { courseId } };
 
       // Determine the correct endpoint based on post type (via request builder)
