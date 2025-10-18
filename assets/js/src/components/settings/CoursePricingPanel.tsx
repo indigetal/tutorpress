@@ -505,6 +505,9 @@ const CoursePricingPanel: React.FC = () => {
 
   // Get purchase options based on available payment engines
   const getPurchaseOptions = () => {
+    // Get current user's admin status from localized script data
+    const isUserAdmin = (window as any).tutorPressCurriculum?.currentUser?.isAdmin || false;
+
     const options = [
       {
         label: __("One-time purchase only", "tutorpress"),
@@ -514,18 +517,34 @@ const CoursePricingPanel: React.FC = () => {
         label: __("Subscription only", "tutorpress"),
         value: "subscription",
       },
-      {
-        label: __("Subscription & one-time purchase", "tutorpress"),
-        value: "both",
-      },
-      {
-        label: __("Membership only", "tutorpress"),
-        value: "membership",
-      },
-      {
-        label: __("All", "tutorpress"),
-        value: "all",
-      },
+      // Hide "Subscription & one-time purchase" when PMPro is selected
+      // (PMPro handles this via initial_payment on recurring plans)
+      ...(isPmproMonetization()
+        ? []
+        : [
+            {
+              label: __("Subscription & one-time purchase", "tutorpress"),
+              value: "both",
+            },
+          ]),
+      // Gate "Membership only" to admins only
+      ...(isUserAdmin
+        ? [
+            {
+              label: __("Membership only", "tutorpress"),
+              value: "membership",
+            },
+          ]
+        : []),
+      // Gate "All" to admins only (if membership is admin-only, so should "All")
+      ...(isUserAdmin
+        ? [
+            {
+              label: __("All", "tutorpress"),
+              value: "all",
+            },
+          ]
+        : []),
     ];
     return options;
   };
