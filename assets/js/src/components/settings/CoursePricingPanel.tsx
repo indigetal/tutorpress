@@ -519,14 +519,10 @@ const CoursePricingPanel: React.FC = () => {
       },
       // Hide "Subscription & one-time purchase" when PMPro is selected
       // (PMPro handles this via initial_payment on recurring plans)
-      ...(isPmproMonetization()
-        ? []
-        : [
-            {
-              label: __("Subscription & one-time purchase", "tutorpress"),
-              value: "both",
-            },
-          ]),
+      {
+        label: __("Subscription or one-time purchase", "tutorpress"),
+        value: "both",
+      },
       // Gate "Membership only" to admins only
       ...(isUserAdmin
         ? [
