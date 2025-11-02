@@ -37,12 +37,21 @@ class TutorPress_Lesson {
 	public function __construct() {
 		$this->token = 'lesson';
 
+		// Hook into register_post_type_args BEFORE Tutor LMS registers the lesson post type.
+		// This runs at priority 5, before Tutor LMS's priority 10, to inject map_meta_cap.
+		add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_lesson' ], 5, 2 );
+
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
 
 		// Ensure featured image support for lessons
 		add_action( 'init', [ $this, 'ensure_lesson_featured_image_support' ], 20 );
+
+		// Add failsafe "Edit Lesson" link to admin bar (priority 15 for top positioning)
+		add_action( 'admin_bar_menu', [ $this, 'add_edit_lesson_admin_bar' ], 71 );
+		// Add CSS to align the icon like WordPress's native edit link
+		add_action( 'wp_head', [ $this, 'output_admin_bar_icon_css' ] );
 
 		// Bidirectional sync hooks for Tutor LMS compatibility
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_video_meta_update' ], 10, 4 );
@@ -480,6 +489,83 @@ class TutorPress_Lesson {
 				add_theme_support( 'post-thumbnails' );
 			}
 		}
+	}
+
+	/**
+	 * Add "Edit Lesson" link to admin bar as failsafe.
+	 *
+	 * If WordPress didn't add an edit node (possibly due to Tutor LMS,
+	 * we add our own to ensure instructors can always edit lessons from the frontend.
+	 * This runs at priority 71 to appear right after "+ New".
+	 *
+	 * @since 1.14.3
+	 * @param WP_Admin_Bar $wp_admin_bar The admin bar instance.
+	 * @return void
+	 */
+	public function add_edit_lesson_admin_bar( $wp_admin_bar ) {
+		if ( is_admin() ) {
+			return;
+		}
+
+		if ( ! is_singular( 'lesson' ) ) {
+			return;
+		}
+
+		$lesson_id = get_the_ID();
+		if ( ! $lesson_id || ! current_user_can( 'edit_post', $lesson_id ) ) {
+			return;
+		}
+
+		// Check if WordPress already added an edit node
+		if ( $wp_admin_bar->get_node( 'edit' ) ) {
+			// WordPress already added it, so don't add a duplicate
+			return;
+		}
+
+		// Add our own "Edit Lesson" link (opens in current tab, positioned near the top)
+		$wp_admin_bar->add_menu( array(
+			'id'     => 'tutorpress-edit-lesson',
+			'title'  => '<span class="ab-icon dashicons dashicons-edit"></span>' . __( 'Edit Lesson', 'tutorpress' ),
+			'href'   => get_edit_post_link( $lesson_id ),
+		) );
+	}
+
+	/**
+	 * Output CSS to align the "Edit Lesson" admin bar icon.
+	 *
+	 * Outputs minimal CSS to align the pencil icon with top: 2px,
+	 * matching WordPress's native edit link alignment.
+	 *
+	 * @since 1.14.3
+	 * @return void
+	 */
+	public function output_admin_bar_icon_css() {
+		?>
+		<style>
+			#wp-admin-bar-tutorpress-edit-lesson .ab-item .ab-icon:before {
+				top: 2px;
+			}
+		</style>
+		<?php
+	}
+
+	/**
+	 * Add map_meta_cap to lesson post type arguments.
+	 *
+	 * This allows WordPress to map primitive capabilities like 'edit_post'
+	 * to Tutor LMS's custom capabilities (e.g. 'edit_tutor_lesson'), which
+	 * is required for core UI features like the admin-bar "Edit" link to work.
+	 *
+	 * @since 1.14.3
+	 * @param array  $args Post type arguments.
+	 * @param string $post_type Post type slug.
+	 * @return array Modified post type arguments.
+	 */
+	public function add_map_meta_cap_to_lesson( $args, $post_type ) {
+		if ( $post_type === 'lesson' ) {
+			$args['map_meta_cap'] = true;
+		}
+		return $args;
 	}
 
 	public function handle_tutor_video_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
