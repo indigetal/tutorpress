@@ -42,6 +42,13 @@ class TutorPress_Assignment {
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
 
+		// Ensure map_meta_cap is present at registration time for tutor_assignments
+		add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_assignment' ], 5, 2 );
+
+		// Add failsafe "Edit Assignment" link to admin bar and icon CSS
+		add_action( 'admin_bar_menu', [ $this, 'add_edit_assignment_admin_bar' ], 71 );
+		add_action( 'wp_head', [ $this, 'output_admin_bar_assignment_icon_css' ] );
+
 		// Bidirectional sync hooks for Tutor LMS compatibility
 		add_action( 'updated_post_meta', [ $this, 'handle_assignment_settings_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_assignment_option_update' ], 10, 4 );
@@ -162,6 +169,70 @@ class TutorPress_Assignment {
 	 */
 	public function post_meta_auth_callback( $allowed, $meta_key, $post_id ) {
 		return current_user_can( 'edit_post', $post_id );
+	}
+
+	/**
+	 * Add map_meta_cap to tutor_assignments post type args.
+	 * Ensures WordPress maps primitive capabilities (edit_post) to custom caps.
+	 *
+	 * @param array  $args Post type args.
+	 * @param string $post_type Post type slug.
+	 * @return array Modified args.
+	 */
+	public function add_map_meta_cap_to_assignment( $args, $post_type ) {
+		if ( $post_type === 'tutor_assignments' ) {
+			$args['map_meta_cap'] = true;
+		}
+		return $args;
+	}
+
+	/**
+	 * Add "Edit Assignment" link to admin bar as a failsafe.
+	 *
+	 * @param WP_Admin_Bar $wp_admin_bar
+	 * @return void
+	 */
+	public function add_edit_assignment_admin_bar( $wp_admin_bar ) {
+		if ( is_admin() ) {
+			return;
+		}
+
+		if ( ! is_singular( $this->token ) ) {
+			return;
+		}
+
+		$assignment_id = get_the_ID();
+		if ( ! $assignment_id || ! current_user_can( 'edit_post', $assignment_id ) ) {
+			return;
+		}
+
+		if ( $wp_admin_bar->get_node( 'edit' ) ) {
+			return; // native edit node exists
+		}
+
+		// Construct the edit URL directly (get_edit_post_link may not work reliably for custom post types)
+		$edit_url = admin_url( 'post.php?post=' . $assignment_id . '&action=edit' );
+
+		$wp_admin_bar->add_menu( array(
+			'id'    => 'tutorpress-edit-assignment',
+			'title' => '<span class="ab-icon dashicons dashicons-edit"></span>' . __( 'Edit Assignment', 'tutorpress' ),
+			'href'  => $edit_url,
+		) );
+	}
+
+	/**
+	 * Output CSS to align the assignment admin bar icon like core edit link.
+	 *
+	 * @return void
+	 */
+	public function output_admin_bar_assignment_icon_css() {
+		?>
+		<style>
+			#wp-admin-bar-tutorpress-edit-assignment .ab-item .ab-icon:before {
+				top: 2px;
+			}
+		</style>
+		<?php
 	}
 
 	/**

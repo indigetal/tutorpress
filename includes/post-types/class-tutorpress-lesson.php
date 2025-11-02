@@ -48,7 +48,7 @@ class TutorPress_Lesson {
 		// Ensure featured image support for lessons
 		add_action( 'init', [ $this, 'ensure_lesson_featured_image_support' ], 20 );
 
-		// Add failsafe "Edit Lesson" link to admin bar (priority 15 for top positioning)
+		// Add failsafe "Edit Lesson" link to admin bar (priority 71 for top positioning)
 		add_action( 'admin_bar_menu', [ $this, 'add_edit_lesson_admin_bar' ], 71 );
 		// Add CSS to align the icon like WordPress's native edit link
 		add_action( 'wp_head', [ $this, 'output_admin_bar_icon_css' ] );
@@ -492,6 +492,25 @@ class TutorPress_Lesson {
 	}
 
 	/**
+	 * Add map_meta_cap to lesson post type arguments.
+	 *
+	 * This allows WordPress to map primitive capabilities like 'edit_post'
+	 * to Tutor LMS's custom capabilities (e.g. 'edit_tutor_lesson'), which
+	 * is required for core UI features like the admin-bar "Edit" link to work.
+	 *
+	 * @since 1.14.3
+	 * @param array  $args Post type arguments.
+	 * @param string $post_type Post type slug.
+	 * @return array Modified post type arguments.
+	 */
+	public function add_map_meta_cap_to_lesson( $args, $post_type ) {
+		if ( $post_type === 'lesson' ) {
+			$args['map_meta_cap'] = true;
+		}
+		return $args;
+	}
+
+	/**
 	 * Add "Edit Lesson" link to admin bar as failsafe.
 	 *
 	 * If WordPress didn't add an edit node (possibly due to Tutor LMS,
@@ -547,25 +566,6 @@ class TutorPress_Lesson {
 			}
 		</style>
 		<?php
-	}
-
-	/**
-	 * Add map_meta_cap to lesson post type arguments.
-	 *
-	 * This allows WordPress to map primitive capabilities like 'edit_post'
-	 * to Tutor LMS's custom capabilities (e.g. 'edit_tutor_lesson'), which
-	 * is required for core UI features like the admin-bar "Edit" link to work.
-	 *
-	 * @since 1.14.3
-	 * @param array  $args Post type arguments.
-	 * @param string $post_type Post type slug.
-	 * @return array Modified post type arguments.
-	 */
-	public function add_map_meta_cap_to_lesson( $args, $post_type ) {
-		if ( $post_type === 'lesson' ) {
-			$args['map_meta_cap'] = true;
-		}
-		return $args;
 	}
 
 	public function handle_tutor_video_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {

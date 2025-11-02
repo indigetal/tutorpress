@@ -53,6 +53,15 @@ class TutorPress_Course {
             add_action( 'admin_enqueue_scripts', [ $this, 'register_admin_scripts' ] );
         }
 
+        // Ensure map_meta_cap is present at registration time for courses
+        add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_course' ], 5, 2 );
+
+        // Conditionally add "Edit Course" admin-bar link based on dashboard redirects setting (priority 71 for top positioning)
+        add_action( 'admin_bar_menu', [ $this, 'conditionally_add_edit_course_link' ], 71 );
+        // Remove Tutor LMS's "Edit with Course Builder" link when dashboard redirects are enabled (priority 101, after Tutor LMS's 100)
+        add_action( 'admin_bar_menu', [ $this, 'remove_tutor_edit_link_if_redirects_enabled' ], 101 );
+        add_action( 'wp_head', [ $this, 'output_admin_bar_course_icon_css' ] );
+
         // Bidirectional sync hooks for Tutor LMS compatibility
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_individual_field_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_course_settings_update' ], 10, 4 );
@@ -1683,5 +1692,96 @@ class TutorPress_Course {
                 'default' => 'unlock_by_date',
             ),
         );
+    }
+
+    /**
+     * Add map meta cap to course
+     *
+     * @param array $args Array of arguments for registering a post type.
+     * @param string $post_type Post type key.
+     * @return array
+     */
+    public function add_map_meta_cap_to_course( $args, $post_type ) {
+        if ( $post_type === 'courses' ) {
+            $args['map_meta_cap'] = true;
+        }
+        return $args;
+    }
+
+    /**
+     * Conditionally manage "Edit Course" admin-bar link based on dashboard redirects setting
+     *
+     * When "Redirect Frontend Dashboard Editing to Gutenberg" is enabled:
+     * - Adds our "Edit Course" link at priority 71 (early positioning)
+     * - Removes Tutor LMS's "Edit with Course Builder" link at priority 101 (after Tutor LMS adds it)
+     *
+     * @param WP_Admin_Bar $wp_admin_bar
+     */
+    public function conditionally_add_edit_course_link( $wp_admin_bar ) {
+        // Check if dashboard redirects setting is enabled
+        $options = get_option( 'tutorpress_settings', [] );
+        $enable_redirects = isset( $options['enable_dashboard_redirects'] ) && '1' === $options['enable_dashboard_redirects'];
+
+        if ( ! $enable_redirects ) {
+            return; // Leave Tutor LMS's link intact if setting is disabled
+        }
+
+        // Only apply on frontend course pages
+        if ( is_admin() || ! is_singular( 'courses' ) ) {
+            return;
+        }
+
+        $course_id = get_the_ID();
+        if ( ! $course_id || ! current_user_can( 'edit_post', $course_id ) ) {
+            return;
+        }
+
+        // Add our own "Edit Course" link (positioned early at priority 71, like Lessons/Assignments)
+        $wp_admin_bar->add_menu( array(
+            'id'    => 'tutorpress-edit-course',
+            'title' => '<span class="ab-icon dashicons dashicons-edit"></span>' . __( 'Edit Course', 'tutorpress' ),
+            'href'  => get_edit_post_link( $course_id ),
+        ) );
+    }
+
+    /**
+     * Remove Tutor LMS's "Edit with Course Builder" link when dashboard redirects are enabled (priority 101, after Tutor LMS's 100)
+     *
+     * @param WP_Admin_Bar $wp_admin_bar
+     */
+    public function remove_tutor_edit_link_if_redirects_enabled( $wp_admin_bar ) {
+        // Check if dashboard redirects setting is enabled
+        $options = get_option( 'tutorpress_settings', [] );
+        $enable_redirects = isset( $options['enable_dashboard_redirects'] ) && '1' === $options['enable_dashboard_redirects'];
+
+        if ( ! $enable_redirects ) {
+            return; // Leave Tutor LMS's link intact if setting is disabled
+        }
+
+        // Only apply on frontend course pages
+        if ( is_admin() || ! is_singular( 'courses' ) ) {
+            return;
+        }
+
+        $course_id = get_the_ID();
+        if ( ! $course_id || ! current_user_can( 'edit_post', $course_id ) ) {
+            return;
+        }
+
+        // Remove Tutor LMS's "Edit with Course Builder" link
+        $wp_admin_bar->remove_menu( 'edit' );
+    }
+
+    /**
+     * Output admin bar course icon CSS
+     */
+    public function output_admin_bar_course_icon_css() {
+        ?>
+        <style>
+            #wpadminbar #wp-admin-bar-edit .ab-item .ab-icon:before {
+                top: 2px;
+            }
+        </style>
+        <?php
     }
 } 
