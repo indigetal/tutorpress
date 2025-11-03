@@ -210,6 +210,7 @@ interface SubscriptionPlanSectionProps {
   onPlanEditToggle?: (planId: number) => void;
   isNewPlanFormVisible?: boolean;
   onAddNewPlan?: () => void;
+  sellingOption?: "one_time" | "subscription" | "both" | "all";
 }
 
 /**
@@ -224,6 +225,7 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
   onPlanEditToggle,
   isNewPlanFormVisible = false,
   onAddNewPlan,
+  sellingOption = "subscription",
 }): JSX.Element => {
   // Get store state and actions
   const {
@@ -437,7 +439,17 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
             >
               <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
                 <div className="tutorpress-subscription-plan-items">
-                  {plans.map((plan: SubscriptionPlan) => {
+                  {plans
+                    .filter((plan: SubscriptionPlan) => {
+                      // Filter plans by payment_type matching current UI-selected selling_option
+                      if (sellingOption === "subscription") {
+                        // Show only recurring plans when subscription mode is selected
+                        return plan.payment_type === "recurring";
+                      }
+                      // 'both', 'all', or 'one_time' show all plans
+                      return true;
+                    })
+                    .map((plan: SubscriptionPlan) => {
                     const isEditing = editingPlanId === plan.id;
 
                     const handleSaveWrapper = async (data: Partial<SubscriptionPlan>) => {

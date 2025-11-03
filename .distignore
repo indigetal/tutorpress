@@ -61,7 +61,7 @@ docs
 !LICENSE.md
 
 # Development plugins/themes used for testing
-references
+references/
 
 # Debug files
 *.log

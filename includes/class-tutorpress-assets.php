@@ -183,6 +183,10 @@ class TutorPress_Assets {
             'isLesson' => 'lesson' === $screen->post_type,
             'isAssignment' => 'tutor_assignments' === $screen->post_type,
             'adminUrl' => admin_url(),
+            'currentUser' => [
+                'isAdmin' => current_user_can('manage_options'),
+                'canEditCourses' => current_user_can('edit_courses'),
+            ]
         ]);
 
         // Expose comprehensive addon and payment engine data to frontend

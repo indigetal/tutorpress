@@ -22,7 +22,7 @@ export type SubscriptionInterval = "day" | "week" | "month" | "year";
 /**
  * Subscription plan payment type
  */
-export type SubscriptionPaymentType = "recurring";
+export type SubscriptionPaymentType = "recurring" | "one_time";
 
 /**
  * Subscription plan type

@@ -12,6 +12,7 @@ interface SubscriptionModalProps {
   postType?: string;
   initialPlan?: SubscriptionPlan | null;
   shouldShowForm?: boolean;
+  sellingOption?: "one_time" | "subscription" | "both" | "all";
 }
 
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
@@ -21,6 +22,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   postType = "courses",
   initialPlan,
   shouldShowForm = false,
+  sellingOption = "subscription",
 }) => {
   // State for managing which plan is being edited (if any)
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
@@ -85,6 +87,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           onPlanEditToggle={handlePlanEditToggle}
           isNewPlanFormVisible={isNewPlanFormVisible}
           onAddNewPlan={handleAddNewPlan}
+          sellingOption={sellingOption}
         />
       </div>
     </Modal>

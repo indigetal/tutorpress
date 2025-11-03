@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! function_exists( 'tutorpress_get_version' ) ) {
     function tutorpress_get_version() {
-        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '2.0.3';
+        return defined( 'TUTORPRESS_VERSION' ) ? TUTORPRESS_VERSION : '2.0.6';
     }
 }
 

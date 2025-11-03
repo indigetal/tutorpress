@@ -87,14 +87,22 @@ const CoursePricingPanel: React.FC = () => {
     setSubscriptionModalOpen(true);
   };
 
-  // Fetch subscription plans when component mounts and course ID is available
+  // Derive sellingOption early (before useEffect that uses it)
+  const sellingOption = ((courseSettings as any)?.selling_option || "one_time") as
+    | "one_time"
+    | "subscription"
+    | "both"
+    | "all";
+
+  // Fetch subscription plans when component mounts, course ID is available, or selling option changes
+  // Refetching on sellingOption change ensures fresh plans are displayed when switching purchase options
   useEffect(() => {
     // Also fetch when Paid Memberships Pro is the active engine so PMPro-backed plans appear
     const shouldFetchSubscriptionPlans = (window.tutorpressAddons?.subscription ?? false) || isPmproMonetization();
     if (postType === "courses" && postId && shouldFetchSubscriptionPlans) {
       getSubscriptionPlans();
     }
-  }, [postType, postId, getSubscriptionPlans]);
+  }, [postType, postId, getSubscriptionPlans, sellingOption]);
 
   // Fetch WooCommerce products when component mounts and WooCommerce is active
   useEffect(() => {
@@ -125,7 +133,6 @@ const CoursePricingPanel: React.FC = () => {
 
   // Derive entity values and keep an immediate UI shadow for responsiveness (hooks must be before any early return)
   const pricingModelEntity = ((courseSettings as any)?.pricing_model || "free") as string;
-  const sellingOption = ((courseSettings as any)?.selling_option || "one_time") as string;
   const [uiPricingModel, setUiPricingModel] = useState<string>(pricingModelEntity);
   useEffect(() => {
     setUiPricingModel(pricingModelEntity);
@@ -498,6 +505,9 @@ const CoursePricingPanel: React.FC = () => {
 
   // Get purchase options based on available payment engines
   const getPurchaseOptions = () => {
+    // Get current user's admin status from localized script data
+    const isUserAdmin = (window as any).tutorPressCurriculum?.currentUser?.isAdmin || false;
+
     const options = [
       {
         label: __("One-time purchase only", "tutorpress"),
@@ -507,18 +517,30 @@ const CoursePricingPanel: React.FC = () => {
         label: __("Subscription only", "tutorpress"),
         value: "subscription",
       },
+      // Hide "Subscription & one-time purchase" when PMPro is selected
+      // (PMPro handles this via initial_payment on recurring plans)
       {
-        label: __("Subscription & one-time purchase", "tutorpress"),
+        label: __("Subscription or one-time purchase", "tutorpress"),
         value: "both",
       },
+      // Gate "Membership only" to admins only
+      ...(isUserAdmin
+        ? [
       {
         label: __("Membership only", "tutorpress"),
         value: "membership",
       },
+          ]
+        : []),
+      // Gate "All" to admins only (if membership is admin-only, so should "All")
+      ...(isUserAdmin
+        ? [
       {
         label: __("All", "tutorpress"),
         value: "all",
       },
+          ]
+        : []),
     ];
     return options;
   };
@@ -536,6 +558,7 @@ const CoursePricingPanel: React.FC = () => {
         courseId={postId}
         initialPlan={editingPlan}
         shouldShowForm={shouldShowForm}
+        sellingOption={sellingOption}
       />
       {/* No legacy error state */}
 
@@ -682,7 +705,18 @@ const CoursePricingPanel: React.FC = () => {
                   <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
                     {__("Subscription Plans:", "tutorpress")}
                   </div>
-                  {subscriptionPlans.map((plan: SubscriptionPlan) => (
+                  {subscriptionPlans
+                    .filter((plan: SubscriptionPlan) => {
+                      // Filter plans by payment_type matching current UI-selected selling_option
+                      // Note: This section only renders when sellingOption is "subscription", "both", or "all"
+                      if (sellingOption === "subscription") {
+                        // Show only recurring plans when subscription mode is selected
+                        return plan.payment_type === "recurring";
+                      }
+                      // 'both' or 'all' shows all plans
+                      return true;
+                    })
+                    .map((plan: SubscriptionPlan) => (
                     <div key={plan.id} className="tutorpress-saved-file-item">
                       <div className="plan-info">
                         <div className="plan-name">
