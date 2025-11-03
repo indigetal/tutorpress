@@ -134,6 +134,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const Certificate = require("./components/metaboxes/Certificate").default;
       render(<Certificate />, certificateRoot);
     }
+
+    // Render Bundle Certificate metabox for Course Bundles
+    const bundleCertificateRoot = document.getElementById("tutorpress-bundle-certificate-root");
+    if (bundleCertificateRoot) {
+      // Use synchronous import to match store loading strategy and avoid race conditions
+      const BundleCertificateMetabox = require("./components/metaboxes/certificate/BundleCertificateMetabox").default;
+      render(<BundleCertificateMetabox />, bundleCertificateRoot);
+    }
   }
 
   // Always render Additional Content metabox (core fields always available)

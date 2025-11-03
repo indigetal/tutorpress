@@ -20,6 +20,9 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
      */
     public function __construct() {
         $this->rest_base = 'certificate';
+        
+        // Hook into Tutor LMS frontend builder to provide bundle certificate data
+        add_filter('tutor_bundle_details_response', [$this, 'extend_bundle_details_response']);
     }
 
     /**
@@ -358,20 +361,25 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
         }
 
         try {
-            // Use the same meta key as Tutor LMS Certificate addon
-            $meta_key = 'tutor_bundle_certificate_template';
-            $template_key = get_post_meta($bundle_id, $meta_key, true);
+            // Use Tutor LMS's standard meta key (same for both courses and bundles)
+            $template_key = get_post_meta($bundle_id, 'tutor_course_certificate_template', true);
             
-            // Default to 'none' template if none selected (bundles default to 'none')
+            // Default to 'none' template if none selected
             if (empty($template_key)) {
                 $template_key = 'none';
+            }
+
+            // Get toggle value - use explicit check since '0' is a valid value
+            $allow_individual = get_post_meta($bundle_id, 'certificate_for_individual_courses', true);
+            if ($allow_individual === '') {
+                $allow_individual = '1'; // Default to enabled if not set
             }
 
             return rest_ensure_response($this->format_response(
                 [
                     'bundle_id' => $bundle_id,
                     'template_key' => $template_key,
-                    'allow_individual_certificates' => get_post_meta($bundle_id, 'certificate_for_individual_courses', true) ?: '1',
+                    'allow_individual_certificates' => $allow_individual,
                 ],
                 __('Bundle certificate selection retrieved successfully.', 'tutorpress')
             ));
@@ -404,17 +412,15 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
         }
 
         try {
-            // Save certificate template
-            $template_meta_key = 'tutor_bundle_certificate_template';
-            update_post_meta($bundle_id, $template_meta_key, $template_key);
+            // Save certificate template using Tutor LMS's standard meta key
+            update_post_meta($bundle_id, 'tutor_course_certificate_template', $template_key);
             
             // Save individual certificate toggle
-            $toggle_meta_key = 'certificate_for_individual_courses';
-            update_post_meta($bundle_id, $toggle_meta_key, $allow_individual_certificates);
+            update_post_meta($bundle_id, 'certificate_for_individual_courses', $allow_individual_certificates);
             
-            // Verify both saves were successful
-            $saved_template = get_post_meta($bundle_id, $template_meta_key, true);
-            $saved_toggle = get_post_meta($bundle_id, $toggle_meta_key, true);
+            // Verify saves were successful
+            $saved_template = get_post_meta($bundle_id, 'tutor_course_certificate_template', true);
+            $saved_toggle = get_post_meta($bundle_id, 'certificate_for_individual_courses', true);
             
             if ($saved_template !== $template_key || $saved_toggle !== $allow_individual_certificates) {
                 return new WP_Error(
@@ -669,5 +675,44 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
         }
 
         return true;
+    }
+
+    /**
+     * Extend Tutor LMS bundle details response with certificate data.
+     *
+     * This filter hook allows TutorPress to provide bundle certificate data
+     * to Tutor LMS's frontend course builder.
+     *
+     * @since 1.0.0
+     * @param object $data Bundle details data from Tutor LMS.
+     * @return object Modified bundle details with certificate data.
+     */
+    public function extend_bundle_details_response($data) {
+        if (!isset($data->ID)) {
+            return $data;
+        }
+
+        $bundle_id = $data->ID;
+
+        // Get certificate template using Tutor LMS's standard meta key
+        $template_key = get_post_meta($bundle_id, 'tutor_course_certificate_template', true);
+        $data->course_certificate_template = $template_key ? $template_key : 'none';
+
+        // Get toggle value - use explicit check since '0' is a valid value
+        $allow_individual = get_post_meta($bundle_id, 'certificate_for_individual_courses', true);
+        if ($allow_individual === '') {
+            $allow_individual = '1'; // Default to enabled if not set
+        }
+        $data->certificate_for_individual_courses = $allow_individual;
+
+        // Get available certificate templates (if certificate addon is active)
+        if (tutorpress_feature_flags()->can_user_access_feature('certificates')) {
+            // Use same format as Tutor LMS Certificate addon
+            $data->course_certificates_templates = [];
+            // Note: Tutor LMS frontend builder doesn't actually use this array,
+            // it fetches templates separately via its own methods
+        }
+
+        return $data;
     }
 } 

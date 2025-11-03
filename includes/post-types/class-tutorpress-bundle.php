@@ -132,8 +132,8 @@ class TutorPress_Bundle {
             'show_in_rest'      => true,
         ] );
 
-        // Certificate template selection (same as courses)
-        register_post_meta( $this->token, 'tutor_bundle_certificate_template', [
+        // Certificate template selection (uses Tutor LMS standard meta key)
+        register_post_meta( $this->token, 'tutor_course_certificate_template', [
             'type'              => 'string',
             'single'            => true,
             'default'           => 'none',
@@ -317,6 +317,17 @@ class TutorPress_Bundle {
             'default'
         );
 
+        // Bundle Certificate metabox - only show when certificate addon is enabled
+        if ( tutorpress_feature_flags()->can_user_access_feature( 'certificates' ) ) {
+            add_meta_box(
+                'tutorpress-bundle-certificate',
+                __( 'Bundle Certificate', 'tutorpress' ),
+                [ $this, 'render_certificate_metabox' ],
+                $this->token,
+                'normal',
+                'default'
+            );
+        }
 
     }
 
@@ -384,6 +395,21 @@ class TutorPress_Bundle {
     }
 
     /**
+     * Render bundle certificate metabox
+     *
+     * Outputs a React container that will be populated by index.tsx
+     * The BundleCertificateMetabox component will load data via REST API
+     *
+     * @param WP_Post $post The post object for the bundle being edited.
+     * @return void
+     */
+    public function render_certificate_metabox( $post ) {
+        ?>
+        <div id="tutorpress-bundle-certificate-root"></div>
+        <?php
+    }
+
+    /**
      * Auth callback for post meta (simple permission check)
      */
     public function post_meta_auth_callback( $allowed, $meta_key, $post_id ) {
@@ -424,7 +450,7 @@ class TutorPress_Bundle {
         }
 
         // If there are other canonical bundle meta fields included in meta, write them as well
-        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_bundle_certificate_template', 'certificate_for_individual_courses' );
+        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_course_certificate_template', 'certificate_for_individual_courses' );
         foreach ( $other_keys as $k ) {
             if ( array_key_exists( $k, $meta ) ) {
                 // Basic sanitization: strings -> sanitize_text_field, numbers -> floatval/absint where appropriate
