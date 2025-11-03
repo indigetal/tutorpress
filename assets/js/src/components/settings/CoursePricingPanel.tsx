@@ -526,19 +526,19 @@ const CoursePricingPanel: React.FC = () => {
       // Gate "Membership only" to admins only
       ...(isUserAdmin
         ? [
-            {
-              label: __("Membership only", "tutorpress"),
-              value: "membership",
-            },
+      {
+        label: __("Membership only", "tutorpress"),
+        value: "membership",
+      },
           ]
         : []),
       // Gate "All" to admins only (if membership is admin-only, so should "All")
       ...(isUserAdmin
         ? [
-            {
-              label: __("All", "tutorpress"),
-              value: "all",
-            },
+      {
+        label: __("All", "tutorpress"),
+        value: "all",
+      },
           ]
         : []),
     ];
@@ -717,26 +717,26 @@ const CoursePricingPanel: React.FC = () => {
                       return true;
                     })
                     .map((plan: SubscriptionPlan) => (
-                      <div key={plan.id} className="tutorpress-saved-file-item">
-                        <div className="plan-info">
-                          <div className="plan-name">
-                            {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
-                          </div>
-                          <div className="plan-details">
-                            ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
-                            {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
-                            {plan.is_featured && " • Featured"}
-                          </div>
+                    <div key={plan.id} className="tutorpress-saved-file-item">
+                      <div className="plan-info">
+                        <div className="plan-name">
+                          {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
                         </div>
-                        <Button
-                          variant="tertiary"
-                          icon={edit}
-                          onClick={() => handleEditPlan(plan)}
-                          className="edit-button"
-                          aria-label={__("Edit subscription plan", "tutorpress")}
-                        />
+                        <div className="plan-details">
+                          ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                          {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
+                          {plan.is_featured && " • Featured"}
+                        </div>
                       </div>
-                    ))}
+                      <Button
+                        variant="tertiary"
+                        icon={edit}
+                        onClick={() => handleEditPlan(plan)}
+                        className="edit-button"
+                        aria-label={__("Edit subscription plan", "tutorpress")}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
 
