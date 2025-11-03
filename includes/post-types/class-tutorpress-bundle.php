@@ -133,7 +133,7 @@ class TutorPress_Bundle {
         ] );
 
         // Certificate template selection (same as courses)
-        register_post_meta( $this->token, 'tutor_course_certificate_template', [
+        register_post_meta( $this->token, 'tutor_bundle_certificate_template', [
             'type'              => 'string',
             'single'            => true,
             'default'           => 'none',
@@ -424,7 +424,7 @@ class TutorPress_Bundle {
         }
 
         // If there are other canonical bundle meta fields included in meta, write them as well
-        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_course_certificate_template', 'certificate_for_individual_courses' );
+        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_bundle_certificate_template', 'certificate_for_individual_courses' );
         foreach ( $other_keys as $k ) {
             if ( array_key_exists( $k, $meta ) ) {
                 // Basic sanitization: strings -> sanitize_text_field, numbers -> floatval/absint where appropriate

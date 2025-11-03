@@ -101,6 +101,68 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
                 ],
             ]
         );
+
+        // Get bundle certificate selection (NEW)
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/bundle/selection/(?P<bundle_id>[\d]+)',
+            [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_bundle_selection'],
+                    'permission_callback' => function($request) {
+                        $bundle_id = (int) $request->get_param('bundle_id');
+                        return $this->check_bundle_edit_permission_by_id($bundle_id);
+                    },
+                    'args'               => [
+                        'bundle_id' => [
+                            'type'              => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the bundle to get certificate selection for.', 'tutorpress'),
+                            'validate_callback' => [$this, 'validate_bundle_id'],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        // Save bundle certificate data (NEW)
+        register_rest_route(
+            $this->namespace,
+            '/' . $this->rest_base . '/bundle/save',
+            [
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'callback'            => [$this, 'save_bundle_certificate'],
+                    'permission_callback' => [$this, 'check_bundle_edit_permission'],
+                    'args'               => [
+                        'bundle_id' => [
+                            'required'          => true,
+                            'type'              => 'integer',
+                            'sanitize_callback' => 'absint',
+                            'description'       => __('The ID of the bundle to save certificate data for.', 'tutorpress'),
+                            'validate_callback' => [$this, 'validate_bundle_id'],
+                        ],
+                        'template_key' => [
+                            'required'          => true,
+                            'type'              => 'string',
+                            'sanitize_callback' => 'sanitize_text_field',
+                            'description'       => __('The template key to assign to the bundle.', 'tutorpress'),
+                            'validate_callback' => [$this, 'validate_template_key'],
+                        ],
+                        'allow_individual_certificates' => [
+                            'required'          => true,
+                            'type'              => 'string',
+                            'sanitize_callback' => [$this, 'sanitize_certificate_toggle'],
+                            'description'       => __('Whether individual courses can award certificates ("0" or "1").', 'tutorpress'),
+                            'validate_callback' => function($value) {
+                                return in_array($value, ['0', '1'], true);
+                            },
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
@@ -280,6 +342,107 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
     }
 
     /**
+     * Get current bundle certificate selection.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response data or error.
+     */
+    public function get_bundle_selection($request) {
+        $bundle_id = (int) $request->get_param('bundle_id');
+
+        // Ensure Certificate addon is available
+        $addon_check = $this->ensure_certificate_addon();
+        if (is_wp_error($addon_check)) {
+            return $addon_check;
+        }
+
+        try {
+            // Use the same meta key as Tutor LMS Certificate addon
+            $meta_key = 'tutor_bundle_certificate_template';
+            $template_key = get_post_meta($bundle_id, $meta_key, true);
+            
+            // Default to 'none' template if none selected (bundles default to 'none')
+            if (empty($template_key)) {
+                $template_key = 'none';
+            }
+
+            return rest_ensure_response($this->format_response(
+                [
+                    'bundle_id' => $bundle_id,
+                    'template_key' => $template_key,
+                    'allow_individual_certificates' => get_post_meta($bundle_id, 'certificate_for_individual_courses', true) ?: '1',
+                ],
+                __('Bundle certificate selection retrieved successfully.', 'tutorpress')
+            ));
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'get_bundle_selection_error',
+                sprintf(__('Error retrieving bundle certificate selection: %s', 'tutorpress'), $e->getMessage()),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Save bundle certificate data.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error Response data or error.
+     */
+    public function save_bundle_certificate($request) {
+        $bundle_id = $request->get_param('bundle_id');
+        $template_key = $request->get_param('template_key');
+        $allow_individual_certificates = $request->get_param('allow_individual_certificates');
+
+        // Ensure Certificate addon is available
+        $addon_check = $this->ensure_certificate_addon();
+        if (is_wp_error($addon_check)) {
+            return $addon_check;
+        }
+
+        try {
+            // Save certificate template
+            $template_meta_key = 'tutor_bundle_certificate_template';
+            update_post_meta($bundle_id, $template_meta_key, $template_key);
+            
+            // Save individual certificate toggle
+            $toggle_meta_key = 'certificate_for_individual_courses';
+            update_post_meta($bundle_id, $toggle_meta_key, $allow_individual_certificates);
+            
+            // Verify both saves were successful
+            $saved_template = get_post_meta($bundle_id, $template_meta_key, true);
+            $saved_toggle = get_post_meta($bundle_id, $toggle_meta_key, true);
+            
+            if ($saved_template !== $template_key || $saved_toggle !== $allow_individual_certificates) {
+                return new WP_Error(
+                    'save_bundle_failed',
+                    __('Failed to save bundle certificate data.', 'tutorpress'),
+                    ['status' => 500]
+                );
+            }
+
+            return rest_ensure_response($this->format_response(
+                [
+                    'bundle_id' => $bundle_id,
+                    'template_key' => $saved_template,
+                    'allow_individual_certificates' => $saved_toggle,
+                ],
+                __('Bundle certificate data saved successfully.', 'tutorpress')
+            ));
+
+        } catch (Exception $e) {
+            return new WP_Error(
+                'save_bundle_error',
+                sprintf(__('Error saving bundle certificate data: %s', 'tutorpress'), $e->getMessage()),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
      * Check if user has permission to access certificate endpoints.
      *
      * @since 0.1.0
@@ -349,6 +512,63 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
     }
 
     /**
+     * Check if user has permission to edit bundle-specific certificate settings.
+     *
+     * @since 0.1.0
+     * @param WP_REST_Request $request The request object.
+     * @return bool|WP_Error Whether user has permission.
+     */
+    public function check_bundle_edit_permission($request) {
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You must be logged in to access bundle certificate settings.', 'tutorpress'),
+                ['status' => 401]
+            );
+        }
+
+        // Must have admin or instructor capabilities
+        if (!current_user_can('edit_posts')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to access bundle certificate settings.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if user has permission to edit a specific bundle.
+     *
+     * @since 0.1.0
+     * @param int $bundle_id The bundle ID.
+     * @return bool|WP_Error Whether user has permission.
+     */
+    private function check_bundle_edit_permission_by_id($bundle_id) {
+        if (!$bundle_id) {
+            return new WP_Error(
+                'invalid_bundle_id',
+                __('Invalid bundle ID.', 'tutorpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Check if user can edit this specific bundle (TutorPress pattern)
+        if (!current_user_can('edit_post', $bundle_id)) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to edit this bundle\'s certificate settings.', 'tutorpress'),
+                ['status' => 403]
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Validate course ID exists and is a course post type.
      *
      * @since 0.1.0
@@ -362,6 +582,26 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
 
         $course = get_post($course_id);
         if (!$course || $course->post_type !== 'courses') {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate bundle ID exists and is a bundle post type.
+     *
+     * @since 0.1.0
+     * @param int $bundle_id The bundle ID to validate.
+     * @return bool Whether the bundle ID is valid.
+     */
+    public function validate_bundle_id($bundle_id) {
+        if (!$bundle_id || !is_numeric($bundle_id)) {
+            return false;
+        }
+
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
             return false;
         }
 
@@ -394,6 +634,17 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
         }
 
         return false;
+    }
+
+    /**
+     * Sanitize the 'allow_individual_certificates' toggle value.
+     *
+     * @since 0.1.0
+     * @param string $value The raw value from the request.
+     * @return string The sanitized value.
+     */
+    public function sanitize_certificate_toggle($value) {
+        return in_array($value, ['0', '1'], true) ? $value : '0'; // Default to '0' if invalid
     }
 
     /**
