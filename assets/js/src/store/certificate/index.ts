@@ -23,6 +23,9 @@ import {
   CertificateTemplatesResponse,
   CertificateSelectionResponse,
   CertificateSaveResponse,
+  BundleCertificateSelection,
+  BundleCertificateSaveRequest,
+  BundleCertificateSelectionState,
 } from "../../types/certificate";
 
 // ============================================================================
@@ -37,6 +40,8 @@ interface CertificateState {
   templates: CertificateTemplateState;
   /** Current course certificate selection */
   selection: CertificateSelectionState;
+  /** Bundle certificate selection */
+  bundleSelection?: BundleCertificateSelectionState | null;
   /** Preview modal state */
   preview: CertificatePreviewState;
 }
@@ -96,7 +101,17 @@ export type CertificateAction =
   // Preview Actions
   | { type: "OPEN_CERTIFICATE_PREVIEW"; payload: { template: CertificateTemplate } }
   | { type: "CLOSE_CERTIFICATE_PREVIEW" }
-  | { type: "SET_CERTIFICATE_PREVIEW_LOADING"; payload: { isLoading: boolean } };
+  | { type: "SET_CERTIFICATE_PREVIEW_LOADING"; payload: { isLoading: boolean } }
+  // Bundle Certificate Actions
+  | { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION"; payload: { bundleId: number } }
+  | { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_START"; payload: { bundleId: number } }
+  | { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_SUCCESS"; payload: { selection: BundleCertificateSelection } }
+  | { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_ERROR"; payload: { error: CertificateError } }
+  | { type: "SAVE_BUNDLE_CERTIFICATE"; payload: BundleCertificateSaveRequest }
+  | { type: "SAVE_BUNDLE_CERTIFICATE_START"; payload: BundleCertificateSaveRequest }
+  | { type: "SAVE_BUNDLE_CERTIFICATE_SUCCESS"; payload: { selection: BundleCertificateSelection } }
+  | { type: "SAVE_BUNDLE_CERTIFICATE_ERROR"; payload: { error: CertificateError } }
+  | { type: "SET_BUNDLE_CERTIFICATE_TOGGLE"; payload: { value: "0" | "1" } };
 
 // ============================================================================
 // REDUCER
@@ -276,6 +291,86 @@ const reducer = (state = DEFAULT_STATE, action: CertificateAction): CertificateS
         },
       };
 
+    // Bundle Certificate Operations
+    case "FETCH_BUNDLE_CERTIFICATE_SELECTION_START":
+      return {
+        ...state,
+        bundleSelection: {
+          bundleId: action.payload.bundleId,
+          selectedTemplate: null,
+          allowIndividualCertificates: "1",
+          isDirty: false,
+          isToggleDirty: false,
+          status: "loading",
+        },
+      };
+
+    case "FETCH_BUNDLE_CERTIFICATE_SELECTION_SUCCESS":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          selectedTemplate: action.payload.selection.template_key,
+          allowIndividualCertificates: action.payload.selection.allow_individual_certificates,
+          isDirty: false,
+          isToggleDirty: false,
+          status: "success",
+        },
+      };
+
+    case "FETCH_BUNDLE_CERTIFICATE_SELECTION_ERROR":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+
+    case "SAVE_BUNDLE_CERTIFICATE_START":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          status: "saving",
+        },
+      };
+
+    case "SAVE_BUNDLE_CERTIFICATE_SUCCESS":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          selectedTemplate: action.payload.selection.template_key,
+          allowIndividualCertificates: action.payload.selection.allow_individual_certificates,
+          isDirty: false,
+          isToggleDirty: false,
+          status: "success",
+        },
+      };
+
+    case "SAVE_BUNDLE_CERTIFICATE_ERROR":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          status: "error",
+          error: action.payload.error,
+        },
+      };
+
+    case "SET_BUNDLE_CERTIFICATE_TOGGLE":
+      return {
+        ...state,
+        bundleSelection: {
+          ...state.bundleSelection!,
+          allowIndividualCertificates: action.payload.value,
+          isToggleDirty: true,
+          isDirty: true,
+        },
+      };
+
     default:
       return state;
   }
@@ -401,6 +496,23 @@ const actions = {
   setCertificatePreviewLoading(isLoading: boolean) {
     return { type: "SET_CERTIFICATE_PREVIEW_LOADING" as const, payload: { isLoading } };
   },
+
+  // Bundle Certificate Actions
+  getBundleCertificateSelection(bundleId: number) {
+    return { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION" as const, payload: { bundleId } };
+  },
+
+  saveBundleCertificate(data: BundleCertificateSaveRequest) {
+    return { type: "SAVE_BUNDLE_CERTIFICATE" as const, payload: data };
+  },
+
+  setBundleCertificateToggle(value: "0" | "1") {
+    return { type: "SET_BUNDLE_CERTIFICATE_TOGGLE" as const, payload: { value } };
+  },
+
+  setBundleCertificateSelectedTemplate(templateKey: string | null) {
+    return { type: "SET_CERTIFICATE_SELECTED_TEMPLATE" as const, payload: { templateKey } };
+  },
 };
 
 // ============================================================================
@@ -489,6 +601,50 @@ const selectors = {
 
   isCertificatePreviewLoading(state: CertificateState) {
     return state.preview.isLoading;
+  },
+
+  // Bundle Certificate Selectors
+  getBundleCertificateSelection(state: CertificateState) {
+    return state.bundleSelection || null;
+  },
+
+  getBundleCertificateToggle(state: CertificateState) {
+    return state.bundleSelection?.allowIndividualCertificates || "1";
+  },
+
+  isBundleCertificateToggleDirty(state: CertificateState) {
+    return state.bundleSelection?.isToggleDirty || false;
+  },
+
+  isBundleCertificateDirty(state: CertificateState) {
+    return state.bundleSelection?.isDirty || false;
+  },
+
+  getBundleCertificateOperationState(state: CertificateState) {
+    return {
+      status: state.bundleSelection?.status || "idle",
+      error: state.bundleSelection?.error,
+    };
+  },
+
+  isBundleCertificateLoading(state: CertificateState) {
+    return state.bundleSelection?.status === "loading";
+  },
+
+  isBundleCertificateSaving(state: CertificateState) {
+    return state.bundleSelection?.status === "saving";
+  },
+
+  hasBundleCertificateError(state: CertificateState) {
+    return state.bundleSelection?.status === "error";
+  },
+
+  getBundleCertificateError(state: CertificateState) {
+    return state.bundleSelection?.error || null;
+  },
+
+  getBundleSelectedTemplate(state: CertificateState) {
+    return state.bundleSelection?.selectedTemplate || null;
   },
 };
 
@@ -623,6 +779,97 @@ const resolvers = {
           error: createCertificateError(
             "NETWORK_ERROR",
             error.message || __("Network error while saving selection.", "tutorpress"),
+            { originalError: error }
+          ),
+        },
+      };
+    }
+  },
+
+  *getBundleCertificateSelection(bundleId: number): Generator<unknown, void, unknown> {
+    yield { type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_START", payload: { bundleId } };
+
+    try {
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/certificate/bundle/selection/${bundleId}`,
+          method: "GET",
+        },
+      };
+
+      const typedResponse = response as any;
+      if (typedResponse.success) {
+        yield {
+          type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_SUCCESS",
+          payload: { selection: typedResponse.data },
+        };
+      } else {
+        yield {
+          type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_ERROR",
+          payload: {
+            error: createCertificateError(
+              "SELECTION_FETCH_FAILED",
+              typedResponse.message || __("Failed to fetch bundle certificate selection.", "tutorpress")
+            ),
+          },
+        };
+      }
+    } catch (error: any) {
+      yield {
+        type: "FETCH_BUNDLE_CERTIFICATE_SELECTION_ERROR",
+        payload: {
+          error: createCertificateError(
+            "NETWORK_ERROR",
+            error.message || __("Network error while fetching bundle selection.", "tutorpress"),
+            { originalError: error }
+          ),
+        },
+      };
+    }
+  },
+
+  *saveBundleCertificate(data: BundleCertificateSaveRequest): Generator<unknown, void, unknown> {
+    yield { type: "SAVE_BUNDLE_CERTIFICATE_START", payload: data };
+
+    try {
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: "/tutorpress/v1/certificate/bundle/save",
+          method: "POST",
+          data: {
+            bundle_id: data.bundle_id,
+            template_key: data.template_key,
+            allow_individual_certificates: data.allow_individual_certificates,
+          },
+        },
+      };
+
+      const typedResponse = response as any;
+      if (typedResponse.success) {
+        yield {
+          type: "SAVE_BUNDLE_CERTIFICATE_SUCCESS",
+          payload: { selection: typedResponse.data },
+        };
+      } else {
+        yield {
+          type: "SAVE_BUNDLE_CERTIFICATE_ERROR",
+          payload: {
+            error: createCertificateError(
+              "SELECTION_SAVE_FAILED",
+              typedResponse.message || __("Failed to save bundle certificate data.", "tutorpress")
+            ),
+          },
+        };
+      }
+    } catch (error: any) {
+      yield {
+        type: "SAVE_BUNDLE_CERTIFICATE_ERROR",
+        payload: {
+          error: createCertificateError(
+            "NETWORK_ERROR",
+            error.message || __("Network error while saving bundle certificate.", "tutorpress"),
             { originalError: error }
           ),
         },
