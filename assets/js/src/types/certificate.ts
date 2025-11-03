@@ -242,6 +242,106 @@ export interface CertificatePreviewModalProps {
 }
 
 // ============================================================================
+// BUNDLE CERTIFICATE INTERFACES
+// ============================================================================
+
+/**
+ * Bundle Certificate Selection
+ * Extends course selection with individual certificate toggle
+ */
+export interface BundleCertificateSelection {
+  /** Bundle ID */
+  bundle_id: number;
+  /** Selected template key */
+  template_key: string;
+  /** Whether individual courses can award certificates ('0' or '1') */
+  allow_individual_certificates: "0" | "1";
+}
+
+/**
+ * Bundle Certificate Save Request
+ */
+export interface BundleCertificateSaveRequest {
+  /** Bundle ID */
+  bundle_id: number;
+  /** Certificate template key to save */
+  template_key: string;
+  /** Whether individual courses can award certificates ('0' or '1') */
+  allow_individual_certificates: "0" | "1";
+}
+
+/**
+ * Bundle Certificate Selection State
+ * Extends base selection state with bundle-specific fields
+ */
+export interface BundleCertificateSelectionState extends CertificateOperationState {
+  /** Bundle ID */
+  bundleId: number | null;
+  /** Currently selected template */
+  selectedTemplate: string | null;
+  /** Individual certificate toggle state */
+  allowIndividualCertificates: "0" | "1";
+  /** Whether selection has been modified */
+  isDirty: boolean;
+  /** Whether only the toggle has been modified */
+  isToggleDirty: boolean;
+}
+
+// ============================================================================
+// BUNDLE API RESPONSE INTERFACES
+// ============================================================================
+
+/**
+ * Bundle Certificate Selection API Response
+ */
+export interface BundleCertificateSelectionResponse {
+  success: boolean;
+  message: string;
+  data: BundleCertificateSelection;
+}
+
+/**
+ * Bundle Certificate Save API Response
+ */
+export interface BundleCertificateSaveResponse {
+  success: boolean;
+  message: string;
+  data: BundleCertificateSelection;
+}
+
+// ============================================================================
+// BUNDLE COMPONENT PROPS
+// ============================================================================
+
+/**
+ * Bundle Certificate Toggle Props
+ * Control for individual course certificate toggle in bundles
+ */
+export interface BundleCertificateToggleProps {
+  /** Current toggle value ('0' = disabled, '1' = enabled) */
+  value: "0" | "1";
+  /** Change handler */
+  onChange: (value: "0" | "1") => void;
+  /** Disabled state */
+  disabled?: boolean;
+  /** Help text */
+  help?: string;
+}
+
+/**
+ * Bundle Certificate Metabox Props
+ * Main metabox component for managing bundle certificates in Gutenberg
+ */
+export interface BundleCertificateMetaboxProps {
+  /** Bundle ID */
+  bundleId: number;
+  /** Initial template selection */
+  initialTemplate?: string;
+  /** Initial toggle value */
+  initialToggle?: "0" | "1";
+}
+
+// ============================================================================
 // UTILITY TYPES
 // ============================================================================
 
