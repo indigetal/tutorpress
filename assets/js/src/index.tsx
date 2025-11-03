@@ -131,8 +131,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const certificateRoot = document.getElementById("tutorpress-certificate-root");
     if (certificateRoot) {
       // Use synchronous import to match store loading strategy and avoid race conditions
-      const Certificate = require("./components/metaboxes/Certificate").default;
-      render(<Certificate />, certificateRoot);
+      const CourseCertificateMetabox = require("./components/metaboxes/certificate/CourseCertificateMetabox").default;
+      render(<CourseCertificateMetabox />, certificateRoot);
     }
 
     // Render Bundle Certificate metabox for Course Bundles
