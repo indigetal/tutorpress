@@ -132,6 +132,26 @@ class TutorPress_Bundle {
             'show_in_rest'      => true,
         ] );
 
+        // Certificate template selection (same as courses)
+        register_post_meta( $this->token, 'tutor_course_certificate_template', [
+            'type'              => 'string',
+            'single'            => true,
+            'default'           => 'none',
+            'sanitize_callback' => 'sanitize_text_field',
+            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+            'show_in_rest'      => true,
+        ] );
+
+        // Individual course certificates toggle (NEW for bundles)
+        register_post_meta( $this->token, 'certificate_for_individual_courses', [
+            'type'              => 'string',
+            'single'            => true,
+            'default'           => '1', // Default: allow individual certificates
+            'sanitize_callback' => [ __CLASS__, 'sanitize_certificate_toggle' ],
+            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
+            'show_in_rest'      => true,
+        ] );
+
         // Bundle Ribbon Type
         register_post_meta( $this->token, 'tutor_bundle_ribbon_type', [
             'type'              => 'string',
@@ -404,7 +424,7 @@ class TutorPress_Bundle {
         }
 
         // If there are other canonical bundle meta fields included in meta, write them as well
-        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type' );
+        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_course_certificate_template', 'certificate_for_individual_courses' );
         foreach ( $other_keys as $k ) {
             if ( array_key_exists( $k, $meta ) ) {
                 // Basic sanitization: strings -> sanitize_text_field, numbers -> floatval/absint where appropriate
@@ -413,6 +433,9 @@ class TutorPress_Bundle {
                     update_post_meta( $post->ID, $k, (float) $val );
                 } elseif ( $k === '_tutor_course_product_id' ) {
                     update_post_meta( $post->ID, $k, absint( $val ) );
+                } elseif ( $k === 'certificate_for_individual_courses' ) {
+                    // Use custom toggle sanitizer for certificate field
+                    update_post_meta( $post->ID, $k, self::sanitize_certificate_toggle( $val ) );
                 } else {
                     update_post_meta( $post->ID, $k, sanitize_text_field( (string) $val ) );
                 }
@@ -519,6 +542,10 @@ class TutorPress_Bundle {
         $allowed_options = array( 'one_time', 'subscription', 'both', 'membership', 'all' );
         $value = sanitize_text_field( $value );
         return in_array( $value, $allowed_options, true ) ? $value : 'one_time';
+    }
+
+    public static function sanitize_certificate_toggle( $value ) {
+        return in_array( $value, array( '1', '0' ), true ) ? $value : '1';
     }
 }
 
