@@ -210,7 +210,7 @@ interface SubscriptionPlanSectionProps {
   onPlanEditToggle?: (planId: number) => void;
   isNewPlanFormVisible?: boolean;
   onAddNewPlan?: () => void;
-  sellingOption?: "one_time" | "subscription" | "both" | "all";
+  sellingOption?: "one_time" | "subscription" | "both" | "membership" | "all";
 }
 
 /**

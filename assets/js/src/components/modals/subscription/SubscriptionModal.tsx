@@ -12,7 +12,7 @@ interface SubscriptionModalProps {
   postType?: string;
   initialPlan?: SubscriptionPlan | null;
   shouldShowForm?: boolean;
-  sellingOption?: "one_time" | "subscription" | "both" | "all";
+  sellingOption?: "one_time" | "subscription" | "both" | "membership" | "all";
 }
 
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({

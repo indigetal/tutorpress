@@ -28,6 +28,8 @@ const CoursePricingPanel: React.FC = () => {
     postId,
     subscriptionPlans,
     subscriptionPlansLoading,
+    hasFullSiteLevels,
+    membershipOnlyMode,
     woocommerceProducts,
     woocommerceLoading,
     eddProducts,
@@ -38,6 +40,8 @@ const CoursePricingPanel: React.FC = () => {
       postId: select("core/editor").getCurrentPostId(),
       subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans() || [],
       subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
+      hasFullSiteLevels: select("tutorpress/subscriptions").getHasFullSiteLevels(),
+      membershipOnlyMode: select("tutorpress/subscriptions").getMembershipOnlyMode(),
       woocommerceProducts: select("tutorpress/commerce").getWooProducts(),
       woocommerceLoading: select("tutorpress/commerce").getWooLoading(),
       eddProducts: select("tutorpress/commerce").getEddProducts(),
@@ -92,6 +96,7 @@ const CoursePricingPanel: React.FC = () => {
     | "one_time"
     | "subscription"
     | "both"
+    | "membership"
     | "all";
 
   // Fetch subscription plans when component mounts, course ID is available, or selling option changes
@@ -474,6 +479,7 @@ const CoursePricingPanel: React.FC = () => {
   const shouldShowPurchaseOptions =
     uiPricingModel === "paid" &&
     isMonetizationEnabled() &&
+    !membershipOnlyMode && // Hide purchase options when global membership-only mode is enabled
     ((getPaymentEngine() === "tutor_pro" && window.tutorpressAddons?.subscription) ||
       (getPaymentEngine() === "pmpro" && isPmproAvailable()));
 
@@ -526,19 +532,21 @@ const CoursePricingPanel: React.FC = () => {
       // Gate "Membership only" to admins only
       ...(isUserAdmin
         ? [
-      {
-        label: __("Membership only", "tutorpress"),
-        value: "membership",
-      },
+            {
+              label: __("Membership only", "tutorpress"),
+              value: "membership",
+              disabled: !hasFullSiteLevels, // Disable if no full-site membership levels exist
+            },
           ]
         : []),
       // Gate "All" to admins only (if membership is admin-only, so should "All")
       ...(isUserAdmin
         ? [
-      {
-        label: __("All", "tutorpress"),
-        value: "all",
-      },
+            {
+              label: __("All", "tutorpress"),
+              value: "all",
+              disabled: !hasFullSiteLevels, // Also disable if no full-site membership levels exist
+            },
           ]
         : []),
     ];
@@ -642,17 +650,39 @@ const CoursePricingPanel: React.FC = () => {
         </PanelRow>
       )}
 
+      {/* Global Membership-Only Mode Notice */}
+      {membershipOnlyMode && (
+        <Notice status="info" isDismissible={false} className="tutorpress-global-membership-mode-notice">
+          <strong>{__("Membership-Only Mode Enabled", "tutorpress")}</strong>
+          <p>
+            {__(
+              "Global membership-only mode is enabled, overriding individual course price settings. Visit Tutor LMS > Setings > PMPro-TutorPress to change this.",
+              "tutorpress"
+            )}
+          </p>
+        </Notice>
+      )}
+
       {/* Purchase Options Dropdown - Only show when conditions are met */}
       {shouldShowPurchaseOptions && (
-        <PanelRow>
-          <SelectControl
-            label={__("Purchase Options", "tutorpress")}
-            help={__("Choose how this course can be purchased.", "tutorpress")}
-            value={sellingOption}
-            options={getPurchaseOptions()}
-            onChange={handlePurchaseOptionChange}
-          />
-        </PanelRow>
+        <>
+          <PanelRow>
+            <SelectControl
+              label={__("Purchase Options", "tutorpress")}
+              help={__("Choose how this course can be purchased.", "tutorpress")}
+              value={sellingOption}
+              options={getPurchaseOptions()}
+              onChange={handlePurchaseOptionChange}
+            />
+          </PanelRow>
+
+          {/* Membership only helper text */}
+          {sellingOption === "membership" && (
+            <Notice status="info" isDismissible={false} className="tutorpress-membership-helper-notice">
+              {__("This course will only be accessible via a sitewide membership plan.", "tutorpress")}
+            </Notice>
+          )}
+        </>
       )}
 
       {/* Price Fields - Show based on pricing model, subscription addon status, and selling option */}
@@ -695,6 +725,7 @@ const CoursePricingPanel: React.FC = () => {
       {/* Subscription Section - Show based on purchase option selection */}
       {uiPricingModel === "paid" &&
         isMonetizationEnabled() &&
+        !membershipOnlyMode && // Hide subscription plans when global membership-only mode is enabled
         ((window.tutorpressAddons?.subscription ?? false) || getPaymentEngine() === "pmpro") &&
         (sellingOption === "subscription" || sellingOption === "both" || sellingOption === "all") && (
           <PanelRow>
@@ -717,26 +748,26 @@ const CoursePricingPanel: React.FC = () => {
                       return true;
                     })
                     .map((plan: SubscriptionPlan) => (
-                    <div key={plan.id} className="tutorpress-saved-file-item">
-                      <div className="plan-info">
-                        <div className="plan-name">
-                          {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
+                      <div key={plan.id} className="tutorpress-saved-file-item">
+                        <div className="plan-info">
+                          <div className="plan-name">
+                            {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
+                          </div>
+                          <div className="plan-details">
+                            ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
+                            {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
+                            {plan.is_featured && " • Featured"}
+                          </div>
                         </div>
-                        <div className="plan-details">
-                          ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
-                          {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
-                          {plan.is_featured && " • Featured"}
-                        </div>
+                        <Button
+                          variant="tertiary"
+                          icon={edit}
+                          onClick={() => handleEditPlan(plan)}
+                          className="edit-button"
+                          aria-label={__("Edit subscription plan", "tutorpress")}
+                        />
                       </div>
-                      <Button
-                        variant="tertiary"
-                        icon={edit}
-                        onClick={() => handleEditPlan(plan)}
-                        className="edit-button"
-                        aria-label={__("Edit subscription plan", "tutorpress")}
-                      />
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
 
