@@ -105,9 +105,17 @@ export interface UpdateSubscriptionPlanData extends Partial<CreateSubscriptionPl
 // ============================================================================
 
 /**
+ * Subscription plans response data structure (with metadata)
+ */
+export interface SubscriptionPlansData {
+  plans: SubscriptionPlan[];
+  metadata: SubscriptionMetadata;
+}
+
+/**
  * Subscription plans response for a course
  */
-export type SubscriptionPlansResponse = APIResponse<SubscriptionPlan[]>;
+export type SubscriptionPlansResponse = APIResponse<SubscriptionPlansData>;
 
 /**
  * Single subscription plan response
@@ -174,11 +182,20 @@ export interface SubscriptionSortingState {
 }
 
 /**
+ * PMPro membership mode metadata
+ */
+export interface SubscriptionMetadata {
+  has_full_site_levels: boolean;
+  membership_only_mode: boolean;
+}
+
+/**
  * Main subscription store state
  */
 export interface SubscriptionState {
   plans: SubscriptionPlan[];
   selectedPlan: SubscriptionPlan | null;
+  metadata: SubscriptionMetadata | null;
   formState: SubscriptionFormState;
   operations: SubscriptionOperationsState;
   sorting: SubscriptionSortingState;

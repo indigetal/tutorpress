@@ -15,6 +15,7 @@ import { __ } from "@wordpress/i18n";
 import {
   SubscriptionState,
   SubscriptionPlan,
+  SubscriptionMetadata,
   CreateSubscriptionPlanData,
   UpdateSubscriptionPlanData,
   SubscriptionFormMode,
@@ -59,6 +60,7 @@ interface State extends SubscriptionState {}
 const DEFAULT_STATE: State = {
   plans: [],
   selectedPlan: null,
+  metadata: null,
   formState: {
     mode: "add",
     data: { ...defaultSubscriptionPlan },
@@ -82,7 +84,7 @@ export type SubscriptionAction =
   // Plan Management Actions
   | { type: "FETCH_SUBSCRIPTION_PLANS"; payload: { courseId: number } }
   | { type: "FETCH_SUBSCRIPTION_PLANS_START"; payload: { courseId: number } }
-  | { type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS"; payload: { plans: SubscriptionPlan[] } }
+  | { type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS"; payload: { plans: SubscriptionPlan[]; metadata: SubscriptionMetadata } }
   | { type: "FETCH_SUBSCRIPTION_PLANS_ERROR"; payload: { error: string } }
   | { type: "SET_SELECTED_PLAN"; payload: { plan: SubscriptionPlan | null } }
   // Form Management Actions
@@ -134,6 +136,7 @@ const reducer = (state = DEFAULT_STATE, action: SubscriptionAction): State => {
       return {
         ...state,
         plans: action.payload.plans,
+        metadata: action.payload.metadata,
         operations: {
           ...state.operations,
           isLoading: false,
@@ -476,6 +479,19 @@ const selectors = {
   getSortingError(state: State) {
     return state.sorting.error;
   },
+
+  // PMPro Membership Mode Metadata
+  getHasFullSiteLevels(state: State) {
+    return state.metadata?.has_full_site_levels ?? false;
+  },
+
+  getMembershipOnlyMode(state: State) {
+    return state.metadata?.membership_only_mode ?? false;
+  },
+
+  getMetadata(state: State) {
+    return state.metadata;
+  },
 };
 
 // ============================================================================
@@ -517,8 +533,17 @@ const resolvers = {
         );
       }
 
-      // Dispatch success action
-      yield { type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS", payload: { plans: response.data, courseId } };
+      // Unpack the response data (API returns { plans, metadata })
+      const { plans, metadata } = response.data;
+
+      // Dispatch success action with both plans and metadata
+      yield { 
+        type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS", 
+        payload: { 
+          plans: plans || [],
+          metadata: metadata || { has_full_site_levels: false, membership_only_mode: false }
+        } 
+      };
 
       return response;
     } catch (error: any) {
@@ -860,6 +885,9 @@ export const {
   getFormDirty,
   getSortingLoading,
   getSortingError,
+  getHasFullSiteLevels,
+  getMembershipOnlyMode,
+  getMetadata,
 } = selectors;
 
 // Export types for external use
