@@ -359,6 +359,16 @@ const CoursePricingPanel: React.FC = () => {
         if (!ok) {
           return;
         }
+      } else if (value === "membership" && current !== "membership") {
+        const ok = window.confirm(
+          __(
+            "Switching to Membership only will remove any existing course-specific purchase options for this course. Full-site membership levels will not be affected. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
       }
     }
 
