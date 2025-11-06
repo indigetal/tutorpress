@@ -490,6 +490,11 @@ const CoursePricingPanel: React.FC = () => {
       return false;
     }
 
+    // Don't show price fields when global membership-only mode is enabled
+    if (membershipOnlyMode) {
+      return false;
+    }
+
     // Don't show price fields when WooCommerce monetization is active
     if (isWooCommerceMonetization()) {
       return false;
@@ -651,7 +656,7 @@ const CoursePricingPanel: React.FC = () => {
       )}
 
       {/* Global Membership-Only Mode Notice */}
-      {membershipOnlyMode && (
+      {uiPricingModel === "paid" && membershipOnlyMode && (
         <Notice status="info" isDismissible={false} className="tutorpress-global-membership-mode-notice">
           <strong>{__("Membership-Only Mode Enabled", "tutorpress")}</strong>
           <p>
@@ -677,7 +682,7 @@ const CoursePricingPanel: React.FC = () => {
           </PanelRow>
 
           {/* Membership only helper text */}
-          {sellingOption === "membership" && (
+          {uiPricingModel === "paid" && sellingOption === "membership" && (
             <Notice status="info" isDismissible={false} className="tutorpress-membership-helper-notice">
               {__("This course will only be accessible via a sitewide membership plan.", "tutorpress")}
             </Notice>
@@ -782,6 +787,19 @@ const CoursePricingPanel: React.FC = () => {
               </Button>
             </div>
           </PanelRow>
+        )}
+
+      {/* Missing Full-Site Membership Levels Warning */}
+      {uiPricingModel === "paid" &&
+        isPmproAvailable() &&
+        !hasFullSiteLevels &&
+        (membershipOnlyMode || sellingOption === "membership") && (
+          <Notice status="error" isDismissible={false} className="tutorpress-missing-levels-notice">
+            <strong>{__("Missing Full-Site Membership Levels", "tutorpress")}</strong>
+            <p>
+              {__("Please create at least one 'Full Website Membership' level in Paid Memberships Pro.", "tutorpress")}
+            </p>
+          </Notice>
         )}
     </PluginDocumentSettingPanel>
   );
