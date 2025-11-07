@@ -441,13 +441,9 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
                 <div className="tutorpress-subscription-plan-items">
                   {plans
                     .filter((plan: SubscriptionPlan) => {
-                      // Filter plans by payment_type matching current UI-selected selling_option
-                      if (sellingOption === "subscription") {
-                        // Show only recurring plans when subscription mode is selected
-                        return plan.payment_type === "recurring";
-                      }
-                      // 'both', 'all', or 'one_time' show all plans
-                      return true;
+                      // Always show only recurring plans in subscription list
+                      // One-time purchases are handled by the price fields, not subscription plans
+                      return plan.payment_type === "recurring";
                     })
                     .map((plan: SubscriptionPlan) => {
                     const isEditing = editingPlanId === plan.id;

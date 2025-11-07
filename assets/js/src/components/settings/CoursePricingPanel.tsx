@@ -753,14 +753,9 @@ const CoursePricingPanel: React.FC = () => {
                   </div>
                   {subscriptionPlans
                     .filter((plan: SubscriptionPlan) => {
-                      // Filter plans by payment_type matching current UI-selected selling_option
-                      // Note: This section only renders when sellingOption is "subscription", "both", or "all"
-                      if (sellingOption === "subscription") {
-                        // Show only recurring plans when subscription mode is selected
-                        return plan.payment_type === "recurring";
-                      }
-                      // 'both' or 'all' shows all plans
-                      return true;
+                      // Always show only recurring plans in subscription list
+                      // One-time purchases are handled by the price fields, not subscription plans
+                      return plan.payment_type === "recurring";
                     })
                     .map((plan: SubscriptionPlan) => (
                       <div key={plan.id} className="tutorpress-saved-file-item">
