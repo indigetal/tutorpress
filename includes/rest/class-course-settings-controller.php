@@ -419,8 +419,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'pricing_model' => get_post_meta($course_id, '_tutor_course_price_type', true) ?: 'free',
             'price' => (float) get_post_meta($course_id, 'tutor_course_price', true) ?: 0,
             'sale_price' => (float) get_post_meta($course_id, 'tutor_course_sale_price', true) ?: 0,
-            'subscription_enabled' => get_post_meta($course_id, '_tutor_course_selling_option', true) === 'subscription',
-            'selling_option' => get_post_meta($course_id, '_tutor_course_selling_option', true) ?: 'one_time',
+            'subscription_enabled' => get_post_meta($course_id, 'tutor_course_selling_option', true) === 'subscription',
+            'selling_option' => get_post_meta($course_id, 'tutor_course_selling_option', true) ?: 'one_time',
         );
 
         return rest_ensure_response(array(
@@ -590,7 +590,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             $new_settings['subscription_enabled'] = $subscription_enabled;
             // Only update meta if selling_option is not provided
             if (!$request->has_param('selling_option')) {
-                update_post_meta($course_id, '_tutor_course_selling_option', $subscription_enabled ? 'subscription' : 'one_time');
+                update_post_meta($course_id, 'tutor_course_selling_option', $subscription_enabled ? 'subscription' : 'one_time');
             }
         }
 
@@ -603,7 +603,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             }
             $new_settings['selling_option'] = $selling_option;
             // Always update meta when selling_option is provided
-            update_post_meta($course_id, '_tutor_course_selling_option', $selling_option);
+            update_post_meta($course_id, 'tutor_course_selling_option', $selling_option);
         }
 
         // Merge with existing settings
@@ -1023,7 +1023,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             '_tutor_course_price_type' => 'pricing_model',
             'tutor_course_price' => 'price', // NO underscore
             'tutor_course_sale_price' => 'sale_price', // NO underscore
-            '_tutor_course_selling_option' => 'selling_option', // WITH underscore
+            'tutor_course_selling_option' => 'selling_option', // NO underscore (Tutor Core standard)
             '_tutor_course_product_id' => 'product_id',
             
             // Course details fields

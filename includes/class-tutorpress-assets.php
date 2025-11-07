@@ -236,7 +236,7 @@ class TutorPress_Assets {
         $post_id = isset($response['ID']) ? (int) $response['ID'] : 0;
         
         if ($post_id > 0) {
-            $selling_option = get_post_meta($post_id, '_tutor_course_selling_option', true);
+            $selling_option = get_post_meta($post_id, 'tutor_course_selling_option', true);
             $response['course_selling_option'] = $selling_option ?: 'one_time'; // Default to one_time if empty
         }
         
@@ -281,7 +281,7 @@ class TutorPress_Assets {
         }
         
         if ($selling_option) {
-            update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+            update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
         }
     }
 
@@ -291,7 +291,7 @@ class TutorPress_Assets {
 	public static function save_course_selling_option_from_tutor_update($post_id, $params) {
 		if (isset($params['course_selling_option'])) {
 			$selling_option = sanitize_text_field($params['course_selling_option']);
-			update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+			update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
 		}
 	}
 }

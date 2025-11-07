@@ -251,7 +251,7 @@ class TutorPress_Course {
                 'auth_callback' => [ $this, 'post_meta_auth_callback' ],
                 'show_in_rest' => true,
             ],
-            '_tutor_course_selling_option' => [
+            'tutor_course_selling_option' => [
                 'type' => 'string',
                 'description' => __( 'Course selling option', 'tutorpress' ),
                 'single' => true,
@@ -718,10 +718,10 @@ class TutorPress_Course {
 				}
 				return (float) $raw;
 			})(),
-            'selling_option' => get_post_meta($post_id, '_tutor_course_selling_option', true) ?: 'one_time',
+            'selling_option' => get_post_meta($post_id, 'tutor_course_selling_option', true) ?: 'one_time',
             'woocommerce_product_id' => TutorPress_Addon_Checker::is_woocommerce_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
             'edd_product_id' => TutorPress_Addon_Checker::is_edd_monetization() ? get_post_meta($post_id, '_tutor_course_product_id', true) ?: '' : '',
-            'subscription_enabled' => get_post_meta($post_id, '_tutor_course_selling_option', true) === 'subscription',
+            'subscription_enabled' => get_post_meta($post_id, 'tutor_course_selling_option', true) === 'subscription',
             
             // Course Instructors Section: Read from individual Tutor LMS meta fields
             'instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [],
@@ -828,7 +828,7 @@ class TutorPress_Course {
         
         if (isset($value['selling_option'])) {
             $selling_option = $value['selling_option'];
-            $results[] = update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+            $results[] = update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
         }
         
         // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
@@ -1244,7 +1244,7 @@ class TutorPress_Course {
             '_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
             '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
             '_tutor_course_material_includes', '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price',
-            '_tutor_course_selling_option'
+            'tutor_course_selling_option'
         ];
         
         if (!in_array($meta_key, $tutor_fields) || get_post_type($post_id) !== 'courses') {
@@ -1313,7 +1313,7 @@ class TutorPress_Course {
             case 'tutor_course_sale_price':
                 $current_settings['sale_price'] = (float) $meta_value ?: 0;
                 break;
-            case '_tutor_course_selling_option':
+            case 'tutor_course_selling_option':
                 $current_settings['selling_option'] = $meta_value;
                 break;
         }
@@ -1488,7 +1488,7 @@ class TutorPress_Course {
             
             if (isset($meta_value['selling_option'])) {
                 $selling_option = $meta_value['selling_option'];
-                update_post_meta($post_id, '_tutor_course_selling_option', $selling_option);
+                update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
             }
             
             // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
