@@ -1572,7 +1572,13 @@ class TutorPress_REST_Subscriptions_Controller extends TutorPress_REST_Controlle
                 );
             }
             
-            if ($data['sale_price'] >= $data['regular_price']) {
+            // For PMPro: validate sale price against enrollment_fee (initial payment)
+            // For other engines: validate against regular_price
+            $price_to_validate = isset($data['enrollment_fee']) && $data['enrollment_fee'] > 0 
+                ? $data['enrollment_fee'] 
+                : $data['regular_price'];
+            
+            if ($data['sale_price'] >= $price_to_validate) {
                 return new WP_Error(
                     'invalid_sale_price',
                     __('Sale price must be less than regular price.', 'tutorpress'),

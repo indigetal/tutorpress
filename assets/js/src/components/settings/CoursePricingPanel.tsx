@@ -276,7 +276,7 @@ const CoursePricingPanel: React.FC = () => {
     if (isPmproMonetization() && value === "free" && pricingModelEntity !== "free") {
       const confirmed = window.confirm(
         __(
-          "Switching to Free will remove any existing course-specific purchase options for this course on save. Full-site memberships will not be affected. Continue?",
+          "Switching to Free will remove any existing course-specific purchase options on save. Full-site memberships will not be affected. Continue?",
           "tutorpress"
         )
       );
@@ -342,7 +342,7 @@ const CoursePricingPanel: React.FC = () => {
       if (value === "subscription" && current !== "subscription") {
         const ok = window.confirm(
           __(
-            "Switching to Subscription will remove any existing one-time purchase setting for this course on save. Continue?",
+            "Switching to Subscription will remove any existing one-time purchase setting on save. Continue?",
             "tutorpress"
           )
         );
@@ -352,7 +352,7 @@ const CoursePricingPanel: React.FC = () => {
       } else if (value === "one_time" && current !== "one_time") {
         const ok = window.confirm(
           __(
-            "Switching to One-time purchase will remove any existing subscription plans for this course on save. Continue?",
+            "Switching to One-time purchase will remove any existing subscription plans on save. Continue?",
             "tutorpress"
           )
         );
@@ -362,7 +362,7 @@ const CoursePricingPanel: React.FC = () => {
       } else if (value === "membership" && current !== "membership") {
         const ok = window.confirm(
           __(
-            "Switching to Membership only will remove any existing course-specific purchase options for this course on save. Continue?",
+            "Switching to Membership only will remove any existing course-specific purchase options on save. Continue?",
             "tutorpress"
           )
         );

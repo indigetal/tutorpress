@@ -146,7 +146,7 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
     if (formData.sale_price !== null && formData.sale_price !== undefined) {
       if (formData.sale_price < 0) {
         errors.sale_price = __("Sale price must be a positive number", "tutorpress");
-      } else if (formData.sale_price >= (formData.regular_price || 0)) {
+      } else if (formData.sale_price >= (isPmproMonetization() ? (formData.enrollment_fee || 0) : (formData.regular_price || 0))) {
         errors.sale_price = __("Sale price must be less than regular price", "tutorpress");
       }
     }
