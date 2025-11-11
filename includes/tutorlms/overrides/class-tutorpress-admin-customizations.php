@@ -24,6 +24,9 @@ class TutorPress_Admin_Customizations {
             // Intercept Tutor LMS's AJAX handler for creating new course bundles
             add_action('wp_ajax_tutor_create_course_bundle', [__CLASS__, 'intercept_tutor_create_course_bundle'], 0);
         }
+
+        // Enqueue invoice visibility script on Tutor LMS settings page (always enabled)
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_invoice_visibility_script'], 20);
     }
 
     /**
@@ -47,6 +50,31 @@ class TutorPress_Admin_Customizations {
             'enableAdminRedirects' => (function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : false),
             'adminUrl' => admin_url(),
         ]);
+    }
+
+    /**
+     * Enqueue PMPro invoice visibility override on Tutor LMS settings page.
+     * 
+     * Shows the invoice section when PMPro is selected as the monetization engine,
+     * since PMPro doesn't have built-in invoice generation functionality.
+     * 
+     * @since 1.5.0
+     */
+    public static function enqueue_invoice_visibility_script() {
+        // Only load on Tutor LMS settings page
+        // Check by page parameter instead of screen base for better compatibility
+        if (!isset($_GET['page']) || $_GET['page'] !== 'tutor_settings') {
+            return;
+        }
+        
+        // Enqueue the invoice visibility override script
+        wp_enqueue_script(
+            'tutorpress-pmpro-invoice-visibility',
+            TUTORPRESS_URL . 'assets/js/pmpro-invoice-visibility.js',
+            array(), // No dependencies needed (vanilla JS)
+            tutorpress_get_version(), // Use helper function for version
+            true // Load in footer after Tutor LMS's options.js
+        );
     }
 
     /**
