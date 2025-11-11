@@ -220,20 +220,29 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
             formData.sale_price_to && formData.sale_price_to !== "0000-00-00 00:00:00" ? formData.sale_price_to : null,
         };
 
-        // If PMPro is active and the purchase option is one_time, normalize payload for PMPro one-time level
-        if (isPmproMonetization() && sellingOption === "one_time") {
-          sanitizedData.payment_type = "one_time";
-          // Ensure plan_name exists: generate from post title when empty
-          if (!sanitizedData.plan_name || !String(sanitizedData.plan_name).trim()) {
-            sanitizedData.plan_name = `${postTitle || "Course"} one time`;
-          }
-          // Clear recurring fields for one-time purchases
-          sanitizedData.recurring_value = 0;
-          sanitizedData.recurring_interval = null;
-          sanitizedData.recurring_limit = 0;
-          // Recurring monetary amount should be ignored for one-time
-          if (typeof sanitizedData.recurring_price !== "undefined") {
-            sanitizedData.recurring_price = 0;
+        // If PMPro is active, normalize payload for PMPro format
+        if (isPmproMonetization()) {
+          if (sellingOption === "one_time") {
+            sanitizedData.payment_type = "one_time";
+            // Ensure plan_name exists: generate from post title when empty
+            if (!sanitizedData.plan_name || !String(sanitizedData.plan_name).trim()) {
+              sanitizedData.plan_name = `${postTitle || "Course"} one time`;
+            }
+            // Clear recurring fields for one-time purchases
+            sanitizedData.recurring_value = 0;
+            sanitizedData.recurring_interval = null;
+            sanitizedData.recurring_limit = 0;
+            // Recurring monetary amount should be ignored for one-time
+            if (typeof sanitizedData.recurring_price !== "undefined") {
+              sanitizedData.recurring_price = 0;
+            }
+          } else {
+            // For recurring subscriptions: map regular_price to recurring_price for PMPro
+            // PMPro expects recurring_price to update billing_amount (renewal price)
+            // The form shows "Renewal Price" label when PMPro is enabled, but uses regular_price field
+            if (typeof sanitizedData.regular_price !== "undefined" && sanitizedData.regular_price !== null) {
+              sanitizedData.recurring_price = sanitizedData.regular_price;
+            }
           }
         }
 

@@ -456,18 +456,22 @@ export const SubscriptionPlanSection: React.FC<SubscriptionPlanSectionProps> = (
                         const tempPlan = { ...(data as SubscriptionPlan), id: tempId as any } as SubscriptionPlan;
                         setLocalPlansOrder([...prev, tempPlan]);
                       } else {
-                        // Optimistically update existing
+                        // Optimistically update existing with form data
+                        // Note: Store will update with API response which may differ for PMPro (billing_amount mapping)
                         setLocalPlansOrder(
                           prev.map((p: SubscriptionPlan) => (p.id === data.id ? { ...p, ...data } : p))
                         );
                       }
 
                       try {
+                        // onFormSave triggers API call which updates store with API response
+                        // The store update will sync via useEffect when storePlans changes
                         await onFormSave(data);
-                        // Success: store will sync and effect will update localPlansOrder
+                        // Success: store will sync and effect will update localPlansOrder with API response
+                        // This ensures PMPro-mapped values (like regular_price from billing_amount) are used
                         createNotice("success", __("Subscription plan saved.", "tutorpress"), { type: "snackbar" });
                       } catch (err) {
-                        // Revert
+                        // Revert optimistic update on error
                         setLocalPlansOrder(prev);
                         createNotice("error", String(err || __("Failed to save subscription plan.", "tutorpress")), {
                           type: "snackbar",
