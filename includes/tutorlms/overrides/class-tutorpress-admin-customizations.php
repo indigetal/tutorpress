@@ -17,7 +17,9 @@ class TutorPress_Admin_Customizations {
 
         // Only add AJAX handlers if admin redirects are enabled (use wrapper to respect Freemius gating)
         if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) ) {
-            // Add hook to ensure our script runs after Tutor's course list is loaded
+            // Enqueue script on courses admin page (works for both course list and empty state)
+            add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_overrides_on_courses_page']);
+            // Add hook to ensure our script runs after Tutor's course list is loaded (backup for course list)
             add_action('tutor_admin_after_course_list_action', [__CLASS__, 'enqueue_admin_overrides']);
             // Intercept course creation via AJAX, create draft and redirect to Gutenberg
             add_action('wp_ajax_tutor_create_new_draft_course', [__CLASS__, 'intercept_tutor_create_course'], 0);
@@ -30,9 +32,31 @@ class TutorPress_Admin_Customizations {
     }
 
     /**
+     * Enqueue admin overrides script on courses admin page.
+     * This ensures the script loads even when there are no courses (empty state).
+     */
+    public static function enqueue_admin_overrides_on_courses_page($hook) {
+        // Only enqueue on Tutor LMS courses page (admin.php?page=tutor)
+        // Check both hook name and page parameter for compatibility
+        $is_tutor_page = ($hook === 'tutor_page_tutor' || 
+                         (isset($_GET['page']) && $_GET['page'] === 'tutor'));
+        
+        if (!$is_tutor_page) {
+            return;
+        }
+
+        self::enqueue_admin_overrides();
+    }
+
+    /**
      * Enqueue admin overrides script at the right time.
      */
     public static function enqueue_admin_overrides() {
+        // Prevent double enqueuing
+        if (wp_script_is('tutorpress-admin', 'enqueued')) {
+            return;
+        }
+
         // Get the asset file for dependencies and version
         $asset_file = include TUTORPRESS_PATH . 'assets/js/build/index.asset.php';
         
