@@ -55,6 +55,9 @@ class TutorPress_Course {
 
         // Ensure map_meta_cap is present at registration time for courses
         add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_course' ], 5, 2 );
+        
+        // Allow instructors to edit their own published courses
+        add_filter( 'map_meta_cap', [ $this, 'map_course_meta_cap' ], 10, 4 );
 
         // Conditionally add "Edit Course" admin-bar link based on dashboard redirects setting (priority 71 for top positioning)
         add_action( 'admin_bar_menu', [ $this, 'conditionally_add_edit_course_link' ], 71 );
@@ -1706,6 +1709,67 @@ class TutorPress_Course {
             $args['map_meta_cap'] = true;
         }
         return $args;
+    }
+
+    /**
+     * Map meta capabilities for courses to allow instructors to edit their own published courses.
+     *
+     * When map_meta_cap is enabled, WordPress maps edit_post to edit_published_posts for published posts.
+     * This filter ensures instructors can edit their own published courses even if they don't have
+     * the edit_published_posts capability.
+     *
+     * @param array  $caps    Required capabilities.
+     * @param string $cap     Capability being checked.
+     * @param int    $user_id User ID.
+     * @param array  $args    Additional arguments (typically contains post ID).
+     * @return array Modified capabilities array.
+     */
+    public function map_course_meta_cap( $caps, $cap, $user_id, $args ) {
+        // Only handle course-related capabilities
+        if ( ! in_array( $cap, [ 'edit_post', 'delete_post', 'publish_post' ], true ) ) {
+            return $caps;
+        }
+
+        // Need a post ID to check
+        if ( empty( $args[0] ) ) {
+            return $caps;
+        }
+
+        $post_id = (int) $args[0];
+        $post = get_post( $post_id );
+
+        // Only apply to courses post type
+        if ( ! $post || $post->post_type !== 'courses' ) {
+            return $caps;
+        }
+
+        // Check if user is instructor
+        if ( ! user_can( $user_id, 'tutor_instructor' ) ) {
+            return $caps;
+        }
+
+        // Check if user is the author of the course
+        if ( (int) $post->post_author !== (int) $user_id ) {
+            return $caps;
+        }
+
+        // For published courses, allow editing if user is the author and is an instructor
+        if ( $post->post_status === 'publish' && $cap === 'edit_post' ) {
+            // Remove edit_published_posts requirement and replace with edit_posts
+            $caps = array_diff( $caps, [ 'edit_published_posts' ] );
+            if ( ! in_array( 'edit_posts', $caps, true ) ) {
+                $caps[] = 'edit_posts';
+            }
+        }
+
+        // For draft/pending courses, ensure edit_posts is present
+        if ( in_array( $post->post_status, [ 'draft', 'pending', 'auto-draft' ], true ) && $cap === 'edit_post' ) {
+            if ( ! in_array( 'edit_posts', $caps, true ) ) {
+                $caps[] = 'edit_posts';
+            }
+        }
+
+        return $caps;
     }
 
     /**
