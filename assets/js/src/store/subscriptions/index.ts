@@ -533,15 +533,32 @@ const resolvers = {
         );
       }
 
-      // Unpack the response data (API returns { plans, metadata })
-      const { plans, metadata } = response.data;
+      // Handle both response formats:
+      // PMPro: response.data = { plans: [...], metadata: {...} }
+      // TutorPress: response.data = [...] (direct array)
+      let plans: SubscriptionPlan[];
+      let metadata: SubscriptionMetadata;
+
+      if (Array.isArray(response.data)) {
+        // TutorPress core format: response.data is direct array
+        plans = response.data;
+        metadata = response.metadata || { has_full_site_levels: false, membership_only_mode: false };
+      } else if (response.data && typeof response.data === 'object') {
+        // PMPro format: response.data is object with plans and metadata
+        plans = response.data.plans || [];
+        metadata = response.data.metadata || { has_full_site_levels: false, membership_only_mode: false };
+      } else {
+        // Fallback
+        plans = [];
+        metadata = { has_full_site_levels: false, membership_only_mode: false };
+      }
 
       // Dispatch success action with both plans and metadata
       yield { 
         type: "FETCH_SUBSCRIPTION_PLANS_SUCCESS", 
         payload: { 
-          plans: plans || [],
-          metadata: metadata || { has_full_site_levels: false, membership_only_mode: false }
+          plans: plans,
+          metadata: metadata
         } 
       };
 

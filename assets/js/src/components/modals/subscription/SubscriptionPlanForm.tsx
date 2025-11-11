@@ -146,8 +146,16 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
     if (formData.sale_price !== null && formData.sale_price !== undefined) {
       if (formData.sale_price < 0) {
         errors.sale_price = __("Sale price must be a positive number", "tutorpress");
-      } else if (formData.sale_price >= (isPmproMonetization() ? (formData.enrollment_fee || 0) : (formData.regular_price || 0))) {
-        errors.sale_price = __("Sale price must be less than regular price", "tutorpress");
+      } else {
+        // For PMPro: validate against enrollment_fee (Initial Payment)
+        // For Tutor LMS: validate against regular_price (Recurring Price)
+        const priceToValidate = isPmproMonetization() 
+          ? (formData.enrollment_fee || 0) 
+          : (formData.regular_price || 0);
+        
+        if (formData.sale_price >= priceToValidate) {
+          errors.sale_price = __("Sale price must be less than regular price", "tutorpress");
+        }
       }
     }
 
