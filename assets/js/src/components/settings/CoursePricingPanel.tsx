@@ -77,6 +77,8 @@ const CoursePricingPanel: React.FC = () => {
     setSubscriptionModalOpen(false);
     setEditingPlan(null);
     setShouldShowForm(false);
+    // Note: No need to refresh here - store updates automatically via UPDATE_SUBSCRIPTION_PLAN_SUCCESS
+    // Sale price updates correctly without refresh, so renewal price should too via the same mechanism
   };
 
   const handleAddSubscription = () => {
@@ -764,6 +766,7 @@ const CoursePricingPanel: React.FC = () => {
                             {plan.plan_name.length > 30 ? `${plan.plan_name.substring(0, 30)}...` : plan.plan_name}
                           </div>
                           <div className="plan-details">
+                            {/* PMPro maps billing_amount (renewal price) to regular_price, so regular_price is correct for display */}
                             ${plan.regular_price} / {plan.recurring_value} {plan.recurring_interval}
                             {plan.sale_price && plan.sale_price > 0 && ` (Sale: $${plan.sale_price})`}
                             {plan.is_featured && " • Featured"}

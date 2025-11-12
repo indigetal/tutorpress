@@ -17,19 +17,46 @@ class TutorPress_Admin_Customizations {
 
         // Only add AJAX handlers if admin redirects are enabled (use wrapper to respect Freemius gating)
         if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) ) {
-            // Add hook to ensure our script runs after Tutor's course list is loaded
+            // Enqueue script on courses admin page (works for both course list and empty state)
+            add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_overrides_on_courses_page']);
+            // Add hook to ensure our script runs after Tutor's course list is loaded (backup for course list)
             add_action('tutor_admin_after_course_list_action', [__CLASS__, 'enqueue_admin_overrides']);
             // Intercept course creation via AJAX, create draft and redirect to Gutenberg
             add_action('wp_ajax_tutor_create_new_draft_course', [__CLASS__, 'intercept_tutor_create_course'], 0);
             // Intercept Tutor LMS's AJAX handler for creating new course bundles
             add_action('wp_ajax_tutor_create_course_bundle', [__CLASS__, 'intercept_tutor_create_course_bundle'], 0);
         }
+
+        // Enqueue invoice visibility script on Tutor LMS settings page (always enabled)
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_invoice_visibility_script'], 20);
+    }
+
+    /**
+     * Enqueue admin overrides script on courses admin page.
+     * This ensures the script loads even when there are no courses (empty state).
+     */
+    public static function enqueue_admin_overrides_on_courses_page($hook) {
+        // Only enqueue on Tutor LMS courses page (admin.php?page=tutor)
+        // Check both hook name and page parameter for compatibility
+        $is_tutor_page = ($hook === 'tutor_page_tutor' || 
+                         (isset($_GET['page']) && $_GET['page'] === 'tutor'));
+        
+        if (!$is_tutor_page) {
+            return;
+        }
+
+        self::enqueue_admin_overrides();
     }
 
     /**
      * Enqueue admin overrides script at the right time.
      */
     public static function enqueue_admin_overrides() {
+        // Prevent double enqueuing
+        if (wp_script_is('tutorpress-admin', 'enqueued')) {
+            return;
+        }
+
         // Get the asset file for dependencies and version
         $asset_file = include TUTORPRESS_PATH . 'assets/js/build/index.asset.php';
         
@@ -47,6 +74,31 @@ class TutorPress_Admin_Customizations {
             'enableAdminRedirects' => (function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : false),
             'adminUrl' => admin_url(),
         ]);
+    }
+
+    /**
+     * Enqueue PMPro invoice visibility override on Tutor LMS settings page.
+     * 
+     * Shows the invoice section when PMPro is selected as the monetization engine,
+     * since PMPro doesn't have built-in invoice generation functionality.
+     * 
+     * @since 1.5.0
+     */
+    public static function enqueue_invoice_visibility_script() {
+        // Only load on Tutor LMS settings page
+        // Check by page parameter instead of screen base for better compatibility
+        if (!isset($_GET['page']) || $_GET['page'] !== 'tutor_settings') {
+            return;
+        }
+        
+        // Enqueue the invoice visibility override script
+        wp_enqueue_script(
+            'tutorpress-pmpro-invoice-visibility',
+            TUTORPRESS_URL . 'assets/js/pmpro-invoice-visibility.js',
+            array(), // No dependencies needed (vanilla JS)
+            tutorpress_get_version(), // Use helper function for version
+            true // Load in footer after Tutor LMS's options.js
+        );
     }
 
     /**

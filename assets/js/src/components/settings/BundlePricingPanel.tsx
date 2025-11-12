@@ -272,6 +272,8 @@ const BundlePricingPanel: React.FC = () => {
     setSubscriptionModalOpen(false);
     setEditingPlan(null);
     setShouldShowForm(false);
+    // Note: No need to refresh here - store updates automatically via UPDATE_SUBSCRIPTION_PLAN_SUCCESS
+    // Sale price updates correctly without refresh, so renewal price should too via the same mechanism
   };
 
   const handleAddSubscription = () => {
