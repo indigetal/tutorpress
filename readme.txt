@@ -48,5 +48,5 @@ Support included with license; see <support URL>.
 * Fixed: Rating metadata sync and template hierarchy restoration
 
 == Upgrade Notice ==
-= 2.0.0 =
-This is a major release and a breaking change: TutorPress is now premium-only and course editing redirects to Gutenberg. Backup and test on staging before upgrading.
+= 2.0.10 =
+Minor updates and bug fixes. No breaking changes.

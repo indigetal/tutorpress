@@ -37,10 +37,6 @@ class TutorPress_Lesson {
 	public function __construct() {
 		$this->token = 'lesson';
 
-		// Hook into register_post_type_args BEFORE Tutor LMS registers the lesson post type.
-		// This runs at priority 5, before Tutor LMS's priority 10, to inject map_meta_cap.
-		add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_lesson' ], 5, 2 );
-
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
@@ -489,25 +485,6 @@ class TutorPress_Lesson {
 				add_theme_support( 'post-thumbnails' );
 			}
 		}
-	}
-
-	/**
-	 * Add map_meta_cap to lesson post type arguments.
-	 *
-	 * This allows WordPress to map primitive capabilities like 'edit_post'
-	 * to Tutor LMS's custom capabilities (e.g. 'edit_tutor_lesson'), which
-	 * is required for core UI features like the admin-bar "Edit" link to work.
-	 *
-	 * @since 1.14.3
-	 * @param array  $args Post type arguments.
-	 * @param string $post_type Post type slug.
-	 * @return array Modified post type arguments.
-	 */
-	public function add_map_meta_cap_to_lesson( $args, $post_type ) {
-		if ( $post_type === 'lesson' ) {
-			$args['map_meta_cap'] = true;
-		}
-		return $args;
 	}
 
 	/**

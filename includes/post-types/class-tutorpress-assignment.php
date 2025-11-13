@@ -42,13 +42,6 @@ class TutorPress_Assignment {
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
 
-		// Ensure map_meta_cap is present at registration time for tutor_assignments
-		add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_assignment' ], 5, 2 );
-
-		// Add failsafe "Edit Assignment" link to admin bar and icon CSS
-		add_action( 'admin_bar_menu', [ $this, 'add_edit_assignment_admin_bar' ], 71 );
-		add_action( 'wp_head', [ $this, 'output_admin_bar_assignment_icon_css' ] );
-
 		// Bidirectional sync hooks for Tutor LMS compatibility
 		add_action( 'updated_post_meta', [ $this, 'handle_assignment_settings_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_assignment_option_update' ], 10, 4 );
@@ -169,21 +162,6 @@ class TutorPress_Assignment {
 	 */
 	public function post_meta_auth_callback( $allowed, $meta_key, $post_id ) {
 		return current_user_can( 'edit_post', $post_id );
-	}
-
-	/**
-	 * Add map_meta_cap to tutor_assignments post type args.
-	 * Ensures WordPress maps primitive capabilities (edit_post) to custom caps.
-	 *
-	 * @param array  $args Post type args.
-	 * @param string $post_type Post type slug.
-	 * @return array Modified args.
-	 */
-	public function add_map_meta_cap_to_assignment( $args, $post_type ) {
-		if ( $post_type === 'tutor_assignments' ) {
-			$args['map_meta_cap'] = true;
-		}
-		return $args;
 	}
 
 	/**
