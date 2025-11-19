@@ -14,6 +14,9 @@ class TutorPress_Admin_Customizations {
         add_action('admin_menu', [__CLASS__, 'add_lessons_menu_item']);
         add_action('admin_menu', [__CLASS__, 'reorder_tutor_submenus'], 100);
         add_action('init', [__CLASS__, 'conditionally_hide_builder_button']);
+        
+        // Fix Tutor LMS's broken access check for co-instructors
+        add_action('load-post.php', [__CLASS__, 'fix_tutor_access_check'], 5);
 
         // Only add AJAX handlers if admin redirects are enabled (use wrapper to respect Freemius gating)
         if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) ) {
@@ -264,6 +267,91 @@ class TutorPress_Admin_Customizations {
 
         // Let the default handler run for other cases
         return;
+    }
+
+    /**
+     * Fix Tutor LMS's broken lesson access check for co-instructors
+     *
+     * Tutor LMS's Admin::check_if_current_users_post() method checks if user is
+     * co-instructor of the LESSON itself, but should check the PARENT COURSE.
+     * This prevents co-instructors from editing lessons in Gutenberg.
+     *
+     * Solution: Remove Tutor's broken check and replace with corrected version.
+     *
+     * @since 2.0.11
+     */
+    public static function fix_tutor_access_check() {
+        // Remove Tutor's broken check
+        global $wp_filter;
+        if (isset($wp_filter['load-post.php'])) {
+            foreach ($wp_filter['load-post.php']->callbacks as $priority => $callbacks) {
+                foreach ($callbacks as $key => $callback) {
+                    if (is_array($callback['function']) && 
+                        isset($callback['function'][0]) && 
+                        is_object($callback['function'][0]) &&
+                        get_class($callback['function'][0]) === 'TUTOR\Admin' &&
+                        $callback['function'][1] === 'check_if_current_users_post') {
+                        remove_action('load-post.php', $callback['function'], $priority);
+                    }
+                }
+            }
+        }
+        
+        // Add our corrected check
+        if (!function_exists('tutor')) {
+            return;
+        }
+
+        // Skip check for admins and non-instructors
+        if (current_user_can('administrator') || !current_user_can(tutor()->instructor_role)) {
+            return;
+        }
+        
+        if (empty($_GET['post'])) {
+            return;
+        }
+
+        $post_id = (int) $_GET['post'];
+        $post = get_post($post_id);
+        
+        if (!$post) {
+            return;
+        }
+        
+        $tutor_post_types = array(
+            tutor()->course_post_type,
+            tutor()->lesson_post_type,
+            tutor()->assignment_post_type
+        );
+        $current_user = get_current_user_id();
+        
+        // Only check if user is not the post author
+        if (!in_array($post->post_type, $tutor_post_types) || $post->post_author == $current_user) {
+            return;
+        }
+
+        // For lessons and assignments, check if user is co-instructor of the PARENT COURSE
+        if (in_array($post->post_type, array(tutor()->lesson_post_type, tutor()->assignment_post_type))) {
+            $course_id = get_post_meta($post_id, '_tutor_course_id_for_lesson', true);
+            if (!$course_id && function_exists('tutor_utils')) {
+                $course_id = tutor_utils()->get_course_id_by('lesson', $post_id);
+            }
+            
+            if ($course_id && function_exists('tutor_utils')) {
+                if (tutor_utils()->can_user_edit_course($current_user, $course_id)) {
+                    return; // Allow access
+                }
+            }
+        }
+        // For courses, check if user is co-instructor of the course itself
+        elseif ($post->post_type === tutor()->course_post_type) {
+            if (function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $post_id)) {
+                return; // Allow access
+            }
+        }
+        
+        // If we get here, user is not authorized
+        wp_die(esc_html__('Permission Denied', 'tutor'));
     }
 }
 

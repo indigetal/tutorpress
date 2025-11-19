@@ -140,6 +140,9 @@ class TutorPress_Main {
         // Register Phase 3 data providers and permissions
         $container->register('course_provider', new TutorPress_Course_Provider());
         $container->register('permissions', new TutorPress_Permissions());
+        
+        // Initialize collaborative editing service (enables co-instructor Gutenberg access)
+        TutorPress_Collaborative_Editing::get_instance();
 
         // Register post type services
         $course = new TutorPress_Course();

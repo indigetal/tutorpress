@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 2.0.11
+ * Version: 2.0.12
  * Author: Indigetal WebCraft
  * Author URI: https://indigetal.com/tutorpress
  */
@@ -115,39 +115,6 @@ add_action('init', function() {
             }
         }
         
-        // Grant assignment capabilities that Tutor LMS forgot to add
-        // Tutor LMS grants capabilities for courses, lessons, quizzes in Tutor.php
-        // but assignments are missing from their capability setup
-        $assignment_caps = array(
-            'edit_tutor_assignment',
-            'read_tutor_assignment',
-            'delete_tutor_assignment',
-            'delete_tutor_assignments',
-            'edit_tutor_assignments',
-            'edit_others_tutor_assignments',
-            'publish_tutor_assignments',
-            'read_private_tutor_assignments',
-        );
-        
-        // Grant to administrator
-        $admin = get_role('administrator');
-        if ($admin) {
-            foreach ($assignment_caps as $cap) {
-                if (!$admin->has_cap($cap)) {
-                    $admin->add_cap($cap);
-                }
-            }
-        }
-        
-        // Grant to instructor (following Tutor's pattern)
-        $instructor = get_role(tutor()->instructor_role);
-        if ($instructor) {
-            foreach ($assignment_caps as $cap) {
-                if (!$instructor->has_cap($cap)) {
-                    $instructor->add_cap($cap);
-                }
-            }
-        }
     }
 }, 20); // Priority 20 to run after Tutor LMS registration
 
