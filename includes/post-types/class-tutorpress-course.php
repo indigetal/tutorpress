@@ -273,7 +273,14 @@ class TutorPress_Course {
                 'description' => __( 'Course prerequisites', 'tutorpress' ),
                 'single' => true,
                 'auth_callback' => [ $this, 'post_meta_auth_callback' ],
-                'show_in_rest' => true,
+                'show_in_rest' => [
+                    'schema' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'integer',
+                        ],
+                    ],
+                ],
             ],
             '_tutor_course_material_includes' => [
                 'type' => 'string',
@@ -309,7 +316,14 @@ class TutorPress_Course {
                 'description' => __( 'Course attachments', 'tutorpress' ),
                 'single' => true,
                 'auth_callback' => [ $this, 'post_meta_auth_callback' ],
-                'show_in_rest' => true,
+                'show_in_rest' => [
+                    'schema' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'integer',
+                        ],
+                    ],
+                ],
             ],
             // Additional Content Metabox fields
             '_tutor_course_benefits' => [
@@ -338,7 +352,14 @@ class TutorPress_Course {
                 'description' => __( 'Course instructors', 'tutorpress' ),
                 'single' => true,
                 'auth_callback' => [ $this, 'post_meta_auth_callback' ],
-                'show_in_rest' => true,
+                'show_in_rest' => [
+                    'schema' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'integer',
+                        ],
+                    ],
+                ],
             ],
         ];
 
