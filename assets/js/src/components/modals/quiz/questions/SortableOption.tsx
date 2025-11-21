@@ -48,7 +48,7 @@
 import React from "react";
 import { Button, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
-import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
+import { pencil, copy, trash, dragHandle, check } from "@wordpress/icons";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionEditor } from "./OptionEditor";
@@ -216,7 +216,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
         </div>
         <div className="quiz-modal-option-card-actions tpress-header-actions-group-xs tpress-ml-auto">
           <Button
-            icon={edit}
+            icon={pencil}
             label={__("Edit option", "tutorpress")}
             isSmall
             variant="tertiary"

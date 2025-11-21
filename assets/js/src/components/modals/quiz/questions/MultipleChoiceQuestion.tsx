@@ -39,7 +39,7 @@
 import React, { useState } from "react";
 import { Button, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
-import { edit, copy, trash, dragHandle, check } from "@wordpress/icons";
+import { pencil, copy, trash, dragHandle, check } from "@wordpress/icons";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";

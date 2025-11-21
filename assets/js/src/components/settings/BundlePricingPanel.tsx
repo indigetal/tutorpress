@@ -13,7 +13,7 @@ import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, TextControl, SelectControl, RadioControl, Button } from "@wordpress/components";
-import { plus, edit } from "@wordpress/icons";
+import { plus, pencil } from "@wordpress/icons";
 import { store as noticesStore } from "@wordpress/notices";
 
 // Import bundle types
@@ -446,7 +446,7 @@ const BundlePricingPanel: React.FC = () => {
                         <div className="file-actions">
                           <Button
                             variant="tertiary"
-                            icon={edit}
+                            icon={pencil}
                             onClick={() => handleEditPlan(plan)}
                             className="edit-button"
                             aria-label={__("Edit subscription plan", "tutorpress")}

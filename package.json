@@ -21,6 +21,9 @@
     "package": "npm run check-types && npm run make-build && cd tutorpress-build && zip -r ../tutorpress.zip . && cd .. && rm -rf tutorpress-build"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/plugin-bugfix-firefox-class-in-computed-class-key": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/parser": "^6.21.0",

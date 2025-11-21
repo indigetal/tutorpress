@@ -3,7 +3,7 @@ import { PluginDocumentSettingPanel } from "@wordpress/edit-post";
 import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch, select as wpSelect } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
-import { plus, edit } from "@wordpress/icons";
+import { plus, pencil } from "@wordpress/icons";
 import { useEntityProp } from "@wordpress/core-data";
 
 // Import course settings types
@@ -774,7 +774,7 @@ const CoursePricingPanel: React.FC = () => {
                         </div>
                         <Button
                           variant="tertiary"
-                          icon={edit}
+                          icon={pencil}
                           onClick={() => handleEditPlan(plan)}
                           className="edit-button"
                           aria-label={__("Edit subscription plan", "tutorpress")}

@@ -39,7 +39,7 @@
 
 import React from "react";
 import { Icon } from "@wordpress/components";
-import { warning, info } from "@wordpress/icons";
+import { caution, info } from "@wordpress/icons";
 import { __ } from "@wordpress/i18n";
 
 /**
@@ -91,13 +91,13 @@ export interface ValidationDisplayProps {
 const getSeverityIcon = (severity: ValidationSeverity) => {
   switch (severity) {
     case "error":
-      return warning;
+      return caution;
     case "warning":
-      return warning;
+      return caution;
     case "info":
       return info;
     default:
-      return warning;
+      return caution;
   }
 };
 
