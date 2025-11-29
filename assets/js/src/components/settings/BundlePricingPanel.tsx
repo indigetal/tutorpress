@@ -22,8 +22,13 @@ import type { BundleRibbonType } from "../../types/bundle";
 import type { SubscriptionPlan } from "../../types/subscriptions";
 // Import the shared bundle meta hook
 import { useBundleMeta } from "../../hooks/common";
-// Import addon checker for subscription functionality
-// Note: subscription status now comes from backend data
+// Import addon checker for PMPro and subscription functionality
+import {
+  isMonetizationEnabled,
+  getPaymentEngine,
+  isPmproMonetization,
+  isPmproAvailable,
+} from "../../utils/addonChecker";
 // Import subscription modal
 import { SubscriptionModal } from "../modals/subscription/SubscriptionModal";
 import PromoPanel from "../common/PromoPanel";
@@ -88,15 +93,18 @@ const BundlePricingPanel: React.FC = () => {
 
   // Modern entity-based approach using useBundleMeta hook
   const { meta, safeSet, ready } = useBundleMeta();
-  const { postType, postId, subscriptionPlans, subscriptionPlansLoading } = useSelect(
-    (select: any) => ({
-      postType: select("core/editor").getCurrentPostType(),
-      postId: select("core/editor").getCurrentPostId(),
-      subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans() || [],
-      subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
-    }),
-    []
-  );
+  const { postType, postId, subscriptionPlans, subscriptionPlansLoading, hasFullSiteLevels, membershipOnlyMode } =
+    useSelect(
+      (select: any) => ({
+        postType: select("core/editor").getCurrentPostType(),
+        postId: select("core/editor").getCurrentPostId(),
+        subscriptionPlans: select("tutorpress/subscriptions").getSubscriptionPlans() || [],
+        subscriptionPlansLoading: select("tutorpress/subscriptions").getSubscriptionPlansLoading(),
+        hasFullSiteLevels: select("tutorpress/subscriptions").getHasFullSiteLevels(),
+        membershipOnlyMode: select("tutorpress/subscriptions").getMembershipOnlyMode(),
+      }),
+      []
+    );
 
   // Get dispatch actions
   const { editPost } = useDispatch("core/editor");
@@ -115,13 +123,14 @@ const BundlePricingPanel: React.FC = () => {
       }
     : null;
 
-  // Get bundle course IDs from meta
-  const bundleCourseIds = (meta?.["bundle-course-ids"] as string) || "";
+  // Note: bundle-course-ids is NOT exposed to REST API (show_in_rest: false)
+  // to prevent Gutenberg auto-save conflicts. We'll fetch it via API instead.
 
   // Calculate regular price when bundle courses change (entity-based)
+  // Also recalculate when payment engine changes (for PMPro integration)
   useEffect(() => {
     const updateRegularPrice = async () => {
-      if (!postId || !bundleCourseIds || !ready) {
+      if (!postId || !ready) {
         setCalculatedRegularPrice(0);
         return;
       }
@@ -129,11 +138,17 @@ const BundlePricingPanel: React.FC = () => {
       setIsCalculating(true);
       try {
         // Calculate regular price from bundle courses
+        // This will use PMPro pricing if PMPro is the active monetization engine
         const regularPrice = await calculateBundleRegularPrice(postId);
         setCalculatedRegularPrice(regularPrice);
 
-        // Update the pricing data with the calculated regular price using entity approach
-        if (pricingData && regularPrice !== pricingData.regular_price) {
+        // For PMPro monetization, we DON'T auto-update the bundle meta fields
+        // because the bundle price is determined by the PMPro membership levels,
+        // not by the sum of course prices. The calculated value is for display only.
+        const isPmpro = isPmproMonetization();
+
+        if (!isPmpro && pricingData && regularPrice !== pricingData.regular_price) {
+          // Native Tutor LMS e-commerce: Auto-update bundle meta fields
           // Check if sale price needs adjustment
           let adjustedSalePrice = pricingData.sale_price;
           if (pricingData.sale_price > regularPrice) {
@@ -162,18 +177,20 @@ const BundlePricingPanel: React.FC = () => {
       }
     };
 
-    // Only calculate if we have pricing data and bundle courses have changed
-    if (pricingData && bundleCourseIds && ready) {
+    // Always calculate price when ready (bundle-course-ids not in meta)
+    if (ready) {
       updateRegularPrice();
     }
-  }, [postId, bundleCourseIds, ready]); // Removed pricingData to prevent infinite loops
+  }, [postId, ready]); // bundleCourseIds not available in meta (show_in_rest: false)
 
   // Fetch subscription plans when component mounts and bundle ID is available
+  // Supports both Tutor Pro subscription addon and PMPro (following Course pattern)
   useEffect(() => {
-    if (postType === "course-bundle" && postId && (window.tutorpressAddons?.subscription ?? false)) {
+    const shouldFetchSubscriptionPlans = (window.tutorpressAddons?.subscription ?? false) || isPmproMonetization();
+    if (postType === "course-bundle" && postId && shouldFetchSubscriptionPlans) {
       getSubscriptionPlans();
     }
-  }, [postType, postId, getSubscriptionPlans]);
+  }, [postType, postId, getSubscriptionPlans, pricingData?.selling_option]); // Add sellingOption dependency
 
   // Listen for course changes via custom events (entity-based)
   useEffect(() => {
@@ -295,26 +312,37 @@ const BundlePricingPanel: React.FC = () => {
     { label: __("Subscription and one-time purchase", "tutorpress"), value: "both" },
   ];
 
-  // Conditional display logic for Bundle pricing
-  const shouldShowPurchaseOptions = window.tutorpressAddons?.subscription ?? false;
+  // Conditional display logic for Bundle pricing (following Course pattern)
+  const shouldShowPurchaseOptions =
+    isMonetizationEnabled() &&
+    !membershipOnlyMode &&
+    ((getPaymentEngine() === "tutor_pro" && (window.tutorpressAddons?.subscription ?? false)) ||
+      (getPaymentEngine() === "pmpro" && isPmproAvailable()));
 
   // Bundle-specific conditional display logic based on purchase option selection
   const shouldShowPriceFields = () => {
-    // Always show if subscriptions are disabled
-    if (!(window.tutorpressAddons?.subscription ?? false)) return true;
+    // Don't show price fields when global membership-only mode is enabled
+    if (membershipOnlyMode) return false;
 
-    // If subscriptions are enabled, show price fields for one_time and both
+    // Always show if neither subscription addon nor PMPro is available
+    if (!(window.tutorpressAddons?.subscription ?? false) && getPaymentEngine() !== "pmpro") {
+      return true;
+    }
+
+    // If subscription addon is enabled OR PMPro is selected, show based on selling option
     const sellingOption = pricingData?.selling_option || "one_time";
-    return ["one_time", "both"].includes(sellingOption);
+    return ["one_time", "both", "all"].includes(sellingOption);
   };
 
   const shouldShowSubscriptionSection = () => {
-    // Only show if subscriptions are enabled
-    if (!(window.tutorpressAddons?.subscription ?? false)) return false;
+    // Only show if subscription addon is enabled OR PMPro is selected
+    if (!(window.tutorpressAddons?.subscription ?? false) && getPaymentEngine() !== "pmpro") {
+      return false;
+    }
 
-    // Show subscriptions for subscription and both
+    // Show subscriptions for subscription, both, and all
     const sellingOption = pricingData?.selling_option || "one_time";
-    return ["subscription", "both"].includes(sellingOption);
+    return ["subscription", "both", "all"].includes(sellingOption);
   };
 
   // Ribbon type options
@@ -327,7 +355,9 @@ const BundlePricingPanel: React.FC = () => {
   // Panel loading state - includes subscription plans loading when applicable
   const panelLoading =
     !ready ||
-    ((window.tutorpressAddons?.subscription ?? false) && shouldShowSubscriptionSection() && subscriptionPlansLoading);
+    (((window.tutorpressAddons?.subscription ?? false) || getPaymentEngine() === "pmpro") &&
+      shouldShowSubscriptionSection() &&
+      subscriptionPlansLoading);
 
   // Don't render if not on a course-bundle post
   if (postType !== "course-bundle") {
@@ -398,11 +428,7 @@ const BundlePricingPanel: React.FC = () => {
                     {__("Total Value of Bundled Courses", "tutorpress")}
                   </label>
                   <div className="price-value">
-                    {isCalculating ? (
-                      <Spinner />
-                    ) : (
-                      `$${(calculatedRegularPrice || pricingData?.regular_price || 0)?.toFixed(2) || "0.00"}`
-                    )}
+                    {isCalculating ? <Spinner /> : `$${(calculatedRegularPrice || 0)?.toFixed(2) || "0.00"}`}
                   </div>
                   <p className="components-base-control__help">{__("Calculated from bundle courses", "tutorpress")}</p>
                 </div>

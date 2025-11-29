@@ -427,6 +427,29 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 $include_instructors = $request->get_param('include_instructors') === 'true';
                 $instructors = $include_instructors ? $this->get_course_instructors($course_id) : [];
 
+                /**
+                 * Filter course price for bundle course lists.
+                 * 
+                 * Allows addons (like tutorpress-pmpro) to override course pricing
+                 * when displaying courses in a bundle. This is used for calculating
+                 * the total bundle value in the Bundle Pricing Panel.
+                 * 
+                 * @since 0.1.0
+                 * @param string $price         Formatted price HTML string.
+                 * @param int    $course_id     Course post ID.
+                 * @param float  $regular_price Regular price from Tutor LMS meta.
+                 * @param float  $sale_price    Sale price from Tutor LMS meta.
+                 * @param string $price_type    Price type (free, paid, etc.).
+                 */
+                $price = apply_filters(
+                    'tutorpress_bundle_course_price',
+                    $price,
+                    $course_id,
+                    $regular_price,
+                    $sale_price,
+                    $price_type
+                );
+
                 $courses[] = [
                     'id' => $course_id,
                     'title' => $course->post_title,
