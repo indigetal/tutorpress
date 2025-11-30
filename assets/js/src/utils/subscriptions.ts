@@ -11,7 +11,7 @@ export const buildFetchRequest = (objectId: number, postType: "course" | "course
 export const buildCreateRequest = (objectId: number, data: any) => ({
   path: `${API_ROOT}/subscriptions`,
   method: "POST",
-  data: { ...data, object_id: objectId },
+  data: { ...data, object_id: objectId }, // object_id from parameter takes precedence
 });
 
 export const buildUpdateRequest = (id: number, data: any) => ({

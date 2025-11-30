@@ -268,8 +268,52 @@ const BundlePricingPanel: React.FC = () => {
   const handlePurchaseOptionChange = (value: string) => {
     if (!pricingData || !ready) return;
 
+    // PMPro-specific warnings when switching between one-time and subscription
+    if (isPmproMonetization()) {
+      const current = pricingData.selling_option;
+      if (value === "subscription" && current !== "subscription") {
+        const ok = window.confirm(
+          __(
+            "Switching to Subscription will remove any existing one-time purchase setting on save. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
+      } else if (value === "one_time" && current !== "one_time") {
+        const ok = window.confirm(
+          __(
+            "Switching to One-time purchase will remove any existing subscription plans on save. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
+      } else if (value === "membership" && current !== "membership") {
+        const ok = window.confirm(
+          __(
+            "Switching to Membership only will remove any existing bundle-specific purchase options on save. Continue?",
+            "tutorpress"
+          )
+        );
+        if (!ok) {
+          return;
+        }
+      }
+    }
+
     // Entity-based update (following Course Pricing pattern)
-    const metaUpdates = { tutor_course_selling_option: value };
+    const metaUpdates: any = { tutor_course_selling_option: value };
+    
+    // Auto-update price_type to 'paid' when selecting a paid selling option
+    // This prevents confusion where selling_option='subscription' but price_type='free'
+    const isPaidOption = ['subscription', 'one_time', 'both', 'all'].includes(value);
+    if (isPaidOption && pricingData.price_type === 'free') {
+      metaUpdates._tutor_course_price_type = 'paid';
+    }
+    
     safeSet(metaUpdates);
     editPost({ meta: { ...meta, ...metaUpdates } });
   };

@@ -107,7 +107,15 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
 
   // Read selling option and post title from editor to support one-time mapping when PMPro active
   const sellingOption = useSelect((select: any) => {
-    return (select("core/editor").getEditedPostAttribute?.("course_settings") || {})?.selling_option || "one_time";
+    const postType = select("core/editor").getCurrentPostType();
+
+    // Courses use course_settings, bundles use direct meta
+    if (postType === "course-bundle") {
+      const meta = select("core/editor").getEditedPostAttribute?.("meta") || {};
+      return meta?.tutor_course_selling_option || "one_time";
+    } else {
+      return (select("core/editor").getEditedPostAttribute?.("course_settings") || {})?.selling_option || "one_time";
+    }
   }, []);
   const postTitle = useSelect((select: any) => select("core/editor").getEditedPostAttribute?.("title") || "", []);
 
@@ -149,10 +157,8 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
       } else {
         // For PMPro: validate against enrollment_fee (Initial Payment)
         // For Tutor LMS: validate against regular_price (Recurring Price)
-        const priceToValidate = isPmproMonetization() 
-          ? (formData.enrollment_fee || 0) 
-          : (formData.regular_price || 0);
-        
+        const priceToValidate = isPmproMonetization() ? formData.enrollment_fee || 0 : formData.regular_price || 0;
+
         if (formData.sale_price >= priceToValidate) {
           errors.sale_price = __("Sale price must be less than regular price", "tutorpress");
         }

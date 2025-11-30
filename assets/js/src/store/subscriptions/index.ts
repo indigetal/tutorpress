@@ -602,7 +602,7 @@ const resolvers = {
 
       const response = yield {
         type: "API_FETCH",
-        request: buildCreateRequest(objectId, planData),
+        request: buildCreateRequest(objectId, requestData),
       };
 
       if (!response.success) {

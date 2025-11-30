@@ -38,6 +38,9 @@ class TutorPress_Bundle {
         // Handle REST API updates (Gutenberg uses REST API, not traditional meta updates)
         add_action( 'rest_after_insert_course-bundle', [ $this, 'handle_rest_bundle_update' ], 10, 3 );
         
+        // Ensure critical meta fields are included in REST response (fixes Gutenberg UI sync)
+        add_filter( 'rest_prepare_course-bundle', [ $this, 'ensure_meta_in_rest_response' ], 10, 3 );
+        
         // Also handle traditional form saves for compatibility
         add_action( 'save_post_course-bundle', [ $this, 'sync_on_bundle_save' ], 999, 3 );
     }
@@ -418,6 +421,11 @@ class TutorPress_Bundle {
 
     /**
      * Handle REST API updates for bundles (Gutenberg saves)
+     * 
+     * IMPORTANT: This hook runs AFTER WordPress has already processed the REST request
+     * and prepared the response. Meta fields registered with show_in_rest: true are
+     * handled automatically by WordPress BEFORE this hook runs. We only use this hook
+     * for special cases that need custom processing.
      *
      * @param WP_Post $post Post object.
      * @param WP_REST_Request $request Request object.
@@ -449,27 +457,62 @@ class TutorPress_Bundle {
             update_post_meta( $post->ID, '_tutorpress_bundle_benefits_last_value', $benefits );
         }
 
-        // If there are other canonical bundle meta fields included in meta, write them as well
-        $other_keys = array( '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price', 'tutor_course_selling_option', '_tutor_course_product_id', 'tutor_bundle_ribbon_type', 'tutor_course_certificate_template', 'certificate_for_individual_courses' );
-        foreach ( $other_keys as $k ) {
-            if ( array_key_exists( $k, $meta ) ) {
-                // Basic sanitization: strings -> sanitize_text_field, numbers -> floatval/absint where appropriate
-                $val = $meta[ $k ];
-                if ( in_array( $k, array( 'tutor_course_price', 'tutor_course_sale_price' ), true ) ) {
-                    update_post_meta( $post->ID, $k, (float) $val );
-                } elseif ( $k === '_tutor_course_product_id' ) {
-                    update_post_meta( $post->ID, $k, absint( $val ) );
-                } elseif ( $k === 'certificate_for_individual_courses' ) {
-                    // Use custom toggle sanitizer for certificate field
-                    update_post_meta( $post->ID, $k, self::sanitize_certificate_toggle( $val ) );
-                } else {
-                    update_post_meta( $post->ID, $k, sanitize_text_field( (string) $val ) );
-                }
-            }
+        // NOTE: Most meta fields are handled automatically by WordPress REST API since they're registered with show_in_rest: true
+        // We only manually handle fields that need special processing or aren't exposed to REST
+        
+        // Handle certificate toggle (needs custom sanitization)
+        if ( array_key_exists( 'certificate_for_individual_courses', $meta ) ) {
+            update_post_meta( $post->ID, 'certificate_for_individual_courses', self::sanitize_certificate_toggle( $meta['certificate_for_individual_courses'] ) );
         }
 
         // Clear syncing flag
         delete_post_meta( $post->ID, '_tutorpress_syncing_to_tutor' );
+    }
+
+    /**
+     * Ensure critical meta fields are included in REST response
+     * 
+     * Fixes Gutenberg UI sync issue where meta fields don't appear in the response
+     * after save, causing the UI to revert to default values.
+     *
+     * @param WP_REST_Response $response Response object.
+     * @param WP_Post $post Post object.
+     * @param WP_REST_Request $request Request object.
+     * @return WP_REST_Response
+     */
+    public function ensure_meta_in_rest_response( $response, $post, $request ) {
+        if ( $post->post_type !== $this->token ) {
+            return $response;
+        }
+
+        $data = $response->get_data();
+        
+        // Ensure meta object exists
+        if ( ! isset( $data['meta'] ) ) {
+            $data['meta'] = array();
+        }
+        
+        // Critical meta fields that must always be in the response for Gutenberg UI
+        $critical_fields = array(
+            'tutor_course_selling_option',
+            '_tutor_course_price_type',
+            'tutor_course_price',
+            'tutor_course_sale_price',
+            'tutor_bundle_ribbon_type',
+            '_tutor_course_product_id',
+        );
+        
+        foreach ( $critical_fields as $field ) {
+            // Only add if not already present in response
+            if ( ! isset( $data['meta'][ $field ] ) ) {
+                $value = get_post_meta( $post->ID, $field, true );
+                // Include the field even if empty (to prevent undefined in Gutenberg)
+                $data['meta'][ $field ] = $value !== false ? $value : '';
+            }
+        }
+        
+        $response->set_data( $data );
+        return $response;
     }
 
     /**
