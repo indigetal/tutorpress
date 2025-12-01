@@ -63,7 +63,13 @@ class TutorPress_Collaborative_Editing {
 
         $capability = isset( $args[0] ) ? $args[0] : '';
         $user_id    = isset( $args[1] ) ? (int) $args[1] : get_current_user_id();
-        $post_id    = (int) $args[2];
+        
+        // Handle WP_Block_Editor_Context object (WordPress 6.0+)
+        if ( is_object( $args[2] ) && isset( $args[2]->post ) && isset( $args[2]->post->ID ) ) {
+            $post_id = (int) $args[2]->post->ID;
+        } else {
+            $post_id = (int) $args[2];
+        }
 
         // Target capabilities relevant to Tutor LMS course content editing.
         $collaborative_caps = array(

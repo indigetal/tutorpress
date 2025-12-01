@@ -439,6 +439,7 @@ class TutorPress_Bundle {
 
         // Extract meta from REST request (Gutenberg saves provide meta in the request payload)
         $meta = $request->get_param( 'meta' );
+        
         if ( ! is_array( $meta ) ) {
             // No meta provided, nothing to sync
             return;
@@ -459,6 +460,27 @@ class TutorPress_Bundle {
 
         // NOTE: Most meta fields are handled automatically by WordPress REST API since they're registered with show_in_rest: true
         // We only manually handle fields that need special processing or aren't exposed to REST
+        
+        // CRITICAL: Manually save selling_option to ensure database persistence
+        // WordPress's automatic save (via show_in_rest) sometimes fails to persist this field
+        // This ensures the value is always saved, preventing reversion issues
+        if ( array_key_exists( 'tutor_course_selling_option', $meta ) ) {
+            $selling_option = self::sanitize_selling_option( $meta['tutor_course_selling_option'] );
+            update_post_meta( $post->ID, 'tutor_course_selling_option', $selling_option );
+        }
+        
+        // CRITICAL: Manually save sale_price to ensure database persistence
+        // Same issue as selling_option - WordPress's automatic save sometimes fails
+        if ( array_key_exists( 'tutor_course_sale_price', $meta ) ) {
+            $sale_price = self::sanitize_price( $meta['tutor_course_sale_price'] );
+            update_post_meta( $post->ID, 'tutor_course_sale_price', $sale_price );
+        }
+        
+        // CRITICAL: Manually save regular_price to ensure database persistence
+        if ( array_key_exists( 'tutor_course_price', $meta ) ) {
+            $regular_price = self::sanitize_price( $meta['tutor_course_price'] );
+            update_post_meta( $post->ID, 'tutor_course_price', $regular_price );
+        }
         
         // Handle certificate toggle (needs custom sanitization)
         if ( array_key_exists( 'certificate_for_individual_courses', $meta ) ) {
@@ -492,6 +514,12 @@ class TutorPress_Bundle {
             $data['meta'] = array();
         }
         
+        // Get meta from request (this is what Gutenberg is trying to save)
+        $request_meta = $request->get_param( 'meta' );
+        if ( ! is_array( $request_meta ) ) {
+            $request_meta = array();
+        }
+        
         // Critical meta fields that must always be in the response for Gutenberg UI
         $critical_fields = array(
             'tutor_course_selling_option',
@@ -503,11 +531,20 @@ class TutorPress_Bundle {
         );
         
         foreach ( $critical_fields as $field ) {
-            // Only add if not already present in response
+            // Priority order:
+            // 1. If already in response, keep it (WordPress handled it)
+            // 2. If in request, use request value (what Gutenberg is saving)
+            // 3. Otherwise, read from database (fallback for GET requests)
+            
             if ( ! isset( $data['meta'][ $field ] ) ) {
-                $value = get_post_meta( $post->ID, $field, true );
-                // Include the field even if empty (to prevent undefined in Gutenberg)
-                $data['meta'][ $field ] = $value !== false ? $value : '';
+                if ( isset( $request_meta[ $field ] ) ) {
+                    // Use value from request (what Gutenberg is trying to save)
+                    $data['meta'][ $field ] = $request_meta[ $field ];
+                } else {
+                    // Fallback to database (for GET requests or fields not being updated)
+                    $value = get_post_meta( $post->ID, $field, true );
+                    $data['meta'][ $field ] = $value !== false ? $value : '';
+                }
             }
         }
         

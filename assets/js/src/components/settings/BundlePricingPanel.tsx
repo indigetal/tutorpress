@@ -123,6 +123,20 @@ const BundlePricingPanel: React.FC = () => {
       }
     : null;
 
+  // Filter plans to only show recurring plans when selling_option is 'subscription'
+  // This prevents one-time levels from appearing in the Subscription Plans section
+  const displayedPlans = React.useMemo(() => {
+    if (!pricingData?.selling_option) return subscriptionPlans;
+    
+    // When selling_option is 'subscription', only show recurring plans
+    if (pricingData.selling_option === 'subscription') {
+      return subscriptionPlans.filter((plan: SubscriptionPlan) => plan.payment_type === 'recurring');
+    }
+    
+    // For other options, show all plans
+    return subscriptionPlans;
+  }, [subscriptionPlans, pricingData?.selling_option]);
+
   // Note: bundle-course-ids is NOT exposed to REST API (show_in_rest: false)
   // to prevent Gutenberg auto-save conflicts. We'll fetch it via API instead.
 
@@ -242,15 +256,15 @@ const BundlePricingPanel: React.FC = () => {
     };
   }, [postId, pricingData, ready]);
 
-  // Handle sale price change (entity-based following Course Pricing pattern)
-  const handleSalePriceChange = (value: string) => {
+  // Handle bundle price change (entity-based following Course Pricing pattern)
+  const handleBundlePriceChange = (value: string) => {
     if (!pricingData || !ready) return;
 
     const bundlePrice = parseFloat(value) || 0;
-    const totalValue = calculatedRegularPrice || pricingData?.regular_price || 0;
+    const totalValue = calculatedRegularPrice || 0;
 
     // Validate that bundle price cannot exceed total value
-    if (bundlePrice > totalValue) {
+    if (totalValue > 0 && bundlePrice > totalValue) {
       // Show error notice
       createNotice("error", __("Bundle price cannot exceed the total value of the bundled courses.", "tutorpress"), {
         type: "snackbar",
@@ -259,7 +273,7 @@ const BundlePricingPanel: React.FC = () => {
     }
 
     // Entity-based update (following Course Pricing pattern)
-    const metaUpdates = { tutor_course_sale_price: bundlePrice };
+    const metaUpdates = { tutor_course_price: bundlePrice }; // This is the bundle price (regular price)
     safeSet(metaUpdates);
     editPost({ meta: { ...meta, ...metaUpdates } });
   };
@@ -482,11 +496,11 @@ const BundlePricingPanel: React.FC = () => {
               <PanelRow>
                 <TextControl
                   label={__("Bundle Price", "tutorpress")}
-                  value={pricingData.sale_price?.toString() || "0"}
-                  onChange={handleSalePriceChange}
+                  value={pricingData.regular_price?.toString() || "0"}
+                  onChange={handleBundlePriceChange}
                   type="number"
                   min="0"
-                  max={(calculatedRegularPrice || pricingData?.regular_price || 0)?.toString()}
+                  max={(calculatedRegularPrice || 0)?.toString()}
                   step="0.01"
                   help={__("Enter the bundle price (cannot exceed total value)", "tutorpress")}
                 />
@@ -499,12 +513,12 @@ const BundlePricingPanel: React.FC = () => {
             <PanelRow>
               <div className="subscription-section">
                 {/* Existing Subscription Plans List */}
-                {subscriptionPlans.length > 0 && (
+                {displayedPlans.length > 0 && (
                   <div className="tutorpress-saved-files-list">
                     <div style={{ fontSize: "12px", fontWeight: "500", marginBottom: "4px" }}>
                       {__("Subscription Plans:", "tutorpress")}
                     </div>
-                    {subscriptionPlans.map((plan: SubscriptionPlan) => (
+                    {displayedPlans.map((plan: SubscriptionPlan) => (
                       <div key={plan.id} className="tutorpress-saved-file-item">
                         <div className="file-info">
                           <span className="file-name">{plan.plan_name}</span>
@@ -528,7 +542,7 @@ const BundlePricingPanel: React.FC = () => {
                 )}
 
                 {/* Add Subscription Button */}
-                <div style={{ marginTop: subscriptionPlans.length > 0 ? "12px" : "0" }}>
+                <div style={{ marginTop: displayedPlans.length > 0 ? "12px" : "0" }}>
                   <Button icon={plus} variant="secondary" onClick={handleAddSubscription}>
                     {__("Add Subscription", "tutorpress")}
                   </Button>
