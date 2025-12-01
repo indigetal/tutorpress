@@ -22,6 +22,10 @@ class TutorPress_Bundle {
      * Constructor
      */
     public function __construct() {
+        // Register taxonomies (categories and tags)
+        // Priority 15 ensures course-bundle post type is registered first (Tutor Pro registers at 10)
+        add_action( 'init', [ $this, 'register_bundle_taxonomies' ], 15 );
+
         // Register meta fields and REST fields on init
         add_action( 'init', [ $this, 'set_up_meta_fields' ] );
         add_action( 'rest_api_init', [ $this, 'register_rest_fields' ] );
@@ -164,6 +168,86 @@ class TutorPress_Bundle {
             'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
             'show_in_rest'      => true,
         ] );
+    }
+
+    /**
+     * Register bundle taxonomies (categories and tags)
+     * 
+     * Mirrors Tutor LMS course taxonomy pattern but for course bundles.
+     * Categories are hierarchical (tree structure), tags are non-hierarchical (flat list).
+     * Both are registered with show_in_rest: true to appear in Gutenberg sidebar.
+     *
+     * Note: We don't check if post type exists - register_taxonomy() can be called before
+     * the post type is registered. The taxonomies will attach once the post type is available.
+     *
+     * @return void
+     */
+    public function register_bundle_taxonomies() {
+        // Register bundle categories (hierarchical)
+        register_taxonomy(
+            'bundle-category',
+            $this->token,
+            [
+                'hierarchical'          => true,
+                'labels'                => [
+                    'name'                       => _x( 'Bundle Categories', 'taxonomy general name', 'tutorpress' ),
+                    'singular_name'              => _x( 'Bundle Category', 'taxonomy singular name', 'tutorpress' ),
+                    'search_items'               => __( 'Search Bundle Categories', 'tutorpress' ),
+                    'popular_items'              => __( 'Popular Bundle Categories', 'tutorpress' ),
+                    'all_items'                  => __( 'All Bundle Categories', 'tutorpress' ),
+                    'parent_item'                => __( 'Parent Bundle Category', 'tutorpress' ),
+                    'parent_item_colon'          => __( 'Parent Bundle Category:', 'tutorpress' ),
+                    'edit_item'                  => __( 'Edit Bundle Category', 'tutorpress' ),
+                    'update_item'                => __( 'Update Bundle Category', 'tutorpress' ),
+                    'add_new_item'               => __( 'Add New Bundle Category', 'tutorpress' ),
+                    'new_item_name'              => __( 'New Bundle Category Name', 'tutorpress' ),
+                    'separate_items_with_commas' => __( 'Separate bundle categories with commas', 'tutorpress' ),
+                    'add_or_remove_items'        => __( 'Add or remove bundle categories', 'tutorpress' ),
+                    'choose_from_most_used'      => __( 'Choose from the most used bundle categories', 'tutorpress' ),
+                    'not_found'                  => __( 'No bundle categories found.', 'tutorpress' ),
+                    'menu_name'                  => __( 'Bundle Categories', 'tutorpress' ),
+                ],
+                'show_ui'               => true,
+                'show_admin_column'     => true,
+                'update_count_callback' => '_update_post_term_count',
+                'query_var'             => true,
+                'show_in_rest'          => true,
+                'rewrite'               => array( 'slug' => 'bundle-category' ),
+            ]
+        );
+
+        // Register bundle tags (non-hierarchical)
+        register_taxonomy(
+            'bundle-tag',
+            $this->token,
+            [
+                'hierarchical'          => false,
+                'labels'                => [
+                    'name'                       => _x( 'Bundle Tags', 'taxonomy general name', 'tutorpress' ),
+                    'singular_name'              => _x( 'Bundle Tag', 'taxonomy singular name', 'tutorpress' ),
+                    'search_items'               => __( 'Search Bundle Tags', 'tutorpress' ),
+                    'popular_items'              => __( 'Popular Bundle Tags', 'tutorpress' ),
+                    'all_items'                  => __( 'All Bundle Tags', 'tutorpress' ),
+                    'parent_item'                => null,
+                    'parent_item_colon'          => null,
+                    'edit_item'                  => __( 'Edit Bundle Tag', 'tutorpress' ),
+                    'update_item'                => __( 'Update Bundle Tag', 'tutorpress' ),
+                    'add_new_item'               => __( 'Add New Bundle Tag', 'tutorpress' ),
+                    'new_item_name'              => __( 'New Bundle Tag Name', 'tutorpress' ),
+                    'separate_items_with_commas' => __( 'Separate bundle tags with commas', 'tutorpress' ),
+                    'add_or_remove_items'        => __( 'Add or remove bundle tags', 'tutorpress' ),
+                    'choose_from_most_used'      => __( 'Choose from the most used bundle tags', 'tutorpress' ),
+                    'not_found'                  => __( 'No bundle tags found.', 'tutorpress' ),
+                    'menu_name'                  => __( 'Bundle Tags', 'tutorpress' ),
+                ],
+                'show_ui'               => true,
+                'show_admin_column'     => true,
+                'update_count_callback' => '_update_post_term_count',
+                'query_var'             => true,
+                'show_in_rest'          => true,
+                'rewrite'               => array( 'slug' => 'bundle-tag' ),
+            ]
+        );
     }
 
     /**

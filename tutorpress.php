@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 2.0.17
+ * Version: 2.0.18
  * Author: Indigetal WebCraft
  * Author URI: https://indigetal.com/tutorpress
  */
@@ -118,13 +118,27 @@ add_action('init', function() {
     }
 }, 20); // Priority 20 to run after Tutor LMS registration
 
-// Enable custom-fields support for course-bundle post type (required for meta fields via REST API)
+// Enable REST API and custom-fields support for course-bundle post type
 add_action('init', function() {
     // Check if Tutor LMS Pro has registered the course-bundle post type
     if (post_type_exists('course-bundle')) {
-        // Enable custom-fields support (required for meta fields to be accessible via REST API)
-        if (!post_type_supports('course-bundle', 'custom-fields')) {
-            add_post_type_support('course-bundle', 'custom-fields');
+        // Get the post type object
+        $bundle_post_type = get_post_type_object('course-bundle');
+        
+        if ($bundle_post_type) {
+            // Enable REST API support for taxonomies to appear in Gutenberg
+            // This must be true for taxonomies (categories/tags) to be visible in Gutenberg sidebar
+            $bundle_post_type->show_in_rest = true;
+            
+            // Re-attach taxonomies to course-bundle post type after enabling REST
+            // This ensures taxonomies are properly included in the post type's REST schema
+            register_taxonomy_for_object_type('bundle-category', 'course-bundle');
+            register_taxonomy_for_object_type('bundle-tag', 'course-bundle');
+            
+            // Enable custom-fields support (required for meta fields to be accessible via REST API)
+            if (!post_type_supports('course-bundle', 'custom-fields')) {
+                add_post_type_support('course-bundle', 'custom-fields');
+            }
         }
     }
 }, 20); // Priority 20 to run after Tutor LMS registration
