@@ -469,6 +469,23 @@ class TutorPress_Bundle {
             update_post_meta( $post->ID, 'tutor_course_selling_option', $selling_option );
         }
         
+        // CRITICAL: Automatically set price_type based on selling_option
+        // This ensures frontend pricing displays correctly for monetization plugins
+        // This runs on EVERY save to fix existing bundles that have incorrect price_type
+        $selling_option = get_post_meta( $post->ID, 'tutor_course_selling_option', true );
+        
+        if ( $selling_option ) {
+            $paid_options = array( 'one_time', 'subscription', 'both', 'all', 'membership' );
+            
+            if ( in_array( $selling_option, $paid_options, true ) ) {
+                // Paid selling options should have price_type='paid'
+                update_post_meta( $post->ID, '_tutor_course_price_type', 'paid' );
+            } elseif ( $selling_option === 'free' ) {
+                // Free selling option should have price_type='free'
+                update_post_meta( $post->ID, '_tutor_course_price_type', 'free' );
+            }
+        }
+        
         // CRITICAL: Manually save sale_price to ensure database persistence
         // Same issue as selling_option - WordPress's automatic save sometimes fails
         if ( array_key_exists( 'tutor_course_sale_price', $meta ) ) {
@@ -538,8 +555,15 @@ class TutorPress_Bundle {
             
             if ( ! isset( $data['meta'][ $field ] ) ) {
                 if ( isset( $request_meta[ $field ] ) ) {
-                    // Use value from request (what Gutenberg is trying to save)
-                    $data['meta'][ $field ] = $request_meta[ $field ];
+                    // SPECIAL CASE: _tutor_course_price_type is auto-calculated from selling_option
+                    // Don't use the request value - always read from database (which we just updated)
+                    if ( $field === '_tutor_course_price_type' ) {
+                        $value = get_post_meta( $post->ID, $field, true );
+                        $data['meta'][ $field ] = $value !== false ? $value : '';
+                    } else {
+                        // Use value from request (what Gutenberg is trying to save)
+                        $data['meta'][ $field ] = $request_meta[ $field ];
+                    }
                 } else {
                     // Fallback to database (for GET requests or fields not being updated)
                     $value = get_post_meta( $post->ID, $field, true );
@@ -579,7 +603,21 @@ class TutorPress_Bundle {
         if ( $last_rest_sync && ( time() - (int) $last_rest_sync ) < 5 ) {
             return;
         }
-
+        
+        // CRITICAL: Sync price_type with selling_option on every save
+        // This ensures frontend pricing displays correctly for monetization plugins
+        $selling_option = get_post_meta( $post_id, 'tutor_course_selling_option', true );
+        
+        if ( $selling_option ) {
+            $paid_options = array( 'one_time', 'subscription', 'both', 'all', 'membership' );
+            
+            if ( in_array( $selling_option, $paid_options, true ) ) {
+                update_post_meta( $post_id, '_tutor_course_price_type', 'paid' );
+            } elseif ( $selling_option === 'free' ) {
+                update_post_meta( $post_id, '_tutor_course_price_type', 'free' );
+            }
+        }
+        
         // No additional sync needed for bundles currently
         // Meta fields are already saved by WordPress core via register_post_meta
         // This hook is reserved for future bidirectional sync with Tutor LMS if needed
