@@ -128,12 +128,14 @@ const BundlePricingPanel: React.FC = () => {
   const displayedPlans = React.useMemo(() => {
     if (!pricingData?.selling_option) return subscriptionPlans;
     
-    // When selling_option is 'subscription', only show recurring plans
-    if (pricingData.selling_option === 'subscription') {
+    // When selling_option includes subscriptions, only show recurring plans
+    // This applies to 'subscription', 'both', and 'all' options
+    const subscriptionOptions = ['subscription', 'both', 'all'];
+    if (subscriptionOptions.includes(pricingData.selling_option)) {
       return subscriptionPlans.filter((plan: SubscriptionPlan) => plan.payment_type === 'recurring');
     }
     
-    // For other options, show all plans
+    // For other options (e.g., 'one_time'), show all plans
     return subscriptionPlans;
   }, [subscriptionPlans, pricingData?.selling_option]);
 
