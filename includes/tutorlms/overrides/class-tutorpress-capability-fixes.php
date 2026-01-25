@@ -51,14 +51,21 @@ class TutorPress_Capability_Fixes {
      */
     private static function grant_assignment_capabilities() {
         $assignment_caps = array(
+            // Singular caps (meta capabilities for individual posts)
             'edit_tutor_assignment',
             'read_tutor_assignment',
             'delete_tutor_assignment',
-            'delete_tutor_assignments',
+            // Plural caps (primitive capabilities)
             'edit_tutor_assignments',
             'edit_others_tutor_assignments',
+            'edit_published_tutor_assignments',
+            'edit_private_tutor_assignments',
             'publish_tutor_assignments',
             'read_private_tutor_assignments',
+            'delete_tutor_assignments',
+            'delete_others_tutor_assignments',
+            'delete_published_tutor_assignments',
+            'delete_private_tutor_assignments',
         );
 
         // Grant to administrator

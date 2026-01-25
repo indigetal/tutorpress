@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 2.0.18
+ * Version: 2.0.19
  * Author: Indigetal WebCraft
  * Author URI: https://indigetal.com/tutorpress
  */
@@ -92,6 +92,19 @@ add_action('init', function() {
             $assignment_post_type->show_in_menu = false; // Keep it out of the main menu
             $assignment_post_type->public = true;
             $assignment_post_type->publicly_queryable = true;
+            
+            // Enable map_meta_cap for proper capability mapping
+            // Without this, WordPress can't map singular caps (edit_tutor_assignment)
+            // to plural caps (edit_tutor_assignments) when editing specific posts
+            $assignment_post_type->map_meta_cap = true;
+            
+            // Add missing capability mappings that Tutor LMS didn't define
+            // WordPress's map_meta_cap() expects these properties to exist
+            $assignment_post_type->cap->edit_published_posts  = 'edit_published_tutor_assignments';
+            $assignment_post_type->cap->delete_published_posts = 'delete_published_tutor_assignments';
+            $assignment_post_type->cap->delete_others_posts   = 'delete_others_tutor_assignments';
+            $assignment_post_type->cap->delete_private_posts  = 'delete_private_tutor_assignments';
+            $assignment_post_type->cap->edit_private_posts    = 'edit_private_tutor_assignments';
             
             // Enable Gutenberg editor support for assignments
             $enable_gutenberg = (bool) tutor_utils()->get_option('enable_gutenberg_course_edit');
