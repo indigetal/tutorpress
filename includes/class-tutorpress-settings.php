@@ -7,8 +7,21 @@ defined('ABSPATH') || exit;
 
 class TutorPress_Settings {
     public static function init() {
-        add_action('admin_menu', [__CLASS__, 'add_settings_page']);
+        // Priority 11: AFTER Tutor LMS (priority 10) sets $admin_page_hooks['tutor']
+        // This ensures correct hookname computation: tutor-lms_page_tutorpress-settings
+        add_action('admin_menu', [__CLASS__, 'add_settings_page'], 11);
         add_action('admin_init', [__CLASS__, 'register_settings']);
+
+        // Priority 1000000000: Callback-only reclaim (runs after Freemius)
+        // Freemius hijacks callback at WP_FS__LOWEST_PRIORITY (999999999) in activation mode
+        // We reclaim by running immediately after — does NOT touch $submenu
+        if (defined('WP_FS__LOWEST_PRIORITY')) {
+            add_action('admin_menu', function() {
+                $hookname = get_plugin_page_hookname('tutorpress-settings', 'tutor');
+                remove_all_actions($hookname);
+                add_action($hookname, [TutorPress_Settings::class, 'render_settings_page']);
+            }, WP_FS__LOWEST_PRIORITY + 1);
+        }
     }
 
     public static function add_settings_page() {
