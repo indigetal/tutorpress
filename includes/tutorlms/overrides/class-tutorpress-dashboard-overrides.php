@@ -30,12 +30,12 @@ class TutorPress_Dashboard_Overrides {
             [
                 'title' => __('Media Library', 'tutorpress'),
                 'url' => admin_url('upload.php'),
-                'icon' => 'bb-icon-image-video'
+                'icon' => 'tutor-icon-images'
             ],
             [
                 'title' => __('Interactive Content', 'tutorpress'),
                 'url' => admin_url('admin.php?page=h5p'),
-                'icon' => 'bb-icon-file-presentation'
+                'icon' => 'tutor-icon-puzzle'
             ],
         ];
 
