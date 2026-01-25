@@ -10,9 +10,6 @@
 
 defined('ABSPATH') || exit;
 
-// Import DateTime class for date formatting
-use DateTime;
-
 class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller {
 
     /**
