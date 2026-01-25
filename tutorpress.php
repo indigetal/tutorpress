@@ -81,6 +81,20 @@ require_once TUTORPRESS_PATH . 'includes/class-tutorpress.php';
 // Initialize TutorPress
 TutorPress_Main::instance( array( 'main_file' => __FILE__ ) );
 
+// Capability migration: runs once per version (handles fresh installs + upgrades)
+// WordPress does NOT fire register_activation_hook on plugin updates, only fresh activation.
+// This migration ensures capabilities are granted for both scenarios.
+add_action('init', function() {
+    $cap_version = get_option('tutorpress_capability_version', '0');
+    if (version_compare($cap_version, TUTORPRESS_VERSION, '<')) {
+        // Ensure Tutor LMS is available before granting capabilities
+        if (function_exists('tutor') && class_exists('TutorPress_Capability_Fixes')) {
+            TutorPress_Capability_Fixes::grant_missing_capabilities();
+            update_option('tutorpress_capability_version', TUTORPRESS_VERSION);
+        }
+    }
+}, 20); // Priority 20: after Tutor LMS is available
+
 // Global access function
 if ( ! function_exists( 'TutorPress' ) ) {
     /**

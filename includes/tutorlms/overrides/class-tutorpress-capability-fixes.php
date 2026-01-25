@@ -22,9 +22,12 @@ class TutorPress_Capability_Fixes {
 
     /**
      * Initialize capability fixes
+     * 
+     * Note: Capabilities are now granted via version-based migration in tutorpress.php
+     * rather than on every page load. This method is kept for backwards compatibility.
      */
     public static function init() {
-        add_action('init', array(__CLASS__, 'grant_missing_capabilities'), 20);
+        // Removed: add_action('init', ...) - capabilities now granted via migration
     }
 
     /**
@@ -116,7 +119,4 @@ class TutorPress_Capability_Fixes {
         }
     }
 }
-
-// Initialize
-TutorPress_Capability_Fixes::init();
 
