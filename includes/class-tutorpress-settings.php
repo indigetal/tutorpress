@@ -220,5 +220,3 @@ class TutorPress_Settings {
         <?php
     }
 }
-
-TutorPress_Settings::init();

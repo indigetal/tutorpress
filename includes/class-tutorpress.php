@@ -155,17 +155,6 @@ class TutorPress_Main {
         $container->register('assignment', $assignment);
         $container->register('bundle', $bundle);
 
-        // Register existing services using factories for lazy loading
-        $container->register_factory('settings', function() {
-            TutorPress_Settings::init();
-            return new TutorPress_Settings();
-        });
-
-        $container->register_factory('assets', function() {
-            TutorPress_Assets::init();
-            return new TutorPress_Assets();
-        });
-        
         // Initialize Scripts first (for H5P filtering)
         TutorPress_Assets::init();
         
