@@ -31,14 +31,13 @@ class TutorPress_Dependency_Checker {
     const MINIMUM_WP_VERSION = '5.0';
     
     /**
-     * Check all core requirements for TutorPress
+     * Check immediate requirements (PHP/WordPress versions)
      *
-     * Replaces the tutor_loaded action hook with systematic dependency checking.
-     * Prevents plugin loading if core requirements are not met.
+     * These checks can run during plugin loading since they don't depend on other plugins.
      *
      * @return array Array of error messages, empty if all requirements met
      */
-    public static function check_all_requirements() {
+    public static function check_immediate_requirements() {
         $errors = [];
         
         // Check PHP version
@@ -59,7 +58,43 @@ class TutorPress_Dependency_Checker {
             );
         }
         
-        // Check Tutor LMS requirement (replaces tutor_loaded action)
+        return $errors;
+    }
+    
+    /**
+     * Schedule deferred dependency checks
+     *
+     * Tutor LMS check must run on plugins_loaded to ensure all plugins are loaded.
+     * In aggressive object caching environments (Kinsta/Redis), plugin load order
+     * can be affected by cached data, causing false negatives during direct loading.
+     */
+    public static function schedule_deferred_checks() {
+        add_action( 'plugins_loaded', array( __CLASS__, 'check_tutor_lms_deferred' ), 1 );
+    }
+    
+    /**
+     * Deferred Tutor LMS check (runs on plugins_loaded)
+     *
+     * @since 2.0.20
+     */
+    public static function check_tutor_lms_deferred() {
+        if ( ! self::check_tutor_lms_requirement() ) {
+            add_action( 'admin_notices', function() {
+                self::show_admin_notice( __( 'Tutor LMS plugin is required for TutorPress to function.', 'tutorpress' ) );
+            });
+        }
+    }
+    
+    /**
+     * Check all core requirements for TutorPress (legacy method)
+     *
+     * @deprecated Use check_immediate_requirements() + schedule_deferred_checks() instead
+     * @return array Array of error messages, empty if all requirements met
+     */
+    public static function check_all_requirements() {
+        $errors = self::check_immediate_requirements();
+        
+        // Check Tutor LMS requirement
         if ( ! self::check_tutor_lms_requirement() ) {
             $errors[] = __( 'Tutor LMS plugin is required for TutorPress to function.', 'tutorpress' );
         }

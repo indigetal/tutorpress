@@ -89,16 +89,24 @@ class TutorPress_Main {
     /**
      * Check plugin dependencies
      *
+     * Immediate checks (PHP/WP) run during loading.
+     * Deferred checks (Tutor LMS) run on plugins_loaded to handle aggressive
+     * object caching environments where plugin load order may be affected.
+     *
      * @since 1.13.17
      */
     private function check_dependencies() {
         require_once $this->plugin_path . 'includes/class-tutorpress-dependency-checker.php';
         
-        $errors = TutorPress_Dependency_Checker::check_all_requirements();
+        // Check immediate requirements (PHP/WP versions)
+        $errors = TutorPress_Dependency_Checker::check_immediate_requirements();
         if ( ! empty( $errors ) ) {
             TutorPress_Dependency_Checker::display_errors( $errors );
             return;
         }
+        
+        // Schedule deferred Tutor LMS check (runs on plugins_loaded)
+        TutorPress_Dependency_Checker::schedule_deferred_checks();
     }
 
     /**
