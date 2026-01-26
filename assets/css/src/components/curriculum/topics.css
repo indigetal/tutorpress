@@ -12,6 +12,20 @@
   background-color: rgb(245, 246, 250);
 }
 
+/**
+ * Fix: Gutenberg metabox height inheritance issue
+ * 
+ * WordPress Card component has an internal wrapper with height: 100%
+ * (Emotion class .css-XXXXX). When the Curriculum metabox is the only
+ * metabox in Gutenberg, this causes the Card to expand to fill the
+ * calculated metabox area height instead of fitting its content.
+ * 
+ * This resets the height to auto on the Card's first child (the wrapper).
+ */
+.tutorpress-topic > div:first-child {
+  height: auto;
+}
+
 .tutorpress-topic.is-open {
   border-color: var(--color-primary);
 }
