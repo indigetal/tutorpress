@@ -15,8 +15,18 @@ class TutorPress_Settings {
         // Priority 1000000000: Callback-only reclaim (runs after Freemius)
         // Freemius hijacks callback at WP_FS__LOWEST_PRIORITY (999999999) in activation mode
         // We reclaim by running immediately after — does NOT touch $submenu
+        //
+        // IMPORTANT: Only reclaim when user has active license or trial.
+        // When license is deactivated/expired, Freemius needs to control the page
+        // to show its license activation UI so users can re-enter their license.
         if (defined('WP_FS__LOWEST_PRIORITY')) {
             add_action('admin_menu', function() {
+                // Check if user can use premium code (active license or trial)
+                // If not, let Freemius handle the page to show activation UI
+                if (function_exists('tutorpress_fs') && !tutorpress_fs()->can_use_premium_code()) {
+                    return; // Let Freemius handle the page
+                }
+                
                 $hookname = get_plugin_page_hookname('tutorpress-settings', 'tutor');
                 remove_all_actions($hookname);
                 add_action($hookname, [TutorPress_Settings::class, 'render_settings_page']);
