@@ -18,11 +18,6 @@ interface TutorPressSettings {
 declare global {
   interface Window {
     TutorPressData?: TutorPressSettings;
-    _tutorobject?: {
-      nonce: string;
-    };
-    ajaxurl?: string;
-    jQuery?: any;
   }
 }
 
@@ -68,85 +63,32 @@ function overrideFrontendEditIcons(): void {
 
 /**
  * Override backend "New Course" and "New Bundle" buttons
+ * Both use direct navigation to post-new.php, matching WordPress's native post creation flow
  */
 function overrideBackendButtons(): void {
-  // Override "New Course" button - only target backend buttons (not frontend dashboard)
-  // Backend button has additional classes like tutor-d-flex, tutor-align-center, tutor-gap-1
-  // Frontend button has tutor-dashboard-create-course class
+  // Override "New Course" button - navigate directly to Gutenberg editor
+  // Only target backend buttons (not frontend dashboard which has tutor-dashboard-create-course class)
   const newCourseBtn = document.querySelector(
     "a.tutor-create-new-course:not(.tutor-dashboard-create-course), button.tutor-create-new-course:not(.tutor-dashboard-create-course)"
   );
   if (newCourseBtn) {
-    // Clone the button without event listeners
     const clonedBtn = newCourseBtn.cloneNode(true) as HTMLElement;
-    // Remove Tutors class to prevent their handler
+    // Remove Tutor's class to prevent their handler from attaching
     clonedBtn.classList.remove("tutor-create-new-course");
-    clonedBtn.setAttribute("href", "#");
-    // Add our click handler
-    clonedBtn.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.onclick = null;
-
-      // Use jQuery for AJAX to match Tutor's expectations
-      window.jQuery
-        .post(window.ajaxurl, {
-          action: "tutor_create_new_draft_course",
-          source: "backend",
-          _wpnonce: window._tutorobject?.nonce,
-        })
-        .done(function (response: any) {
-          const data = typeof response === "string" ? JSON.parse(response) : response;
-          if (data?.data && typeof data.data === "string") {
-            // Extract course ID from create-course URL and redirect to Gutenberg
-            const urlParams = new URLSearchParams(data.data.split("?")[1]);
-            const courseId = urlParams.get("course_id");
-            if (courseId) {
-              window.location.href = "post.php?post=" + courseId + "&action=edit";
-            } else {
-              alert("Could not extract course ID from response");
-            }
-          } else {
-            alert("Course Creation Failed " + JSON.stringify(data));
-          }
-        })
-        .fail(function (xhr: any) {
-          alert("Course Creation Failed: " + xhr.responseText);
-        });
-    };
-    // Replace the original button with our clone
+    // Set href to WordPress's standard new post URL for courses
+    clonedBtn.setAttribute("href", window.TutorPressData?.adminUrl + "post-new.php?post_type=courses");
     newCourseBtn.parentNode?.replaceChild(clonedBtn, newCourseBtn);
   }
 
-  // Override "New Bundle" button
+  // Override "New Bundle" button - navigate directly to Gutenberg editor
+  // This matches WordPress's native post creation flow (post-new.php creates auto-draft on load)
   const newBundleBtn = document.querySelector("a.tutor-add-new-course-bundle");
   if (newBundleBtn) {
     const clonedBundleBtn = newBundleBtn.cloneNode(true) as HTMLElement;
-    clonedBundleBtn.setAttribute("href", "#");
-    clonedBundleBtn.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.onclick = null;
-
-      // Use jQuery for AJAX to match Tutor's expectations
-      window.jQuery
-        .post(window.ajaxurl, {
-          action: "tutor_create_course_bundle",
-          source: "backend",
-          _wpnonce: window._tutorobject?.nonce,
-        })
-        .done(function (response: any) {
-          const data = typeof response === "string" ? JSON.parse(response) : response;
-          if (data?.status_code === 200 && data?.data) {
-            window.location.href = data.data;
-          } else {
-            alert("Bundle Creation Failed " + JSON.stringify(data));
-          }
-        })
-        .fail(function (xhr: any) {
-          alert("Bundle Creation Failed: " + xhr.responseText);
-        });
-    };
+    // Remove Tutor's class to prevent their handler from attaching
+    clonedBundleBtn.classList.remove("tutor-add-new-course-bundle");
+    // Set href to WordPress's standard new post URL for course-bundle
+    clonedBundleBtn.setAttribute("href", window.TutorPressData?.adminUrl + "post-new.php?post_type=course-bundle");
     newBundleBtn.parentNode?.replaceChild(clonedBundleBtn, newBundleBtn);
   }
 }

@@ -18,16 +18,13 @@ class TutorPress_Admin_Customizations {
         // Fix Tutor LMS's broken access check for co-instructors
         add_action('load-post.php', [__CLASS__, 'fix_tutor_access_check'], 5);
 
-        // Only add AJAX handlers if admin redirects are enabled (use wrapper to respect Freemius gating)
+        // Only enqueue override scripts if admin redirects are enabled (use wrapper to respect Freemius gating)
+        // Note: Both course and bundle creation use direct navigation to post-new.php (no AJAX needed)
         if ( function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : (!empty($options['enable_admin_redirects']) && $options['enable_admin_redirects']) ) {
             // Enqueue script on courses admin page (works for both course list and empty state)
             add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_overrides_on_courses_page']);
             // Add hook to ensure our script runs after Tutor's course list is loaded (backup for course list)
             add_action('tutor_admin_after_course_list_action', [__CLASS__, 'enqueue_admin_overrides']);
-            // Intercept course creation via AJAX, create draft and redirect to Gutenberg
-            add_action('wp_ajax_tutor_create_new_draft_course', [__CLASS__, 'intercept_tutor_create_course'], 0);
-            // Intercept Tutor LMS's AJAX handler for creating new course bundles
-            add_action('wp_ajax_tutor_create_course_bundle', [__CLASS__, 'intercept_tutor_create_course_bundle'], 0);
         }
 
         // Enqueue invoice visibility script on Tutor LMS settings page (always enabled)
@@ -173,100 +170,6 @@ class TutorPress_Admin_Customizations {
                 break;
             }
         }
-    }
-
-    /**
-     * Intercept Tutor LMS's AJAX handler for creating new courses.
-     * Prevents duplicate course creation when redirecting to Gutenberg.
-     */
-    public static function intercept_tutor_create_course() {
-        if (!isset($_POST['action']) || $_POST['action'] !== 'tutor_create_new_draft_course') {
-            return;
-        }
-        if (!current_user_can('edit_posts')) {
-            wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
-        }
-        
-        // Only intercept backend/admin requests, not frontend requests
-        // Check if this is a frontend request by looking at the referer or source
-        $is_frontend_request = false;
-        
-        // Check referer - if it's from frontend dashboard, let Tutor LMS handle it
-        if (isset($_SERVER['HTTP_REFERER'])) {
-            $referer = $_SERVER['HTTP_REFERER'];
-            if (strpos($referer, 'dashboard') !== false || strpos($referer, 'tutor_dashboard') !== false) {
-                $is_frontend_request = true;
-            }
-        }
-        
-        // Check if source parameter indicates frontend
-        if (isset($_POST['source']) && $_POST['source'] === 'frontend') {
-            $is_frontend_request = true;
-        }
-        
-        // If this is a frontend request, let Tutor LMS handle it
-        if ($is_frontend_request) {
-            return;
-        }
-        
-        // Let Tutor LMS create the draft course
-        $course_id = wp_insert_post([
-            'post_title'  => __('New Course', 'tutor'),
-            'post_type'   => tutor()->course_post_type,
-            'post_status' => 'draft',
-            'post_name'   => 'new-course',
-        ]);
-
-        if (is_wp_error($course_id)) {
-            wp_die(json_encode(['success' => false, 'message' => $course_id->get_error_message()]), 500);
-        }
-
-        // Set default price type like Tutor LMS does
-        update_post_meta($course_id, '_tutor_course_price_type', 'free');
-
-        // Return URL to create-course page (our JS will modify this to Gutenberg)
-        wp_die(json_encode([
-            'success' => true,
-            'message' => __('Draft course created', 'tutor'),
-            'data'    => admin_url("admin.php?page=create-course&course_id={$course_id}"),
-        ]));
-    }
-
-    /**
-     * Intercept Tutor LMS's AJAX handler for creating new course bundles.
-     * Prevents duplicate bundle creation when redirecting to Gutenberg.
-     */
-    public static function intercept_tutor_create_course_bundle() {
-        // Verify this is the expected AJAX request
-        if (!isset($_POST['action']) || $_POST['action'] !== 'tutor_create_course_bundle') {
-            return;
-        }
-
-        // Check if user has permission
-        if (!current_user_can('edit_posts')) {
-            wp_die(json_encode(['success' => false, 'message' => 'Insufficient permissions']), 403);
-        }
-
-        // Only process backend requests (frontend requests handled by class-frontend-customizations.php)
-        $source = isset($_POST['source']) ? $_POST['source'] : '';
-        if ($source === 'backend') {
-            // Create a new course bundle and return the Gutenberg edit URL
-            $bundle_id = wp_insert_post([
-                'post_type' => 'course-bundle',
-                'post_status' => 'draft',
-                'post_title' => __('New Course Bundle', 'tutorpress'),
-            ]);
-
-            if (!is_wp_error($bundle_id)) {
-                wp_die(json_encode([
-                    'status_code' => 200,
-                    'data' => admin_url("post.php?post={$bundle_id}&action=edit")
-                ]));
-            }
-        }
-
-        // Let the default handler run for other cases
-        return;
     }
 
     /**
