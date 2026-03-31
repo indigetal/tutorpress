@@ -55,6 +55,9 @@ class TutorPress_Course {
 
         // Ensure map_meta_cap is present at registration time for courses
         add_filter( 'register_post_type_args', [ $this, 'add_map_meta_cap_to_course' ], 5, 2 );
+
+        // Remove Tutor meta caps from the global lookup table after post types are registered
+        add_action( 'init', [ $this, 'remove_tutor_meta_caps_from_global' ], 20 );
         
         // Allow instructors to edit their own published courses
         add_filter( 'map_meta_cap', [ $this, 'map_course_meta_cap' ], 10, 4 );
@@ -1730,6 +1733,38 @@ class TutorPress_Course {
             $args['map_meta_cap'] = true;
         }
         return $args;
+    }
+
+    /**
+     * Remove Tutor meta caps from the $post_type_meta_caps global.
+     *
+     * TutorPress enables map_meta_cap = true on courses (add_map_meta_cap_to_course() in this
+     * file) and assignments (tutorpress.php). This adds entries like edit_tutor_course => edit_post
+     * to the $post_type_meta_caps global. In WP 6.9+, map_meta_cap() uses this global in its
+     * default case to recursively call map_meta_cap('edit_post', ...) — which returns do_not_allow
+     * when no post ID is provided.
+     *
+     * Tutor LMS/Pro checks these meta caps without a post ID as general permission gates (e.g.
+     * the export handler). Removing the entries prevents the recursive call, so the caps are
+     * treated as primitive/direct capabilities. The $post_type->map_meta_cap property remains
+     * true, so Gutenberg's edit_post path still does proper author/status resolution.
+     *
+     * If TutorPress adds map_meta_cap = true to another Tutor post type, extend this list.
+     *
+     * @see add_map_meta_cap_to_course() in this file (courses)
+     * @see tutorpress.php:127 (assignments)
+     */
+    public function remove_tutor_meta_caps_from_global() {
+        global $post_type_meta_caps;
+
+        unset(
+            $post_type_meta_caps['edit_tutor_course'],
+            $post_type_meta_caps['read_tutor_course'],
+            $post_type_meta_caps['delete_tutor_course'],
+            $post_type_meta_caps['edit_tutor_assignment'],
+            $post_type_meta_caps['read_tutor_assignment'],
+            $post_type_meta_caps['delete_tutor_assignment']
+        );
     }
 
     /**
