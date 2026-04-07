@@ -153,14 +153,11 @@ const BundlePricingPanel: React.FC = () => {
 
       setIsCalculating(true);
       try {
-        // Calculate regular price from bundle courses
-        // This will use PMPro pricing if PMPro is the active monetization engine
-        const regularPrice = await calculateBundleRegularPrice(postId);
+        // Calculate regular price from bundle courses, rounded to cents to
+        // avoid IEEE 754 accumulation (e.g. 52.989999999999995 → 52.99)
+        const regularPrice = Math.round(await calculateBundleRegularPrice(postId) * 100) / 100;
         setCalculatedRegularPrice(regularPrice);
 
-        // For PMPro monetization, we DON'T auto-update the bundle meta fields
-        // because the bundle price is determined by the PMPro membership levels,
-        // not by the sum of course prices. The calculated value is for display only.
         const isPmpro = isPmproMonetization();
 
         if (!isPmpro && pricingData && regularPrice !== pricingData.regular_price) {
@@ -169,7 +166,6 @@ const BundlePricingPanel: React.FC = () => {
           let adjustedSalePrice = pricingData.sale_price;
           if (pricingData.sale_price > regularPrice) {
             adjustedSalePrice = regularPrice;
-            // Show notice about auto-adjustment
             createNotice(
               "warning",
               __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
@@ -177,11 +173,16 @@ const BundlePricingPanel: React.FC = () => {
             );
           }
 
-          // Entity-based update (following Course Pricing pattern)
           const metaUpdates = {
             tutor_course_price: regularPrice,
             tutor_course_sale_price: adjustedSalePrice,
           };
+          safeSet(metaUpdates);
+          editPost({ meta: { ...meta, ...metaUpdates } });
+        } else if (isPmpro && pricingData && pricingData.regular_price === 0 && regularPrice > 0) {
+          // PMPro: auto-populate with calculated total only when price is unset (0).
+          // Once the instructor sets a value, subsequent course changes won't overwrite it.
+          const metaUpdates = { tutor_course_price: regularPrice };
           safeSet(metaUpdates);
           editPost({ meta: { ...meta, ...metaUpdates } });
         }
@@ -219,15 +220,14 @@ const BundlePricingPanel: React.FC = () => {
 
       setIsCalculating(true);
       try {
-        const regularPrice = await calculateBundleRegularPrice(postId);
+        const regularPrice = Math.round(await calculateBundleRegularPrice(postId) * 100) / 100;
         setCalculatedRegularPrice(regularPrice);
+        const isPmpro = isPmproMonetization();
 
-        if (regularPrice !== pricingData.regular_price) {
-          // Check if sale price needs adjustment
+        if (!isPmpro && regularPrice !== pricingData.regular_price) {
           let adjustedSalePrice = pricingData.sale_price;
           if (pricingData.sale_price > regularPrice) {
             adjustedSalePrice = regularPrice;
-            // Show notice about auto-adjustment
             createNotice(
               "warning",
               __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
@@ -235,11 +235,14 @@ const BundlePricingPanel: React.FC = () => {
             );
           }
 
-          // Entity-based update (following Course Pricing pattern)
           const metaUpdates = {
             tutor_course_price: regularPrice,
             tutor_course_sale_price: adjustedSalePrice,
           };
+          safeSet(metaUpdates);
+          editPost({ meta: { ...meta, ...metaUpdates } });
+        } else if (isPmpro && pricingData.regular_price === 0 && regularPrice > 0) {
+          const metaUpdates = { tutor_course_price: regularPrice };
           safeSet(metaUpdates);
           editPost({ meta: { ...meta, ...metaUpdates } });
         }
@@ -266,7 +269,7 @@ const BundlePricingPanel: React.FC = () => {
     const totalValue = calculatedRegularPrice || 0;
 
     // Validate that bundle price cannot exceed total value
-    if (totalValue > 0 && bundlePrice > totalValue) {
+    if (totalValue > 0 && Math.round(bundlePrice * 100) > Math.round(totalValue * 100)) {
       // Show error notice
       createNotice("error", __("Bundle price cannot exceed the total value of the bundled courses.", "tutorpress"), {
         type: "snackbar",

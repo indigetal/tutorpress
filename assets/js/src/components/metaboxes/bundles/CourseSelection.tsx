@@ -77,7 +77,7 @@ const checkPricingValidation = (
   const newRegularPrice = currentRegularPrice - coursePrice;
 
   // Check if sale price would exceed new regular price
-  if (currentSalePrice > newRegularPrice) {
+  if (Math.round(currentSalePrice * 100) > Math.round(newRegularPrice * 100)) {
     return {
       isValid: false,
       newRegularPrice,
