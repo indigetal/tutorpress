@@ -179,12 +179,23 @@ const BundlePricingPanel: React.FC = () => {
           };
           safeSet(metaUpdates);
           editPost({ meta: { ...meta, ...metaUpdates } });
-        } else if (isPmpro && pricingData && pricingData.regular_price === 0 && regularPrice > 0) {
-          // PMPro: auto-populate with calculated total only when price is unset (0).
-          // Once the instructor sets a value, subsequent course changes won't overwrite it.
-          const metaUpdates = { tutor_course_price: regularPrice };
-          safeSet(metaUpdates);
-          editPost({ meta: { ...meta, ...metaUpdates } });
+        } else if (isPmpro && pricingData) {
+          if (pricingData.regular_price === 0 && regularPrice > 0) {
+            // Auto-populate with calculated total only when price is unset (0).
+            const metaUpdates = { tutor_course_price: regularPrice };
+            safeSet(metaUpdates);
+            editPost({ meta: { ...meta, ...metaUpdates } });
+          } else if (regularPrice > 0 && Math.round(pricingData.regular_price * 100) > Math.round(regularPrice * 100)) {
+            // Bundle price exceeds new total after course removal — cap it.
+            createNotice(
+              "warning",
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
+              { type: "snackbar" }
+            );
+            const metaUpdates = { tutor_course_price: regularPrice };
+            safeSet(metaUpdates);
+            editPost({ meta: { ...meta, ...metaUpdates } });
+          }
         }
       } catch (error) {
         console.error("Error updating regular price:", error);
@@ -241,10 +252,21 @@ const BundlePricingPanel: React.FC = () => {
           };
           safeSet(metaUpdates);
           editPost({ meta: { ...meta, ...metaUpdates } });
-        } else if (isPmpro && pricingData.regular_price === 0 && regularPrice > 0) {
-          const metaUpdates = { tutor_course_price: regularPrice };
-          safeSet(metaUpdates);
-          editPost({ meta: { ...meta, ...metaUpdates } });
+        } else if (isPmpro) {
+          if (pricingData.regular_price === 0 && regularPrice > 0) {
+            const metaUpdates = { tutor_course_price: regularPrice };
+            safeSet(metaUpdates);
+            editPost({ meta: { ...meta, ...metaUpdates } });
+          } else if (regularPrice > 0 && Math.round(pricingData.regular_price * 100) > Math.round(regularPrice * 100)) {
+            createNotice(
+              "warning",
+              __("Bundle price has been automatically adjusted to match the new total value.", "tutorpress"),
+              { type: "snackbar" }
+            );
+            const metaUpdates = { tutor_course_price: regularPrice };
+            safeSet(metaUpdates);
+            editPost({ meta: { ...meta, ...metaUpdates } });
+          }
         }
       } catch (error) {
         console.error("Error updating regular price:", error);
