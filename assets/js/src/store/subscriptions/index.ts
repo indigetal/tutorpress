@@ -578,9 +578,10 @@ const resolvers = {
     planData: CreateSubscriptionPlanData
   ): Generator<unknown, CreateSubscriptionPlanResponse, any> {
     try {
-      // Get object ID and post type from current post
+      // Get object ID, post type, and title from current post
       const objectId = yield select("core/editor").getCurrentPostId();
       const postType = yield select("core/editor").getCurrentPostType();
+      const objectTitle = yield select("core/editor").getEditedPostAttribute('title');
 
       if (!objectId) {
         throw createCurriculumError(
@@ -598,7 +599,7 @@ const resolvers = {
       };
 
       // Use object_id consistently for both courses and bundles
-      const requestData = { ...planData, object_id: objectId };
+      const requestData = { ...planData, object_id: objectId, object_title: objectTitle };
 
       const response = yield {
         type: "API_FETCH",

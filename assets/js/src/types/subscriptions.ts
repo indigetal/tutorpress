@@ -91,6 +91,7 @@ export interface CreateSubscriptionPlanData {
   is_enabled?: boolean;
   plan_order?: number;
   restriction_mode?: SubscriptionRestrictionMode;
+  object_title?: string;
 }
 
 /**
