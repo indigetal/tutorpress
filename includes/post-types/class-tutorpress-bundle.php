@@ -159,15 +159,6 @@ class TutorPress_Bundle {
             'show_in_rest'      => true,
         ] );
 
-        // Bundle Ribbon Type
-        register_post_meta( $this->token, 'tutor_bundle_ribbon_type', [
-            'type'              => 'string',
-            'single'            => true,
-            'default'           => 'none',
-            'sanitize_callback' => [ $this, 'sanitize_ribbon_type' ],
-            'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
-            'show_in_rest'      => true,
-        ] );
     }
 
     /**
@@ -586,6 +577,11 @@ class TutorPress_Bundle {
         // Handle certificate toggle (needs custom sanitization)
         if ( array_key_exists( 'certificate_for_individual_courses', $meta ) ) {
             update_post_meta( $post->ID, 'certificate_for_individual_courses', self::sanitize_certificate_toggle( $meta['certificate_for_individual_courses'] ) );
+        }
+        
+        if ( array_key_exists( 'tutor_bundle_ribbon_type', $meta ) ) {
+            $ribbon_type = self::sanitize_ribbon_type( $meta['tutor_bundle_ribbon_type'] );
+            update_post_meta( $post->ID, 'tutor_bundle_ribbon_type', $ribbon_type );
         }
 
         // Clear syncing flag
