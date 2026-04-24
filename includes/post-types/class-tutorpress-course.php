@@ -790,6 +790,325 @@ class TutorPress_Course {
     }
 
     /**
+     * Save canonical course settings through the shared fan-out path.
+     *
+     * @since 1.14.2
+     * @param int   $post_id Course post ID.
+     * @param array $value   Partial course settings payload.
+     * @return array|false Final canonical course settings on success, false on invalid input.
+     */
+    public static function save_canonical_course_settings( $post_id, $value ) {
+        if ( ! is_array( $value ) ) {
+            return false;
+        }
+
+        $normalized_settings = self::normalize_course_settings_for_save( $value );
+        $existing_tutor_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
+        if ( ! is_array( $existing_tutor_settings ) ) {
+            $existing_tutor_settings = [];
+        }
+
+        update_post_meta( $post_id, '_tutorpress_syncing', true );
+
+        try {
+            if ( array_key_exists( 'course_level', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_level', $normalized_settings['course_level'] );
+            }
+
+            if ( array_key_exists( 'is_public_course', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_is_public_course', $normalized_settings['is_public_course'] ? 'yes' : 'no' );
+            }
+
+            if ( array_key_exists( 'enable_qna', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_enable_qa', $normalized_settings['enable_qna'] ? 'yes' : 'no' );
+            }
+
+            if ( array_key_exists( 'course_duration', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_course_duration', $normalized_settings['course_duration'] );
+            }
+
+            if ( array_key_exists( 'course_material_includes', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_material_includes', $normalized_settings['course_material_includes'] );
+            }
+
+            if ( array_key_exists( 'intro_video', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_video', $normalized_settings['intro_video'] );
+            }
+
+            if ( array_key_exists( 'attachments', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_attachments', $normalized_settings['attachments'] );
+                update_post_meta( $post_id, '_tutor_attachments', $normalized_settings['attachments'] );
+            }
+
+            if ( array_key_exists( 'pricing_model', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_price_type', $normalized_settings['pricing_model'] === 'free' ? 'free' : 'paid' );
+            }
+
+            if ( array_key_exists( 'price', $normalized_settings ) ) {
+                update_post_meta( $post_id, 'tutor_course_price', (float) $normalized_settings['price'] );
+            }
+
+            if ( array_key_exists( 'sale_price', $normalized_settings ) ) {
+                if ( null === $normalized_settings['sale_price'] ) {
+                    update_post_meta( $post_id, 'tutor_course_sale_price', '' );
+                } else {
+                    update_post_meta( $post_id, 'tutor_course_sale_price', (float) $normalized_settings['sale_price'] );
+                }
+            }
+
+            if ( array_key_exists( 'selling_option', $normalized_settings ) ) {
+                update_post_meta( $post_id, 'tutor_course_selling_option', $normalized_settings['selling_option'] );
+            }
+
+            if ( array_key_exists( 'woocommerce_product_id', $normalized_settings ) || array_key_exists( 'edd_product_id', $normalized_settings ) ) {
+                $active_product_id = '';
+                if ( array_key_exists( 'woocommerce_product_id', $normalized_settings ) && TutorPress_Addon_Checker::is_woocommerce_monetization() ) {
+                    $active_product_id = $normalized_settings['woocommerce_product_id'];
+                } elseif ( array_key_exists( 'edd_product_id', $normalized_settings ) && TutorPress_Addon_Checker::is_edd_monetization() ) {
+                    $active_product_id = $normalized_settings['edd_product_id'];
+                }
+                update_post_meta( $post_id, '_tutor_course_product_id', $active_product_id );
+            }
+
+            if ( array_key_exists( 'maximum_students', $normalized_settings ) ) {
+                $legacy_max = null === $normalized_settings['maximum_students'] ? '' : (int) $normalized_settings['maximum_students'];
+                update_post_meta( $post_id, '_tutor_maximum_students', $legacy_max );
+                $existing_tutor_settings['maximum_students'] = $normalized_settings['maximum_students'];
+                $existing_tutor_settings['maximum_students_allowed'] = $normalized_settings['maximum_students'];
+            }
+
+            if ( array_key_exists( 'course_enrollment_period', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_enrollment_period', $normalized_settings['course_enrollment_period'] );
+                $existing_tutor_settings['course_enrollment_period'] = $normalized_settings['course_enrollment_period'];
+            }
+
+            if ( array_key_exists( 'enrollment_starts_at', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_enrollment_starts_at', $normalized_settings['enrollment_starts_at'] );
+                $existing_tutor_settings['enrollment_starts_at'] = $normalized_settings['enrollment_starts_at'];
+            }
+
+            if ( array_key_exists( 'enrollment_ends_at', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_enrollment_ends_at', $normalized_settings['enrollment_ends_at'] );
+                $existing_tutor_settings['enrollment_ends_at'] = $normalized_settings['enrollment_ends_at'];
+            }
+
+            if ( array_key_exists( 'pause_enrollment', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_enrollment_status', $normalized_settings['pause_enrollment'] );
+                $existing_tutor_settings['pause_enrollment'] = $normalized_settings['pause_enrollment'];
+                $existing_tutor_settings['enrollment_status'] = $normalized_settings['pause_enrollment'];
+            }
+
+            if ( array_key_exists( 'course_prerequisites', $normalized_settings ) ) {
+                update_post_meta( $post_id, '_tutor_course_prerequisites_ids', $normalized_settings['course_prerequisites'] );
+                $existing_tutor_settings['course_prerequisites'] = $normalized_settings['course_prerequisites'];
+            }
+
+            if ( array_key_exists( 'schedule', $normalized_settings ) ) {
+                $existing_tutor_settings['schedule'] = $normalized_settings['schedule'];
+            }
+
+            foreach ( [
+                'course_level',
+                'is_public_course',
+                'enable_qna',
+                'course_duration',
+                'course_material_includes',
+                'intro_video',
+                'attachments',
+                'pricing_model',
+                'price',
+                'sale_price',
+                'selling_option',
+                'woocommerce_product_id',
+                'edd_product_id',
+            ] as $tutor_settings_key ) {
+                if ( array_key_exists( $tutor_settings_key, $normalized_settings ) ) {
+                    $existing_tutor_settings[ $tutor_settings_key ] = $normalized_settings[ $tutor_settings_key ];
+                }
+            }
+
+            $resolved_instructor_ids = null;
+            if ( array_key_exists( 'instructors', $normalized_settings ) ) {
+                $resolved_instructor_ids = $normalized_settings['instructors'];
+            }
+            if ( array_key_exists( 'additional_instructors', $normalized_settings ) ) {
+                $resolved_instructor_ids = $normalized_settings['additional_instructors'];
+            }
+            if ( null !== $resolved_instructor_ids ) {
+                update_post_meta( $post_id, '_tutor_course_instructors', $resolved_instructor_ids );
+                self::sync_instructors_to_tutor_lms( $post_id, $resolved_instructor_ids );
+                $existing_tutor_settings['instructors'] = $resolved_instructor_ids;
+                $existing_tutor_settings['additional_instructors'] = $resolved_instructor_ids;
+            }
+
+            update_post_meta( $post_id, '_tutor_course_settings', $existing_tutor_settings );
+            update_post_meta( $post_id, '_tutorpress_course_settings_last_sync', time() );
+
+            $shadow_settings = self::get_canonical_course_settings( $post_id );
+            update_post_meta( $post_id, 'course_settings', $shadow_settings );
+        } finally {
+            delete_post_meta( $post_id, '_tutorpress_syncing' );
+        }
+
+        return $shadow_settings;
+    }
+
+    /**
+     * Normalize incoming course settings for the shared saver.
+     *
+     * @since 1.14.2
+     * @param array $settings Raw settings payload.
+     * @return array Normalized settings payload.
+     */
+    private static function normalize_course_settings_for_save( array $settings ) {
+        $normalized = [];
+
+        if ( array_key_exists( 'course_level', $settings ) ) {
+            $allowed_levels = [ 'beginner', 'intermediate', 'expert', 'all_levels' ];
+            $course_level = sanitize_text_field( (string) $settings['course_level'] );
+            $normalized['course_level'] = in_array( $course_level, $allowed_levels, true ) ? $course_level : 'all_levels';
+        }
+
+        if ( array_key_exists( 'is_public_course', $settings ) ) {
+            $normalized['is_public_course'] = (bool) $settings['is_public_course'];
+        }
+
+        if ( array_key_exists( 'enable_qna', $settings ) ) {
+            $normalized['enable_qna'] = (bool) $settings['enable_qna'];
+        }
+
+        if ( array_key_exists( 'course_duration', $settings ) ) {
+            $duration = is_array( $settings['course_duration'] ) ? $settings['course_duration'] : [];
+            $normalized['course_duration'] = [
+                'hours'   => absint( $duration['hours'] ?? 0 ),
+                'minutes' => min( 59, absint( $duration['minutes'] ?? 0 ) ),
+            ];
+        }
+
+        if ( array_key_exists( 'course_material_includes', $settings ) ) {
+            $normalized['course_material_includes'] = sanitize_textarea_field( (string) $settings['course_material_includes'] );
+        }
+
+        if ( array_key_exists( 'intro_video', $settings ) ) {
+            $intro_video = is_array( $settings['intro_video'] ) ? $settings['intro_video'] : [];
+            $normalized['intro_video'] = [
+                'source' => sanitize_text_field( (string) ( $intro_video['source'] ?? '' ) ),
+                'source_video_id' => absint( $intro_video['source_video_id'] ?? 0 ),
+                'source_youtube' => sanitize_text_field( (string) ( $intro_video['source_youtube'] ?? '' ) ),
+                'source_vimeo' => sanitize_text_field( (string) ( $intro_video['source_vimeo'] ?? '' ) ),
+                'source_external_url' => sanitize_text_field( (string) ( $intro_video['source_external_url'] ?? '' ) ),
+                'source_embedded' => sanitize_text_field( (string) ( $intro_video['source_embedded'] ?? '' ) ),
+                'source_shortcode' => sanitize_text_field( (string) ( $intro_video['source_shortcode'] ?? '' ) ),
+                'poster' => sanitize_text_field( (string) ( $intro_video['poster'] ?? '' ) ),
+            ];
+        }
+
+        if ( array_key_exists( 'attachments', $settings ) ) {
+            $normalized['attachments'] = is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : [];
+        }
+
+        if ( array_key_exists( 'pricing_model', $settings ) ) {
+            $pricing_model = sanitize_text_field( (string) $settings['pricing_model'] );
+            $normalized['pricing_model'] = 'free' === $pricing_model ? 'free' : 'paid';
+        }
+
+        if ( array_key_exists( 'price', $settings ) ) {
+            $normalized['price'] = round( max( 0, (float) $settings['price'] ), 2 );
+        }
+
+        if ( array_key_exists( 'sale_price', $settings ) ) {
+            if ( null === $settings['sale_price'] || '' === $settings['sale_price'] ) {
+                $normalized['sale_price'] = null;
+            } else {
+                $normalized['sale_price'] = round( max( 0, (float) $settings['sale_price'] ), 2 );
+            }
+        }
+
+        if ( array_key_exists( 'selling_option', $settings ) ) {
+            $selling_option = sanitize_text_field( (string) $settings['selling_option'] );
+            $valid_options = [ 'one_time', 'subscription', 'both', 'membership', 'all' ];
+            $normalized['selling_option'] = in_array( $selling_option, $valid_options, true ) ? $selling_option : 'one_time';
+        } elseif ( array_key_exists( 'subscription_enabled', $settings ) ) {
+            $normalized['selling_option'] = ! empty( $settings['subscription_enabled'] ) ? 'subscription' : 'one_time';
+        }
+
+        if ( array_key_exists( 'woocommerce_product_id', $settings ) ) {
+            $normalized['woocommerce_product_id'] = sanitize_text_field( (string) $settings['woocommerce_product_id'] );
+        }
+
+        if ( array_key_exists( 'edd_product_id', $settings ) ) {
+            $normalized['edd_product_id'] = sanitize_text_field( (string) $settings['edd_product_id'] );
+        }
+
+        if ( array_key_exists( 'maximum_students', $settings ) ) {
+            if ( '' === $settings['maximum_students'] || null === $settings['maximum_students'] ) {
+                $normalized['maximum_students'] = null;
+            } elseif ( '0' === $settings['maximum_students'] || 0 === $settings['maximum_students'] ) {
+                $normalized['maximum_students'] = 0;
+            } else {
+                $normalized['maximum_students'] = max( 0, (int) $settings['maximum_students'] );
+            }
+        }
+
+        if ( array_key_exists( 'pause_enrollment', $settings ) ) {
+            if ( is_bool( $settings['pause_enrollment'] ) ) {
+                $normalized['pause_enrollment'] = $settings['pause_enrollment'] ? 'yes' : 'no';
+            } else {
+                $pause_enrollment = sanitize_text_field( (string) $settings['pause_enrollment'] );
+                $normalized['pause_enrollment'] = 'yes' === $pause_enrollment ? 'yes' : 'no';
+            }
+        }
+
+        if ( array_key_exists( 'course_enrollment_period', $settings ) ) {
+            $course_enrollment_period = sanitize_text_field( (string) $settings['course_enrollment_period'] );
+            $normalized['course_enrollment_period'] = 'yes' === $course_enrollment_period ? 'yes' : 'no';
+        }
+
+        if ( array_key_exists( 'enrollment_starts_at', $settings ) ) {
+            $normalized['enrollment_starts_at'] = sanitize_text_field( (string) $settings['enrollment_starts_at'] );
+        }
+
+        if ( array_key_exists( 'enrollment_ends_at', $settings ) ) {
+            $normalized['enrollment_ends_at'] = sanitize_text_field( (string) $settings['enrollment_ends_at'] );
+        }
+
+        if ( array_key_exists( 'course_prerequisites', $settings ) ) {
+            $normalized['course_prerequisites'] = is_array( $settings['course_prerequisites'] ) ? array_map( 'absint', $settings['course_prerequisites'] ) : [];
+        }
+
+        if ( array_key_exists( 'schedule', $settings ) ) {
+            $schedule = is_array( $settings['schedule'] ) ? $settings['schedule'] : [];
+            $normalized['schedule'] = [
+                'enabled' => ! empty( $schedule['enabled'] ),
+                'start_date' => sanitize_text_field( (string) ( $schedule['start_date'] ?? '' ) ),
+                'start_time' => sanitize_text_field( (string) ( $schedule['start_time'] ?? '' ) ),
+                'show_coming_soon' => ! empty( $schedule['show_coming_soon'] ),
+            ];
+        }
+
+        if ( array_key_exists( 'instructors', $settings ) ) {
+            $normalized['instructors'] = is_array( $settings['instructors'] ) ? array_map( 'absint', $settings['instructors'] ) : [];
+        }
+
+        if ( array_key_exists( 'additional_instructors', $settings ) ) {
+            $normalized['additional_instructors'] = is_array( $settings['additional_instructors'] ) ? array_map( 'absint', $settings['additional_instructors'] ) : [];
+        }
+
+        if (
+            array_key_exists( 'is_public_course', $normalized )
+            && array_key_exists( 'pricing_model', $normalized )
+            && $normalized['is_public_course']
+            && 'paid' === $normalized['pricing_model']
+        ) {
+            $normalized['pricing_model'] = 'free';
+            $normalized['price'] = 0;
+            $normalized['sale_price'] = 0;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Update course settings.
      *
      * Foundation implementation for Phase 3.1.
@@ -801,171 +1120,7 @@ class TutorPress_Course {
      * @return bool Whether the update was successful.
      */
     public function update_course_settings($value, $post) {
-        $post_id = $post->ID;
-        
-        if (!is_array($value)) {
-            return false;
-        }
-        
-        // Set a flag to prevent infinite loops during sync
-        update_post_meta($post_id, '_tutorpress_syncing', true);
-        
-        $results = [];
-        
-        // Update the course_settings meta field (normalize maximum_students empty/0 → null at source of truth)
-            if (array_key_exists('maximum_students', $value)) {
-                $v = $value['maximum_students'];
-                // Explicitly normalize: '' => null; '0' => 0; 0 => 0; positive numbers kept; anything else -> null
-                if ($v === '' || $v === null) {
-                    $value['maximum_students'] = null;
-                } elseif ($v === '0' || $v === 0) {
-                    $value['maximum_students'] = 0;
-                } else {
-                    $value['maximum_students'] = max(0, (int) $v);
-                }
-            }
-        $results[] = update_post_meta($post_id, 'course_settings', $value);
-        
-        // Course Details Section: Update individual Tutor LMS meta fields
-        if (isset($value['course_level'])) {
-            $results[] = update_post_meta($post_id, '_tutor_course_level', $value['course_level']);
-        }
-        
-        if (isset($value['is_public_course'])) {
-            $public_value = $value['is_public_course'] ? 'yes' : 'no';
-            $results[] = update_post_meta($post_id, '_tutor_is_public_course', $public_value);
-        }
-        
-        if (isset($value['enable_qna'])) {
-            $qna_value = $value['enable_qna'] ? 'yes' : 'no';
-            $results[] = update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
-        }
-        
-        if (isset($value['course_duration'])) {
-            $results[] = update_post_meta($post_id, '_course_duration', $value['course_duration']);
-        }
-        
-        // Course Media Section: Update individual Tutor LMS meta fields
-        if (isset($value['course_material_includes'])) {
-            $results[] = update_post_meta($post_id, '_tutor_course_material_includes', $value['course_material_includes']);
-        }
-        
-        // Handle Video Intro field (stored in _video meta field like Tutor LMS)
-        if (isset($value['intro_video'])) {
-            $intro_video = $value['intro_video'];
-            if (is_array($intro_video)) {
-                $results[] = update_post_meta($post_id, '_video', $intro_video);
-            }
-        }
-        
-        if (isset($value['attachments'])) {
-            $attachment_ids = is_array($value['attachments']) ? array_map('absint', $value['attachments']) : [];
-            $results[] = update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
-            $results[] = update_post_meta($post_id, '_tutor_attachments', $attachment_ids);
-        }
-        
-        // Handle pricing fields separately (Tutor LMS stores these as individual meta fields)
-        if (isset($value['pricing_model'])) {
-            $pricing_type = $value['pricing_model'] === 'free' ? 'free' : 'paid';
-            $results[] = update_post_meta($post_id, '_tutor_course_price_type', $pricing_type);
-        }
-        
-        if (isset($value['price'])) {
-            $results[] = update_post_meta($post_id, 'tutor_course_price', (float) $value['price']);
-        }
-        
-		if (array_key_exists('sale_price', $value)) {
-			if ($value['sale_price'] === null || $value['sale_price'] === '') {
-				// Remove or set empty to avoid $0 being considered on front-end
-				$results[] = update_post_meta($post_id, 'tutor_course_sale_price', '');
-			} else {
-				$results[] = update_post_meta($post_id, 'tutor_course_sale_price', (float) $value['sale_price']);
-			}
-		}
-        
-        if (isset($value['selling_option'])) {
-            $selling_option = $value['selling_option'];
-            $results[] = update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
-        }
-        
-        // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
-        if (isset($value['woocommerce_product_id']) || isset($value['edd_product_id'])) {
-            $active_product_id = '';
-            
-            // Determine which product ID should be active based on monetization engine
-            if (isset($value['woocommerce_product_id']) && TutorPress_Addon_Checker::is_woocommerce_monetization()) {
-                $active_product_id = $value['woocommerce_product_id'];
-            } elseif (isset($value['edd_product_id']) && TutorPress_Addon_Checker::is_edd_monetization()) {
-                $active_product_id = $value['edd_product_id'];
-            }
-            
-            // Save the active product ID to the shared meta field
-            $results[] = update_post_meta($post_id, '_tutor_course_product_id', $active_product_id);
-        }
-        
-        // --- Ensure Tutor settings mirror for Access & Enrollment even if updated_post_meta paths don't fire ---
-        $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
-        if (!is_array($existing_tutor_settings)) {
-            $existing_tutor_settings = [];
-        }
-
-        // maximum_students → _tutor_maximum_students and _tutor_course_settings
-        if (array_key_exists('maximum_students', $value)) {
-            $max_students_in = $value['maximum_students'];
-            if ($max_students_in === '' || $max_students_in === null) {
-                $legacy_max = '';
-            } elseif ($max_students_in === 0 || $max_students_in === '0') {
-                $legacy_max = 0;
-            } else {
-                $legacy_max = max(0, intval($max_students_in));
-            }
-            update_post_meta($post_id, '_tutor_maximum_students', $legacy_max);
-            $existing_tutor_settings['maximum_students'] = ($legacy_max === '') ? null : intval($legacy_max);
-            $existing_tutor_settings['maximum_students_allowed'] = $existing_tutor_settings['maximum_students'];
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[TP] update_course_settings mirror maximum_students=' . var_export($existing_tutor_settings['maximum_students'], true) . ' legacy_max=' . var_export($legacy_max, true));
-            }
-        }
-
-        // pause_enrollment → _tutor_enrollment_status and _tutor_course_settings
-            if (array_key_exists('pause_enrollment', $value)) {
-            $pause_val_in = $value['pause_enrollment'];
-            $pause_str = is_bool($pause_val_in) ? ($pause_val_in ? 'yes' : 'no') : (in_array($pause_val_in, ['yes', 'no'], true) ? $pause_val_in : 'no');
-            update_post_meta($post_id, '_tutor_enrollment_status', $pause_str);
-            $existing_tutor_settings['pause_enrollment'] = $pause_str;
-            $existing_tutor_settings['enrollment_status'] = $pause_str;
-        }
-
-        // course_prerequisites (ids array) → _tutor_course_prerequisites_ids and _tutor_course_settings
-        if (array_key_exists('course_prerequisites', $value)) {
-            $ids = is_array($value['course_prerequisites']) ? array_map('absint', $value['course_prerequisites']) : [];
-            update_post_meta($post_id, '_tutor_course_prerequisites_ids', $ids);
-            $existing_tutor_settings['course_prerequisites'] = $ids;
-        }
-
-        // Persist merged Tutor settings
-        update_post_meta($post_id, '_tutor_course_settings', $existing_tutor_settings);
-        update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
-
-        // Course Instructors Section: Handle individual Tutor LMS meta fields
-        if (isset($value['instructors'])) {
-            $instructor_ids = is_array($value['instructors']) ? array_map('absint', $value['instructors']) : [];
-            $results[] = update_post_meta($post_id, '_tutor_course_instructors', $instructor_ids);
-            // Sync to Tutor LMS compatibility (user meta)
-            $this->sync_instructors_to_tutor_lms($post_id, $instructor_ids);
-        }
-        
-        if (isset($value['additional_instructors'])) {
-            $additional_instructor_ids = is_array($value['additional_instructors']) ? array_map('absint', $value['additional_instructors']) : [];
-            $results[] = update_post_meta($post_id, '_tutor_course_instructors', $additional_instructor_ids);
-            // Sync to Tutor LMS compatibility (user meta)
-            $this->sync_instructors_to_tutor_lms($post_id, $additional_instructor_ids);
-        }
-        
-        // Clear the sync flag
-        delete_post_meta($post_id, '_tutorpress_syncing');
-        
-        return !in_array(false, $results, true);
+        return false !== self::save_canonical_course_settings( $post->ID, $value );
     }
 
     /**
@@ -1265,7 +1420,7 @@ class TutorPress_Course {
      * @param array $instructor_ids Array of instructor user IDs
      * @return void
      */
-    private function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
+    private static function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
         // Remove old instructor associations
         global $wpdb;
         $wpdb->delete(

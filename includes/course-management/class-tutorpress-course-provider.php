@@ -135,13 +135,13 @@ class TutorPress_Course_Provider {
         // Apply filter for validation/modification
         $settings = apply_filters('tutorpress_course_settings_before_save', $settings, $course_id);
 
-        // Save settings
-        $result = update_post_meta($course_id, '_tutor_course_settings', $settings);
+        // Save through the shared canonical saver so all write surfaces fan out identically.
+        $result = TutorPress_Course::save_canonical_course_settings($course_id, $settings);
 
         // Fire action for integrations
         do_action('tutorpress_course_settings_saved', $course_id, $settings);
 
-        return $result !== false;
+        return false !== $result;
     }
 
     /**

@@ -408,174 +408,52 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Get existing settings
-        $existing_tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($existing_tutor_settings)) {
-            $existing_tutor_settings = array();
-        }
-
-        // Get new settings from request
         $new_settings = array();
-
-        // Course Details Section
-        if ($request->has_param('course_level')) {
-            $level = sanitize_text_field($request->get_param('course_level'));
-            $new_settings['course_level'] = $level;
-            update_post_meta($course_id, '_tutor_course_level', $level);
-        }
-
-        if ($request->has_param('is_public_course')) {
-            $is_public = (bool) $request->get_param('is_public_course');
-            $new_settings['is_public_course'] = $is_public;
-            update_post_meta($course_id, '_tutor_is_public_course', $is_public ? 'yes' : 'no');
-        }
-
-        if ($request->has_param('enable_qna')) {
-            $enable_qna = (bool) $request->get_param('enable_qna');
-            $new_settings['enable_qna'] = $enable_qna;
-            update_post_meta($course_id, '_tutor_enable_qa', $enable_qna ? 'yes' : 'no');
-        }
-
-        if ($request->has_param('course_duration')) {
-            $duration = $request->get_param('course_duration');
-            if (is_array($duration)) {
-                $duration_data = array(
-                    'hours'   => max(0, (int) ($duration['hours'] ?? 0)),
-                    'minutes' => min(59, max(0, (int) ($duration['minutes'] ?? 0))),
-                );
-                $new_settings['course_duration'] = $duration_data;
-                update_post_meta($course_id, '_course_duration', $duration_data);
+        foreach (
+            [
+                'course_level',
+                'is_public_course',
+                'enable_qna',
+                'course_duration',
+                'maximum_students',
+                'course_prerequisites',
+                'schedule',
+                'course_enrollment_period',
+                'enrollment_starts_at',
+                'enrollment_ends_at',
+                'pause_enrollment',
+                'intro_video',
+                'attachments',
+                'course_material_includes',
+                'pricing_model',
+                'price',
+                'sale_price',
+                'subscription_enabled',
+                'selling_option',
+                'woocommerce_product_id',
+                'edd_product_id',
+                'instructors',
+                'additional_instructors',
+            ] as $setting_key
+        ) {
+            if ( $request->has_param( $setting_key ) ) {
+                $new_settings[ $setting_key ] = $request->get_param( $setting_key );
             }
         }
 
-        // Course Access & Enrollment Section
-        if ($request->has_param('maximum_students')) {
-            $max_students = $request->get_param('maximum_students');
-            // Handle null/unlimited case properly
-            if ($max_students === null || $max_students === '' || $max_students === 0) {
-                $max_students_value = null;
-                $legacy_value = ''; // Tutor LMS uses empty string for unlimited
-            } else {
-                $max_students_value = max(0, (int) $max_students);
-                $legacy_value = $max_students_value;
-            }
-            $new_settings['maximum_students'] = $max_students_value;
-            $new_settings['maximum_students_allowed'] = $legacy_value;
-            update_post_meta($course_id, '_tutor_maximum_students', $legacy_value);
+        $saved_settings = TutorPress_Course::save_canonical_course_settings( $course_id, $new_settings );
+        if ( false === $saved_settings ) {
+            return new WP_Error(
+                'save_failed',
+                __('Failed to save some course settings', 'tutorpress'),
+                array('status' => 500)
+            );
         }
-
-        if ($request->has_param('course_enrollment_period')) {
-            $period_value = sanitize_text_field($request->get_param('course_enrollment_period'));
-            $period_value = $period_value === 'yes' ? 'yes' : 'no';
-            $new_settings['course_enrollment_period'] = $period_value;
-            update_post_meta($course_id, '_tutor_course_enrollment_period', $period_value);
-        }
-
-        if ($request->has_param('enrollment_starts_at')) {
-            $starts_at = sanitize_text_field($request->get_param('enrollment_starts_at'));
-            $new_settings['enrollment_starts_at'] = $starts_at;
-            update_post_meta($course_id, '_tutor_enrollment_starts_at', $starts_at);
-        }
-
-        if ($request->has_param('enrollment_ends_at')) {
-            $ends_at = sanitize_text_field($request->get_param('enrollment_ends_at'));
-            $new_settings['enrollment_ends_at'] = $ends_at;
-            update_post_meta($course_id, '_tutor_enrollment_ends_at', $ends_at);
-        }
-
-        if ($request->has_param('pause_enrollment')) {
-            $pause_value = sanitize_text_field($request->get_param('pause_enrollment'));
-            $pause_value = $pause_value === 'yes' ? 'yes' : 'no';
-            $new_settings['pause_enrollment'] = $pause_value;
-            $new_settings['enrollment_status'] = $pause_value;
-            update_post_meta($course_id, '_tutor_enrollment_status', $pause_value);
-        }
-
-        // Course Media Section
-        if ($request->has_param('course_material_includes')) {
-            $materials = sanitize_textarea_field($request->get_param('course_material_includes'));
-            $new_settings['course_material_includes'] = $materials;
-            update_post_meta($course_id, '_tutor_course_material_includes', $materials);
-        }
-
-        if ($request->has_param('intro_video')) {
-            $intro_video = $request->get_param('intro_video');
-            if (is_array($intro_video)) {
-                // Store as individual meta field (matches Tutor LMS pattern)
-                update_post_meta($course_id, '_video', $intro_video);
-                // Also store in settings array for compatibility
-                $new_settings['intro_video'] = $intro_video;
-            }
-        }
-
-        if ($request->has_param('attachments')) {
-            $attachments = $request->get_param('attachments');
-            if (is_array($attachments)) {
-                $attachment_ids = array_map('absint', $attachments);
-                $new_settings['attachments'] = $attachment_ids;
-                // Also store in Tutor LMS format for compatibility
-                update_post_meta($course_id, '_tutor_attachments', $attachment_ids);
-            }
-        }
-
-        // Pricing Model Section
-        if ($request->has_param('pricing_model')) {
-            $pricing_model = sanitize_text_field($request->get_param('pricing_model'));
-            $pricing_type = $pricing_model === 'free' ? 'free' : 'paid';
-            $new_settings['pricing_model'] = $pricing_model;
-            update_post_meta($course_id, '_tutor_course_price_type', $pricing_type);
-        }
-
-        if ($request->has_param('price')) {
-            $price = max(0, (float) $request->get_param('price'));
-            $new_settings['price'] = $price;
-            update_post_meta($course_id, 'tutor_course_price', $price);
-        }
-
-        if ($request->has_param('sale_price')) {
-            $sp = $request->get_param('sale_price');
-            if ($sp === null || $sp === '') {
-                $new_settings['sale_price'] = null;
-                update_post_meta($course_id, 'tutor_course_sale_price', '');
-            } else {
-                $sale_price = max(0, (float) $sp);
-                $new_settings['sale_price'] = $sale_price;
-                update_post_meta($course_id, 'tutor_course_sale_price', $sale_price);
-            }
-        }
-
-        if ($request->has_param('subscription_enabled')) {
-            $subscription_enabled = (bool) $request->get_param('subscription_enabled');
-            $new_settings['subscription_enabled'] = $subscription_enabled;
-            // Only update meta if selling_option is not provided
-            if (!$request->has_param('selling_option')) {
-                update_post_meta($course_id, 'tutor_course_selling_option', $subscription_enabled ? 'subscription' : 'one_time');
-            }
-        }
-
-        if ($request->has_param('selling_option')) {
-            $selling_option = sanitize_text_field($request->get_param('selling_option'));
-            // Validate the selling option
-            $valid_options = ['one_time', 'subscription', 'both', 'membership', 'all'];
-            if (!in_array($selling_option, $valid_options)) {
-                $selling_option = 'one_time'; // Default fallback
-            }
-            $new_settings['selling_option'] = $selling_option;
-            // Always update meta when selling_option is provided
-            update_post_meta($course_id, 'tutor_course_selling_option', $selling_option);
-        }
-
-        // Merge with existing settings
-        $merged_settings = array_merge($existing_tutor_settings, $new_settings);
-
-        // Update course settings
-        update_post_meta($course_id, '_tutor_course_settings', $merged_settings);
-        update_post_meta($course_id, 'course_settings', $merged_settings);
 
         // Return updated settings
         return rest_ensure_response(array(
             'success' => true,
-            'data'    => $merged_settings,
+            'data'    => $saved_settings,
         ));
     }
 
@@ -966,7 +844,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         return rest_ensure_response([
             'success' => true,
             'message' => __('Course settings saved successfully', 'tutorpress'),
-            'data' => $merged_settings,
+            'data' => TutorPress_Course::get_canonical_course_settings( $course_id ),
             'course_id' => $course_id,
         ]);
     }
