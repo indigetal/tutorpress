@@ -14,6 +14,37 @@ defined('ABSPATH') || exit;
 class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
 
     /**
+     * Request keys supported by the controller save shim.
+     *
+     * @var string[]
+     */
+    private const COURSE_SETTINGS_REQUEST_KEYS = [
+        'course_level',
+        'is_public_course',
+        'enable_qna',
+        'course_duration',
+        'maximum_students',
+        'course_prerequisites',
+        'schedule',
+        'course_enrollment_period',
+        'enrollment_starts_at',
+        'enrollment_ends_at',
+        'pause_enrollment',
+        'intro_video',
+        'attachments',
+        'course_material_includes',
+        'pricing_model',
+        'price',
+        'sale_price',
+        'subscription_enabled',
+        'selling_option',
+        'woocommerce_product_id',
+        'edd_product_id',
+        'instructors',
+        'additional_instructors',
+    ];
+
+    /**
      * Constructor.
      *
      * @since 0.1.0
@@ -408,40 +439,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        $new_settings = array();
-        foreach (
-            [
-                'course_level',
-                'is_public_course',
-                'enable_qna',
-                'course_duration',
-                'maximum_students',
-                'course_prerequisites',
-                'schedule',
-                'course_enrollment_period',
-                'enrollment_starts_at',
-                'enrollment_ends_at',
-                'pause_enrollment',
-                'intro_video',
-                'attachments',
-                'course_material_includes',
-                'pricing_model',
-                'price',
-                'sale_price',
-                'subscription_enabled',
-                'selling_option',
-                'woocommerce_product_id',
-                'edd_product_id',
-                'instructors',
-                'additional_instructors',
-            ] as $setting_key
-        ) {
-            if ( $request->has_param( $setting_key ) ) {
-                $new_settings[ $setting_key ] = $request->get_param( $setting_key );
-            }
-        }
-
-        $saved_settings = TutorPress_Course::save_canonical_course_settings( $course_id, $new_settings );
+        $saved_settings = $this->save_controller_settings(
+            $course_id,
+            $this->extract_settings_from_request( $request, self::COURSE_SETTINGS_REQUEST_KEYS )
+        );
         if ( false === $saved_settings ) {
             return new WP_Error(
                 'save_failed',
@@ -781,45 +782,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Merge partial updates against the canonical computed settings, not shadow meta.
-        $current_settings = TutorPress_Course::get_canonical_course_settings( $course_id );
-
-        // Build settings updates
-        $settings_updates = [];
-
-        // Handle maximum_students
-        if ($request->has_param('maximum_students')) {
-            $max_students = $request->get_param('maximum_students');
-            $settings_updates['maximum_students'] = ($max_students === '' || $max_students === null || $max_students === 0) ? '' : absint($max_students);
-        }
-
-        // Handle pause_enrollment
-        if ($request->has_param('pause_enrollment')) {
-            $pause_value = sanitize_text_field($request->get_param('pause_enrollment'));
-            $settings_updates['pause_enrollment'] = ($pause_value === 'yes') ? 'yes' : 'no';
-        }
-
-        // Handle course_enrollment_period
-        if ($request->has_param('course_enrollment_period')) {
-            $period_value = sanitize_text_field($request->get_param('course_enrollment_period'));
-            $settings_updates['course_enrollment_period'] = ($period_value === 'yes') ? 'yes' : 'no';
-        }
-
-        // Handle enrollment dates
-        if ($request->has_param('enrollment_starts_at')) {
-            $settings_updates['enrollment_starts_at'] = sanitize_text_field($request->get_param('enrollment_starts_at'));
-        }
-
-        if ($request->has_param('enrollment_ends_at')) {
-            $settings_updates['enrollment_ends_at'] = sanitize_text_field($request->get_param('enrollment_ends_at'));
-        }
-
-        // Merge with current settings
-        $merged_settings = array_merge($current_settings, $settings_updates);
-
-        // Get post object for update_course_settings
-        $post = get_post($course_id);
-        if (!$post) {
+        $course = get_post( $course_id );
+        if ( ! $course || 'courses' !== $course->post_type ) {
             return new WP_Error(
                 'invalid_post',
                 __('Invalid course ID.', 'tutorpress'),
@@ -827,10 +791,24 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Use Phase 3 Course Provider for centralized settings saving
-        $result = tutorpress_course_provider()->save_course_settings($course_id, $merged_settings);
+        $current_settings = TutorPress_Course::get_canonical_course_settings( $course_id );
+        $settings_updates = $this->extract_settings_from_request(
+            $request,
+            [
+                'maximum_students',
+                'pause_enrollment',
+                'course_enrollment_period',
+                'enrollment_starts_at',
+                'enrollment_ends_at',
+            ]
+        );
 
-        if (!$result) {
+        $saved_settings = $this->save_controller_settings(
+            $course_id,
+            array_merge( $current_settings, $settings_updates )
+        );
+
+        if ( false === $saved_settings ) {
             return new WP_Error(
                 'save_failed',
                 __('Failed to save some course settings', 'tutorpress'),
@@ -841,9 +819,39 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         return rest_ensure_response([
             'success' => true,
             'message' => __('Course settings saved successfully', 'tutorpress'),
-            'data' => TutorPress_Course::get_canonical_course_settings( $course_id ),
+            'data' => $saved_settings,
             'course_id' => $course_id,
         ]);
+    }
+
+    /**
+     * Extract supported course settings from a request.
+     *
+     * @param WP_REST_Request $request Request object.
+     * @param string[]        $keys    Supported setting keys.
+     * @return array
+     */
+    private function extract_settings_from_request( $request, array $keys ) {
+        $settings = [];
+
+        foreach ( $keys as $setting_key ) {
+            if ( $request->has_param( $setting_key ) ) {
+                $settings[ $setting_key ] = $request->get_param( $setting_key );
+            }
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Save settings through the shared canonical saver.
+     *
+     * @param int   $course_id Course ID.
+     * @param array $settings  Settings payload.
+     * @return array|false
+     */
+    private function save_controller_settings( $course_id, array $settings ) {
+        return TutorPress_Course::save_canonical_course_settings( $course_id, $settings );
     }
 
     /**
