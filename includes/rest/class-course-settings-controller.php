@@ -781,11 +781,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Get current settings
-        $current_settings = get_post_meta($course_id, 'course_settings', true);
-        if (!is_array($current_settings)) {
-            $current_settings = [];
-        }
+        // Merge partial updates against the canonical computed settings, not shadow meta.
+        $current_settings = TutorPress_Course::get_canonical_course_settings( $course_id );
 
         // Build settings updates
         $settings_updates = [];
