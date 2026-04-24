@@ -145,6 +145,22 @@ class TutorPress_Course_Provider {
     }
 
     /**
+     * Save content drip settings through the shared shadow-refresh path.
+     *
+     * @param int    $course_id             Course ID.
+     * @param bool   $content_drip_enabled  Whether content drip is enabled.
+     * @param string $content_drip_type     Content drip type.
+     * @return bool Success status.
+     */
+    public function save_content_drip_settings(int $course_id, bool $content_drip_enabled, string $content_drip_type): bool {
+        if (!current_user_can('edit_post', $course_id)) {
+            return false;
+        }
+
+        return TutorPress_Course::save_content_drip_settings($course_id, $content_drip_enabled, $content_drip_type);
+    }
+
+    /**
      * Add enrollment filter to query args
      * Keeps complex logic contained and testable
      *

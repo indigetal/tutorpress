@@ -206,27 +206,11 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
             $content_drip_addon_enabled = true;
             
             try {
-                // Get existing course settings
-                $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-                if (!is_array($course_settings)) {
-                    $course_settings = array();
-                }
-
-                // Update content drip settings
-                $course_settings['enable_content_drip'] = $content_drip_enabled;
-                
-                // Only save content drip type if content drip is enabled
-                if ($content_drip_enabled) {
-                    $course_settings['content_drip_type'] = $content_drip_type;
-                } else {
-                    // When disabled, remove the content drip type or set to default
-                    // This ensures "None" behavior - no content drip type is active
-                    unset($course_settings['content_drip_type']);
-                }
-
-                // As above, treat an unchanged value (false) as success
-                update_post_meta($course_id, '_tutor_course_settings', $course_settings);
-                $content_drip_saved = true;
+                $content_drip_saved = tutorpress_course_provider()->save_content_drip_settings(
+                    $course_id,
+                    $content_drip_enabled,
+                    $content_drip_type
+                );
             } catch (Exception $e) {
                 error_log('TutorPress: Failed to save content drip settings: ' . $e->getMessage());
                 $content_drip_saved = false;

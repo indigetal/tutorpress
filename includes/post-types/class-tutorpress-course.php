@@ -544,25 +544,7 @@ class TutorPress_Course {
 
             // Save content drip settings (only if content drip addon is enabled)
             if ( tutorpress_feature_flags()->can_user_access_feature('content_drip') ) {
-                // Get existing course settings
-                $course_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
-                if ( ! is_array( $course_settings ) ) {
-                    $course_settings = array();
-                }
-
-                // Update content drip settings
-                $course_settings['enable_content_drip'] = $content_drip_enabled;
-                
-                // Only save content drip type if content drip is enabled
-                if ( $content_drip_enabled ) {
-                    $course_settings['content_drip_type'] = $content_drip_type;
-                } else {
-                    // When disabled, remove the content drip type or set to default
-                    // This ensures "None" behavior - no content drip type is active
-                    unset( $course_settings['content_drip_type'] );
-                }
-
-                update_post_meta( $post_id, '_tutor_course_settings', $course_settings );
+                tutorpress_course_provider()->save_content_drip_settings( $post_id, $content_drip_enabled, $content_drip_type );
             }
         }
     }
@@ -1486,6 +1468,41 @@ class TutorPress_Course {
         } finally {
             delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
         }
+    }
+
+    /**
+     * Save content drip settings through a deliberate shadow-refresh path.
+     *
+     * @since 1.14.2
+     * @param int    $post_id              Post ID.
+     * @param bool   $content_drip_enabled Whether content drip is enabled.
+     * @param string $content_drip_type    Content drip type.
+     * @return bool True on success.
+     */
+    public static function save_content_drip_settings( $post_id, $content_drip_enabled, $content_drip_type ) {
+        $course_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
+        if ( ! is_array( $course_settings ) ) {
+            $course_settings = [];
+        }
+
+        $course_settings['enable_content_drip'] = (bool) $content_drip_enabled;
+
+        if ( $content_drip_enabled ) {
+            $course_settings['content_drip_type'] = $content_drip_type;
+        } else {
+            unset( $course_settings['content_drip_type'] );
+        }
+
+        update_post_meta( $post_id, '_tutorpress_syncing_to_tutor', true );
+
+        try {
+            update_post_meta( $post_id, '_tutor_course_settings', $course_settings );
+            self::refresh_course_settings_shadow_from_canonical( $post_id );
+        } finally {
+            delete_post_meta( $post_id, '_tutorpress_syncing_to_tutor' );
+        }
+
+        return true;
     }
 
     /**
