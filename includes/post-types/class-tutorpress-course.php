@@ -663,25 +663,15 @@ class TutorPress_Course {
     }
 
     /**
-     * Get course settings for REST API.
+     * Build canonical course settings from Tutor meta storage.
+     *
+     * Shared by both the top-level courses REST field and the compatibility shim.
      *
      * @since 1.14.2
-     * @param array $post Post data.
+     * @param int $post_id Course post ID.
      * @return array Course settings.
      */
-    /**
-     * Get course settings.
-     *
-     * Foundation implementation for Phase 3.1.
-     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
-     *
-     * @since 1.14.2
-     * @param array $post Post data.
-     * @return array Course settings.
-     */
-    public function get_course_settings( $post ) {
-        $post_id = $post['id'];
-        
+    public static function get_canonical_course_settings( $post_id ) {
         // Course Details Section: Read from individual Tutor LMS meta fields
         $course_level = get_post_meta($post_id, '_tutor_course_level', true);
         $is_public_course = get_post_meta($post_id, '_tutor_is_public_course', true);
@@ -786,6 +776,17 @@ class TutorPress_Course {
 
         // Do not override from stored course_settings here; rely on canonical Tutor meta + computed values
         return $settings;
+    }
+
+    /**
+     * Get course settings for REST API.
+     *
+     * @since 1.14.2
+     * @param array $post Post data.
+     * @return array Course settings.
+     */
+    public function get_course_settings( $post ) {
+        return self::get_canonical_course_settings( $post['id'] );
     }
 
     /**
