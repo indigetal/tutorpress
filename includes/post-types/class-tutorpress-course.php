@@ -1468,70 +1468,24 @@ class TutorPress_Course {
             return;
         }
 
-        // Get current course_settings
-        $current_settings = get_post_meta($post_id, 'course_settings', true);
-        if (!is_array($current_settings)) {
-            $current_settings = [];
-        }
+        self::refresh_course_settings_shadow_from_canonical( $post_id );
+    }
 
-        // Update the specific field in our settings
-        switch ($meta_key) {
-            case '_tutor_course_level':
-                $current_settings['course_level'] = $meta_value ?: 'all_levels';
-                break;
-            case '_tutor_is_public_course':
-                $current_settings['is_public_course'] = $meta_value === 'yes';
-                break;
-            case '_tutor_enable_qa':
-                $current_settings['enable_qna'] = $meta_value !== 'no';
-                break;
-            case '_course_duration':
-                if (is_array($meta_value)) {
-                    $current_settings['course_duration'] = $meta_value;
-                } else {
-                    $current_settings['course_duration'] = ['hours' => 0, 'minutes' => 0];
-                }
-                break;
-            case '_tutor_course_prerequisites_ids':
-                $current_settings['course_prerequisites'] = is_array($meta_value) ? $meta_value : [];
-                break;
-            case '_tutor_maximum_students':
-                $current_settings['maximum_students'] = $meta_value;
-                $current_settings['maximum_students_allowed'] = $meta_value;
-                break;
-            case '_tutor_enrollment_status':
-                $current_settings['pause_enrollment'] = $meta_value;
-                $current_settings['enrollment_status'] = $meta_value;
-                break;
-            case '_tutor_course_enrollment_period':
-                $current_settings['course_enrollment_period'] = $meta_value;
-                break;
-            case '_tutor_enrollment_starts_at':
-                $current_settings['enrollment_starts_at'] = $meta_value;
-                break;
-            case '_tutor_enrollment_ends_at':
-                $current_settings['enrollment_ends_at'] = $meta_value;
-                break;
-            case '_tutor_course_material_includes':
-                $current_settings['course_material_includes'] = $meta_value;
-                break;
-            case '_tutor_course_price_type':
-                $current_settings['pricing_model'] = $meta_value ?: 'free';
-                $current_settings['is_free'] = $meta_value === 'free';
-                break;
-            case 'tutor_course_price':
-                $current_settings['price'] = (float) $meta_value ?: 0;
-                break;
-            case 'tutor_course_sale_price':
-                $current_settings['sale_price'] = (float) $meta_value ?: 0;
-                break;
-            case 'tutor_course_selling_option':
-                $current_settings['selling_option'] = $meta_value;
-                break;
-        }
+    /**
+     * Refresh the compatibility shadow from canonical course settings.
+     *
+     * @since 1.14.2
+     * @param int $post_id Post ID.
+     * @return void
+     */
+    private static function refresh_course_settings_shadow_from_canonical( $post_id ) {
+        update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
 
-        // Update our course_settings field
-        update_post_meta($post_id, 'course_settings', $current_settings);
+        try {
+            update_post_meta( $post_id, 'course_settings', self::get_canonical_course_settings( $post_id ) );
+        } finally {
+            delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
+        }
     }
 
     /**
@@ -1829,18 +1783,7 @@ class TutorPress_Course {
             return;
         }
 
-        // Ensure both meta fields are in sync
-        $course_settings = get_post_meta($post_id, 'course_settings', true);
-        $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
-
-        if (is_array($course_settings) && !empty($course_settings)) {
-            if (!is_array($tutor_settings)) {
-                $tutor_settings = [];
-            }
-            
-            $merged_settings = array_merge($tutor_settings, $course_settings);
-            update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
-        }
+        self::refresh_course_settings_shadow_from_canonical( $post_id );
     }
 
     /**
