@@ -84,6 +84,136 @@ class TutorPress_Course {
     }
 
     /**
+     * Get the authoritative course settings REST schema.
+     *
+     * The top-level course_settings field is the contract the editor hydrates from.
+     * Compatibility-only fields remain explicit in schema so the rollout shape stays stable.
+     *
+     * @since 1.14.2
+     * @return array REST schema.
+     */
+    private function get_course_settings_rest_schema() {
+        return [
+            'type'       => 'object',
+            'properties' => $this->get_course_settings_schema_properties(),
+        ];
+    }
+
+    /**
+     * Get course settings schema properties.
+     *
+     * @since 1.14.2
+     * @return array<string, array<string, mixed>> REST schema properties.
+     */
+    private function get_course_settings_schema_properties() {
+        return [
+            'course_level' => [
+                'type' => 'string',
+                'enum' => [ 'beginner', 'intermediate', 'expert', 'all_levels' ],
+            ],
+            'is_public_course' => [
+                'type' => 'boolean',
+            ],
+            'enable_qna' => [
+                'type' => 'boolean',
+            ],
+            'course_duration' => [
+                'type'       => 'object',
+                'properties' => [
+                    'hours'   => [ 'type' => 'integer', 'minimum' => 0 ],
+                    'minutes' => [ 'type' => 'integer', 'minimum' => 0, 'maximum' => 59 ],
+                ],
+            ],
+            'maximum_students' => [
+                'type'    => [ 'integer', 'null' ],
+                'minimum' => 0,
+            ],
+            'course_prerequisites' => [
+                'type'  => 'array',
+                'items' => [ 'type' => 'integer' ],
+            ],
+            'schedule' => [
+                'type'       => 'object',
+                'properties' => [
+                    'enabled'          => [ 'type' => 'boolean' ],
+                    'start_date'       => [ 'type' => 'string' ],
+                    'start_time'       => [ 'type' => 'string' ],
+                    'show_coming_soon' => [ 'type' => 'boolean' ],
+                ],
+            ],
+            'course_enrollment_period' => [
+                'type' => 'string',
+                'enum' => [ 'yes', 'no' ],
+            ],
+            'enrollment_starts_at' => [
+                'type' => 'string',
+            ],
+            'enrollment_ends_at' => [
+                'type' => 'string',
+            ],
+            'pause_enrollment' => [
+                'type' => 'string',
+                'enum' => [ 'yes', 'no' ],
+            ],
+            'intro_video' => [
+                'type'       => 'object',
+                'properties' => [
+                    'source'              => [ 'type' => 'string' ],
+                    'source_video_id'     => [ 'type' => 'integer' ],
+                    'source_youtube'      => [ 'type' => 'string' ],
+                    'source_vimeo'        => [ 'type' => 'string' ],
+                    'source_external_url' => [ 'type' => 'string' ],
+                    'source_embedded'     => [ 'type' => 'string' ],
+                    'source_shortcode'    => [ 'type' => 'string' ],
+                    'poster'              => [ 'type' => 'string' ],
+                ],
+            ],
+            'attachments' => [
+                'type'  => 'array',
+                'items' => [ 'type' => 'integer' ],
+            ],
+            'course_material_includes' => [
+                'type' => 'string',
+            ],
+            'is_free' => [
+                'type' => 'boolean',
+            ],
+            'pricing_model' => [
+                'type' => 'string',
+            ],
+            'price' => [
+                'type'    => 'number',
+                'minimum' => 0,
+            ],
+            'sale_price' => [
+                'type'    => [ 'number', 'null' ],
+                'minimum' => 0,
+            ],
+            'selling_option' => [
+                'type' => 'string',
+                'enum' => [ 'one_time', 'subscription', 'both', 'membership', 'all' ],
+            ],
+            'woocommerce_product_id' => [
+                'type' => 'string',
+            ],
+            'edd_product_id' => [
+                'type' => 'string',
+            ],
+            'subscription_enabled' => [
+                'type' => 'boolean',
+            ],
+            'instructors' => [
+                'type'  => 'array',
+                'items' => [ 'type' => 'integer' ],
+            ],
+            'additional_instructors' => [
+                'type'  => 'array',
+                'items' => [ 'type' => 'integer' ],
+            ],
+        ];
+    }
+
+    /**
      * Set up meta fields for courses.
      *
      * @since 1.14.2
@@ -99,110 +229,7 @@ class TutorPress_Course {
             'sanitize_callback' => [ $this, 'sanitize_course_settings' ],
             'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
             'show_in_rest'      => [
-                'schema' => [
-                    'type'       => 'object',
-                    'properties' => [
-                        'course_level' => [
-                            'type' => 'string',
-                            'enum' => [ 'beginner', 'intermediate', 'expert', 'all_levels' ],
-                        ],
-                        'is_public_course' => [
-                            'type' => 'boolean',
-                        ],
-                        'enable_qna' => [
-                            'type' => 'boolean',
-                        ],
-                        'course_duration' => [
-                            'type'       => 'object',
-                            'properties' => [
-                                'hours'   => [ 'type' => 'integer', 'minimum' => 0 ],
-                                'minutes' => [ 'type' => 'integer', 'minimum' => 0, 'maximum' => 59 ],
-                            ],
-                        ],
-                        'maximum_students' => [
-                            'type'    => ['integer', 'null'],
-                            'minimum' => 0,
-                        ],
-                        'course_prerequisites' => [
-                            'type'  => 'array',
-                            'items' => [ 'type' => 'integer' ],
-                        ],
-                        'schedule' => [
-                            'type'       => 'object',
-                            'properties' => [
-                                'enabled'          => [ 'type' => 'boolean' ],
-                                'start_date'       => [ 'type' => 'string' ],
-                                'start_time'       => [ 'type' => 'string' ],
-                                'show_coming_soon' => [ 'type' => 'boolean' ],
-                            ],
-                        ],
-                        'course_enrollment_period' => [
-                            'type' => 'string',
-                            'enum' => [ 'yes', 'no' ],
-                        ],
-                        'enrollment_starts_at' => [
-                            'type' => 'string',
-                        ],
-                        'enrollment_ends_at' => [
-                            'type' => 'string',
-                        ],
-                        'pause_enrollment' => [
-                            'type' => 'string',
-                            'enum' => [ 'yes', 'no' ],
-                        ],
-                        'intro_video' => [
-                            'type'       => 'object',
-                            'properties' => [
-                                'source'               => [ 'type' => 'string' ],
-                                'source_video_id'      => [ 'type' => 'integer' ],
-                                'source_youtube'       => [ 'type' => 'string' ],
-                                'source_vimeo'         => [ 'type' => 'string' ],
-                                'source_external_url'  => [ 'type' => 'string' ],
-                                'source_embedded'      => [ 'type' => 'string' ],
-                                'source_shortcode'     => [ 'type' => 'string' ],
-                                'poster'               => [ 'type' => 'string' ],
-                            ],
-                        ],
-                        'attachments' => [
-                            'type'  => 'array',
-                            'items' => [ 'type' => 'integer' ],
-                        ],
-                        'course_material_includes' => [
-                            'type' => 'string',
-                        ],
-                        'is_free' => [
-                            'type' => 'boolean',
-                        ],
-                        'pricing_model' => [
-                            'type' => 'string',
-                        ],
-                        'price' => [
-                            'type'    => 'number',
-                            'minimum' => 0,
-                        ],
-						'sale_price' => [
-							'type'    => [ 'number', 'null' ],
-							'minimum' => 0,
-						],
-                        'selling_option' => [
-                            'type' => 'string',
-                            'enum' => [ 'one_time', 'subscription', 'both', 'membership', 'all' ],
-                        ],
-                        'woocommerce_product_id' => [
-                            'type' => 'string',
-                        ],
-                        'edd_product_id' => [
-                            'type' => 'string',
-                        ],
-                        'subscription_enabled' => [
-                            'type' => 'boolean',
-                        ],
-                        'instructors' => [
-                            'type'  => 'array',
-                            'items' => [ 'type' => 'integer' ],
-                        ],
-                    ],
-                ],
+                'schema' => $this->get_course_settings_rest_schema(),
             ],
         ] );
 
@@ -403,10 +430,12 @@ class TutorPress_Course {
         register_rest_field( $this->token, 'course_settings', [
             'get_callback'    => [ $this, 'get_course_settings' ],
             'update_callback' => [ $this, 'update_course_settings' ],
-            'schema'          => [
-                'description' => __( 'Course settings', 'tutorpress' ),
-                'type'        => 'object',
-            ],
+            'schema'          => array_merge(
+                [
+                    'description' => __( 'Course settings', 'tutorpress' ),
+                ],
+                $this->get_course_settings_rest_schema()
+            ),
         ] );
     }
 

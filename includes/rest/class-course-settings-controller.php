@@ -393,6 +393,14 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         
         // Use Phase 3 Course Provider for centralized settings retrieval
         $tutor_settings = tutorpress_course_provider()->get_course_settings($course_id);
+        if (!is_array($tutor_settings)) {
+            $tutor_settings = array();
+        }
+
+        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
+        if (!is_array($co_instructor_ids)) {
+            $co_instructor_ids = array();
+        }
 
         // Build course settings structure
         $course_settings = array(
@@ -403,24 +411,89 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             'course_duration' => $course_duration,
             
             // Course Access & Enrollment Section
+            'maximum_students' => (function() use ($course_id, $tutor_settings) {
+                if (array_key_exists('maximum_students', $tutor_settings)) {
+                    $value = $tutor_settings['maximum_students'];
+                    if ($value === null || $value === 0 || is_numeric($value)) {
+                        return $value === null ? null : (int) $value;
+                    }
+                }
+
+                $legacy_max = get_post_meta($course_id, '_tutor_maximum_students', true);
+                if ($legacy_max === '' || $legacy_max === null) {
+                    return null;
+                }
+
+                return (int) $legacy_max;
+            })(),
             'course_prerequisites' => get_post_meta($course_id, '_tutor_course_prerequisites_ids', true) ?: array(),
-            'maximum_students'          => isset($tutor_settings['maximum_students']) ? $tutor_settings['maximum_students'] : null,
+            'schedule' => array_merge(
+                array(
+                    'enabled' => false,
+                    'start_date' => '',
+                    'start_time' => '',
+                    'show_coming_soon' => false,
+                ),
+                isset($tutor_settings['schedule']) && is_array($tutor_settings['schedule']) ? $tutor_settings['schedule'] : array()
+            ),
             'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
             'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
             'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
-            'pause_enrollment'          => $tutor_settings['pause_enrollment'] ?? 'no',
+            'pause_enrollment' => (function() use ($course_id, $tutor_settings) {
+                if (array_key_exists('pause_enrollment', $tutor_settings)) {
+                    $value = $tutor_settings['pause_enrollment'];
+                    if ($value === 'yes' || $value === 'no') {
+                        return $value;
+                    }
+                }
+
+                $status = get_post_meta($course_id, '_tutor_enrollment_status', true);
+                if ($status === 'yes' || $status === 'no') {
+                    return $status;
+                }
+
+                return 'no';
+            })(),
             
             // Course Media Section
             'course_material_includes' => get_post_meta($course_id, '_tutor_course_material_includes', true) ?: '',
-            'intro_video' => get_post_meta($course_id, '_video', true) ?: array(),
-            'attachments' => get_post_meta($course_id, '_tutor_attachments', true) ?: array(),
+            'intro_video' => array_merge(
+                array(
+                    'source' => '',
+                    'source_video_id' => 0,
+                    'source_youtube' => '',
+                    'source_vimeo' => '',
+                    'source_external_url' => '',
+                    'source_embedded' => '',
+                    'source_shortcode' => '',
+                    'poster' => '',
+                ),
+                isset($tutor_settings['featured_video']) && is_array($tutor_settings['featured_video']) ? $tutor_settings['featured_video'] : array(),
+                isset($tutor_settings['intro_video']) && is_array($tutor_settings['intro_video']) ? $tutor_settings['intro_video'] : array(),
+                is_array(get_post_meta($course_id, '_video', true)) ? get_post_meta($course_id, '_video', true) : array()
+            ),
+            'attachments' => get_post_meta($course_id, '_tutor_course_attachments', true) ?: array(),
             
             // Pricing Model Section (individual meta fields)
+            'is_free' => get_post_meta($course_id, '_tutor_course_price_type', true) === 'free',
             'pricing_model' => get_post_meta($course_id, '_tutor_course_price_type', true) ?: 'free',
             'price' => (float) get_post_meta($course_id, 'tutor_course_price', true) ?: 0,
-            'sale_price' => (float) get_post_meta($course_id, 'tutor_course_sale_price', true) ?: 0,
+            'sale_price' => (function() use ($course_id) {
+                $raw = get_post_meta($course_id, 'tutor_course_sale_price', true);
+                if ($raw === '' || $raw === null) {
+                    return null;
+                }
+
+                return (float) $raw;
+            })(),
             'subscription_enabled' => get_post_meta($course_id, 'tutor_course_selling_option', true) === 'subscription',
             'selling_option' => get_post_meta($course_id, 'tutor_course_selling_option', true) ?: 'one_time',
+            'woocommerce_product_id' => TutorPress_Addon_Checker::is_woocommerce_monetization() ? get_post_meta($course_id, '_tutor_course_product_id', true) ?: '' : '',
+            'edd_product_id' => TutorPress_Addon_Checker::is_edd_monetization() ? get_post_meta($course_id, '_tutor_course_product_id', true) ?: '' : '',
+            
+            // Course Instructors Section
+            'instructors' => $co_instructor_ids,
+            'additional_instructors' => $co_instructor_ids,
         );
 
         return rest_ensure_response(array(

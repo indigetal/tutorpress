@@ -106,8 +106,12 @@ export interface InstructorSearchResult {
 }
 
 /**
- * Complete course settings interface matching Tutor LMS _tutor_course_settings structure
+ * Authoritative top-level course_settings REST contract for courses.
+ * Derived compatibility fields stay explicit during the rollout window.
  */
+export type CoursePricingModel = "free" | "paid";
+export type CourseSellingOption = "one_time" | "subscription" | "both" | "membership" | "all";
+
 export interface CourseSettings {
   // Course Details Section
   course_level: CourseDifficultyLevel;
@@ -129,18 +133,18 @@ export interface CourseSettings {
   course_material_includes: string; // Match Tutor LMS field name
 
   // Pricing Model Section
-  is_free: boolean;
-  pricing_model: string;
+  is_free: boolean; // Derived compatibility field from pricing_model
+  pricing_model: CoursePricingModel;
   price: number;
   sale_price: number | null;
-  subscription_enabled: boolean;
-  selling_option: string; // Purchase option: "one_time", "subscription", "both", "membership", "all"
-  woocommerce_product_id?: string; // WooCommerce product ID for product linking
-  edd_product_id?: string; // EDD product ID for product linking
+  subscription_enabled: boolean; // Derived compatibility field from selling_option
+  selling_option: CourseSellingOption;
+  woocommerce_product_id: string; // WooCommerce product ID for product linking
+  edd_product_id: string; // EDD product ID for product linking
 
   // Instructors Section
   instructors: number[];
-  additional_instructors: number[];
+  additional_instructors: number[]; // Compatibility alias of instructors
   course_instructors?: CourseInstructors; // Enhanced instructor data with user objects
 
   // Content Drip (existing)
@@ -185,7 +189,7 @@ export const defaultCourseSettings: CourseSettings = {
 
   // Pricing Model
   is_free: true,
-  pricing_model: "",
+  pricing_model: "free",
   price: 0,
   sale_price: null,
   subscription_enabled: false,
