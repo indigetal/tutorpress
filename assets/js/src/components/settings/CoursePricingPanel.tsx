@@ -4,7 +4,6 @@ import { __ } from "@wordpress/i18n";
 import { useSelect, useDispatch, select as wpSelect } from "@wordpress/data";
 import { PanelRow, Notice, Spinner, RadioControl, TextControl, Button, SelectControl } from "@wordpress/components";
 import { plus, pencil } from "@wordpress/icons";
-import { useEntityProp } from "@wordpress/core-data";
 
 // Import course settings types
 import type { CourseSettings, WcProduct } from "../../types/courses";
@@ -56,11 +55,8 @@ const CoursePricingPanel: React.FC = () => {
     useDispatch("tutorpress/commerce");
   const editorDispatch = useDispatch("core/editor");
 
-  // Entity-prop for course settings (Step 3b: product ids only)
-  const [courseSettings, setCourseSettings] = useEntityProp("postType", "courses", "course_settings");
-
-  // Get shared course settings to access is_public_course
-  const { courseSettings: sharedCourseSettings } = useCourseSettings();
+  // Keep pricing bound to the top-level course_settings entity contract.
+  const { courseSettings, setCourseSettings, ready } = useCourseSettings();
 
   // Legacy mirror removed; entity is sole write target
 
@@ -147,7 +143,11 @@ const CoursePricingPanel: React.FC = () => {
 
   // Auto-reset to "free" when public course is enabled and course is currently paid
   useEffect(() => {
-    const isPublicCourse = sharedCourseSettings?.is_public_course ?? false;
+    if (!ready) {
+      return;
+    }
+
+    const isPublicCourse = courseSettings?.is_public_course ?? false;
     if (isPublicCourse && pricingModelEntity === "paid") {
       // Auto-reset to free when public course is enabled
       const next = {
@@ -160,7 +160,7 @@ const CoursePricingPanel: React.FC = () => {
       setCourseSettings(next);
       editorDispatch.editPost({ course_settings: next });
     }
-  }, [sharedCourseSettings?.is_public_course, pricingModelEntity, courseSettings, setCourseSettings, editorDispatch]);
+  }, [ready, courseSettings, pricingModelEntity, setCourseSettings, editorDispatch]);
 
   // Validate EDD product selection when products are loaded
   useEffect(() => {
@@ -268,7 +268,7 @@ const CoursePricingPanel: React.FC = () => {
   // Handle pricing model change — 5a.1 entity-only writes for simple flags
   const handlePricingModelChange = (value: string) => {
     // Check if trying to select "paid" while public course is enabled
-    const isPublicCourse = sharedCourseSettings?.is_public_course ?? false;
+    const isPublicCourse = courseSettings?.is_public_course ?? false;
     if (value === "paid" && isPublicCourse) {
       // Don't allow paid courses to be public - this should be prevented by UI but adding safety
       return;
@@ -592,7 +592,7 @@ const CoursePricingPanel: React.FC = () => {
         <RadioControl
           label={__("Pricing Type", "tutorpress")}
           help={
-            (sharedCourseSettings?.is_public_course ?? false)
+            (courseSettings?.is_public_course ?? false)
               ? __(
                   "Public courses cannot be paid. Disable 'Public Course' in Course Details to enable paid pricing.",
                   "tutorpress"
@@ -606,7 +606,7 @@ const CoursePricingPanel: React.FC = () => {
               value: "free",
             },
             // Only show "Paid" option if monetization is enabled AND public course is not enabled
-            ...(isMonetizationEnabled() && !(sharedCourseSettings?.is_public_course ?? false)
+            ...(isMonetizationEnabled() && !(courseSettings?.is_public_course ?? false)
               ? [
                   {
                     label: __("Paid", "tutorpress"),

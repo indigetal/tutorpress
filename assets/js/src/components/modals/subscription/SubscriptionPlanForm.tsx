@@ -22,6 +22,7 @@ import { calendar } from "@wordpress/icons";
 import type { SubscriptionPlan, SubscriptionValidationErrors } from "../../../types/subscriptions";
 import { defaultSubscriptionPlan, subscriptionIntervals } from "../../../types/subscriptions";
 import { isPmproMonetization } from "../../../utils/addonChecker";
+import { useCourseSettings } from "../../../hooks/common";
 
 // Import our reusable datetime validation utilities
 import {
@@ -97,6 +98,7 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
     createSubscriptionPlan,
     updateSubscriptionPlan,
   } = useDispatch("tutorpress/subscriptions");
+  const { courseSettings } = useCourseSettings();
 
   // Local state for date picker popovers (following CourseAccessPanel pattern)
   const [saleStartDatePickerOpen, setSaleStartDatePickerOpen] = useState(false);
@@ -114,9 +116,13 @@ export const SubscriptionPlanForm: React.FC<SubscriptionPlanFormProps> = ({
       const meta = select("core/editor").getEditedPostAttribute?.("meta") || {};
       return meta?.tutor_course_selling_option || "one_time";
     } else {
-      return (select("core/editor").getEditedPostAttribute?.("course_settings") || {})?.selling_option || "one_time";
+      return (
+        courseSettings?.selling_option ||
+        (select("core/editor").getEditedPostAttribute?.("course_settings") || {})?.selling_option ||
+        "one_time"
+      );
     }
-  }, []);
+  }, [courseSettings?.selling_option]);
   const postTitle = useSelect((select: any) => select("core/editor").getEditedPostAttribute?.("title") || "", []);
 
   // Initialize form data when component mounts or initialData changes
