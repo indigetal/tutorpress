@@ -68,13 +68,10 @@ class TutorPress_Course {
         add_action( 'admin_bar_menu', [ $this, 'remove_tutor_edit_link_if_redirects_enabled' ], 101 );
         add_action( 'wp_head', [ $this, 'output_admin_bar_course_icon_css' ] );
 
-        // Bidirectional sync hooks for Tutor LMS compatibility
+        // Compatibility shadow refresh hooks for Tutor LMS-backed storage
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_individual_field_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_course_settings_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
-        
-        // Sync our fields to Tutor LMS when updated
-        add_action( 'updated_post_meta', [ $this, 'handle_course_settings_update' ], 10, 4 );
         
         // Also hook into REST API updates (Gutenberg uses REST API, not traditional meta updates)
         add_action( 'rest_after_insert_courses', [ $this, 'handle_rest_course_update' ], 10, 3 );
@@ -220,7 +217,7 @@ class TutorPress_Course {
      * @return void
      */
     public function set_up_meta_fields() {
-        // Register the course_settings meta field for Gutenberg editor
+        // Keep the course_settings meta registered for compatibility shadow storage only.
         register_post_meta( $this->token, 'course_settings', [
             'type'              => 'object',
             'description'       => __( 'Course settings for TutorPress Gutenberg integration', 'tutorpress' ),
@@ -228,9 +225,7 @@ class TutorPress_Course {
             'default'           => [],
             'sanitize_callback' => [ $this, 'sanitize_course_settings' ],
             'auth_callback'     => [ $this, 'post_meta_auth_callback' ],
-            'show_in_rest'      => [
-                'schema' => $this->get_course_settings_rest_schema(),
-            ],
+            'show_in_rest'      => false,
         ] );
 
         // Register individual meta fields with auth callbacks for comprehensive security
@@ -423,7 +418,7 @@ class TutorPress_Course {
      */
     public function add_author_support() {
         add_post_type_support( $this->token, 'author' );
-        // Ensure meta appears under the REST 'meta' field for this post type
+        // Keep custom-fields support enabled for legacy/meta compatibility.
         add_post_type_support( $this->token, 'custom-fields' );
 
         // Register REST API fields for course settings
@@ -1534,15 +1529,8 @@ class TutorPress_Course {
             return;
         }
 
-        // Set sync flag to prevent infinite loops
-        update_post_meta($post_id, '_tutorpress_syncing_from_tutor', true);
         update_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', time());
-
-        // Update our course_settings field to match
-        update_post_meta($post_id, 'course_settings', $meta_value);
-
-        // Clear sync flag
-        delete_post_meta($post_id, '_tutorpress_syncing_from_tutor');
+        self::refresh_course_settings_shadow_from_canonical( $post_id );
     }
 
     /**
@@ -1578,7 +1566,8 @@ class TutorPress_Course {
     /**
      * Handle course settings updates.
      *
-     * Extracted from TutorPress_Course_Settings::handle_course_settings_update().
+     * Stored course_settings is compatibility shadow only after Step 8, so direct shadow
+     * writes must never fan back into canonical Tutor data.
      *
      * @since 1.14.2
      * @param int $meta_id Meta ID.
@@ -1588,157 +1577,7 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_course_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // Only handle course_settings updates for courses
-        if ($meta_key !== 'course_settings' || get_post_type($post_id) !== 'courses') {
-            return;
-        }
-
-        // Skip if we're currently syncing from Tutor LMS
-        if (get_post_meta($post_id, '_tutorpress_syncing_from_tutor', true)) {
-            return;
-        }
-
-        // Avoid rapid updates
-        $last_sync = get_post_meta($post_id, '_tutorpress_course_settings_last_sync', true);
-        if ($last_sync && (time() - $last_sync) < 5) {
-            return;
-        }
-
-        // Get existing Tutor LMS settings
-        $existing_tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
-        if (!is_array($existing_tutor_settings)) {
-            $existing_tutor_settings = [];
-        }
-
-        // Sync to individual Tutor LMS meta fields and _tutor_course_settings
-        if (is_array($meta_value)) {
-            // Set sync flag to prevent infinite loops
-            update_post_meta($post_id, '_tutorpress_syncing_to_tutor', true);
-            update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
-            
-            // Update individual Tutor LMS meta fields for core settings
-            if (isset($meta_value['course_level'])) {
-                update_post_meta($post_id, '_tutor_course_level', $meta_value['course_level']);
-            }
-            
-            if (isset($meta_value['is_public_course'])) {
-                $public_value = $meta_value['is_public_course'] ? 'yes' : 'no';
-                update_post_meta($post_id, '_tutor_is_public_course', $public_value);
-            }
-            
-            if (isset($meta_value['enable_qna'])) {
-                $qna_value = $meta_value['enable_qna'] ? 'yes' : 'no';
-                update_post_meta($post_id, '_tutor_enable_qa', $qna_value);
-            }
-            
-            // Handle course_duration separately (Tutor LMS stores this in _course_duration meta field)
-            if (isset($meta_value['course_duration'])) {
-                update_post_meta($post_id, '_course_duration', $meta_value['course_duration']);
-            }
-            
-            // Course Media Section: Handle individual Tutor LMS meta fields
-            if (isset($meta_value['course_material_includes'])) {
-                update_post_meta($post_id, '_tutor_course_material_includes', $meta_value['course_material_includes']);
-            }
-            
-            if (isset($meta_value['intro_video'])) {
-                update_post_meta($post_id, '_video', $meta_value['intro_video']);
-            }
-            
-            if (isset($meta_value['attachments'])) {
-                $attachment_ids = is_array($meta_value['attachments']) ? array_map('absint', $meta_value['attachments']) : [];
-                update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
-                update_post_meta($post_id, '_tutor_attachments', $attachment_ids);
-            }
-            
-            // Handle pricing fields separately (Tutor LMS stores these as individual meta fields)
-            if (isset($meta_value['pricing_model'])) {
-                $pricing_type = $meta_value['pricing_model'] === 'free' ? 'free' : 'paid';
-                update_post_meta($post_id, '_tutor_course_price_type', $pricing_type);
-            }
-            
-            if (isset($meta_value['price'])) {
-                update_post_meta($post_id, 'tutor_course_price', (float) $meta_value['price']);
-            }
-            
-			if (array_key_exists('sale_price', $meta_value)) {
-				if ($meta_value['sale_price'] === null || $meta_value['sale_price'] === '') {
-					update_post_meta($post_id, 'tutor_course_sale_price', '');
-				} else {
-					update_post_meta($post_id, 'tutor_course_sale_price', (float) $meta_value['sale_price']);
-				}
-			}
-            
-            if (isset($meta_value['selling_option'])) {
-                $selling_option = $meta_value['selling_option'];
-                update_post_meta($post_id, 'tutor_course_selling_option', $selling_option);
-            }
-            
-            // Handle product IDs - Save the active product ID to _tutor_course_product_id based on monetization engine
-            if (isset($meta_value['woocommerce_product_id']) || isset($meta_value['edd_product_id'])) {
-                $active_product_id = '';
-                
-                // Determine which product ID should be active based on monetization engine
-                if (isset($meta_value['woocommerce_product_id']) && TutorPress_Addon_Checker::is_woocommerce_monetization()) {
-                    $active_product_id = $meta_value['woocommerce_product_id'];
-                } elseif (isset($meta_value['edd_product_id']) && TutorPress_Addon_Checker::is_edd_monetization()) {
-                    $active_product_id = $meta_value['edd_product_id'];
-                }
-                
-                // Save the active product ID to the shared meta field
-                update_post_meta($post_id, '_tutor_course_product_id', $active_product_id);
-            }
-            
-            // Course Instructors Section: Handle individual Tutor LMS meta fields
-            if (isset($meta_value['instructors'])) {
-                $instructor_ids = is_array($meta_value['instructors']) ? array_map('absint', $meta_value['instructors']) : [];
-                update_post_meta($post_id, '_tutor_course_instructors', $instructor_ids);
-                // Sync to Tutor LMS compatibility (user meta)
-                $this->sync_instructors_to_tutor_lms($post_id, $instructor_ids);
-            }
-            
-            if (isset($meta_value['additional_instructors'])) {
-                $additional_instructor_ids = is_array($meta_value['additional_instructors']) ? array_map('absint', $meta_value['additional_instructors']) : [];
-                update_post_meta($post_id, '_tutor_course_instructors', $additional_instructor_ids);
-                // Sync to Tutor LMS compatibility (user meta)
-                $this->sync_instructors_to_tutor_lms($post_id, $additional_instructor_ids);
-            }
-
-            // Access & Enrollment: maximum_students (nullable) and pause_enrollment (yes/no)
-            if (array_key_exists('maximum_students', $meta_value)) {
-                $max_students_in = $meta_value['maximum_students'];
-                // Legacy Tutor stores empty string for unlimited; preserve 0 explicitly
-                if ($max_students_in === '' || $max_students_in === null) {
-                    $legacy_max = '';
-                } elseif ($max_students_in === 0 || $max_students_in === '0') {
-                    $legacy_max = 0;
-                } else {
-                    $legacy_max = max(0, intval($max_students_in));
-                }
-                update_post_meta($post_id, '_tutor_maximum_students', $legacy_max);
-                $existing_tutor_settings['maximum_students'] = ($legacy_max === '') ? null : intval($legacy_max);
-                $existing_tutor_settings['maximum_students_allowed'] = $existing_tutor_settings['maximum_students'];
-            }
-
-            if (array_key_exists('pause_enrollment', $meta_value)) {
-                $pause_val_in = $meta_value['pause_enrollment'];
-                $pause_str = is_bool($pause_val_in)
-                    ? ($pause_val_in ? 'yes' : 'no')
-                    : (in_array($pause_val_in, ['yes', 'no'], true) ? $pause_val_in : 'no');
-                update_post_meta($post_id, '_tutor_enrollment_status', $pause_str);
-                $existing_tutor_settings['pause_enrollment'] = $pause_str;
-                $existing_tutor_settings['enrollment_status'] = $pause_str;
-            }
-
-            // Persist merged Tutor settings to keep get_course_settings() authoritative
-            $merged_settings = array_merge($existing_tutor_settings, is_array($meta_value) ? $meta_value : []);
-            update_post_meta($post_id, '_tutor_course_settings', $merged_settings);
-            // Mark last REST sync time to prevent immediate override on save_post hook
-            update_post_meta($post_id, '_tutorpress_course_settings_last_sync', time());
-            
-            // Clear sync flag
-            delete_post_meta($post_id, '_tutorpress_syncing_to_tutor');
-        }
+        return;
     }
 
     /**
