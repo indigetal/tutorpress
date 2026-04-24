@@ -81,10 +81,25 @@ const CourseDetailsPanel: React.FC = () => {
     );
   }
 
-  const hasDuration = totalDuration.hours > 0 || totalDuration.minutes > 0;
+  const durationHours = typeof totalDuration.hours === "number" ? totalDuration.hours : 0;
+  const durationMinutes = typeof totalDuration.minutes === "number" ? totalDuration.minutes : 0;
+  const hasDuration = durationHours > 0 || durationMinutes > 0;
   const durationText = hasDuration
     ? `${totalDuration.hours}h ${totalDuration.minutes}m`
     : __("No duration set", "tutorpress");
+
+  const normalizeDurationInput = (
+    value: string,
+    max?: number
+  ): CourseSettings["course_duration"]["hours"] => {
+    if (value === "") {
+      return "";
+    }
+
+    const normalizedValue = Math.max(0, parseInt(value, 10) || 0);
+
+    return typeof max === "number" ? Math.min(max, normalizedValue) : normalizedValue;
+  };
 
   // safeSet provided by shared hook; shallow merge at top-level
 
@@ -214,12 +229,9 @@ const CourseDetailsPanel: React.FC = () => {
                   setHoursInput(value);
                 }}
                 onBlur={() => {
-                  const hours = Math.max(0, parseInt(hoursInput || "0", 10) || 0);
-                  const minutes = Math.min(
-                    59,
-                    Math.max(0, parseInt(minutesInput || String(totalDuration.minutes), 10) || 0)
-                  );
-                  setHoursInput(String(hours));
+                  const hours = normalizeDurationInput(hoursInput);
+                  const minutes = normalizeDurationInput(minutesInput, 59);
+                  setHoursInput(hours === "" ? "" : String(hours));
                   const nextDuration = {
                     ...(cs?.course_duration || {}),
                     hours,
@@ -241,9 +253,9 @@ const CourseDetailsPanel: React.FC = () => {
                   setMinutesInput(value);
                 }}
                 onBlur={() => {
-                  const hours = Math.max(0, parseInt(hoursInput || String(totalDuration.hours), 10) || 0);
-                  const minutes = Math.min(59, Math.max(0, parseInt(minutesInput || "0", 10) || 0));
-                  setMinutesInput(String(minutes));
+                  const hours = normalizeDurationInput(hoursInput);
+                  const minutes = normalizeDurationInput(minutesInput, 59);
+                  setMinutesInput(minutes === "" ? "" : String(minutes));
                   const nextDuration = {
                     ...(cs?.course_duration || {}),
                     hours,

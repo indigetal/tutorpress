@@ -107,8 +107,32 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
                             'course_duration' => [
                                 'type'              => 'object',
                                 'properties'        => [
-                                    'hours'   => ['type' => 'integer', 'minimum' => 0],
-                                    'minutes' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 59],
+                                    // Explicit clears stay as empty strings; missing/non-array meta still uses backend fallback.
+                                    'hours'   => [
+                                        'oneOf' => [
+                                            [
+                                                'type'    => 'integer',
+                                                'minimum' => 0,
+                                            ],
+                                            [
+                                                'type' => 'string',
+                                                'enum' => [''],
+                                            ],
+                                        ],
+                                    ],
+                                    'minutes' => [
+                                        'oneOf' => [
+                                            [
+                                                'type'    => 'integer',
+                                                'minimum' => 0,
+                                                'maximum' => 59,
+                                            ],
+                                            [
+                                                'type' => 'string',
+                                                'enum' => [''],
+                                            ],
+                                        ],
+                                    ],
                                 ],
                                 'description'       => __('The duration of the course.', 'tutorpress'),
                             ],

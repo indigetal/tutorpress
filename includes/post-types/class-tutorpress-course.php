@@ -117,8 +117,32 @@ class TutorPress_Course {
             'course_duration' => [
                 'type'       => 'object',
                 'properties' => [
-                    'hours'   => [ 'type' => 'integer', 'minimum' => 0 ],
-                    'minutes' => [ 'type' => 'integer', 'minimum' => 0, 'maximum' => 59 ],
+                    // Explicit clears stay as empty strings; missing/non-array meta still uses backend fallback.
+                    'hours'   => [
+                        'oneOf' => [
+                            [
+                                'type'    => 'integer',
+                                'minimum' => 0,
+                            ],
+                            [
+                                'type' => 'string',
+                                'enum' => [ '' ],
+                            ],
+                        ],
+                    ],
+                    'minutes' => [
+                        'oneOf' => [
+                            [
+                                'type'    => 'integer',
+                                'minimum' => 0,
+                                'maximum' => 59,
+                            ],
+                            [
+                                'type' => 'string',
+                                'enum' => [ '' ],
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'maximum_students' => [
@@ -931,6 +955,49 @@ class TutorPress_Course {
     }
 
     /**
+     * Normalize a duration member while preserving explicit empty strings.
+     *
+     * @since 1.14.2
+     * @param mixed    $value Raw duration member.
+     * @param int|null $max   Optional upper bound.
+     * @return int|string
+     */
+    private static function normalize_course_duration_value( $value, $max = null ) {
+        if ( '' === $value ) {
+            return '';
+        }
+
+        $normalized = absint( $value );
+
+        if ( is_int( $max ) ) {
+            return min( $max, $normalized );
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Normalize course duration while preserving explicit empty-string members.
+     *
+     * @since 1.14.2
+     * @param mixed $duration Raw duration payload.
+     * @return array{hours:int|string,minutes:int|string}
+     */
+    private static function normalize_course_duration_for_save( $duration ) {
+        if ( ! is_array( $duration ) ) {
+            return [
+                'hours'   => 0,
+                'minutes' => 0,
+            ];
+        }
+
+        return [
+            'hours'   => self::normalize_course_duration_value( $duration['hours'] ?? 0 ),
+            'minutes' => self::normalize_course_duration_value( $duration['minutes'] ?? 0, 59 ),
+        ];
+    }
+
+    /**
      * Normalize incoming course settings for the shared saver.
      *
      * @since 1.14.2
@@ -955,11 +1022,7 @@ class TutorPress_Course {
         }
 
         if ( array_key_exists( 'course_duration', $settings ) ) {
-            $duration = is_array( $settings['course_duration'] ) ? $settings['course_duration'] : [];
-            $normalized['course_duration'] = [
-                'hours'   => absint( $duration['hours'] ?? 0 ),
-                'minutes' => min( 59, absint( $duration['minutes'] ?? 0 ) ),
-            ];
+            $normalized['course_duration'] = self::normalize_course_duration_for_save( $settings['course_duration'] );
         }
 
         if ( array_key_exists( 'course_material_includes', $settings ) ) {
@@ -1133,18 +1196,7 @@ class TutorPress_Course {
         
         if (isset($settings['course_duration'])) {
             $duration = $settings['course_duration'];
-            if (is_array($duration)) {
-                $sanitized['course_duration'] = [
-                    'hours' => absint($duration['hours'] ?? 0),
-                    'minutes' => absint($duration['minutes'] ?? 0),
-                ];
-                // Ensure minutes don't exceed 59
-                if ($sanitized['course_duration']['minutes'] > 59) {
-                    $sanitized['course_duration']['minutes'] = 59;
-                }
-            } else {
-                $sanitized['course_duration'] = ['hours' => 0, 'minutes' => 0];
-            }
+            $sanitized['course_duration'] = self::normalize_course_duration_for_save( $duration );
         }
         
         // Course Media Section: Sanitize individual fields

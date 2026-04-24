@@ -33,10 +33,15 @@ export type CourseDifficultyLevel = "beginner" | "intermediate" | "expert" | "al
 
 /**
  * Course duration settings
+ *
+ * Explicit clears are represented as empty strings to match Tutor LMS parity.
+ * Missing or invalid stored duration data still falls back on the backend.
  */
+export type CourseDurationValue = number | "";
+
 export interface CourseDuration {
-  hours: number;
-  minutes: number;
+  hours: CourseDurationValue;
+  minutes: CourseDurationValue;
 }
 
 /**
