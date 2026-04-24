@@ -119,6 +119,40 @@ class TutorPress_Course_Provider {
     }
 
     /**
+     * Get a single Tutor course setting value.
+     *
+     * @param int    $course_id Course ID.
+     * @param string $key       Setting key.
+     * @param mixed  $default   Default value when missing.
+     * @return mixed
+     */
+    public function get_course_setting(int $course_id, string $key, $default = null) {
+        $settings = $this->get_course_settings($course_id);
+
+        return array_key_exists($key, $settings) ? $settings[$key] : $default;
+    }
+
+    /**
+     * Get normalized course-level content drip settings.
+     *
+     * @param int $course_id Course ID.
+     * @return array{enabled: bool, type: string}
+     */
+    public function get_content_drip_settings(int $course_id): array {
+        $enabled = (bool) $this->get_course_setting($course_id, 'enable_content_drip', false);
+        $type = $this->get_course_setting($course_id, 'content_drip_type', 'unlock_by_date');
+
+        if (!is_string($type) || '' === $type) {
+            $type = 'unlock_by_date';
+        }
+
+        return [
+            'enabled' => $enabled,
+            'type' => $type,
+        ];
+    }
+
+    /**
      * Save course settings
      * Centralizes course settings saving with validation
      *

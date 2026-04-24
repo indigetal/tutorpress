@@ -118,16 +118,7 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
         $target_audience = is_string($target_audience) ? $target_audience : '';
         $requirements = is_string($requirements) ? $requirements : '';
 
-        // Get content drip settings
-        $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($course_settings)) {
-            $course_settings = array();
-        }
-
-        $content_drip_enabled = isset($course_settings['enable_content_drip']) ? 
-            (bool) $course_settings['enable_content_drip'] : false;
-        $content_drip_type = isset($course_settings['content_drip_type']) ? 
-            $course_settings['content_drip_type'] : 'unlock_by_date';
+        $content_drip_settings = tutorpress_course_provider()->get_content_drip_settings($course_id);
 
         // Prepare response data
         $response_data = array(
@@ -135,8 +126,8 @@ class TutorPress_Additional_Content_Controller extends TutorPress_REST_Controlle
             'target_audience' => $target_audience,
             'requirements' => $requirements,
             'content_drip' => array(
-                'enabled' => $content_drip_enabled,
-                'type' => $content_drip_type,
+                'enabled' => $content_drip_settings['enabled'],
+                'type' => $content_drip_settings['type'],
             ),
             'course_id' => $course_id,
         );

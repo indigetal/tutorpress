@@ -145,13 +145,12 @@ class TutorPress_Content_Drip_Helpers {
         if (function_exists('tutor_utils') && tutor_utils()) {
             return tutor_utils()->get_course_settings($course_id, $key, $default);
         }
-        
-        // Fallback: get from course meta
-        $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (is_array($course_settings) && isset($course_settings[$key])) {
-            return $course_settings[$key];
+
+        // Fallback: use the shared provider-backed store.
+        if (function_exists('tutorpress_course_provider')) {
+            return tutorpress_course_provider()->get_course_setting((int) $course_id, (string) $key, $default);
         }
-        
+
         return $default;
     }
 

@@ -628,23 +628,11 @@ class TutorPress_REST_Content_Drip_Controller extends TutorPress_REST_Controller
             );
         }
 
-        // Direct post meta access for maximum performance (bypass all helper functions)
-        $course_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        if (!is_array($course_settings)) {
-            $course_settings = [];
-        }
-        
-        $content_drip_enabled = (bool) ($course_settings['enable_content_drip'] ?? false);
-        $content_drip_type = $course_settings['content_drip_type'] ?? 'unlock_by_date';
-        
-        // Default to unlock_by_date if type is not set
-        if (empty($content_drip_type)) {
-            $content_drip_type = 'unlock_by_date';
-        }
+        $content_drip_settings = tutorpress_course_provider()->get_content_drip_settings($course_id);
 
         $response_data = [
-            'enabled' => $content_drip_enabled,
-            'type'    => $content_drip_type,
+            'enabled' => $content_drip_settings['enabled'],
+            'type'    => $content_drip_settings['type'],
         ];
 
                 return rest_ensure_response($this->format_response([
