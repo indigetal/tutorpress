@@ -53,24 +53,19 @@ class TutorPress_Admin_Customizations {
      */
     public static function enqueue_admin_overrides() {
         // Prevent double enqueuing
-        if (wp_script_is('tutorpress-admin', 'enqueued')) {
+        if (wp_script_is('tutorpress-admin-redirects', 'enqueued')) {
             return;
         }
 
-        // Get the asset file for dependencies and version
-        $asset_file = include TUTORPRESS_PATH . 'assets/js/build/index.asset.php';
-        
-        // Enqueue the built script
         wp_enqueue_script(
-            'tutorpress-admin',
-            TUTORPRESS_URL . 'assets/js/build/index.js',
-            array_merge(['jquery'], $asset_file['dependencies']),
-            $asset_file['version'],
+            'tutorpress-admin-redirects',
+            TUTORPRESS_URL . 'assets/js/admin-redirects.js',
+            array(),
+            filemtime(TUTORPRESS_PATH . 'assets/js/admin-redirects.js'),
             true
         );
 
-        // Add TutorPressData for overrides
-        wp_localize_script('tutorpress-admin', 'TutorPressData', [
+        wp_localize_script('tutorpress-admin-redirects', 'TutorPressData', [
             'enableAdminRedirects' => (function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : false),
             'adminUrl' => admin_url(),
         ]);

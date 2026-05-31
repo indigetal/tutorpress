@@ -16,7 +16,6 @@ import BundlePricingPanel from "./components/settings/BundlePricingPanel";
 import BundleInstructorsPanel from "./components/settings/BundleInstructorsPanel";
 import EditCourseButton from "./components/common/EditCourseButton";
 import { AddonChecker } from "./utils/addonChecker";
-import "./utils/overrides";
 
 // Import stores to ensure they are registered
 import "./store/h5p"; // H5P store registration
