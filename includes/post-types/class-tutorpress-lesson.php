@@ -607,7 +607,13 @@ class TutorPress_Lesson {
 			return;
 		}
 		$this->sync_to_tutor_video_format( $post_id );
-		$this->sync_exercise_files( $post_id );
+		if ( $this->is_frontend_builder_attachment_save() ) {
+			$this->mirror_frontend_builder_exercise_files( $post_id, $this->get_frontend_builder_attachment_ids() );
+		} elseif ( $this->is_frontend_builder_delete_all_attachment_save( $post_id ) ) {
+			$this->mirror_frontend_builder_exercise_files( $post_id, array() );
+		} else {
+			$this->sync_exercise_files( $post_id );
+		}
 		$this->sync_lesson_preview( $post_id );
 	}
 
@@ -787,6 +793,80 @@ class TutorPress_Lesson {
 		foreach ( $mirror_keys as $meta_key ) {
 			delete_post_meta( $post_id, $meta_key );
 		}
+	}
+
+	/**
+	 * Whether the current request is a Tutor LMS frontend-builder lesson save with attachments.
+	 *
+	 * @since 1.14.3
+	 * @return bool
+	 */
+	private function is_frontend_builder_attachment_save() {
+		if ( ! isset( $_POST['action'] ) ) {
+			return false;
+		}
+
+		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		if ( 'tutor_save_lesson' !== $action ) {
+			return false;
+		}
+
+		return array_key_exists( 'tutor_attachments', $_POST );
+	}
+
+	/**
+	 * Sanitize frontend-builder tutor_attachments IDs from the current request.
+	 *
+	 * @since 1.14.3
+	 * @return array<int>
+	 */
+	private function get_frontend_builder_attachment_ids() {
+		if ( ! isset( $_POST['tutor_attachments'] ) || ! is_array( $_POST['tutor_attachments'] ) ) {
+			return array();
+		}
+
+		return $this->sanitize_attachment_ids( wp_unslash( $_POST['tutor_attachments'] ) );
+	}
+
+	/**
+	 * Whether the current request is a frontend-builder delete-all attachment save.
+	 *
+	 * FormData omits empty arrays, so delete-all arrives with no tutor_attachments key
+	 * after Tutor LMS priority 10 has deleted _tutor_attachments.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Lesson post ID.
+	 * @return bool
+	 */
+	private function is_frontend_builder_delete_all_attachment_save( $post_id ) {
+		if ( ! isset( $_POST['action'] ) ) {
+			return false;
+		}
+
+		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		if ( 'tutor_save_lesson' !== $action ) {
+			return false;
+		}
+
+		if ( array_key_exists( 'tutor_attachments', $_POST ) ) {
+			return false;
+		}
+
+		return empty( get_post_meta( $post_id, '_tutor_attachments', true ) );
+	}
+
+	/**
+	 * Mirror frontend-builder attachment IDs into TutorPress exercise file meta.
+	 *
+	 * @since 1.14.3
+	 * @param int        $post_id        Lesson post ID.
+	 * @param array<int> $attachment_ids Sanitized attachment IDs.
+	 * @return void
+	 */
+	private function mirror_frontend_builder_exercise_files( $post_id, $attachment_ids ) {
+		update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
+		update_post_meta( $post_id, '_lesson_exercise_files', $attachment_ids );
+		delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
 	}
 
 	private function sync_exercise_files( $post_id ) {
