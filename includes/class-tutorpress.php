@@ -128,8 +128,7 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     private function load_required_files() {
-        // All files are now loaded automatically by Composer autoloader
-        // No manual require_once statements needed
+        require_once $this->plugin_path . 'includes/shared/class-tutorpress-lesson-video-duration.php';
     }
 
     /**
