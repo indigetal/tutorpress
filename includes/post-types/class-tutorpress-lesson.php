@@ -50,6 +50,7 @@ class TutorPress_Lesson {
 		add_action( 'wp_head', [ $this, 'output_admin_bar_icon_css' ] );
 
 		// Bidirectional sync hooks for Tutor LMS compatibility
+		add_action( 'added_post_meta', [ $this, 'handle_tutor_video_meta_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_video_meta_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_preview_meta_update' ], 10, 4 );
