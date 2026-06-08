@@ -63,7 +63,10 @@ interface AttachmentDuration {
 }
 
 interface AttachmentMetadata {
-  duration: AttachmentDuration;
+  success: boolean;
+  data?: {
+    duration: AttachmentDuration | null;
+  };
 }
 
 const LessonSettingsPanel: React.FC = () => {
@@ -246,33 +249,12 @@ const LessonSettingsPanel: React.FC = () => {
     setVideoMetaError("");
 
     try {
-      // Use WordPress REST API directly for attachment metadata
-      const apiBase = (window as any).wpApiSettings?.root || "/wp-json/";
-      const nonce = (window as any).wpApiSettings?.nonce || "";
+      const result = (await (window as any).wp.apiFetch({
+        path: `/tutorpress/v1/attachments/${attachmentId}`,
+      })) as AttachmentMetadata;
+      const duration = result.data?.duration;
 
-      const response = await fetch(`${apiBase}wp/v2/media/${attachmentId}`, {
-        headers: {
-          "X-WP-Nonce": nonce,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      // WordPress REST API returns media data directly, not wrapped in data property
-      if (result.media_details?.length_formatted) {
-        // WordPress doesn't provide duration in the format we need, so we'll set a default
-        // or extract from length_formatted if possible
-        const duration = {
-          hours: 0,
-          minutes: 0,
-          seconds: 0,
-        };
-
+      if (duration) {
         // Get the CURRENT editor state instead of component state to avoid stale data
         const current = ((window as any).wp?.data?.select("core/editor").getEditedPostAttribute("lesson_settings") ||
           {}) as LessonSettings;

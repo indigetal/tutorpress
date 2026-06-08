@@ -625,6 +625,14 @@ class TutorPress_Lesson {
 			return;
 		}
 		update_post_meta( $post_id, '_tutorpress_video_last_sync', time() );
+		if ( array_key_exists( 'source', $video_data ) ) {
+			$incoming_source = sanitize_text_field( $video_data['source'] );
+			if ( '' === $incoming_source || '-1' === $incoming_source ) {
+				delete_post_meta( $post_id, '_video' );
+				$this->clear_lesson_video_mirror_meta( $post_id );
+				return;
+			}
+		}
 		if ( isset( $video_data['source'] ) ) {
 			update_post_meta( $post_id, '_lesson_video_source', $this->sanitize_video_source( $video_data['source'] ) );
 		}
@@ -660,16 +668,32 @@ class TutorPress_Lesson {
 			update_post_meta( $post_id, '_lesson_video_poster', esc_url_raw( $video_data['poster'] ) );
 		}
 		if ( isset( $video_data['runtime'] ) && is_array( $video_data['runtime'] ) ) {
-			$runtime = $video_data['runtime'];
-			if ( isset( $runtime['hours'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_hours', absint( $runtime['hours'] ) );
+			$runtime = TutorPress_Lesson_Video_Duration::normalize_duration( $video_data['runtime'] );
+			$runtime['minutes'] = min( 59, $runtime['minutes'] );
+			$runtime['seconds'] = min( 59, $runtime['seconds'] );
+
+			if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $runtime ) ) {
+				update_post_meta( $post_id, '_lesson_video_duration_hours', $runtime['hours'] );
+				update_post_meta( $post_id, '_lesson_video_duration_minutes', $runtime['minutes'] );
+				update_post_meta( $post_id, '_lesson_video_duration_seconds', $runtime['seconds'] );
+
+				$video_data['runtime']  = $runtime;
+				$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $runtime );
+				update_post_meta( $post_id, '_video', $video_data );
+				return;
 			}
-			if ( isset( $runtime['minutes'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_minutes', min( 59, absint( $runtime['minutes'] ) ) );
+
+			$existing_duration = TutorPress_Lesson_Video_Duration::get_lesson_duration( $post_id );
+			if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $existing_duration ) ) {
+				$video_data['runtime']  = $existing_duration;
+				$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $existing_duration );
+				update_post_meta( $post_id, '_video', $video_data );
+				return;
 			}
-			if ( isset( $runtime['seconds'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_seconds', min( 59, absint( $runtime['seconds'] ) ) );
-			}
+
+			update_post_meta( $post_id, '_lesson_video_duration_hours', $runtime['hours'] );
+			update_post_meta( $post_id, '_lesson_video_duration_minutes', $runtime['minutes'] );
+			update_post_meta( $post_id, '_lesson_video_duration_seconds', $runtime['seconds'] );
 		}
 	}
 
@@ -690,9 +714,7 @@ class TutorPress_Lesson {
 		$embedded = get_post_meta( $post_id, '_lesson_video_embedded', true );
 		$shortcode = get_post_meta( $post_id, '_lesson_video_shortcode', true );
 		$poster = get_post_meta( $post_id, '_lesson_video_poster', true );
-		$hours = (int) get_post_meta( $post_id, '_lesson_video_duration_hours', true );
-		$minutes = (int) get_post_meta( $post_id, '_lesson_video_duration_minutes', true );
-		$seconds = (int) get_post_meta( $post_id, '_lesson_video_duration_seconds', true );
+		$duration = TutorPress_Lesson_Video_Duration::get_lesson_duration( $post_id );
 
 		if ( empty( $source ) || '-1' === $source ) {
 			delete_post_meta( $post_id, '_video' );
@@ -735,10 +757,13 @@ class TutorPress_Lesson {
 			$video_data['poster'] = $poster;
 		}
 		$video_data['runtime'] = array(
-			'hours'   => $hours,
-			'minutes' => $minutes,
-			'seconds' => $seconds,
+			'hours'   => $duration['hours'],
+			'minutes' => $duration['minutes'],
+			'seconds' => $duration['seconds'],
 		);
+		if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $duration ) ) {
+			$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $duration );
+		}
 		update_post_meta( $post_id, '_video', $video_data );
 	}
 
