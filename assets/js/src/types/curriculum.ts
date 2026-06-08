@@ -26,6 +26,18 @@ export interface BaseContentItem {
   status: string; // WordPress post status: 'publish', 'draft', 'private', 'pending', 'future'
 }
 
+export interface ContentItemVideo {
+  has_video: boolean;
+  source: string;
+  duration: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
+  playtime: string;
+  display_duration: string;
+}
+
 /**
  * Base topic interface that represents a curriculum section
  */
@@ -64,6 +76,7 @@ export const isValidTopic = (topic: unknown): topic is Topic => {
 export interface ContentItem extends BaseContentItem {
   topic_id: number;
   order: number;
+  video?: ContentItemVideo;
 }
 
 /**

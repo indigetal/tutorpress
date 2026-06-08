@@ -148,34 +148,45 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
   dragHandleProps,
   className,
   style,
-}): JSX.Element => (
-  <div className={`tutorpress-content-item ${className || ""}`} style={style}>
-    <Flex align="center" gap={2}>
-      <div className="tutorpress-content-item-icon tpress-flex-shrink-0">
-        <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
-        <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
-      </div>
-      <FlexBlock style={{ textAlign: "left" }}>
-        {item.title}
-        {item.status && item.status !== "publish" && (
-          <span title={statusTooltips[item.status as keyof typeof statusTooltips]} style={{ display: "inline-block" }}>
-            <Icon
-              icon={statusIcons[item.status as keyof typeof statusIcons]}
-              style={{
-                color: statusColors[item.status as keyof typeof statusColors],
-                marginLeft: "var(--space-sm)",
-                verticalAlign: "middle",
-              }}
-            />
-          </span>
-        )}
-      </FlexBlock>
-      <div className="tpress-item-actions-right">
-        <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
-      </div>
-    </Flex>
-  </div>
-);
+}): JSX.Element => {
+  const hasVideo = item.type === "lesson" && Boolean(item.video?.has_video);
+  const displayDuration = hasVideo ? item.video?.display_duration : "";
+
+  return (
+    <div className={`tutorpress-content-item ${className || ""}`} style={style}>
+      <Flex align="center" gap={2}>
+        <div className="tutorpress-content-item-icon tpress-flex-shrink-0">
+          <Icon icon={contentTypeIcons[item.type]} className="item-icon" />
+          <Button icon={dragHandle} label="Drag to reorder" isSmall className="drag-icon" {...dragHandleProps} />
+        </div>
+        <FlexBlock style={{ textAlign: "left" }}>
+          {item.title}
+          {displayDuration && (
+            <span className="tutorpress-content-item-video-meta">
+              <Icon icon="video-alt3" className="tutorpress-content-item-video-icon" />
+              <span className="tutorpress-content-item-video-duration">{displayDuration}</span>
+            </span>
+          )}
+          {item.status && item.status !== "publish" && (
+            <span title={statusTooltips[item.status as keyof typeof statusTooltips]} style={{ display: "inline-block" }}>
+              <Icon
+                icon={statusIcons[item.status as keyof typeof statusIcons]}
+                style={{
+                  color: statusColors[item.status as keyof typeof statusColors],
+                  marginLeft: "var(--space-sm)",
+                  verticalAlign: "middle",
+                }}
+              />
+            </span>
+          )}
+        </FlexBlock>
+        <div className="tpress-item-actions-right">
+          <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+        </div>
+      </Flex>
+    </div>
+  );
+};
 
 /**
  * Sortable wrapper for content items

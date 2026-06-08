@@ -412,13 +412,19 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 $content_type = 'zoom_lesson';
             }
             
-            return [
+            $content_data = [
                 'id'         => $item->ID,
                 'title'      => $item->post_title,
                 'type'       => $content_type,
                 'menu_order' => (int) $item->menu_order,
                 'status'     => $item->post_status,
             ];
+
+            if ($item->post_type === 'lesson') {
+                $content_data['video'] = TutorPress_Lesson_Video_Duration::get_lesson_video_summary($item->ID);
+            }
+
+            return $content_data;
         }, $content_items);
     }
 

@@ -59,6 +59,37 @@
   opacity: 1;
 }
 
+.tutorpress-content-item-video-meta {
+  align-items: center;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted, var(--gray-500));
+  display: inline-flex;
+  font-size: var(--text-xs);
+  gap: var(--space-xs);
+  line-height: 1;
+  margin-left: var(--space-sm);
+  padding: 2px var(--space-xs) 3px;
+  vertical-align: middle;
+}
+
+.tutorpress-content-item-video-meta .tutorpress-content-item-video-icon {
+  color: currentColor;
+  display: inline-flex;
+  height: var(--text-xs);
+  line-height: 1;
+  width: var(--text-xs);
+}
+
+.tutorpress-content-item-video-meta .tutorpress-content-item-video-icon::before {
+  display: block;
+  font-size: var(--text-xs);
+  height: var(--text-xs);
+  line-height: 1;
+  width: var(--text-xs);
+}
+
 /* Ensure action buttons are properly styled and visible */
 .tutorpress-content-item .tpress-item-actions-right .components-button {
   color: var(--gray-700);
