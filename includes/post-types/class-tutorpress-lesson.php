@@ -30,6 +30,14 @@ class TutorPress_Lesson {
 	public $token;
 
 	/**
+	 * Existing lesson thumbnails captured before omitted-image REST saves.
+	 *
+	 * @since 1.14.3
+	 * @var array<int,int>
+	 */
+	private $omitted_image_rest_thumbnail_snapshots = [];
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.14.3
@@ -43,6 +51,7 @@ class TutorPress_Lesson {
 
 		// Ensure featured image support for lessons
 		add_action( 'init', [ $this, 'ensure_lesson_featured_image_support' ], 20 );
+		add_filter( 'rest_pre_insert_lesson', [ $this, 'capture_omitted_image_rest_thumbnail_snapshot' ], 10, 2 );
 
 		// Add failsafe "Edit Lesson" link to admin bar (priority 71 for top positioning)
 		add_action( 'admin_bar_menu', [ $this, 'add_edit_lesson_admin_bar' ], 71 );
@@ -486,6 +495,81 @@ class TutorPress_Lesson {
 				add_theme_support( 'post-thumbnails' );
 			}
 		}
+	}
+
+	/**
+	 * Capture the existing thumbnail before an omitted-image core REST lesson save.
+	 *
+	 * @since 1.14.3
+	 * @param stdClass|WP_Post $prepared_post Prepared post object.
+	 * @param WP_REST_Request $request       REST request.
+	 * @return stdClass|WP_Post Prepared post object.
+	 */
+	public function capture_omitted_image_rest_thumbnail_snapshot( $prepared_post, $request ) {
+		$post_id = isset( $prepared_post->ID ) ? absint( $prepared_post->ID ) : 0;
+		if ( $post_id > 0 ) {
+			unset( $this->omitted_image_rest_thumbnail_snapshots[ $post_id ] );
+		}
+
+		if ( ! $this->is_omitted_image_core_rest_lesson_update( $prepared_post, $request ) ) {
+			return $prepared_post;
+		}
+
+		$thumbnail_id = absint( get_post_thumbnail_id( $post_id ) );
+		if ( $thumbnail_id > 0 ) {
+			$this->omitted_image_rest_thumbnail_snapshots[ $post_id ] = $thumbnail_id;
+		}
+
+		return $prepared_post;
+	}
+
+	/**
+	 * Whether a request is an existing lesson REST update that omitted image fields.
+	 *
+	 * @since 1.14.3
+	 * @param stdClass|WP_Post $prepared_post Prepared post object.
+	 * @param mixed            $request       Possible REST request.
+	 * @return bool
+	 */
+	private function is_omitted_image_core_rest_lesson_update( $prepared_post, $request ) {
+		if ( ! $request instanceof WP_REST_Request ) {
+			return false;
+		}
+
+		$post_id = isset( $prepared_post->ID ) ? absint( $prepared_post->ID ) : 0;
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || $this->token !== $post->post_type ) {
+			return false;
+		}
+
+		if ( ! in_array( $request->get_method(), array( 'POST', 'PUT', 'PATCH' ), true ) ) {
+			return false;
+		}
+
+		$route_pattern = '#^/wp/v2/' . preg_quote( $this->token, '#' ) . '/' . $post_id . '$#';
+		if ( ! preg_match( $route_pattern, $request->get_route() ) ) {
+			return false;
+		}
+
+		if ( $request->has_param( 'featured_media' ) || $request->has_param( 'thumbnail_id' ) ) {
+			return false;
+		}
+
+		return ! $this->php_request_has_thumbnail_id();
+	}
+
+	/**
+	 * Whether PHP request globals include Tutor LMS's thumbnail field.
+	 *
+	 * @since 1.14.3
+	 * @return bool
+	 */
+	private function php_request_has_thumbnail_id() {
+		return array_key_exists( 'thumbnail_id', $_POST ) || array_key_exists( 'thumbnail_id', $_REQUEST );
 	}
 
 	/**
