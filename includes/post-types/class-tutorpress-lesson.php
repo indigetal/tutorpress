@@ -38,6 +38,14 @@ class TutorPress_Lesson {
 	private $omitted_image_rest_thumbnail_snapshots = [];
 
 	/**
+	 * Existing lesson thumbnails captured before Gutenberg meta box loader saves.
+	 *
+	 * @since 1.14.3
+	 * @var array<int,int>
+	 */
+	private $meta_box_loader_thumbnail_snapshots = [];
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.14.3
@@ -52,6 +60,9 @@ class TutorPress_Lesson {
 		// Ensure featured image support for lessons
 		add_action( 'init', [ $this, 'ensure_lesson_featured_image_support' ], 20 );
 		add_filter( 'rest_pre_insert_lesson', [ $this, 'capture_omitted_image_rest_thumbnail_snapshot' ], 10, 2 );
+		add_action( 'rest_after_insert_lesson', [ $this, 'restore_omitted_image_rest_thumbnail_snapshot' ], 10, 3 );
+		add_action( 'save_post_lesson', [ $this, 'capture_meta_box_loader_thumbnail_snapshot' ], 1, 3 );
+		add_action( 'save_post_lesson', [ $this, 'restore_meta_box_loader_thumbnail_snapshot' ], 1001, 3 );
 
 		// Add failsafe "Edit Lesson" link to admin bar (priority 71 for top positioning)
 		add_action( 'admin_bar_menu', [ $this, 'add_edit_lesson_admin_bar' ], 71 );
@@ -524,6 +535,97 @@ class TutorPress_Lesson {
 	}
 
 	/**
+	 * Restore a captured thumbnail after Tutor LMS deletes an omitted image.
+	 *
+	 * @since 1.14.3
+	 * @param WP_Post         $post     Inserted or updated post object.
+	 * @param WP_REST_Request $request  REST request.
+	 * @param bool            $creating Whether this was a create request.
+	 * @return void
+	 */
+	public function restore_omitted_image_rest_thumbnail_snapshot( $post, $request, $creating ) {
+		$post_id = isset( $post->ID ) ? absint( $post->ID ) : 0;
+		if ( ! $post_id ) {
+			return;
+		}
+
+		$thumbnail_id = $this->omitted_image_rest_thumbnail_snapshots[ $post_id ] ?? 0;
+		unset( $this->omitted_image_rest_thumbnail_snapshots[ $post_id ] );
+
+		if ( $creating || ! $thumbnail_id || ! $this->is_omitted_image_core_rest_lesson_update( $post, $request ) ) {
+			return;
+		}
+
+		if ( absint( get_post_thumbnail_id( $post_id ) ) > 0 ) {
+			return;
+		}
+
+		if ( ! $this->is_valid_image_attachment( $thumbnail_id ) ) {
+			return;
+		}
+
+		set_post_thumbnail( $post_id, $thumbnail_id );
+	}
+
+	/**
+	 * Capture the current thumbnail before Gutenberg's meta box loader save.
+	 *
+	 * @since 1.14.3
+	 * @param int     $post_id Lesson post ID.
+	 * @param WP_Post $post    Lesson post object.
+	 * @param bool    $update  Whether this is an existing post update.
+	 * @return void
+	 */
+	public function capture_meta_box_loader_thumbnail_snapshot( $post_id, $post, $update ) {
+		$post_id = absint( $post_id );
+		if ( $post_id > 0 ) {
+			unset( $this->meta_box_loader_thumbnail_snapshots[ $post_id ] );
+		}
+
+		if ( ! $this->is_gutenberg_meta_box_loader_lesson_save( $post_id, $post, $update ) ) {
+			return;
+		}
+
+		$thumbnail_id = absint( get_post_thumbnail_id( $post_id ) );
+		if ( $this->is_valid_image_attachment( $thumbnail_id ) ) {
+			$this->meta_box_loader_thumbnail_snapshots[ $post_id ] = $thumbnail_id;
+		}
+	}
+
+	/**
+	 * Restore a thumbnail deleted by Tutor LMS during Gutenberg's meta box loader save.
+	 *
+	 * @since 1.14.3
+	 * @param int     $post_id Lesson post ID.
+	 * @param WP_Post $post    Lesson post object.
+	 * @param bool    $update  Whether this is an existing post update.
+	 * @return void
+	 */
+	public function restore_meta_box_loader_thumbnail_snapshot( $post_id, $post, $update ) {
+		$post_id = absint( $post_id );
+		if ( ! $post_id ) {
+			return;
+		}
+
+		$thumbnail_id = $this->meta_box_loader_thumbnail_snapshots[ $post_id ] ?? 0;
+		unset( $this->meta_box_loader_thumbnail_snapshots[ $post_id ] );
+
+		if ( ! $thumbnail_id || ! $this->is_gutenberg_meta_box_loader_lesson_save( $post_id, $post, $update ) ) {
+			return;
+		}
+
+		if ( absint( get_post_thumbnail_id( $post_id ) ) > 0 ) {
+			return;
+		}
+
+		if ( ! $this->is_valid_image_attachment( $thumbnail_id ) ) {
+			return;
+		}
+
+		set_post_thumbnail( $post_id, $thumbnail_id );
+	}
+
+	/**
 	 * Whether a request is an existing lesson REST update that omitted image fields.
 	 *
 	 * @since 1.14.3
@@ -570,6 +672,78 @@ class TutorPress_Lesson {
 	 */
 	private function php_request_has_thumbnail_id() {
 		return array_key_exists( 'thumbnail_id', $_POST ) || array_key_exists( 'thumbnail_id', $_REQUEST );
+	}
+
+	/**
+	 * Whether the current request is Gutenberg's classic meta box loader save.
+	 *
+	 * @since 1.14.3
+	 * @param int          $post_id Lesson post ID.
+	 * @param WP_Post|null $post    Lesson post object.
+	 * @param bool         $update  Whether this is an existing post update.
+	 * @return bool
+	 */
+	private function is_gutenberg_meta_box_loader_lesson_save( $post_id, $post, $update ) {
+		if ( ! $update || ! is_admin() || wp_doing_ajax() ) {
+			return false;
+		}
+
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return false;
+		}
+
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+		if ( 'POST' !== strtoupper( $request_method ) ) {
+			return false;
+		}
+
+		$script_name = isset( $_SERVER['SCRIPT_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SCRIPT_NAME'] ) ) : '';
+		if ( 'post.php' !== basename( $script_name ) ) {
+			return false;
+		}
+
+		$meta_box_loader = isset( $_GET['meta-box-loader'] ) ? sanitize_text_field( wp_unslash( $_GET['meta-box-loader'] ) ) : '';
+		$action          = isset( $_GET['action'] ) ? sanitize_text_field( wp_unslash( $_GET['action'] ) ) : '';
+		$request_post_id = isset( $_GET['post'] ) ? absint( wp_unslash( $_GET['post'] ) ) : 0;
+
+		if ( '1' !== $meta_box_loader || 'edit' !== $action || $request_post_id !== absint( $post_id ) ) {
+			return false;
+		}
+
+		if ( ! $post instanceof WP_Post || $this->token !== $post->post_type ) {
+			return false;
+		}
+
+		if ( $this->php_request_has_thumbnail_id() || $this->php_request_has_core_featured_image_field() ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Whether PHP request globals include WordPress core featured-image fields.
+	 *
+	 * @since 1.14.3
+	 * @return bool
+	 */
+	private function php_request_has_core_featured_image_field() {
+		return array_key_exists( 'featured_media', $_POST )
+			|| array_key_exists( 'featured_media', $_REQUEST )
+			|| array_key_exists( '_thumbnail_id', $_POST )
+			|| array_key_exists( '_thumbnail_id', $_REQUEST );
+	}
+
+	/**
+	 * Whether an attachment ID is a valid image attachment.
+	 *
+	 * @since 1.14.3
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	private function is_valid_image_attachment( $attachment_id ) {
+		$attachment_id = absint( $attachment_id );
+		return $attachment_id > 0 && 'attachment' === get_post_type( $attachment_id ) && wp_attachment_is_image( $attachment_id );
 	}
 
 	/**
