@@ -251,7 +251,7 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
      * @param string $feature Feature identifier
      * @return mixed Capability string, array, or callable
      */
-    private function get_capability_rule_for_feature(string $feature): mixed {
+    private function get_capability_rule_for_feature(string $feature) {
         $rules = [
             // Course and lesson management
             'course_creation' => 'edit_posts',
@@ -303,7 +303,7 @@ class TutorPress_Feature_Flags implements TutorPress_Feature_Flags_Interface {
      * @param array $context Additional context
      * @return bool True if user has permission
      */
-    private function evaluate_capability_rule(mixed $rule, ?int $user_id, array $context): bool {
+    private function evaluate_capability_rule($rule, ?int $user_id, array $context): bool {
         $user_id = $user_id ?: get_current_user_id();
         
         if (is_callable($rule)) {

@@ -46,12 +46,21 @@ class TutorPress_Lesson {
 	private $meta_box_loader_thumbnail_snapshots = [];
 
 	/**
+	 * Lesson sync context and intent helper.
+	 *
+	 * @since 1.14.3
+	 * @var TutorPress_Lesson_Sync_Context
+	 */
+	private $sync_context;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.14.3
 	 */
 	public function __construct() {
 		$this->token = 'lesson';
+		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
 
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -634,34 +643,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_omitted_image_core_rest_lesson_update( $prepared_post, $request ) {
-		if ( ! $request instanceof WP_REST_Request ) {
-			return false;
-		}
-
-		$post_id = isset( $prepared_post->ID ) ? absint( $prepared_post->ID ) : 0;
-		if ( ! $post_id ) {
-			return false;
-		}
-
-		$post = get_post( $post_id );
-		if ( ! $post || $this->token !== $post->post_type ) {
-			return false;
-		}
-
-		if ( ! in_array( $request->get_method(), array( 'POST', 'PUT', 'PATCH' ), true ) ) {
-			return false;
-		}
-
-		$route_pattern = '#^/wp/v2/' . preg_quote( $this->token, '#' ) . '/' . $post_id . '$#';
-		if ( ! preg_match( $route_pattern, $request->get_route() ) ) {
-			return false;
-		}
-
-		if ( $request->has_param( 'featured_media' ) || $request->has_param( 'thumbnail_id' ) ) {
-			return false;
-		}
-
-		return ! $this->php_request_has_thumbnail_id();
+		return $this->sync_context->is_omitted_image_core_rest_lesson_update( $prepared_post, $request );
 	}
 
 	/**
@@ -671,7 +653,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function php_request_has_thumbnail_id() {
-		return array_key_exists( 'thumbnail_id', $_POST ) || array_key_exists( 'thumbnail_id', $_REQUEST );
+		return $this->sync_context->php_request_has_thumbnail_id();
 	}
 
 	/**
@@ -684,41 +666,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_gutenberg_meta_box_loader_lesson_save( $post_id, $post, $update ) {
-		if ( ! $update || ! is_admin() || wp_doing_ajax() ) {
-			return false;
-		}
-
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-			return false;
-		}
-
-		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
-		if ( 'POST' !== strtoupper( $request_method ) ) {
-			return false;
-		}
-
-		$script_name = isset( $_SERVER['SCRIPT_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SCRIPT_NAME'] ) ) : '';
-		if ( 'post.php' !== basename( $script_name ) ) {
-			return false;
-		}
-
-		$meta_box_loader = isset( $_GET['meta-box-loader'] ) ? sanitize_text_field( wp_unslash( $_GET['meta-box-loader'] ) ) : '';
-		$action          = isset( $_GET['action'] ) ? sanitize_text_field( wp_unslash( $_GET['action'] ) ) : '';
-		$request_post_id = isset( $_GET['post'] ) ? absint( wp_unslash( $_GET['post'] ) ) : 0;
-
-		if ( '1' !== $meta_box_loader || 'edit' !== $action || $request_post_id !== absint( $post_id ) ) {
-			return false;
-		}
-
-		if ( ! $post instanceof WP_Post || $this->token !== $post->post_type ) {
-			return false;
-		}
-
-		if ( $this->php_request_has_thumbnail_id() || $this->php_request_has_core_featured_image_field() ) {
-			return false;
-		}
-
-		return true;
+		return $this->sync_context->is_gutenberg_meta_box_loader_lesson_save( $post_id, $post, $update );
 	}
 
 	/**
@@ -728,10 +676,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function php_request_has_core_featured_image_field() {
-		return array_key_exists( 'featured_media', $_POST )
-			|| array_key_exists( 'featured_media', $_REQUEST )
-			|| array_key_exists( '_thumbnail_id', $_POST )
-			|| array_key_exists( '_thumbnail_id', $_REQUEST );
+		return $this->sync_context->php_request_has_core_featured_image_field();
 	}
 
 	/**
@@ -742,8 +687,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_valid_image_attachment( $attachment_id ) {
-		$attachment_id = absint( $attachment_id );
-		return $attachment_id > 0 && 'attachment' === get_post_type( $attachment_id ) && wp_attachment_is_image( $attachment_id );
+		return $this->sync_context->is_valid_image_attachment( $attachment_id );
 	}
 
 	/**
@@ -1033,23 +977,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_frontend_builder_no_video_save() {
-		if ( ! isset( $_POST['action'] ) ) {
-			return false;
-		}
-
-		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
-		if ( 'tutor_save_lesson' !== $action ) {
-			return false;
-		}
-
-		$video_post = array();
-		if ( isset( $_POST['video'] ) && is_array( $_POST['video'] ) ) {
-			$video_post = wp_unslash( $_POST['video'] );
-		}
-
-		$video_source = isset( $video_post['source'] ) ? sanitize_text_field( $video_post['source'] ) : '';
-
-		return '-1' === $video_source;
+		return $this->sync_context->is_frontend_builder_no_video_save();
 	}
 
 	/**
@@ -1086,16 +1014,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_frontend_builder_attachment_save() {
-		if ( ! isset( $_POST['action'] ) ) {
-			return false;
-		}
-
-		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
-		if ( 'tutor_save_lesson' !== $action ) {
-			return false;
-		}
-
-		return array_key_exists( 'tutor_attachments', $_POST );
+		return $this->sync_context->is_frontend_builder_attachment_save();
 	}
 
 	/**
@@ -1123,20 +1042,7 @@ class TutorPress_Lesson {
 	 * @return bool
 	 */
 	private function is_frontend_builder_delete_all_attachment_save( $post_id ) {
-		if ( ! isset( $_POST['action'] ) ) {
-			return false;
-		}
-
-		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
-		if ( 'tutor_save_lesson' !== $action ) {
-			return false;
-		}
-
-		if ( array_key_exists( 'tutor_attachments', $_POST ) ) {
-			return false;
-		}
-
-		return empty( get_post_meta( $post_id, '_tutor_attachments', true ) );
+		return $this->sync_context->is_frontend_builder_delete_all_attachment_save( $post_id );
 	}
 
 	/**
