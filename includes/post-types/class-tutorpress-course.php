@@ -32,12 +32,21 @@ class TutorPress_Course {
     public $token;
 
     /**
+     * Course sync context helper.
+     *
+     * @since 1.14.3
+     * @var TutorPress_Course_Sync_Context
+     */
+    private $sync_context;
+
+    /**
      * Constructor.
      *
      * @since 1.14.2
      */
     public function __construct() {
         $this->token = 'courses';
+        $this->sync_context = new TutorPress_Course_Sync_Context( $this->token );
 
         // Initialize meta fields and REST API support
         add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -519,13 +528,7 @@ class TutorPress_Course {
      * @return void
      */
     public function meta_box_save( $post_id ) {
-        // Only process courses
-        if ( ! $post_id || get_post_type( $post_id ) !== 'courses' ) {
-            return;
-        }
-
-        // Check if this is an autosave
-        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        if ( $this->sync_context->should_skip_metabox_save( $post_id ) ) {
             return;
         }
 
@@ -1488,12 +1491,12 @@ class TutorPress_Course {
             'tutor_course_selling_option'
         ];
         
-        if (!in_array($meta_key, $tutor_fields) || get_post_type($post_id) !== 'courses') {
+        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, $tutor_fields ) ) {
             return;
         }
 
         // Skip if we're currently syncing to Tutor LMS
-        if (get_post_meta($post_id, '_tutorpress_syncing_to_tutor', true)) {
+        if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
             return;
         }
 
@@ -1566,18 +1569,17 @@ class TutorPress_Course {
      */
     public function handle_tutor_course_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
         // Only handle _tutor_course_settings updates for courses
-        if ($meta_key !== '_tutor_course_settings' || get_post_type($post_id) !== 'courses') {
+        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_course_settings' ) ) ) {
             return;
         }
 
         // Skip if we're currently syncing to Tutor LMS
-        if (get_post_meta($post_id, '_tutorpress_syncing_to_tutor', true)) {
+        if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
             return;
         }
 
         // Avoid rapid updates
-        $last_sync = get_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', true);
-        if ($last_sync && (time() - $last_sync) < 5) {
+        if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_tutor_settings_last_sync' ) ) {
             return;
         }
 
@@ -1599,13 +1601,12 @@ class TutorPress_Course {
      */
     public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
         // Only handle _tutor_attachments updates for courses
-        if ($meta_key !== '_tutor_attachments' || get_post_type($post_id) !== 'courses') {
+        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_attachments' ) ) ) {
             return;
         }
 
         // Avoid infinite loops
-        $our_last_update = get_post_meta($post_id, '_tutorpress_attachments_last_sync', true);
-        if ($our_last_update && (time() - $our_last_update) < 5) {
+        if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_attachments_last_sync' ) ) {
             return;
         }
 
@@ -1645,7 +1646,7 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_rest_course_update( $post, $request, $creating ) {
-        if ($post->post_type !== 'courses') {
+        if ( ! $this->sync_context->is_rest_after_insert_course( $post ) ) {
             return;
         }
 
@@ -1656,7 +1657,7 @@ class TutorPress_Course {
         }
 
         // Handle intro video sync
-        if (isset($settings['intro_video'])) {
+        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'intro_video' ) ) {
             $intro_video = $settings['intro_video'];
             if (is_array($intro_video)) {
                 update_post_meta($post->ID, '_video', $intro_video);
@@ -1664,11 +1665,11 @@ class TutorPress_Course {
         }
 
         // Handle other course media fields
-        if (isset($settings['course_material_includes'])) {
+        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'course_material_includes' ) ) {
             update_post_meta($post->ID, '_tutor_course_material_includes', $settings['course_material_includes']);
         }
 
-        if (isset($settings['attachments'])) {
+        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'attachments' ) ) {
             $attachment_ids = is_array($settings['attachments']) ? array_map('absint', $settings['attachments']) : [];
             update_post_meta($post->ID, '_tutor_course_attachments', $attachment_ids);
             update_post_meta($post->ID, '_tutor_attachments', $attachment_ids);
@@ -1680,14 +1681,7 @@ class TutorPress_Course {
      * This uses the simple merge strategy from the working implementations
      */
     public function sync_on_course_save($post_id, $post, $update) {
-        // Skip autosaves and revisions
-        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
-            return;
-        }
-
-        // If we just synced course_settings via REST (handle_course_settings_update), skip this pass
-        $last_rest_sync = get_post_meta($post_id, '_tutorpress_course_settings_last_sync', true);
-        if ($last_rest_sync && (time() - (int) $last_rest_sync) < 5) {
+        if ( $this->sync_context->should_skip_save_boundary_sync( $post_id ) ) {
             return;
         }
 
