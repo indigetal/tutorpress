@@ -70,15 +70,6 @@ class TutorPress_Lesson {
 		$this->token = 'lesson';
 		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
 		$this->sync_service = new TutorPress_Lesson_Sync_Service( [
-			'get_lesson_settings' => function( $post ) {
-				return $this->get_lesson_settings_impl( $post );
-			},
-			'update_lesson_settings' => function( $value, $post ) {
-				return $this->update_lesson_settings_impl( $value, $post );
-			},
-			'sanitize_lesson_settings' => function( $settings ) {
-				return $this->sanitize_lesson_settings_impl( $settings );
-			},
 			'handle_tutor_video_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
 				$this->handle_tutor_video_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
 			},
@@ -93,6 +84,24 @@ class TutorPress_Lesson {
 			},
 			'sync_on_lesson_save' => function( $post_id, $post, $update ) {
 				$this->sync_on_lesson_save_impl( $post_id, $post, $update );
+			},
+			'sanitize_video_source' => function( $source ) {
+				return $this->sanitize_video_source( $source );
+			},
+			'sanitize_embedded_code' => function( $code ) {
+				return $this->sanitize_embedded_code( $code );
+			},
+			'sanitize_attachment_ids' => function( $ids ) {
+				return $this->sanitize_attachment_ids( $ids );
+			},
+			'sync_exercise_files' => function( $post_id ) {
+				$this->sync_exercise_files( $post_id );
+			},
+			'sync_lesson_preview' => function( $post_id ) {
+				$this->sync_lesson_preview( $post_id );
+			},
+			'sync_to_tutor_video_format' => function( $post_id ) {
+				$this->sync_to_tutor_video_format( $post_id );
 			},
 		] );
 
@@ -348,56 +357,6 @@ class TutorPress_Lesson {
 	}
 
 	/**
-	 * Existing lesson settings read implementation.
-	 *
-	 * @since 1.14.3
-	 * @param array $post Post data.
-	 * @return array Lesson settings.
-	 */
-	private function get_lesson_settings_impl( $post ) {
-		$post_id = $post['id'];
-
-		$course_preview_available = tutorpress_feature_flags()->can_user_access_feature('course_preview');
-
-		$gutenberg_preview = get_post_meta( $post_id, '_lesson_is_preview', true );
-		$tutor_preview = get_post_meta( $post_id, '_is_preview', true );
-
-		if ( $course_preview_available ) {
-			$tutor_preview_bool = ! empty( $tutor_preview );
-			$gutenberg_preview_bool = ! empty( $gutenberg_preview );
-			if ( $tutor_preview_bool !== $gutenberg_preview_bool ) {
-				update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', time() );
-				update_post_meta( $post_id, '_lesson_is_preview', $tutor_preview_bool );
-				delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
-				$gutenberg_preview = $tutor_preview_bool;
-			}
-		}
-
-		return [
-			'video' => [
-				'source' => get_post_meta( $post_id, '_lesson_video_source', true ),
-				'source_video_id' => (int) get_post_meta( $post_id, '_lesson_video_source_id', true ),
-				'source_external_url' => get_post_meta( $post_id, '_lesson_video_external_url', true ),
-				'source_youtube' => get_post_meta( $post_id, '_lesson_video_youtube', true ),
-				'source_vimeo' => get_post_meta( $post_id, '_lesson_video_vimeo', true ),
-				'source_embedded' => get_post_meta( $post_id, '_lesson_video_embedded', true ),
-				'source_shortcode' => get_post_meta( $post_id, '_lesson_video_shortcode', true ),
-				'poster' => get_post_meta( $post_id, '_lesson_video_poster', true ),
-			],
-			'duration' => [
-				'hours' => (int) get_post_meta( $post_id, '_lesson_video_duration_hours', true ),
-				'minutes' => (int) get_post_meta( $post_id, '_lesson_video_duration_minutes', true ),
-				'seconds' => (int) get_post_meta( $post_id, '_lesson_video_duration_seconds', true ),
-			],
-			'exercise_files' => array_map( 'intval', get_post_meta( $post_id, '_lesson_exercise_files', true ) ?: [] ),
-			'lesson_preview' => [
-				'enabled' => (bool) $gutenberg_preview,
-				'addon_available' => $course_preview_available,
-			],
-		];
-	}
-
-	/**
 	 * Update lesson settings via REST API.
 	 *
 	 * Placeholder implementation. Future steps will persist to canonical meta
@@ -413,83 +372,6 @@ class TutorPress_Lesson {
 	}
 
 	/**
-	 * Existing lesson settings update implementation.
-	 *
-	 * @since 1.14.3
-	 * @param array   $value New settings values.
-	 * @param WP_Post $post  Post object.
-	 * @return bool True on success.
-	 */
-	private function update_lesson_settings_impl( $value, $post ) {
-		$post_id = $post->ID;
-		if ( ! is_array( $value ) ) {
-			return false;
-		}
-
-		// Video
-		if ( isset( $value['video'] ) && is_array( $value['video'] ) ) {
-			$video = $value['video'];
-			if ( isset( $video['source'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_source', $this->sanitize_video_source( $video['source'] ) );
-			}
-			if ( isset( $video['source_video_id'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_source_id', absint( $video['source_video_id'] ) );
-			}
-			if ( isset( $video['source_external_url'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_external_url', esc_url_raw( $video['source_external_url'] ) );
-			}
-			if ( isset( $video['source_youtube'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_youtube', sanitize_text_field( $video['source_youtube'] ) );
-			}
-			if ( isset( $video['source_vimeo'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_vimeo', sanitize_text_field( $video['source_vimeo'] ) );
-			}
-			if ( isset( $video['source_embedded'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_embedded', $this->sanitize_embedded_code( $video['source_embedded'] ) );
-			}
-			if ( isset( $video['source_shortcode'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_shortcode', sanitize_text_field( $video['source_shortcode'] ) );
-			}
-			if ( isset( $video['poster'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_poster', esc_url_raw( $video['poster'] ) );
-			}
-		}
-
-		// Duration
-		if ( isset( $value['duration'] ) && is_array( $value['duration'] ) ) {
-			$duration = $value['duration'];
-			if ( isset( $duration['hours'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_hours', absint( $duration['hours'] ) );
-			}
-			if ( isset( $duration['minutes'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_minutes', min( 59, absint( $duration['minutes'] ) ) );
-			}
-			if ( isset( $duration['seconds'] ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_seconds', min( 59, absint( $duration['seconds'] ) ) );
-			}
-		}
-
-		// Exercise files
-		if ( isset( $value['exercise_files'] ) ) {
-			$ids = $this->sanitize_attachment_ids( $value['exercise_files'] );
-			update_post_meta( $post_id, '_lesson_exercise_files', $ids );
-			$this->sync_exercise_files( $post_id );
-		}
-
-		// Lesson preview (addon-gated)
-		if ( isset( $value['lesson_preview']['enabled'] ) && tutorpress_feature_flags()->can_user_access_feature('course_preview') ) {
-			$is_preview = rest_sanitize_boolean( $value['lesson_preview']['enabled'] );
-			update_post_meta( $post_id, '_lesson_is_preview', $is_preview );
-			$this->sync_lesson_preview( $post_id );
-		}
-
-		// Sync to Tutor LMS native video format
-		$this->sync_to_tutor_video_format( $post_id );
-
-		return true;
-	}
-
-	/**
 	 * Sanitize lesson settings.
 	 *
 	 * @since 1.14.3
@@ -498,59 +380,6 @@ class TutorPress_Lesson {
 	 */
 	public function sanitize_lesson_settings( $settings ) {
 		return $this->sync_service->sanitize_lesson_settings( $settings );
-	}
-
-	/**
-	 * Existing lesson settings sanitization implementation.
-	 *
-	 * @since 1.14.3
-	 * @param array $settings Lesson settings to sanitize.
-	 * @return array Sanitized settings.
-	 */
-	private function sanitize_lesson_settings_impl( $settings ) {
-		if ( ! is_array( $settings ) ) {
-			return [];
-		}
-
-		$sanitized = [];
-
-		if ( isset( $settings['video'] ) && is_array( $settings['video'] ) ) {
-			$video = $settings['video'];
-			$sanitized['video'] = [
-				'source'             => sanitize_text_field( $video['source'] ?? '' ),
-				'source_video_id'    => absint( $video['source_video_id'] ?? 0 ),
-				'source_external_url' => esc_url_raw( $video['source_external_url'] ?? '' ),
-				'source_youtube'     => sanitize_text_field( $video['source_youtube'] ?? '' ),
-				'source_vimeo'       => sanitize_text_field( $video['source_vimeo'] ?? '' ),
-				'source_embedded'    => wp_kses_post( $video['source_embedded'] ?? '' ),
-				'source_shortcode'   => sanitize_text_field( $video['source_shortcode'] ?? '' ),
-				'poster'             => esc_url_raw( $video['poster'] ?? '' ),
-			];
-		}
-
-		if ( isset( $settings['duration'] ) && is_array( $settings['duration'] ) ) {
-			$duration = $settings['duration'];
-			$sanitized['duration'] = [
-				'hours'   => absint( $duration['hours'] ?? 0 ),
-				'minutes' => min( 59, absint( $duration['minutes'] ?? 0 ) ),
-				'seconds' => min( 59, absint( $duration['seconds'] ?? 0 ) ),
-			];
-		}
-
-		if ( isset( $settings['exercise_files'] ) ) {
-			$ids = $settings['exercise_files'];
-			$sanitized['exercise_files'] = is_array( $ids ) ? array_map( 'absint', $ids ) : [];
-		}
-
-		if ( isset( $settings['lesson_preview'] ) && is_array( $settings['lesson_preview'] ) ) {
-			$lp = $settings['lesson_preview'];
-			$sanitized['lesson_preview'] = [
-				'enabled'         => (bool) ( $lp['enabled'] ?? false ),
-				'addon_available' => (bool) ( $lp['addon_available'] ?? false ),
-			];
-		}
-
-		return $sanitized;
 	}
 
 	/**
