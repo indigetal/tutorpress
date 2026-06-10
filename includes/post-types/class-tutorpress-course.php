@@ -685,20 +685,8 @@ class TutorPress_Course {
      * @return array Course settings.
      */
     public static function get_canonical_course_settings( $post_id ) {
-        // Course Details Section: Read from individual Tutor LMS meta fields
-        $course_level = get_post_meta($post_id, '_tutor_course_level', true);
-        $is_public_course = get_post_meta($post_id, '_tutor_is_public_course', true);
-        $enable_qna = get_post_meta($post_id, '_tutor_enable_qa', true);
-        $course_duration = get_post_meta($post_id, '_course_duration', true);
-        
-        // Course Media Section: Read from individual Tutor LMS meta fields
-        $course_material_includes = get_post_meta($post_id, '_tutor_course_material_includes', true);
         $intro_video = get_post_meta($post_id, '_video', true);
-        
-        // Validate and set defaults for Course Details fields
-        if (!is_array($course_duration)) {
-            $course_duration = ['hours' => 0, 'minutes' => 0];
-        }
+        $core_settings = TutorPress_Course_Sync_Service::get_core_details_and_material_settings( $post_id );
         
         // Future sections: Read from _tutor_course_settings (when we implement them)
         $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
@@ -707,13 +695,7 @@ class TutorPress_Course {
         }
         
         // Build settings structure (preserving Tutor LMS compatibility)
-        $settings = [
-            // Course Details Section (individual meta fields)
-            'course_level' => $course_level ?: 'all_levels',
-            'is_public_course' => $is_public_course === 'yes',
-            'enable_qna' => $enable_qna !== 'no',
-            'course_duration' => $course_duration,
-            
+        $settings = array_merge( $core_settings, [
             // Access & Enrollment (prefer canonical Tutor meta over _tutor_course_settings to avoid stale data)
             'maximum_students' => (function() use ($post_id, $tutor_settings) {
                 // Prioritize _tutor_course_settings if it explicitly contains null or 0 (recent save via REST)
@@ -764,7 +746,6 @@ class TutorPress_Course {
                 'poster' => '',
             ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? [], is_array($intro_video) ? $intro_video : []),
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
-            'course_material_includes' => $course_material_includes ?: '',
             
             // Pricing Model Section: Read from individual Tutor LMS meta fields
             'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
@@ -785,7 +766,7 @@ class TutorPress_Course {
             // Course Instructors Section: Read from individual Tutor LMS meta fields
             'instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [],
             'additional_instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [], // Alias for compatibility
-        ];
+        ] );
 
         // Do not override from stored course_settings here; rely on canonical Tutor meta + computed values
         return $settings;
@@ -824,25 +805,7 @@ class TutorPress_Course {
         update_post_meta( $post_id, '_tutorpress_syncing', true );
 
         try {
-            if ( array_key_exists( 'course_level', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_course_level', $normalized_settings['course_level'] );
-            }
-
-            if ( array_key_exists( 'is_public_course', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_is_public_course', $normalized_settings['is_public_course'] ? 'yes' : 'no' );
-            }
-
-            if ( array_key_exists( 'enable_qna', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_enable_qa', $normalized_settings['enable_qna'] ? 'yes' : 'no' );
-            }
-
-            if ( array_key_exists( 'course_duration', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_course_duration', $normalized_settings['course_duration'] );
-            }
-
-            if ( array_key_exists( 'course_material_includes', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_course_material_includes', $normalized_settings['course_material_includes'] );
-            }
+            TutorPress_Course_Sync_Service::save_core_details_and_materials( $post_id, $normalized_settings, $existing_tutor_settings );
 
             if ( array_key_exists( 'intro_video', $normalized_settings ) ) {
                 update_post_meta( $post_id, '_video', $normalized_settings['intro_video'] );
@@ -921,11 +884,6 @@ class TutorPress_Course {
             }
 
             foreach ( [
-                'course_level',
-                'is_public_course',
-                'enable_qna',
-                'course_duration',
-                'course_material_includes',
                 'intro_video',
                 'attachments',
                 'pricing_model',
@@ -967,49 +925,6 @@ class TutorPress_Course {
     }
 
     /**
-     * Normalize a duration member while preserving explicit empty strings.
-     *
-     * @since 1.14.2
-     * @param mixed    $value Raw duration member.
-     * @param int|null $max   Optional upper bound.
-     * @return int|string
-     */
-    private static function normalize_course_duration_value( $value, $max = null ) {
-        if ( '' === $value ) {
-            return '';
-        }
-
-        $normalized = absint( $value );
-
-        if ( is_int( $max ) ) {
-            return min( $max, $normalized );
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Normalize course duration while preserving explicit empty-string members.
-     *
-     * @since 1.14.2
-     * @param mixed $duration Raw duration payload.
-     * @return array{hours:int|string,minutes:int|string}
-     */
-    private static function normalize_course_duration_for_save( $duration ) {
-        if ( ! is_array( $duration ) ) {
-            return [
-                'hours'   => 0,
-                'minutes' => 0,
-            ];
-        }
-
-        return [
-            'hours'   => self::normalize_course_duration_value( $duration['hours'] ?? 0 ),
-            'minutes' => self::normalize_course_duration_value( $duration['minutes'] ?? 0, 59 ),
-        ];
-    }
-
-    /**
      * Normalize incoming course settings for the shared saver.
      *
      * @since 1.14.2
@@ -1017,29 +932,7 @@ class TutorPress_Course {
      * @return array Normalized settings payload.
      */
     private static function normalize_course_settings_for_save( array $settings ) {
-        $normalized = [];
-
-        if ( array_key_exists( 'course_level', $settings ) ) {
-            $allowed_levels = [ 'beginner', 'intermediate', 'expert', 'all_levels' ];
-            $course_level = sanitize_text_field( (string) $settings['course_level'] );
-            $normalized['course_level'] = in_array( $course_level, $allowed_levels, true ) ? $course_level : 'all_levels';
-        }
-
-        if ( array_key_exists( 'is_public_course', $settings ) ) {
-            $normalized['is_public_course'] = (bool) $settings['is_public_course'];
-        }
-
-        if ( array_key_exists( 'enable_qna', $settings ) ) {
-            $normalized['enable_qna'] = (bool) $settings['enable_qna'];
-        }
-
-        if ( array_key_exists( 'course_duration', $settings ) ) {
-            $normalized['course_duration'] = self::normalize_course_duration_for_save( $settings['course_duration'] );
-        }
-
-        if ( array_key_exists( 'course_material_includes', $settings ) ) {
-            $normalized['course_material_includes'] = sanitize_textarea_field( (string) $settings['course_material_includes'] );
-        }
+        $normalized = TutorPress_Course_Sync_Service::normalize_core_details_and_materials_for_save( $settings );
 
         if ( array_key_exists( 'intro_video', $settings ) ) {
             $intro_video = is_array( $settings['intro_video'] ) ? $settings['intro_video'] : [];
@@ -1190,31 +1083,7 @@ class TutorPress_Course {
             return [];
         }
         
-        $sanitized = [];
-        
-        // Course Details Section: Sanitize individual fields
-        if (isset($settings['course_level'])) {
-            $allowed_levels = ['beginner', 'intermediate', 'expert', 'all_levels'];
-            $sanitized['course_level'] = in_array($settings['course_level'], $allowed_levels) ? $settings['course_level'] : 'all_levels';
-        }
-        
-        if (isset($settings['is_public_course'])) {
-            $sanitized['is_public_course'] = (bool) $settings['is_public_course'];
-        }
-        
-        if (isset($settings['enable_qna'])) {
-            $sanitized['enable_qna'] = (bool) $settings['enable_qna'];
-        }
-        
-        if (isset($settings['course_duration'])) {
-            $duration = $settings['course_duration'];
-            $sanitized['course_duration'] = self::normalize_course_duration_for_save( $duration );
-        }
-        
-        // Course Media Section: Sanitize individual fields
-        if (isset($settings['course_material_includes'])) {
-            $sanitized['course_material_includes'] = sanitize_textarea_field($settings['course_material_includes']);
-        }
+        $sanitized = TutorPress_Course_Sync_Service::sanitize_core_details_and_materials( $settings );
         
         if (isset($settings['intro_video'])) {
             $intro_video = $settings['intro_video'];
