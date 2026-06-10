@@ -379,6 +379,165 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Read intro video settings with _video as the final canonical overlay.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id        Course post ID.
+	 * @param array $tutor_settings Existing Tutor settings blob.
+	 * @return array Intro video settings.
+	 */
+	public static function get_intro_video_settings( $post_id, array $tutor_settings ) {
+		$intro_video = get_post_meta( $post_id, '_video', true );
+
+		return array(
+			'intro_video' => array_merge(
+				self::get_default_intro_video(),
+				$tutor_settings['featured_video'] ?? array(),
+				$tutor_settings['intro_video'] ?? array(),
+				is_array( $intro_video ) ? $intro_video : array()
+			),
+		);
+	}
+
+	/**
+	 * Normalize intro video settings for canonical saves.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Normalized settings payload.
+	 */
+	public static function normalize_intro_video_for_save( array $settings ) {
+		$normalized = array();
+
+		if ( array_key_exists( 'intro_video', $settings ) ) {
+			$intro_video = is_array( $settings['intro_video'] ) ? $settings['intro_video'] : array();
+			$normalized['intro_video'] = array(
+				'source'              => sanitize_text_field( (string) ( $intro_video['source'] ?? '' ) ),
+				'source_video_id'     => absint( $intro_video['source_video_id'] ?? 0 ),
+				'source_youtube'      => sanitize_text_field( (string) ( $intro_video['source_youtube'] ?? '' ) ),
+				'source_vimeo'        => sanitize_text_field( (string) ( $intro_video['source_vimeo'] ?? '' ) ),
+				'source_external_url' => sanitize_text_field( (string) ( $intro_video['source_external_url'] ?? '' ) ),
+				'source_embedded'     => sanitize_text_field( (string) ( $intro_video['source_embedded'] ?? '' ) ),
+				'source_shortcode'    => sanitize_text_field( (string) ( $intro_video['source_shortcode'] ?? '' ) ),
+				'poster'              => sanitize_text_field( (string) ( $intro_video['poster'] ?? '' ) ),
+			);
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Sanitize intro video settings for direct shadow meta writes.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Sanitized settings payload.
+	 */
+	public static function sanitize_intro_video( array $settings ) {
+		if ( ! isset( $settings['intro_video'] ) ) {
+			return array();
+		}
+
+		$sanitized = self::normalize_intro_video_for_save( $settings );
+		$allowed_sources = array( '', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode' );
+
+		if ( ! in_array( $sanitized['intro_video']['source'], $allowed_sources, true ) ) {
+			$sanitized['intro_video']['source'] = '';
+		}
+
+		switch ( $sanitized['intro_video']['source'] ) {
+			case 'html5':
+				if ( $sanitized['intro_video']['source_video_id'] <= 0 ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_video_id' ) );
+				}
+				break;
+			case 'youtube':
+				if ( '' === $sanitized['intro_video']['source_youtube'] ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_youtube' ) );
+				}
+				break;
+			case 'vimeo':
+				if ( '' === $sanitized['intro_video']['source_vimeo'] ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_vimeo' ) );
+				}
+				break;
+			case 'external_url':
+				if ( '' === $sanitized['intro_video']['source_external_url'] ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_external_url' ) );
+				}
+				break;
+			case 'embedded':
+				if ( '' === $sanitized['intro_video']['source_embedded'] ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_embedded' ) );
+				}
+				break;
+			case 'shortcode':
+				if ( '' === $sanitized['intro_video']['source_shortcode'] ) {
+					$sanitized['intro_video']['source'] = '';
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				} else {
+					self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array( 'source_shortcode' ) );
+				}
+				break;
+			default:
+				self::clear_intro_video_non_applicable_fields( $sanitized['intro_video'], array() );
+				break;
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Save intro video settings.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id                 Course post ID.
+	 * @param array $normalized_settings     Normalized settings payload.
+	 * @param array $existing_tutor_settings Existing Tutor settings blob.
+	 * @return void
+	 */
+	public static function save_intro_video( $post_id, array $normalized_settings, array &$existing_tutor_settings ) {
+		if ( array_key_exists( 'intro_video', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_video', $normalized_settings['intro_video'] );
+			$existing_tutor_settings['intro_video'] = $normalized_settings['intro_video'];
+		}
+	}
+
+	/**
+	 * Save the REST after-insert intro video subset behavior.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id  Course post ID.
+	 * @param array $settings REST course settings payload.
+	 * @return void
+	 */
+	public function save_rest_after_insert_intro_video( $post_id, array $settings ) {
+		if ( ! $this->sync_context->has_rest_after_insert_settings_key( $settings, 'intro_video' ) ) {
+			return;
+		}
+
+		$intro_video = $settings['intro_video'];
+		if ( is_array( $intro_video ) ) {
+			update_post_meta( $post_id, '_video', $intro_video );
+		}
+	}
+
+	/**
 	 * Read maximum students with Tutor settings blob precedence.
 	 *
 	 * @since 1.14.3
@@ -424,6 +583,45 @@ class TutorPress_Course_Sync_Service {
 		}
 
 		return 'no';
+	}
+
+	/**
+	 * Get the default intro video shape.
+	 *
+	 * @since 1.14.3
+	 * @return array Default intro video data.
+	 */
+	private static function get_default_intro_video() {
+		return array(
+			'source'              => '',
+			'source_video_id'     => 0,
+			'source_youtube'      => '',
+			'source_vimeo'        => '',
+			'source_external_url' => '',
+			'source_embedded'     => '',
+			'source_shortcode'    => '',
+			'poster'              => '',
+		);
+	}
+
+	/**
+	 * Clear intro video fields outside the selected source.
+	 *
+	 * @since 1.14.3
+	 * @param array $intro_video Intro video data.
+	 * @param array $keep_keys   Keys to keep.
+	 * @return void
+	 */
+	private static function clear_intro_video_non_applicable_fields( array &$intro_video, array $keep_keys ) {
+		$keys = array( 'source_video_id', 'source_youtube', 'source_vimeo', 'source_external_url', 'source_embedded', 'source_shortcode' );
+
+		foreach ( $keys as $key ) {
+			if ( in_array( $key, $keep_keys, true ) ) {
+				continue;
+			}
+
+			$intro_video[ $key ] = 'source_video_id' === $key ? 0 : '';
+		}
 	}
 
 	/**

@@ -685,8 +685,6 @@ class TutorPress_Course {
      * @return array Course settings.
      */
     public static function get_canonical_course_settings( $post_id ) {
-        $intro_video = get_post_meta($post_id, '_video', true);
-        
         $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
         if (!is_array($tutor_settings)) {
             $tutor_settings = [];
@@ -694,20 +692,10 @@ class TutorPress_Course {
 
         $core_settings = TutorPress_Course_Sync_Service::get_core_details_and_material_settings( $post_id );
         $access_settings = TutorPress_Course_Sync_Service::get_access_enrollment_prerequisite_and_schedule_settings( $post_id, $tutor_settings );
+        $intro_video_settings = TutorPress_Course_Sync_Service::get_intro_video_settings( $post_id, $tutor_settings );
         
         // Build settings structure (preserving Tutor LMS compatibility)
-        $settings = array_merge( $core_settings, $access_settings, [
-            // Prefer the fresh _video meta over any stale copies in _tutor_course_settings
-            'intro_video' => array_merge([
-                'source' => '',
-                'source_video_id' => 0,
-                'source_youtube' => '',
-                'source_vimeo' => '',
-                'source_external_url' => '',
-                'source_embedded' => '',
-                'source_shortcode' => '',
-                'poster' => '',
-            ], $tutor_settings['featured_video'] ?? [], $tutor_settings['intro_video'] ?? [], is_array($intro_video) ? $intro_video : []),
+        $settings = array_merge( $core_settings, $access_settings, $intro_video_settings, [
             'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
             
             // Pricing Model Section: Read from individual Tutor LMS meta fields
@@ -769,10 +757,7 @@ class TutorPress_Course {
 
         try {
             TutorPress_Course_Sync_Service::save_core_details_and_materials( $post_id, $normalized_settings, $existing_tutor_settings );
-
-            if ( array_key_exists( 'intro_video', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_video', $normalized_settings['intro_video'] );
-            }
+            TutorPress_Course_Sync_Service::save_intro_video( $post_id, $normalized_settings, $existing_tutor_settings );
 
             if ( array_key_exists( 'attachments', $normalized_settings ) ) {
                 update_post_meta( $post_id, '_tutor_course_attachments', $normalized_settings['attachments'] );
@@ -812,7 +797,6 @@ class TutorPress_Course {
             TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
 
             foreach ( [
-                'intro_video',
                 'attachments',
                 'pricing_model',
                 'price',
@@ -861,20 +845,7 @@ class TutorPress_Course {
      */
     private static function normalize_course_settings_for_save( array $settings ) {
         $normalized = TutorPress_Course_Sync_Service::normalize_core_details_and_materials_for_save( $settings );
-
-        if ( array_key_exists( 'intro_video', $settings ) ) {
-            $intro_video = is_array( $settings['intro_video'] ) ? $settings['intro_video'] : [];
-            $normalized['intro_video'] = [
-                'source' => sanitize_text_field( (string) ( $intro_video['source'] ?? '' ) ),
-                'source_video_id' => absint( $intro_video['source_video_id'] ?? 0 ),
-                'source_youtube' => sanitize_text_field( (string) ( $intro_video['source_youtube'] ?? '' ) ),
-                'source_vimeo' => sanitize_text_field( (string) ( $intro_video['source_vimeo'] ?? '' ) ),
-                'source_external_url' => sanitize_text_field( (string) ( $intro_video['source_external_url'] ?? '' ) ),
-                'source_embedded' => sanitize_text_field( (string) ( $intro_video['source_embedded'] ?? '' ) ),
-                'source_shortcode' => sanitize_text_field( (string) ( $intro_video['source_shortcode'] ?? '' ) ),
-                'poster' => sanitize_text_field( (string) ( $intro_video['poster'] ?? '' ) ),
-            ];
-        }
+        $normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_intro_video_for_save( $settings ) );
 
         if ( array_key_exists( 'attachments', $settings ) ) {
             $normalized['attachments'] = is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : [];
@@ -968,112 +939,7 @@ class TutorPress_Course {
         }
         
         $sanitized = TutorPress_Course_Sync_Service::sanitize_core_details_and_materials( $settings );
-        
-        if (isset($settings['intro_video'])) {
-            $intro_video = $settings['intro_video'];
-            if (is_array($intro_video)) {
-                $sanitized['intro_video'] = [
-                    'source' => sanitize_text_field($intro_video['source'] ?? ''),
-                    'source_video_id' => absint($intro_video['source_video_id'] ?? 0),
-                    'source_youtube' => sanitize_text_field($intro_video['source_youtube'] ?? ''),
-                    'source_vimeo' => sanitize_text_field($intro_video['source_vimeo'] ?? ''),
-                    'source_external_url' => sanitize_text_field($intro_video['source_external_url'] ?? ''),
-                    'source_embedded' => sanitize_text_field($intro_video['source_embedded'] ?? ''),
-                    'source_shortcode' => sanitize_text_field($intro_video['source_shortcode'] ?? ''),
-                    'poster' => sanitize_text_field($intro_video['poster'] ?? ''),
-                ];
-
-                // Per-source normalization to prevent stale/cross-source data
-                $allowed_sources = array('', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode');
-                if (!in_array($sanitized['intro_video']['source'], $allowed_sources, true)) {
-                    $sanitized['intro_video']['source'] = '';
-                }
-
-                $src = $sanitized['intro_video']['source'];
-
-                // Helper to clear all non-applicable fields
-                $clear_non_applicable = function(array &$iv, array $keep_keys) {
-                    $keys = array('source_video_id','source_youtube','source_vimeo','source_external_url','source_embedded','source_shortcode');
-                    foreach ($keys as $key) {
-                        if (!in_array($key, $keep_keys, true)) {
-                            if ($key === 'source_video_id') {
-                                $iv[$key] = 0;
-                            } else {
-                                $iv[$key] = '';
-                            }
-                        }
-                    }
-                };
-
-                switch ($src) {
-                    case 'html5':
-                        // Require a valid attachment ID; otherwise treat as no video
-                        if ($sanitized['intro_video']['source_video_id'] <= 0) {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            // Keep only video_id; clear URL-based fields
-                            $clear_non_applicable($sanitized['intro_video'], array('source_video_id'));
-                        }
-                        break;
-                    case 'youtube':
-                        if ($sanitized['intro_video']['source_youtube'] === '') {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            $clear_non_applicable($sanitized['intro_video'], array('source_youtube'));
-                        }
-                        break;
-                    case 'vimeo':
-                        if ($sanitized['intro_video']['source_vimeo'] === '') {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            $clear_non_applicable($sanitized['intro_video'], array('source_vimeo'));
-                        }
-                        break;
-                    case 'external_url':
-                        if ($sanitized['intro_video']['source_external_url'] === '') {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            $clear_non_applicable($sanitized['intro_video'], array('source_external_url'));
-                        }
-                        break;
-                    case 'embedded':
-                        if ($sanitized['intro_video']['source_embedded'] === '') {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            $clear_non_applicable($sanitized['intro_video'], array('source_embedded'));
-                        }
-                        break;
-                    case 'shortcode':
-                        if ($sanitized['intro_video']['source_shortcode'] === '') {
-                            $sanitized['intro_video']['source'] = '';
-                            $clear_non_applicable($sanitized['intro_video'], array());
-                        } else {
-                            $clear_non_applicable($sanitized['intro_video'], array('source_shortcode'));
-                        }
-                        break;
-                    default:
-                        // Empty or unsupported: fully clear non-applicable fields
-                        $clear_non_applicable($sanitized['intro_video'], array());
-                        break;
-                }
-            } else {
-                $sanitized['intro_video'] = [
-                    'source' => '',
-                    'source_video_id' => 0,
-                    'source_youtube' => '',
-                    'source_vimeo' => '',
-                    'source_external_url' => '',
-                    'source_embedded' => '',
-                    'source_shortcode' => '',
-                    'poster' => '',
-                ];
-            }
-        }
+        $sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_intro_video( $settings ) );
         
         if (isset($settings['attachments'])) {
             $attachments = $settings['attachments'];
@@ -1358,13 +1224,7 @@ class TutorPress_Course {
             return;
         }
 
-        // Handle intro video sync
-        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'intro_video' ) ) {
-            $intro_video = $settings['intro_video'];
-            if (is_array($intro_video)) {
-                update_post_meta($post->ID, '_video', $intro_video);
-            }
-        }
+        $this->sync_service->save_rest_after_insert_intro_video( $post->ID, $settings );
 
         // Handle other course media fields
         if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'course_material_includes' ) ) {
