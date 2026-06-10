@@ -128,9 +128,9 @@ class TutorPress_Main {
      * @since 1.13.17
      */
     private function load_required_files() {
-        require_once $this->plugin_path . 'includes/shared/class-tutorpress-lesson-sync-context.php';
-        require_once $this->plugin_path . 'includes/shared/class-tutorpress-lesson-sync-service.php';
-        require_once $this->plugin_path . 'includes/shared/class-tutorpress-lesson-video-duration.php';
+        require_once $this->plugin_path . 'includes/tutorlms/compatibility/lesson/class-tutorpress-lesson-sync-context.php';
+        require_once $this->plugin_path . 'includes/tutorlms/compatibility/lesson/class-tutorpress-lesson-sync-service.php';
+        require_once $this->plugin_path . 'includes/tutorlms/compatibility/lesson/class-tutorpress-lesson-video-duration.php';
     }
 
     /**
