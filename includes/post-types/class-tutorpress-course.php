@@ -40,6 +40,14 @@ class TutorPress_Course {
     private $sync_context;
 
     /**
+     * Course sync service.
+     *
+     * @since 1.14.3
+     * @var TutorPress_Course_Sync_Service
+     */
+    private $sync_service;
+
+    /**
      * Constructor.
      *
      * @since 1.14.2
@@ -47,6 +55,7 @@ class TutorPress_Course {
     public function __construct() {
         $this->token = 'courses';
         $this->sync_context = new TutorPress_Course_Sync_Context( $this->token );
+        $this->sync_service = new TutorPress_Course_Sync_Service( $this->sync_context );
 
         // Initialize meta fields and REST API support
         add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -790,7 +799,7 @@ class TutorPress_Course {
      * @return array Course settings.
      */
     public function get_course_settings( $post ) {
-        return self::get_canonical_course_settings( $post['id'] );
+        return $this->sync_service->get_course_settings( $post );
     }
 
     /**
@@ -1163,7 +1172,7 @@ class TutorPress_Course {
      * @return bool Whether the update was successful.
      */
     public function update_course_settings($value, $post) {
-        return false !== self::save_canonical_course_settings( $post->ID, $value );
+        return $this->sync_service->update_course_settings( $value, $post );
     }
 
     /**
