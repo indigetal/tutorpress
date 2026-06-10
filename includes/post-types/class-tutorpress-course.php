@@ -686,54 +686,17 @@ class TutorPress_Course {
      */
     public static function get_canonical_course_settings( $post_id ) {
         $intro_video = get_post_meta($post_id, '_video', true);
-        $core_settings = TutorPress_Course_Sync_Service::get_core_details_and_material_settings( $post_id );
         
-        // Future sections: Read from _tutor_course_settings (when we implement them)
         $tutor_settings = get_post_meta($post_id, '_tutor_course_settings', true);
         if (!is_array($tutor_settings)) {
             $tutor_settings = [];
         }
+
+        $core_settings = TutorPress_Course_Sync_Service::get_core_details_and_material_settings( $post_id );
+        $access_settings = TutorPress_Course_Sync_Service::get_access_enrollment_prerequisite_and_schedule_settings( $post_id, $tutor_settings );
         
         // Build settings structure (preserving Tutor LMS compatibility)
-        $settings = array_merge( $core_settings, [
-            // Access & Enrollment (prefer canonical Tutor meta over _tutor_course_settings to avoid stale data)
-            'maximum_students' => (function() use ($post_id, $tutor_settings) {
-                // Prioritize _tutor_course_settings if it explicitly contains null or 0 (recent save via REST)
-                if (array_key_exists('maximum_students', $tutor_settings)) {
-                    $val = $tutor_settings['maximum_students'];
-                    if ($val === null || $val === 0 || is_numeric($val)) {
-                        return $val === null ? null : (int) $val;
-                    }
-                }
-                $legacy_max = get_post_meta($post_id, '_tutor_maximum_students', true);
-                if ($legacy_max === '' || $legacy_max === null) {
-                    return null;
-                }
-                return (int) $legacy_max;
-            })(),
-            'course_prerequisites' => get_post_meta($post_id, '_tutor_course_prerequisites_ids', true) ?: [],
-            'schedule' => $tutor_settings['schedule'] ?? [
-                'enabled' => false,
-                'start_date' => '',
-                'start_time' => '',
-                'show_coming_soon' => false,
-            ],
-            'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
-            'enrollment_starts_at' => $tutor_settings['enrollment_starts_at'] ?? '',
-            'enrollment_ends_at' => $tutor_settings['enrollment_ends_at'] ?? '',
-            'pause_enrollment' => (function() use ($post_id, $tutor_settings) {
-                if (array_key_exists('pause_enrollment', $tutor_settings)) {
-                    $val = $tutor_settings['pause_enrollment'];
-                    if ($val === 'yes' || $val === 'no') {
-                        return $val;
-                    }
-                }
-                $status = get_post_meta($post_id, '_tutor_enrollment_status', true);
-                if ($status === 'yes' || $status === 'no') {
-                    return $status;
-                }
-                return 'no';
-            })(),
+        $settings = array_merge( $core_settings, $access_settings, [
             // Prefer the fresh _video meta over any stale copies in _tutor_course_settings
             'intro_video' => array_merge([
                 'source' => '',
@@ -846,42 +809,7 @@ class TutorPress_Course {
                 update_post_meta( $post_id, '_tutor_course_product_id', $active_product_id );
             }
 
-            if ( array_key_exists( 'maximum_students', $normalized_settings ) ) {
-                $legacy_max = null === $normalized_settings['maximum_students'] ? '' : (int) $normalized_settings['maximum_students'];
-                update_post_meta( $post_id, '_tutor_maximum_students', $legacy_max );
-                $existing_tutor_settings['maximum_students'] = $normalized_settings['maximum_students'];
-                $existing_tutor_settings['maximum_students_allowed'] = $normalized_settings['maximum_students'];
-            }
-
-            if ( array_key_exists( 'course_enrollment_period', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_course_enrollment_period', $normalized_settings['course_enrollment_period'] );
-                $existing_tutor_settings['course_enrollment_period'] = $normalized_settings['course_enrollment_period'];
-            }
-
-            if ( array_key_exists( 'enrollment_starts_at', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_enrollment_starts_at', $normalized_settings['enrollment_starts_at'] );
-                $existing_tutor_settings['enrollment_starts_at'] = $normalized_settings['enrollment_starts_at'];
-            }
-
-            if ( array_key_exists( 'enrollment_ends_at', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_enrollment_ends_at', $normalized_settings['enrollment_ends_at'] );
-                $existing_tutor_settings['enrollment_ends_at'] = $normalized_settings['enrollment_ends_at'];
-            }
-
-            if ( array_key_exists( 'pause_enrollment', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_enrollment_status', $normalized_settings['pause_enrollment'] );
-                $existing_tutor_settings['pause_enrollment'] = $normalized_settings['pause_enrollment'];
-                $existing_tutor_settings['enrollment_status'] = $normalized_settings['pause_enrollment'];
-            }
-
-            if ( array_key_exists( 'course_prerequisites', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_course_prerequisites_ids', $normalized_settings['course_prerequisites'] );
-                $existing_tutor_settings['course_prerequisites'] = $normalized_settings['course_prerequisites'];
-            }
-
-            if ( array_key_exists( 'schedule', $normalized_settings ) ) {
-                $existing_tutor_settings['schedule'] = $normalized_settings['schedule'];
-            }
+            TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
 
             foreach ( [
                 'intro_video',
@@ -985,51 +913,7 @@ class TutorPress_Course {
             $normalized['edd_product_id'] = sanitize_text_field( (string) $settings['edd_product_id'] );
         }
 
-        if ( array_key_exists( 'maximum_students', $settings ) ) {
-            if ( '' === $settings['maximum_students'] || null === $settings['maximum_students'] ) {
-                $normalized['maximum_students'] = null;
-            } elseif ( '0' === $settings['maximum_students'] || 0 === $settings['maximum_students'] ) {
-                $normalized['maximum_students'] = 0;
-            } else {
-                $normalized['maximum_students'] = max( 0, (int) $settings['maximum_students'] );
-            }
-        }
-
-        if ( array_key_exists( 'pause_enrollment', $settings ) ) {
-            if ( is_bool( $settings['pause_enrollment'] ) ) {
-                $normalized['pause_enrollment'] = $settings['pause_enrollment'] ? 'yes' : 'no';
-            } else {
-                $pause_enrollment = sanitize_text_field( (string) $settings['pause_enrollment'] );
-                $normalized['pause_enrollment'] = 'yes' === $pause_enrollment ? 'yes' : 'no';
-            }
-        }
-
-        if ( array_key_exists( 'course_enrollment_period', $settings ) ) {
-            $course_enrollment_period = sanitize_text_field( (string) $settings['course_enrollment_period'] );
-            $normalized['course_enrollment_period'] = 'yes' === $course_enrollment_period ? 'yes' : 'no';
-        }
-
-        if ( array_key_exists( 'enrollment_starts_at', $settings ) ) {
-            $normalized['enrollment_starts_at'] = sanitize_text_field( (string) $settings['enrollment_starts_at'] );
-        }
-
-        if ( array_key_exists( 'enrollment_ends_at', $settings ) ) {
-            $normalized['enrollment_ends_at'] = sanitize_text_field( (string) $settings['enrollment_ends_at'] );
-        }
-
-        if ( array_key_exists( 'course_prerequisites', $settings ) ) {
-            $normalized['course_prerequisites'] = is_array( $settings['course_prerequisites'] ) ? array_map( 'absint', $settings['course_prerequisites'] ) : [];
-        }
-
-        if ( array_key_exists( 'schedule', $settings ) ) {
-            $schedule = is_array( $settings['schedule'] ) ? $settings['schedule'] : [];
-            $normalized['schedule'] = [
-                'enabled' => ! empty( $schedule['enabled'] ),
-                'start_date' => sanitize_text_field( (string) ( $schedule['start_date'] ?? '' ) ),
-                'start_time' => sanitize_text_field( (string) ( $schedule['start_time'] ?? '' ) ),
-                'show_coming_soon' => ! empty( $schedule['show_coming_soon'] ),
-            ];
-        }
+        $normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_access_enrollment_prerequisite_and_schedule_for_save( $settings ) );
 
         if ( array_key_exists( 'instructors', $settings ) ) {
             $normalized['instructors'] = is_array( $settings['instructors'] ) ? array_map( 'absint', $settings['instructors'] ) : [];
@@ -1246,57 +1130,7 @@ class TutorPress_Course {
             $sanitized['edd_product_id'] = sanitize_text_field($settings['edd_product_id']);
         }
         
-        // Course Access & Enrollment Section: Sanitize mixed storage fields
-        if (isset($settings['maximum_students'])) {
-            // Treat '' or null as unlimited (null), but preserve 0 as 0
-            $max_students = $settings['maximum_students'];
-            if ($max_students === '' || $max_students === null) {
-                $sanitized['maximum_students'] = null;
-            } else {
-                $sanitized['maximum_students'] = max(0, intval($max_students));
-            }
-            // Also set the legacy helper field to mirror value (null or non-negative int)
-            $sanitized['maximum_students_allowed'] = $sanitized['maximum_students'];
-        }
-        
-        if (isset($settings['pause_enrollment'])) {
-            // Convert to 'yes'/'no' string
-            $pause_enrollment = $settings['pause_enrollment'];
-            if (is_bool($pause_enrollment)) {
-                $sanitized['pause_enrollment'] = $pause_enrollment ? 'yes' : 'no';
-            } else {
-                $sanitized['pause_enrollment'] = in_array($pause_enrollment, ['yes', 'no']) ? $pause_enrollment : 'no';
-            }
-            // Also set the legacy field
-            $sanitized['enrollment_status'] = $sanitized['pause_enrollment'];
-        }
-        
-        if (isset($settings['course_enrollment_period'])) {
-            $sanitized['course_enrollment_period'] = in_array($settings['course_enrollment_period'], ['yes', 'no']) ? $settings['course_enrollment_period'] : 'no';
-        }
-        
-        if (isset($settings['enrollment_starts_at'])) {
-            $sanitized['enrollment_starts_at'] = sanitize_text_field($settings['enrollment_starts_at']);
-        }
-        
-        if (isset($settings['enrollment_ends_at'])) {
-            $sanitized['enrollment_ends_at'] = sanitize_text_field($settings['enrollment_ends_at']);
-        }
-        
-        // Course Prerequisites
-        if (isset($settings['course_prerequisites']) && is_array($settings['course_prerequisites'])) {
-            $sanitized['course_prerequisites'] = array_map('absint', $settings['course_prerequisites']);
-        }
-        
-        // Schedule
-        if (isset($settings['schedule']) && is_array($settings['schedule'])) {
-            $sanitized['schedule'] = [
-                'enabled' => isset($settings['schedule']['enabled']) ? (bool) $settings['schedule']['enabled'] : false,
-                'start_date' => isset($settings['schedule']['start_date']) ? sanitize_text_field($settings['schedule']['start_date']) : '',
-                'start_time' => isset($settings['schedule']['start_time']) ? sanitize_text_field($settings['schedule']['start_time']) : '',
-                'show_coming_soon' => isset($settings['schedule']['show_coming_soon']) ? (bool) $settings['schedule']['show_coming_soon'] : false,
-            ];
-        }
+        $sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_access_enrollment_prerequisite_and_schedule( $settings ) );
         
         // Course Instructors Section: Sanitize individual fields
         if (isset($settings['instructors']) && is_array($settings['instructors'])) {
@@ -1305,16 +1139,6 @@ class TutorPress_Course {
         
         if (isset($settings['additional_instructors']) && is_array($settings['additional_instructors'])) {
             $sanitized['additional_instructors'] = array_map('absint', $settings['additional_instructors']);
-        }
-
-        // Enforce dependent field clearing when enrollment period is disabled
-        // If course_enrollment_period is 'no', both dates must be empty to prevent stale data
-        if (
-            isset($sanitized['course_enrollment_period'])
-            && $sanitized['course_enrollment_period'] === 'no'
-        ) {
-            $sanitized['enrollment_starts_at'] = '';
-            $sanitized['enrollment_ends_at'] = '';
         }
         
         // All settings panels have been migrated

@@ -192,6 +192,241 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Read access, enrollment, prerequisite, and schedule settings.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id        Course post ID.
+	 * @param array $tutor_settings Existing Tutor settings blob.
+	 * @return array Access, enrollment, prerequisite, and schedule settings.
+	 */
+	public static function get_access_enrollment_prerequisite_and_schedule_settings( $post_id, array $tutor_settings ) {
+		return array(
+			'maximum_students'         => self::get_maximum_students_for_read( $post_id, $tutor_settings ),
+			'course_prerequisites'     => get_post_meta( $post_id, '_tutor_course_prerequisites_ids', true ) ?: array(),
+			'schedule'                 => $tutor_settings['schedule'] ?? array(
+				'enabled'          => false,
+				'start_date'       => '',
+				'start_time'       => '',
+				'show_coming_soon' => false,
+			),
+			'course_enrollment_period' => $tutor_settings['course_enrollment_period'] ?? 'no',
+			'enrollment_starts_at'     => $tutor_settings['enrollment_starts_at'] ?? '',
+			'enrollment_ends_at'       => $tutor_settings['enrollment_ends_at'] ?? '',
+			'pause_enrollment'         => self::get_pause_enrollment_for_read( $post_id, $tutor_settings ),
+		);
+	}
+
+	/**
+	 * Normalize access, enrollment, prerequisite, and schedule settings for canonical saves.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Normalized settings payload.
+	 */
+	public static function normalize_access_enrollment_prerequisite_and_schedule_for_save( array $settings ) {
+		$normalized = array();
+
+		if ( array_key_exists( 'maximum_students', $settings ) ) {
+			if ( '' === $settings['maximum_students'] || null === $settings['maximum_students'] ) {
+				$normalized['maximum_students'] = null;
+			} elseif ( '0' === $settings['maximum_students'] || 0 === $settings['maximum_students'] ) {
+				$normalized['maximum_students'] = 0;
+			} else {
+				$normalized['maximum_students'] = max( 0, (int) $settings['maximum_students'] );
+			}
+		}
+
+		if ( array_key_exists( 'pause_enrollment', $settings ) ) {
+			if ( is_bool( $settings['pause_enrollment'] ) ) {
+				$normalized['pause_enrollment'] = $settings['pause_enrollment'] ? 'yes' : 'no';
+			} else {
+				$pause_enrollment = sanitize_text_field( (string) $settings['pause_enrollment'] );
+				$normalized['pause_enrollment'] = 'yes' === $pause_enrollment ? 'yes' : 'no';
+			}
+		}
+
+		if ( array_key_exists( 'course_enrollment_period', $settings ) ) {
+			$course_enrollment_period = sanitize_text_field( (string) $settings['course_enrollment_period'] );
+			$normalized['course_enrollment_period'] = 'yes' === $course_enrollment_period ? 'yes' : 'no';
+		}
+
+		if ( array_key_exists( 'enrollment_starts_at', $settings ) ) {
+			$normalized['enrollment_starts_at'] = sanitize_text_field( (string) $settings['enrollment_starts_at'] );
+		}
+
+		if ( array_key_exists( 'enrollment_ends_at', $settings ) ) {
+			$normalized['enrollment_ends_at'] = sanitize_text_field( (string) $settings['enrollment_ends_at'] );
+		}
+
+		if ( array_key_exists( 'course_prerequisites', $settings ) ) {
+			$normalized['course_prerequisites'] = is_array( $settings['course_prerequisites'] ) ? array_map( 'absint', $settings['course_prerequisites'] ) : array();
+		}
+
+		if ( array_key_exists( 'schedule', $settings ) ) {
+			$schedule = is_array( $settings['schedule'] ) ? $settings['schedule'] : array();
+			$normalized['schedule'] = array(
+				'enabled'          => ! empty( $schedule['enabled'] ),
+				'start_date'       => sanitize_text_field( (string) ( $schedule['start_date'] ?? '' ) ),
+				'start_time'       => sanitize_text_field( (string) ( $schedule['start_time'] ?? '' ) ),
+				'show_coming_soon' => ! empty( $schedule['show_coming_soon'] ),
+			);
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Sanitize access, enrollment, prerequisite, and schedule settings for shadow writes.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Sanitized settings payload.
+	 */
+	public static function sanitize_access_enrollment_prerequisite_and_schedule( array $settings ) {
+		$sanitized = array();
+
+		if ( isset( $settings['maximum_students'] ) ) {
+			$max_students = $settings['maximum_students'];
+			$sanitized['maximum_students'] = ( '' === $max_students || null === $max_students ) ? null : max( 0, intval( $max_students ) );
+			$sanitized['maximum_students_allowed'] = $sanitized['maximum_students'];
+		}
+
+		if ( isset( $settings['pause_enrollment'] ) ) {
+			$pause_enrollment = $settings['pause_enrollment'];
+			$sanitized['pause_enrollment'] = is_bool( $pause_enrollment ) ? ( $pause_enrollment ? 'yes' : 'no' ) : ( in_array( $pause_enrollment, array( 'yes', 'no' ) ) ? $pause_enrollment : 'no' );
+			$sanitized['enrollment_status'] = $sanitized['pause_enrollment'];
+		}
+
+		if ( isset( $settings['course_enrollment_period'] ) ) {
+			$sanitized['course_enrollment_period'] = in_array( $settings['course_enrollment_period'], array( 'yes', 'no' ) ) ? $settings['course_enrollment_period'] : 'no';
+		}
+
+		if ( isset( $settings['enrollment_starts_at'] ) ) {
+			$sanitized['enrollment_starts_at'] = sanitize_text_field( $settings['enrollment_starts_at'] );
+		}
+
+		if ( isset( $settings['enrollment_ends_at'] ) ) {
+			$sanitized['enrollment_ends_at'] = sanitize_text_field( $settings['enrollment_ends_at'] );
+		}
+
+		if ( isset( $settings['course_prerequisites'] ) && is_array( $settings['course_prerequisites'] ) ) {
+			$sanitized['course_prerequisites'] = array_map( 'absint', $settings['course_prerequisites'] );
+		}
+
+		if ( isset( $settings['schedule'] ) && is_array( $settings['schedule'] ) ) {
+			$sanitized['schedule'] = array(
+				'enabled'          => isset( $settings['schedule']['enabled'] ) ? (bool) $settings['schedule']['enabled'] : false,
+				'start_date'       => isset( $settings['schedule']['start_date'] ) ? sanitize_text_field( $settings['schedule']['start_date'] ) : '',
+				'start_time'       => isset( $settings['schedule']['start_time'] ) ? sanitize_text_field( $settings['schedule']['start_time'] ) : '',
+				'show_coming_soon' => isset( $settings['schedule']['show_coming_soon'] ) ? (bool) $settings['schedule']['show_coming_soon'] : false,
+			);
+		}
+
+		if ( isset( $sanitized['course_enrollment_period'] ) && 'no' === $sanitized['course_enrollment_period'] ) {
+			$sanitized['enrollment_starts_at'] = '';
+			$sanitized['enrollment_ends_at'] = '';
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Save access, enrollment, prerequisite, and schedule settings.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id                 Course post ID.
+	 * @param array $normalized_settings     Normalized settings payload.
+	 * @param array $existing_tutor_settings Existing Tutor settings blob.
+	 * @return void
+	 */
+	public static function save_access_enrollment_prerequisite_and_schedule( $post_id, array $normalized_settings, array &$existing_tutor_settings ) {
+		if ( array_key_exists( 'maximum_students', $normalized_settings ) ) {
+			$legacy_max = null === $normalized_settings['maximum_students'] ? '' : (int) $normalized_settings['maximum_students'];
+			update_post_meta( $post_id, '_tutor_maximum_students', $legacy_max );
+			$existing_tutor_settings['maximum_students'] = $normalized_settings['maximum_students'];
+			$existing_tutor_settings['maximum_students_allowed'] = $normalized_settings['maximum_students'];
+		}
+
+		if ( array_key_exists( 'course_enrollment_period', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_course_enrollment_period', $normalized_settings['course_enrollment_period'] );
+			$existing_tutor_settings['course_enrollment_period'] = $normalized_settings['course_enrollment_period'];
+		}
+
+		if ( array_key_exists( 'enrollment_starts_at', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_enrollment_starts_at', $normalized_settings['enrollment_starts_at'] );
+			$existing_tutor_settings['enrollment_starts_at'] = $normalized_settings['enrollment_starts_at'];
+		}
+
+		if ( array_key_exists( 'enrollment_ends_at', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_enrollment_ends_at', $normalized_settings['enrollment_ends_at'] );
+			$existing_tutor_settings['enrollment_ends_at'] = $normalized_settings['enrollment_ends_at'];
+		}
+
+		if ( array_key_exists( 'pause_enrollment', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_enrollment_status', $normalized_settings['pause_enrollment'] );
+			$existing_tutor_settings['pause_enrollment'] = $normalized_settings['pause_enrollment'];
+			$existing_tutor_settings['enrollment_status'] = $normalized_settings['pause_enrollment'];
+		}
+
+		if ( array_key_exists( 'course_prerequisites', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_course_prerequisites_ids', $normalized_settings['course_prerequisites'] );
+			$existing_tutor_settings['course_prerequisites'] = $normalized_settings['course_prerequisites'];
+		}
+
+		if ( array_key_exists( 'schedule', $normalized_settings ) ) {
+			$existing_tutor_settings['schedule'] = $normalized_settings['schedule'];
+		}
+	}
+
+	/**
+	 * Read maximum students with Tutor settings blob precedence.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id        Course post ID.
+	 * @param array $tutor_settings Existing Tutor settings blob.
+	 * @return int|null Maximum students value.
+	 */
+	private static function get_maximum_students_for_read( $post_id, array $tutor_settings ) {
+		if ( array_key_exists( 'maximum_students', $tutor_settings ) ) {
+			$value = $tutor_settings['maximum_students'];
+			if ( null === $value || 0 === $value || is_numeric( $value ) ) {
+				return null === $value ? null : (int) $value;
+			}
+		}
+
+		$legacy_max = get_post_meta( $post_id, '_tutor_maximum_students', true );
+		if ( '' === $legacy_max || null === $legacy_max ) {
+			return null;
+		}
+
+		return (int) $legacy_max;
+	}
+
+	/**
+	 * Read pause enrollment with Tutor settings blob precedence.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id        Course post ID.
+	 * @param array $tutor_settings Existing Tutor settings blob.
+	 * @return string Pause enrollment status.
+	 */
+	private static function get_pause_enrollment_for_read( $post_id, array $tutor_settings ) {
+		if ( array_key_exists( 'pause_enrollment', $tutor_settings ) ) {
+			$value = $tutor_settings['pause_enrollment'];
+			if ( 'yes' === $value || 'no' === $value ) {
+				return $value;
+			}
+		}
+
+		$status = get_post_meta( $post_id, '_tutor_enrollment_status', true );
+		if ( 'yes' === $status || 'no' === $status ) {
+			return $status;
+		}
+
+		return 'no';
+	}
+
+	/**
 	 * Normalize course duration while preserving explicit empty-string members.
 	 *
 	 * @since 1.14.3
