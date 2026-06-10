@@ -511,12 +511,6 @@ class TutorPress_Lesson_Sync_Service {
 				return;
 			}
 
-			$our_last_update = get_post_meta( $post_id, '_tutorpress_sync_last_update', true );
-			if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
-				return;
-			}
-
-			update_post_meta( $post_id, '_tutorpress_sync_last_update', time() );
 			$this->sync_exercise_files( $post_id );
 			return;
 		}
@@ -529,12 +523,6 @@ class TutorPress_Lesson_Sync_Service {
 			return;
 		}
 
-		$our_last_update = get_post_meta( $post_id, '_tutorpress_sync_last_update', true );
-		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
-			return;
-		}
-
-		update_post_meta( $post_id, '_tutorpress_sync_last_update', time() );
 		$this->sync_lesson_preview( $post_id );
 	}
 

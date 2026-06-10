@@ -96,6 +96,7 @@ class TutorPress_Lesson {
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_video_meta_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_tutor_preview_meta_update' ], 10, 4 );
+		add_action( 'added_post_meta', [ $this, 'handle_lesson_settings_update' ], 10, 4 );
 		add_action( 'updated_post_meta', [ $this, 'handle_lesson_settings_update' ], 10, 4 );
 
 		// Sync on lesson save
@@ -112,6 +113,10 @@ class TutorPress_Lesson {
 	 * @return void
 	 */
 	public function set_up_meta_fields() {
+		if ( post_type_exists( $this->token ) ) {
+			add_post_type_support( $this->token, 'custom-fields' );
+		}
+
 		// Composite lesson_settings (kept minimal; future panels will extend schema)
 		register_post_meta( $this->token, 'lesson_settings', [
 			'type'              => 'object',
@@ -168,6 +173,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => [ $this, 'sanitize_video_source' ],
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -177,6 +183,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => 0,
 			'sanitize_callback' => 'absint',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -186,6 +193,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => 'esc_url_raw',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -195,6 +203,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => 'sanitize_text_field',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -204,6 +213,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => 'sanitize_text_field',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -213,6 +223,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => [ $this, 'sanitize_embedded_code' ],
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -222,6 +233,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => 'sanitize_text_field',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -231,6 +243,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => '',
 			'sanitize_callback' => 'esc_url_raw',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -240,6 +253,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => 0,
 			'sanitize_callback' => 'absint',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -249,6 +263,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => 0,
 			'sanitize_callback' => function( $value ) { return min( 59, absint( $value ) ); },
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -258,6 +273,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => 0,
 			'sanitize_callback' => function( $value ) { return min( 59, absint( $value ) ); },
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 
@@ -267,6 +283,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => [],
 			'sanitize_callback' => [ $this, 'sanitize_attachment_ids' ],
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => [
 				'schema' => [
 					'type'  => 'array',
@@ -281,6 +298,7 @@ class TutorPress_Lesson {
 			'single' => true,
 			'default' => false,
 			'sanitize_callback' => 'rest_sanitize_boolean',
+			'auth_callback' => [ $this, 'post_meta_auth_callback' ],
 			'show_in_rest' => true,
 		] );
 	}
