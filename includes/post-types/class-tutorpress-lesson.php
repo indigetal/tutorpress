@@ -69,11 +69,7 @@ class TutorPress_Lesson {
 	public function __construct() {
 		$this->token = 'lesson';
 		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
-		$this->sync_service = new TutorPress_Lesson_Sync_Service( [
-			'sync_on_lesson_save' => function( $post_id, $post, $update ) {
-				$this->sync_on_lesson_save_impl( $post_id, $post, $update );
-			},
-		], $this->sync_context );
+		$this->sync_service = new TutorPress_Lesson_Sync_Service( $this->sync_context );
 
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -651,15 +647,6 @@ class TutorPress_Lesson {
 
 	public function sync_on_lesson_save( $post_id, $post, $update ) {
 		$this->sync_service->sync_on_lesson_save( $post_id, $post, $update );
-	}
-
-	private function sync_on_lesson_save_impl( $post_id, $post, $update ) {
-		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
-			return;
-		}
-		$this->sync_service->sync_to_tutor_video_format( $post_id );
-		$this->sync_service->sync_exercise_files_for_lesson_save( $post_id );
-		$this->sync_service->sync_lesson_preview_for_lesson_save( $post_id );
 	}
 
 	public function sanitize_video_source( $source ) {

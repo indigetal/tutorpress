@@ -2,8 +2,7 @@
 /**
  * TutorPress lesson sync service.
  *
- * Provides the shared synchronization surface while behavior is moved out of
- * TutorPress_Lesson in small, verified steps.
+ * Provides the shared synchronization surface for lesson setting compatibility.
  *
  * @package TutorPress
  * @since 1.14.3
@@ -21,14 +20,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class TutorPress_Lesson_Sync_Service {
 
 	/**
-	 * Existing behavior callbacks owned by TutorPress_Lesson during migration.
-	 *
-	 * @since 1.14.3
-	 * @var array<string,callable>
-	 */
-	private $callbacks;
-
-	/**
 	 * Lesson sync context and intent helper.
 	 *
 	 * @since 1.14.3
@@ -40,11 +31,9 @@ class TutorPress_Lesson_Sync_Service {
 	 * Constructor.
 	 *
 	 * @since 1.14.3
-	 * @param array<string,callable>            $callbacks    Pass-through behavior callbacks.
 	 * @param TutorPress_Lesson_Sync_Context    $sync_context Lesson sync context helper.
 	 */
-	public function __construct( $callbacks, $sync_context ) {
-		$this->callbacks    = $callbacks;
+	public function __construct( $sync_context ) {
 		$this->sync_context = $sync_context;
 	}
 
@@ -656,7 +645,13 @@ class TutorPress_Lesson_Sync_Service {
 	 * @return void
 	 */
 	public function sync_on_lesson_save( $post_id, $post, $update ) {
-		$this->call( 'sync_on_lesson_save', array( $post_id, $post, $update ) );
+		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+
+		$this->sync_to_tutor_video_format( $post_id );
+		$this->sync_exercise_files_for_lesson_save( $post_id );
+		$this->sync_lesson_preview_for_lesson_save( $post_id );
 	}
 
 	/**
@@ -719,15 +714,4 @@ class TutorPress_Lesson_Sync_Service {
 		return array_map( 'absint', array_filter( $ids ) );
 	}
 
-	/**
-	 * Call a migration callback.
-	 *
-	 * @since 1.14.3
-	 * @param string $name Callback name.
-	 * @param array  $args Callback arguments.
-	 * @return mixed Callback result.
-	 */
-	private function call( $name, $args ) {
-		return call_user_func_array( $this->callbacks[ $name ], $args );
-	}
 }
