@@ -162,7 +162,7 @@ class TutorPress_Lesson_Sync_Service {
 		if ( isset( $value['lesson_preview']['enabled'] ) && tutorpress_feature_flags()->can_user_access_feature( 'course_preview' ) ) {
 			$is_preview = rest_sanitize_boolean( $value['lesson_preview']['enabled'] );
 			update_post_meta( $post_id, '_lesson_is_preview', $is_preview );
-			$this->call( 'sync_lesson_preview', array( $post_id ) );
+			$this->sync_lesson_preview( $post_id );
 		}
 
 		$this->sync_to_tutor_video_format( $post_id );
@@ -478,7 +478,17 @@ class TutorPress_Lesson_Sync_Service {
 	 * @return void
 	 */
 	public function handle_tutor_preview_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-		$this->call( 'handle_tutor_preview_meta_update', array( $meta_id, $post_id, $meta_key, $meta_value ) );
+		if ( '_is_preview' !== $meta_key || 'lesson' !== get_post_type( $post_id ) ) {
+			return;
+		}
+
+		$our_last_update = get_post_meta( $post_id, '_tutorpress_preview_last_sync', true );
+		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_preview_last_sync', time() );
+		update_post_meta( $post_id, '_lesson_is_preview', rest_sanitize_boolean( $meta_value ) );
 	}
 
 	/**
@@ -511,7 +521,54 @@ class TutorPress_Lesson_Sync_Service {
 			return;
 		}
 
-		$this->call( 'handle_lesson_settings_update', array( $meta_id, $post_id, $meta_key, $meta_value ) );
+		if ( '_lesson_is_preview' !== $meta_key || 'lesson' !== get_post_type( $post_id ) ) {
+			return;
+		}
+
+		if ( get_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true ) ) {
+			return;
+		}
+
+		$our_last_update = get_post_meta( $post_id, '_tutorpress_sync_last_update', true );
+		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_sync_last_update', time() );
+		$this->sync_lesson_preview( $post_id );
+	}
+
+	/**
+	 * Sync TutorPress lesson preview state into Tutor Pro preview meta.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Lesson post ID.
+	 * @return void
+	 */
+	public function sync_lesson_preview( $post_id ) {
+		update_post_meta( $post_id, '_tutorpress_preview_last_sync', time() );
+		$is_preview  = get_post_meta( $post_id, '_lesson_is_preview', true );
+		$tutor_value = $is_preview ? 1 : 0;
+		update_post_meta( $post_id, '_is_preview', $tutor_value );
+	}
+
+	/**
+	 * Sync lesson preview state at the lesson save boundary.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Lesson post ID.
+	 * @return void
+	 */
+	public function sync_lesson_preview_for_lesson_save( $post_id ) {
+		if ( $this->is_frontend_builder_lesson_save() ) {
+			update_post_meta( $post_id, '_tutorpress_preview_last_sync', time() );
+			update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
+			update_post_meta( $post_id, '_lesson_is_preview', (bool) get_post_meta( $post_id, '_is_preview', true ) );
+			delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
+			return;
+		}
+
+		$this->sync_lesson_preview( $post_id );
 	}
 
 	/**
@@ -583,6 +640,22 @@ class TutorPress_Lesson_Sync_Service {
 		}
 
 		return $this->sanitize_attachment_ids( wp_unslash( $_POST['tutor_attachments'] ) );
+	}
+
+	/**
+	 * Whether the current request is Tutor LMS's frontend-builder lesson save.
+	 *
+	 * @since 1.14.3
+	 * @return bool
+	 */
+	private function is_frontend_builder_lesson_save() {
+		if ( ! isset( $_POST['action'] ) ) {
+			return false;
+		}
+
+		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+
+		return 'tutor_save_lesson' === $action;
 	}
 
 	/**
