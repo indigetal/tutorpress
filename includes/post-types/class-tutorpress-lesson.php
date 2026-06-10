@@ -70,9 +70,6 @@ class TutorPress_Lesson {
 		$this->token = 'lesson';
 		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
 		$this->sync_service = new TutorPress_Lesson_Sync_Service( [
-			'handle_tutor_attachments_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
-				$this->handle_tutor_attachments_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
-			},
 			'handle_tutor_preview_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
 				$this->handle_tutor_preview_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
 			},
@@ -81,12 +78,6 @@ class TutorPress_Lesson {
 			},
 			'sync_on_lesson_save' => function( $post_id, $post, $update ) {
 				$this->sync_on_lesson_save_impl( $post_id, $post, $update );
-			},
-			'sanitize_attachment_ids' => function( $ids ) {
-				return $this->sanitize_attachment_ids( $ids );
-			},
-			'sync_exercise_files' => function( $post_id ) {
-				$this->sync_exercise_files( $post_id );
 			},
 			'sync_lesson_preview' => function( $post_id ) {
 				$this->sync_lesson_preview( $post_id );
@@ -641,19 +632,6 @@ class TutorPress_Lesson {
 		$this->sync_service->handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
 	}
 
-	private function handle_tutor_attachments_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
-		if ( $meta_key !== '_tutor_attachments' || get_post_type( $post_id ) !== 'lesson' ) {
-			return;
-		}
-		$our_last_update = get_post_meta( $post_id, '_tutorpress_attachments_last_sync', true );
-		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
-			return;
-		}
-		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
-		$attachment_ids = is_array( $meta_value ) ? array_map( 'absint', $meta_value ) : [];
-		update_post_meta( $post_id, '_lesson_exercise_files', $attachment_ids );
-	}
-
 	public function handle_tutor_preview_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
 		$this->sync_service->handle_tutor_preview_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
 	}
@@ -675,8 +653,7 @@ class TutorPress_Lesson {
 	}
 
 	private function handle_lesson_settings_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
-		$non_video_meta_keys = [ '_lesson_exercise_files', '_lesson_is_preview' ];
-		if ( ! in_array( $meta_key, $non_video_meta_keys, true ) || get_post_type( $post_id ) !== 'lesson' ) {
+		if ( '_lesson_is_preview' !== $meta_key || get_post_type( $post_id ) !== 'lesson' ) {
 			return;
 		}
 		if ( get_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true ) ) {
@@ -687,12 +664,7 @@ class TutorPress_Lesson {
 			return;
 		}
 		update_post_meta( $post_id, '_tutorpress_sync_last_update', time() );
-		if ( $meta_key === '_lesson_exercise_files' ) {
-			$this->sync_exercise_files( $post_id );
-		}
-		if ( $meta_key === '_lesson_is_preview' ) {
-			$this->sync_lesson_preview( $post_id );
-		}
+		$this->sync_lesson_preview( $post_id );
 	}
 
 	public function sync_on_lesson_save( $post_id, $post, $update ) {
@@ -704,79 +676,8 @@ class TutorPress_Lesson {
 			return;
 		}
 		$this->sync_service->sync_to_tutor_video_format( $post_id );
-		if ( $this->is_frontend_builder_attachment_save() ) {
-			$this->mirror_frontend_builder_exercise_files( $post_id, $this->get_frontend_builder_attachment_ids() );
-		} elseif ( $this->is_frontend_builder_delete_all_attachment_save( $post_id ) ) {
-			$this->mirror_frontend_builder_exercise_files( $post_id, array() );
-		} else {
-			$this->sync_exercise_files( $post_id );
-		}
+		$this->sync_service->sync_exercise_files_for_lesson_save( $post_id );
 		$this->sync_lesson_preview( $post_id );
-	}
-
-	/**
-	 * Whether the current request is a Tutor LMS frontend-builder lesson save with attachments.
-	 *
-	 * @since 1.14.3
-	 * @return bool
-	 */
-	private function is_frontend_builder_attachment_save() {
-		return $this->sync_context->is_frontend_builder_attachment_save();
-	}
-
-	/**
-	 * Sanitize frontend-builder tutor_attachments IDs from the current request.
-	 *
-	 * @since 1.14.3
-	 * @return array<int>
-	 */
-	private function get_frontend_builder_attachment_ids() {
-		if ( ! isset( $_POST['tutor_attachments'] ) || ! is_array( $_POST['tutor_attachments'] ) ) {
-			return array();
-		}
-
-		return $this->sanitize_attachment_ids( wp_unslash( $_POST['tutor_attachments'] ) );
-	}
-
-	/**
-	 * Whether the current request is a frontend-builder delete-all attachment save.
-	 *
-	 * FormData omits empty arrays, so delete-all arrives with no tutor_attachments key
-	 * after Tutor LMS priority 10 has deleted _tutor_attachments.
-	 *
-	 * @since 1.14.3
-	 * @param int $post_id Lesson post ID.
-	 * @return bool
-	 */
-	private function is_frontend_builder_delete_all_attachment_save( $post_id ) {
-		return $this->sync_context->is_frontend_builder_delete_all_attachment_save( $post_id );
-	}
-
-	/**
-	 * Mirror frontend-builder attachment IDs into TutorPress exercise file meta.
-	 *
-	 * @since 1.14.3
-	 * @param int        $post_id        Lesson post ID.
-	 * @param array<int> $attachment_ids Sanitized attachment IDs.
-	 * @return void
-	 */
-	private function mirror_frontend_builder_exercise_files( $post_id, $attachment_ids ) {
-		update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
-		update_post_meta( $post_id, '_lesson_exercise_files', $attachment_ids );
-		delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
-	}
-
-	private function sync_exercise_files( $post_id ) {
-		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
-		$exercise_files = get_post_meta( $post_id, '_lesson_exercise_files', true );
-		if ( ! is_array( $exercise_files ) ) {
-			$exercise_files = [];
-		}
-		if ( ! empty( $exercise_files ) ) {
-			update_post_meta( $post_id, '_tutor_attachments', $exercise_files );
-		} else {
-			delete_post_meta( $post_id, '_tutor_attachments' );
-		}
 	}
 
 	private function sync_lesson_preview( $post_id ) {
@@ -795,10 +696,7 @@ class TutorPress_Lesson {
 	}
 
 	public function sanitize_attachment_ids( $ids ) {
-		if ( ! is_array( $ids ) ) {
-			return [];
-		}
-		return array_map( 'absint', array_filter( $ids ) );
+		return $this->sync_service->sanitize_attachment_ids( $ids );
 	}
 }
 

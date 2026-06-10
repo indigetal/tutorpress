@@ -154,9 +154,9 @@ class TutorPress_Lesson_Sync_Service {
 		}
 
 		if ( isset( $value['exercise_files'] ) ) {
-			$ids = $this->call( 'sanitize_attachment_ids', array( $value['exercise_files'] ) );
+			$ids = $this->sanitize_attachment_ids( $value['exercise_files'] );
 			update_post_meta( $post_id, '_lesson_exercise_files', $ids );
-			$this->call( 'sync_exercise_files', array( $post_id ) );
+			$this->sync_exercise_files( $post_id );
 		}
 
 		if ( isset( $value['lesson_preview']['enabled'] ) && tutorpress_feature_flags()->can_user_access_feature( 'course_preview' ) ) {
@@ -453,7 +453,18 @@ class TutorPress_Lesson_Sync_Service {
 	 * @return void
 	 */
 	public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-		$this->call( 'handle_tutor_attachments_meta_update', array( $meta_id, $post_id, $meta_key, $meta_value ) );
+		if ( '_tutor_attachments' !== $meta_key || 'lesson' !== get_post_type( $post_id ) ) {
+			return;
+		}
+
+		$our_last_update = get_post_meta( $post_id, '_tutorpress_attachments_last_sync', true );
+		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
+		$attachment_ids = is_array( $meta_value ) ? array_map( 'absint', $meta_value ) : array();
+		update_post_meta( $post_id, '_lesson_exercise_files', $attachment_ids );
 	}
 
 	/**
@@ -481,7 +492,97 @@ class TutorPress_Lesson_Sync_Service {
 	 * @return void
 	 */
 	public function handle_lesson_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
+		if ( '_lesson_exercise_files' === $meta_key ) {
+			if ( 'lesson' !== get_post_type( $post_id ) ) {
+				return;
+			}
+
+			if ( get_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true ) ) {
+				return;
+			}
+
+			$our_last_update = get_post_meta( $post_id, '_tutorpress_sync_last_update', true );
+			if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
+				return;
+			}
+
+			update_post_meta( $post_id, '_tutorpress_sync_last_update', time() );
+			$this->sync_exercise_files( $post_id );
+			return;
+		}
+
 		$this->call( 'handle_lesson_settings_update', array( $meta_id, $post_id, $meta_key, $meta_value ) );
+	}
+
+	/**
+	 * Sync lesson exercise files at the lesson save boundary.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Lesson post ID.
+	 * @return void
+	 */
+	public function sync_exercise_files_for_lesson_save( $post_id ) {
+		if ( $this->sync_context->is_frontend_builder_attachment_save() ) {
+			$this->mirror_frontend_builder_exercise_files( $post_id, $this->get_frontend_builder_attachment_ids() );
+			return;
+		}
+
+		if ( $this->sync_context->is_frontend_builder_delete_all_attachment_save( $post_id ) ) {
+			$this->mirror_frontend_builder_exercise_files( $post_id, array() );
+			return;
+		}
+
+		$this->sync_exercise_files( $post_id );
+	}
+
+	/**
+	 * Sync TutorPress lesson exercise files into Tutor LMS attachments.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Lesson post ID.
+	 * @return void
+	 */
+	private function sync_exercise_files( $post_id ) {
+		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
+		$exercise_files = get_post_meta( $post_id, '_lesson_exercise_files', true );
+		if ( ! is_array( $exercise_files ) ) {
+			$exercise_files = array();
+		}
+
+		if ( ! empty( $exercise_files ) ) {
+			update_post_meta( $post_id, '_tutor_attachments', $exercise_files );
+			return;
+		}
+
+		delete_post_meta( $post_id, '_tutor_attachments' );
+	}
+
+	/**
+	 * Mirror frontend-builder attachment IDs into TutorPress exercise file meta.
+	 *
+	 * @since 1.14.3
+	 * @param int        $post_id        Lesson post ID.
+	 * @param array<int> $attachment_ids Sanitized attachment IDs.
+	 * @return void
+	 */
+	private function mirror_frontend_builder_exercise_files( $post_id, $attachment_ids ) {
+		update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
+		update_post_meta( $post_id, '_lesson_exercise_files', $attachment_ids );
+		delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
+	}
+
+	/**
+	 * Sanitize frontend-builder tutor_attachments IDs from the current request.
+	 *
+	 * @since 1.14.3
+	 * @return array<int>
+	 */
+	private function get_frontend_builder_attachment_ids() {
+		if ( ! isset( $_POST['tutor_attachments'] ) || ! is_array( $_POST['tutor_attachments'] ) ) {
+			return array();
+		}
+
+		return $this->sanitize_attachment_ids( wp_unslash( $_POST['tutor_attachments'] ) );
 	}
 
 	/**
@@ -540,6 +641,21 @@ class TutorPress_Lesson_Sync_Service {
 		);
 
 		return wp_kses( $code, $allowed_tags );
+	}
+
+	/**
+	 * Sanitize lesson attachment IDs.
+	 *
+	 * @since 1.14.3
+	 * @param mixed $ids Attachment IDs.
+	 * @return array<int>
+	 */
+	public function sanitize_attachment_ids( $ids ) {
+		if ( ! is_array( $ids ) ) {
+			return array();
+		}
+
+		return array_map( 'absint', array_filter( $ids ) );
 	}
 
 	/**
