@@ -54,6 +54,14 @@ class TutorPress_Lesson {
 	private $sync_context;
 
 	/**
+	 * Lesson sync service.
+	 *
+	 * @since 1.14.3
+	 * @var TutorPress_Lesson_Sync_Service
+	 */
+	private $sync_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.14.3
@@ -61,6 +69,32 @@ class TutorPress_Lesson {
 	public function __construct() {
 		$this->token = 'lesson';
 		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
+		$this->sync_service = new TutorPress_Lesson_Sync_Service( [
+			'get_lesson_settings' => function( $post ) {
+				return $this->get_lesson_settings_impl( $post );
+			},
+			'update_lesson_settings' => function( $value, $post ) {
+				return $this->update_lesson_settings_impl( $value, $post );
+			},
+			'sanitize_lesson_settings' => function( $settings ) {
+				return $this->sanitize_lesson_settings_impl( $settings );
+			},
+			'handle_tutor_video_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
+				$this->handle_tutor_video_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
+			},
+			'handle_tutor_attachments_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
+				$this->handle_tutor_attachments_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
+			},
+			'handle_tutor_preview_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
+				$this->handle_tutor_preview_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
+			},
+			'handle_lesson_settings_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
+				$this->handle_lesson_settings_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
+			},
+			'sync_on_lesson_save' => function( $post_id, $post, $update ) {
+				$this->sync_on_lesson_save_impl( $post_id, $post, $update );
+			},
+		] );
 
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -310,6 +344,17 @@ class TutorPress_Lesson {
 	 * @return array Lesson settings.
 	 */
 	public function get_lesson_settings( $post ) {
+		return $this->sync_service->get_lesson_settings( $post );
+	}
+
+	/**
+	 * Existing lesson settings read implementation.
+	 *
+	 * @since 1.14.3
+	 * @param array $post Post data.
+	 * @return array Lesson settings.
+	 */
+	private function get_lesson_settings_impl( $post ) {
 		$post_id = $post['id'];
 
 		$course_preview_available = tutorpress_feature_flags()->can_user_access_feature('course_preview');
@@ -364,6 +409,18 @@ class TutorPress_Lesson {
 	 * @return bool True on success.
 	 */
 	public function update_lesson_settings( $value, $post ) {
+		return $this->sync_service->update_lesson_settings( $value, $post );
+	}
+
+	/**
+	 * Existing lesson settings update implementation.
+	 *
+	 * @since 1.14.3
+	 * @param array   $value New settings values.
+	 * @param WP_Post $post  Post object.
+	 * @return bool True on success.
+	 */
+	private function update_lesson_settings_impl( $value, $post ) {
 		$post_id = $post->ID;
 		if ( ! is_array( $value ) ) {
 			return false;
@@ -440,6 +497,17 @@ class TutorPress_Lesson {
 	 * @return array Sanitized settings.
 	 */
 	public function sanitize_lesson_settings( $settings ) {
+		return $this->sync_service->sanitize_lesson_settings( $settings );
+	}
+
+	/**
+	 * Existing lesson settings sanitization implementation.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Lesson settings to sanitize.
+	 * @return array Sanitized settings.
+	 */
+	private function sanitize_lesson_settings_impl( $settings ) {
 		if ( ! is_array( $settings ) ) {
 			return [];
 		}
@@ -749,6 +817,10 @@ class TutorPress_Lesson {
 	}
 
 	public function handle_tutor_video_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
+		$this->sync_service->handle_tutor_video_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
+	}
+
+	private function handle_tutor_video_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
 		if ( $meta_key !== '_video' || get_post_type( $post_id ) !== 'lesson' ) {
 			return;
 		}
@@ -760,6 +832,10 @@ class TutorPress_Lesson {
 	}
 
 	public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
+		$this->sync_service->handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
+	}
+
+	private function handle_tutor_attachments_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
 		if ( $meta_key !== '_tutor_attachments' || get_post_type( $post_id ) !== 'lesson' ) {
 			return;
 		}
@@ -773,6 +849,10 @@ class TutorPress_Lesson {
 	}
 
 	public function handle_tutor_preview_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
+		$this->sync_service->handle_tutor_preview_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
+	}
+
+	private function handle_tutor_preview_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
 		if ( $meta_key !== '_is_preview' || get_post_type( $post_id ) !== 'lesson' ) {
 			return;
 		}
@@ -785,6 +865,10 @@ class TutorPress_Lesson {
 	}
 
 	public function handle_lesson_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
+		$this->sync_service->handle_lesson_settings_update( $meta_id, $post_id, $meta_key, $meta_value );
+	}
+
+	private function handle_lesson_settings_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
 		$non_video_meta_keys = [ '_lesson_exercise_files', '_lesson_is_preview' ];
 		if ( ! in_array( $meta_key, $non_video_meta_keys, true ) || get_post_type( $post_id ) !== 'lesson' ) {
 			return;
@@ -806,6 +890,10 @@ class TutorPress_Lesson {
 	}
 
 	public function sync_on_lesson_save( $post_id, $post, $update ) {
+		$this->sync_service->sync_on_lesson_save( $post_id, $post, $update );
+	}
+
+	private function sync_on_lesson_save_impl( $post_id, $post, $update ) {
 		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
 			return;
 		}
