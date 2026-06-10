@@ -70,9 +70,6 @@ class TutorPress_Lesson {
 		$this->token = 'lesson';
 		$this->sync_context = new TutorPress_Lesson_Sync_Context( $this->token );
 		$this->sync_service = new TutorPress_Lesson_Sync_Service( [
-			'handle_tutor_video_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
-				$this->handle_tutor_video_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
-			},
 			'handle_tutor_attachments_meta_update' => function( $meta_id, $post_id, $meta_key, $meta_value ) {
 				$this->handle_tutor_attachments_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value );
 			},
@@ -85,12 +82,6 @@ class TutorPress_Lesson {
 			'sync_on_lesson_save' => function( $post_id, $post, $update ) {
 				$this->sync_on_lesson_save_impl( $post_id, $post, $update );
 			},
-			'sanitize_video_source' => function( $source ) {
-				return $this->sanitize_video_source( $source );
-			},
-			'sanitize_embedded_code' => function( $code ) {
-				return $this->sanitize_embedded_code( $code );
-			},
 			'sanitize_attachment_ids' => function( $ids ) {
 				return $this->sanitize_attachment_ids( $ids );
 			},
@@ -100,10 +91,7 @@ class TutorPress_Lesson {
 			'sync_lesson_preview' => function( $post_id ) {
 				$this->sync_lesson_preview( $post_id );
 			},
-			'sync_to_tutor_video_format' => function( $post_id ) {
-				$this->sync_to_tutor_video_format( $post_id );
-			},
-		] );
+		], $this->sync_context );
 
 		// Initialize meta fields and REST API support
 		add_action( 'init', [ $this, 'set_up_meta_fields' ] );
@@ -649,17 +637,6 @@ class TutorPress_Lesson {
 		$this->sync_service->handle_tutor_video_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
 	}
 
-	private function handle_tutor_video_meta_update_impl( $meta_id, $post_id, $meta_key, $meta_value ) {
-		if ( $meta_key !== '_video' || get_post_type( $post_id ) !== 'lesson' ) {
-			return;
-		}
-		$our_last_update = get_post_meta( $post_id, '_tutorpress_video_last_sync', true );
-		if ( $our_last_update && ( time() - $our_last_update ) < 5 ) {
-			return;
-		}
-		$this->sync_from_tutor_video_format( $post_id, $meta_value );
-	}
-
 	public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
 		$this->sync_service->handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value );
 	}
@@ -726,7 +703,7 @@ class TutorPress_Lesson {
 		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
 			return;
 		}
-		$this->sync_to_tutor_video_format( $post_id );
+		$this->sync_service->sync_to_tutor_video_format( $post_id );
 		if ( $this->is_frontend_builder_attachment_save() ) {
 			$this->mirror_frontend_builder_exercise_files( $post_id, $this->get_frontend_builder_attachment_ids() );
 		} elseif ( $this->is_frontend_builder_delete_all_attachment_save( $post_id ) ) {
@@ -735,193 +712,6 @@ class TutorPress_Lesson {
 			$this->sync_exercise_files( $post_id );
 		}
 		$this->sync_lesson_preview( $post_id );
-	}
-
-	private function sync_from_tutor_video_format( $post_id, $video_data = null ) {
-		if ( ! $video_data ) {
-			$video_data = get_post_meta( $post_id, '_video', true );
-		}
-		if ( empty( $video_data ) || ! is_array( $video_data ) ) {
-			return;
-		}
-		update_post_meta( $post_id, '_tutorpress_video_last_sync', time() );
-		if ( array_key_exists( 'source', $video_data ) ) {
-			$incoming_source = sanitize_text_field( $video_data['source'] );
-			if ( '' === $incoming_source || '-1' === $incoming_source ) {
-				delete_post_meta( $post_id, '_video' );
-				$this->clear_lesson_video_mirror_meta( $post_id );
-				return;
-			}
-		}
-		if ( isset( $video_data['source'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_source', $this->sanitize_video_source( $video_data['source'] ) );
-		}
-		if ( isset( $video_data['source_video_id'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_source_id', absint( $video_data['source_video_id'] ) );
-		}
-		if ( isset( $video_data['source_external_url'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_external_url', esc_url_raw( $video_data['source_external_url'] ) );
-		}
-		if ( isset( $video_data['source_html5'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_external_url', esc_url_raw( $video_data['source_html5'] ) );
-		} else {
-			if ( isset( $video_data['source_video_id'] ) && $video_data['source_video_id'] ) {
-				$attachment_url = wp_get_attachment_url( $video_data['source_video_id'] );
-				if ( $attachment_url ) {
-					update_post_meta( $post_id, '_lesson_video_external_url', $attachment_url );
-				}
-			}
-		}
-		if ( isset( $video_data['source_youtube'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_youtube', sanitize_text_field( $video_data['source_youtube'] ) );
-		}
-		if ( isset( $video_data['source_vimeo'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_vimeo', sanitize_text_field( $video_data['source_vimeo'] ) );
-		}
-		if ( isset( $video_data['source_embedded'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_embedded', $this->sanitize_embedded_code( $video_data['source_embedded'] ) );
-		}
-		if ( isset( $video_data['source_shortcode'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_shortcode', sanitize_text_field( $video_data['source_shortcode'] ) );
-		}
-		if ( isset( $video_data['poster'] ) ) {
-			update_post_meta( $post_id, '_lesson_video_poster', esc_url_raw( $video_data['poster'] ) );
-		}
-		if ( isset( $video_data['runtime'] ) && is_array( $video_data['runtime'] ) ) {
-			$runtime = TutorPress_Lesson_Video_Duration::normalize_duration( $video_data['runtime'] );
-			$runtime['minutes'] = min( 59, $runtime['minutes'] );
-			$runtime['seconds'] = min( 59, $runtime['seconds'] );
-
-			if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $runtime ) ) {
-				update_post_meta( $post_id, '_lesson_video_duration_hours', $runtime['hours'] );
-				update_post_meta( $post_id, '_lesson_video_duration_minutes', $runtime['minutes'] );
-				update_post_meta( $post_id, '_lesson_video_duration_seconds', $runtime['seconds'] );
-
-				$video_data['runtime']  = $runtime;
-				$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $runtime );
-				update_post_meta( $post_id, '_video', $video_data );
-				return;
-			}
-
-			$existing_duration = TutorPress_Lesson_Video_Duration::get_lesson_duration( $post_id );
-			if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $existing_duration ) ) {
-				$video_data['runtime']  = $existing_duration;
-				$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $existing_duration );
-				update_post_meta( $post_id, '_video', $video_data );
-				return;
-			}
-
-			update_post_meta( $post_id, '_lesson_video_duration_hours', $runtime['hours'] );
-			update_post_meta( $post_id, '_lesson_video_duration_minutes', $runtime['minutes'] );
-			update_post_meta( $post_id, '_lesson_video_duration_seconds', $runtime['seconds'] );
-		}
-	}
-
-	private function sync_to_tutor_video_format( $post_id ) {
-		update_post_meta( $post_id, '_tutorpress_video_last_sync', time() );
-
-		if ( $this->is_frontend_builder_no_video_save() ) {
-			delete_post_meta( $post_id, '_video' );
-			$this->clear_lesson_video_mirror_meta( $post_id );
-			return;
-		}
-
-		$source = get_post_meta( $post_id, '_lesson_video_source', true );
-		$source_video_id = (int) get_post_meta( $post_id, '_lesson_video_source_id', true );
-		$external_url = get_post_meta( $post_id, '_lesson_video_external_url', true );
-		$youtube = get_post_meta( $post_id, '_lesson_video_youtube', true );
-		$vimeo = get_post_meta( $post_id, '_lesson_video_vimeo', true );
-		$embedded = get_post_meta( $post_id, '_lesson_video_embedded', true );
-		$shortcode = get_post_meta( $post_id, '_lesson_video_shortcode', true );
-		$poster = get_post_meta( $post_id, '_lesson_video_poster', true );
-		$duration = TutorPress_Lesson_Video_Duration::get_lesson_duration( $post_id );
-
-		if ( empty( $source ) || '-1' === $source ) {
-			delete_post_meta( $post_id, '_video' );
-			return;
-		}
-
-		$video_data = array( 'source' => $source );
-		$has_required_source_data = false;
-
-		if ( 'html5' === $source && $source_video_id ) {
-			$video_data['source_video_id'] = $source_video_id;
-			$attachment_url = wp_get_attachment_url( $source_video_id );
-			if ( $attachment_url ) {
-				$video_data['source_html5'] = $attachment_url;
-			}
-			$has_required_source_data = true;
-		} elseif ( 'external_url' === $source && $external_url ) {
-			$video_data['source_external_url'] = $external_url;
-			$has_required_source_data = true;
-		} elseif ( 'youtube' === $source && $youtube ) {
-			$video_data['source_youtube'] = $youtube;
-			$has_required_source_data = true;
-		} elseif ( 'vimeo' === $source && $vimeo ) {
-			$video_data['source_vimeo'] = $vimeo;
-			$has_required_source_data = true;
-		} elseif ( 'embedded' === $source && $embedded ) {
-			$video_data['source_embedded'] = $embedded;
-			$has_required_source_data = true;
-		} elseif ( 'shortcode' === $source && $shortcode ) {
-			$video_data['source_shortcode'] = $shortcode;
-			$has_required_source_data = true;
-		}
-
-		if ( ! $has_required_source_data ) {
-			delete_post_meta( $post_id, '_video' );
-			return;
-		}
-
-		if ( $poster ) {
-			$video_data['poster'] = $poster;
-		}
-		$video_data['runtime'] = array(
-			'hours'   => $duration['hours'],
-			'minutes' => $duration['minutes'],
-			'seconds' => $duration['seconds'],
-		);
-		if ( TutorPress_Lesson_Video_Duration::has_non_zero_duration( $duration ) ) {
-			$video_data['playtime'] = TutorPress_Lesson_Video_Duration::format_playtime( $duration );
-		}
-		update_post_meta( $post_id, '_video', $video_data );
-	}
-
-	/**
-	 * Whether the current request is a Tutor LMS frontend-builder no-video lesson save.
-	 *
-	 * @since 1.14.3
-	 * @return bool
-	 */
-	private function is_frontend_builder_no_video_save() {
-		return $this->sync_context->is_frontend_builder_no_video_save();
-	}
-
-	/**
-	 * Clear TutorPress lesson video mirror meta keys.
-	 *
-	 * @since 1.14.3
-	 * @param int $post_id Lesson post ID.
-	 * @return void
-	 */
-	private function clear_lesson_video_mirror_meta( $post_id ) {
-		$mirror_keys = array(
-			'_lesson_video_source',
-			'_lesson_video_source_id',
-			'_lesson_video_external_url',
-			'_lesson_video_youtube',
-			'_lesson_video_vimeo',
-			'_lesson_video_embedded',
-			'_lesson_video_shortcode',
-			'_lesson_video_poster',
-			'_lesson_video_duration_hours',
-			'_lesson_video_duration_minutes',
-			'_lesson_video_duration_seconds',
-		);
-
-		foreach ( $mirror_keys as $meta_key ) {
-			delete_post_meta( $post_id, $meta_key );
-		}
 	}
 
 	/**
@@ -997,17 +787,11 @@ class TutorPress_Lesson {
 	}
 
 	public function sanitize_video_source( $source ) {
-		$allowed_sources = [ '', 'html5', 'youtube', 'vimeo', 'external_url', 'embedded', 'shortcode' ];
-		return in_array( $source, $allowed_sources, true ) ? $source : '';
+		return $this->sync_service->sanitize_video_source( $source );
 	}
 
 	public function sanitize_embedded_code( $code ) {
-		$allowed_tags = [
-			'iframe' => [ 'src' => true, 'width' => true, 'height' => true, 'frameborder' => true, 'allowfullscreen' => true, 'allow' => true ],
-			'video' => [ 'src' => true, 'width' => true, 'height' => true, 'controls' => true, 'preload' => true ],
-			'source' => [ 'src' => true, 'type' => true ],
-		];
-		return wp_kses( $code, $allowed_tags );
+		return $this->sync_service->sanitize_embedded_code( $code );
 	}
 
 	public function sanitize_attachment_ids( $ids ) {
