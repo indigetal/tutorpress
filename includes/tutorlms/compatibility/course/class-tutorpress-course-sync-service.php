@@ -1083,6 +1083,22 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Save the REST after-insert materials subset behavior.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id  Course post ID.
+	 * @param array $settings REST course settings payload.
+	 * @return void
+	 */
+	public function save_rest_after_insert_materials( $post_id, array $settings ) {
+		if ( ! $this->sync_context->has_rest_after_insert_settings_key( $settings, 'course_material_includes' ) ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutor_course_material_includes', $settings['course_material_includes'] );
+	}
+
+	/**
 	 * Save the REST after-insert attachment subset behavior.
 	 *
 	 * @since 1.14.3

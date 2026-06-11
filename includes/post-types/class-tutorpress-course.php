@@ -441,7 +441,6 @@ class TutorPress_Course {
     /**
      * Auth callback for post meta fields.
      *
-     * Follows Sensei LMS pattern for permission checking.
      * Ensures users can only edit course settings if they have permission to edit the post.
      *
      * @since 1.14.2
@@ -776,9 +775,6 @@ class TutorPress_Course {
     /**
      * Update course settings.
      *
-     * Foundation implementation for Phase 3.1.
-     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
-     *
      * @since 1.14.2
      * @param array $value Settings to update.
      * @param WP_Post $post Post object.
@@ -790,9 +786,6 @@ class TutorPress_Course {
 
     /**
      * Sanitize course settings.
-     *
-     * Foundation implementation for Phase 3.1.
-     * Preserves Tutor LMS compatibility while following Sensei LMS patterns.
      *
      * @since 1.14.2
      * @param array $settings Course settings to sanitize.
@@ -918,7 +911,7 @@ class TutorPress_Course {
     /**
      * Handle course settings updates.
      *
-     * Stored course_settings is compatibility shadow only after Step 8, so direct shadow
+     * Stored course_settings is compatibility shadow only, so direct shadow
      * writes must never fan back into canonical Tutor data.
      *
      * @since 1.14.2
@@ -936,7 +929,7 @@ class TutorPress_Course {
      * Handle REST API course updates.
      *
      * This method is called when courses are updated via REST API (Gutenberg saves).
-     * When using useEntityProp, the data goes through REST API, so we need to handle intro video sync here.
+     * When using useEntityProp, the data goes through REST API, intro video sync handled here.
      *
      * @since 1.14.2
      * @param WP_Post $post Post object.
@@ -956,12 +949,7 @@ class TutorPress_Course {
         }
 
         $this->sync_service->save_rest_after_insert_intro_video( $post->ID, $settings );
-
-        // Handle other course media fields
-        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'course_material_includes' ) ) {
-            update_post_meta($post->ID, '_tutor_course_material_includes', $settings['course_material_includes']);
-        }
-
+        $this->sync_service->save_rest_after_insert_materials( $post->ID, $settings );
 		$this->sync_service->save_rest_after_insert_attachments( $post->ID, $settings );
     }
 
