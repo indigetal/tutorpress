@@ -740,6 +740,170 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Read co-instructor settings from Tutor LMS usermeta.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Instructor settings.
+	 */
+	public static function get_instructor_settings( $post_id ) {
+		$instructor_ids = self::get_course_instructor_ids_from_usermeta( $post_id );
+
+		return array(
+			'instructors'            => $instructor_ids,
+			'additional_instructors' => $instructor_ids,
+		);
+	}
+
+	/**
+	 * Read Tutor LMS co-instructor IDs from upstream usermeta.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Co-instructor user IDs.
+	 */
+	public static function get_course_instructor_ids_from_usermeta( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $post || 'courses' !== $post->post_type ) {
+			return array();
+		}
+
+		$instructor_ids = get_users(
+			array(
+				'fields'     => 'ID',
+				'meta_key'   => '_tutor_instructor_course_id',
+				'meta_value' => $post_id,
+			)
+		);
+
+		$instructor_ids = array_values( array_unique( array_map( 'absint', $instructor_ids ) ) );
+
+		return array_values(
+			array_filter(
+				$instructor_ids,
+				static function ( $instructor_id ) use ( $post ) {
+					return $instructor_id && (int) $post->post_author !== (int) $instructor_id;
+				}
+			)
+		);
+	}
+
+	/**
+	 * Normalize co-instructor settings for canonical saves.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Normalized settings payload.
+	 */
+	public static function normalize_instructors_for_save( array $settings ) {
+		$normalized = array();
+
+		if ( array_key_exists( 'instructors', $settings ) ) {
+			$normalized['instructors'] = is_array( $settings['instructors'] ) ? array_map( 'absint', $settings['instructors'] ) : array();
+		}
+
+		if ( array_key_exists( 'additional_instructors', $settings ) ) {
+			$normalized['additional_instructors'] = is_array( $settings['additional_instructors'] ) ? array_map( 'absint', $settings['additional_instructors'] ) : array();
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Sanitize co-instructor settings for shadow writes.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Sanitized settings payload.
+	 */
+	public static function sanitize_instructors( array $settings ) {
+		$sanitized = array();
+
+		if ( isset( $settings['instructors'] ) && is_array( $settings['instructors'] ) ) {
+			$sanitized['instructors'] = array_map( 'absint', $settings['instructors'] );
+		}
+
+		if ( isset( $settings['additional_instructors'] ) && is_array( $settings['additional_instructors'] ) ) {
+			$sanitized['additional_instructors'] = array_map( 'absint', $settings['additional_instructors'] );
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Save co-instructor settings and Tutor LMS usermeta mirrors.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id                 Course post ID.
+	 * @param array $normalized_settings     Normalized settings payload.
+	 * @param array $existing_tutor_settings Existing Tutor settings blob.
+	 * @return void
+	 */
+	public static function save_instructors( $post_id, array $normalized_settings, array &$existing_tutor_settings ) {
+		$resolved_instructor_ids = self::resolve_instructor_ids_for_save( $normalized_settings );
+		if ( null === $resolved_instructor_ids ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutor_course_instructors', $resolved_instructor_ids );
+		self::sync_instructors_to_tutor_lms( $post_id, $resolved_instructor_ids );
+		$existing_tutor_settings['instructors'] = $resolved_instructor_ids;
+		$existing_tutor_settings['additional_instructors'] = $resolved_instructor_ids;
+	}
+
+	/**
+	 * Validate route instructor IDs against the current permission rules.
+	 *
+	 * @since 1.14.3
+	 * @param mixed $instructor_ids Raw instructor IDs.
+	 * @return array Valid instructor IDs.
+	 */
+	public static function validate_course_instructor_ids( $instructor_ids ) {
+		if ( ! is_array( $instructor_ids ) ) {
+			$instructor_ids = array();
+		}
+
+		$valid_instructor_ids = array();
+		foreach ( $instructor_ids as $instructor_id ) {
+			$user = get_user_by( 'id', $instructor_id );
+			if ( $user && ( user_can( $instructor_id, 'edit_posts' ) || user_can( $instructor_id, 'tutor_instructor' ) ) ) {
+				$valid_instructor_ids[] = $instructor_id;
+			}
+		}
+
+		return $valid_instructor_ids;
+	}
+
+	/**
+	 * Save route-validated co-instructors with the existing fallback behavior.
+	 *
+	 * @since 1.14.3
+	 * @param int   $course_id      Course post ID.
+	 * @param array $instructor_ids Valid instructor IDs.
+	 * @return bool Whether the save succeeded.
+	 */
+	public static function save_route_instructors( $course_id, array $instructor_ids ) {
+		$result = update_post_meta( $course_id, '_tutor_course_instructors', $instructor_ids );
+
+		if ( false === $result ) {
+			delete_post_meta( $course_id, '_tutor_course_instructors' );
+			$result = add_post_meta( $course_id, '_tutor_course_instructors', $instructor_ids, true );
+		}
+
+		if ( false === $result ) {
+			return false;
+		}
+
+		try {
+			self::sync_instructors_to_tutor_lms( $course_id, $instructor_ids );
+		} catch ( Exception $e ) {
+			// Preserve the route behavior: instructor meta save succeeds even if usermeta sync fails.
+		}
+
+		return true;
+	}
+
+	/**
 	 * Save the REST after-insert intro video subset behavior.
 	 *
 	 * @since 1.14.3
@@ -818,6 +982,53 @@ class TutorPress_Course_Sync_Service {
 
 		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
 		update_post_meta( $post_id, '_tutor_course_attachments', array() );
+	}
+
+	/**
+	 * Resolve the instructor ID list for canonical saves.
+	 *
+	 * When both instructor keys are present, additional_instructors wins.
+	 *
+	 * @since 1.14.3
+	 * @param array $normalized_settings Normalized settings payload.
+	 * @return array|null Resolved instructor IDs, or null when omitted.
+	 */
+	private static function resolve_instructor_ids_for_save( array $normalized_settings ) {
+		$resolved_instructor_ids = null;
+
+		if ( array_key_exists( 'instructors', $normalized_settings ) ) {
+			$resolved_instructor_ids = $normalized_settings['instructors'];
+		}
+
+		if ( array_key_exists( 'additional_instructors', $normalized_settings ) ) {
+			$resolved_instructor_ids = $normalized_settings['additional_instructors'];
+		}
+
+		return $resolved_instructor_ids;
+	}
+
+	/**
+	 * Sync co-instructors to Tutor LMS compatibility usermeta.
+	 *
+	 * @since 1.14.3
+	 * @param int   $course_id      Course post ID.
+	 * @param array $instructor_ids Instructor user IDs.
+	 * @return void
+	 */
+	public static function sync_instructors_to_tutor_lms( $course_id, array $instructor_ids ) {
+		global $wpdb;
+
+		$wpdb->delete(
+			$wpdb->usermeta,
+			array(
+				'meta_key'   => '_tutor_instructor_course_id',
+				'meta_value' => $course_id,
+			)
+		);
+
+		foreach ( $instructor_ids as $instructor_id ) {
+			add_user_meta( $instructor_id, '_tutor_instructor_course_id', $course_id );
+		}
 	}
 
 	/**

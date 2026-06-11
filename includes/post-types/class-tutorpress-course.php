@@ -696,13 +696,10 @@ class TutorPress_Course {
         $intro_video_settings = TutorPress_Course_Sync_Service::get_intro_video_settings( $post_id, $tutor_settings );
 		$attachment_settings = TutorPress_Course_Sync_Service::get_attachment_settings( $post_id );
 		$pricing_product_settings = TutorPress_Course_Sync_Service::get_pricing_product_settings( $post_id );
+		$instructor_settings = TutorPress_Course_Sync_Service::get_instructor_settings( $post_id );
         
         // Build settings structure (preserving Tutor LMS compatibility)
-		$settings = array_merge( $core_settings, $access_settings, $intro_video_settings, $attachment_settings, $pricing_product_settings, [
-            // Course Instructors Section: Read from individual Tutor LMS meta fields
-            'instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [],
-            'additional_instructors' => get_post_meta($post_id, '_tutor_course_instructors', true) ?: [], // Alias for compatibility
-        ] );
+		$settings = array_merge( $core_settings, $access_settings, $intro_video_settings, $attachment_settings, $pricing_product_settings, $instructor_settings );
 
         // Do not override from stored course_settings here; rely on canonical Tutor meta + computed values
         return $settings;
@@ -747,20 +744,7 @@ class TutorPress_Course {
 			TutorPress_Course_Sync_Service::save_pricing_product( $post_id, $normalized_settings, $existing_tutor_settings );
 
             TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
-
-            $resolved_instructor_ids = null;
-            if ( array_key_exists( 'instructors', $normalized_settings ) ) {
-                $resolved_instructor_ids = $normalized_settings['instructors'];
-            }
-            if ( array_key_exists( 'additional_instructors', $normalized_settings ) ) {
-                $resolved_instructor_ids = $normalized_settings['additional_instructors'];
-            }
-            if ( null !== $resolved_instructor_ids ) {
-                update_post_meta( $post_id, '_tutor_course_instructors', $resolved_instructor_ids );
-                self::sync_instructors_to_tutor_lms( $post_id, $resolved_instructor_ids );
-                $existing_tutor_settings['instructors'] = $resolved_instructor_ids;
-                $existing_tutor_settings['additional_instructors'] = $resolved_instructor_ids;
-            }
+            TutorPress_Course_Sync_Service::save_instructors( $post_id, $normalized_settings, $existing_tutor_settings );
 
             update_post_meta( $post_id, '_tutor_course_settings', $existing_tutor_settings );
             update_post_meta( $post_id, '_tutorpress_course_settings_last_sync', time() );
@@ -788,14 +772,7 @@ class TutorPress_Course {
 		$normalized = TutorPress_Course_Sync_Service::normalize_pricing_product_for_save( $settings, $normalized );
 
         $normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_access_enrollment_prerequisite_and_schedule_for_save( $settings ) );
-
-        if ( array_key_exists( 'instructors', $settings ) ) {
-            $normalized['instructors'] = is_array( $settings['instructors'] ) ? array_map( 'absint', $settings['instructors'] ) : [];
-        }
-
-        if ( array_key_exists( 'additional_instructors', $settings ) ) {
-            $normalized['additional_instructors'] = is_array( $settings['additional_instructors'] ) ? array_map( 'absint', $settings['additional_instructors'] ) : [];
-        }
+        $normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_instructors_for_save( $settings ) );
 
         return $normalized;
     }
@@ -836,44 +813,12 @@ class TutorPress_Course {
 		$sanitized = TutorPress_Course_Sync_Service::sanitize_pricing_product( $settings, $sanitized );
         
         $sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_access_enrollment_prerequisite_and_schedule( $settings ) );
-        
-        // Course Instructors Section: Sanitize individual fields
-        if (isset($settings['instructors']) && is_array($settings['instructors'])) {
-            $sanitized['instructors'] = array_map('absint', $settings['instructors']);
-        }
-        
-        if (isset($settings['additional_instructors']) && is_array($settings['additional_instructors'])) {
-            $sanitized['additional_instructors'] = array_map('absint', $settings['additional_instructors']);
-        }
+        $sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_instructors( $settings ) );
         
         // All settings panels have been migrated
         // Course Details, Course Media, Pricing Model, Course Access & Enrollment, and Course Instructors panels
         
         return $sanitized;
-    }
-
-    /**
-     * Sync instructors to Tutor LMS compatibility format
-     *
-     * @param int $course_id The course ID
-     * @param array $instructor_ids Array of instructor user IDs
-     * @return void
-     */
-    private static function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
-        // Remove old instructor associations
-        global $wpdb;
-        $wpdb->delete(
-            $wpdb->usermeta,
-            [
-                'meta_key' => '_tutor_instructor_course_id',
-                'meta_value' => $course_id,
-            ]
-        );
-
-        // Add new instructor associations
-        foreach ($instructor_ids as $instructor_id) {
-            add_user_meta($instructor_id, '_tutor_instructor_course_id', $course_id);
-        }
     }
 
     /**

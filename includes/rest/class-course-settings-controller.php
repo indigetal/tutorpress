@@ -946,11 +946,8 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             ];
         }
 
-        // Get co-instructors from improved data model
-        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
-        if (!is_array($co_instructor_ids)) {
-            $co_instructor_ids = [];
-        }
+        // Get co-instructors from Tutor LMS usermeta source of truth.
+        $co_instructor_ids = TutorPress_Course_Sync_Service::get_course_instructor_ids_from_usermeta( $course_id );
 
         $co_instructors = [];
         foreach ($co_instructor_ids as $instructor_id) {
@@ -1000,11 +997,10 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
         }
 
         // Get current instructors to exclude from search
-        $current_instructor_ids = [$course->post_author]; // Include author
-        $co_instructor_ids = get_post_meta($course_id, '_tutor_course_instructors', true);
-        if (is_array($co_instructor_ids)) {
-            $current_instructor_ids = array_merge($current_instructor_ids, $co_instructor_ids);
-        }
+        $current_instructor_ids = array_merge(
+            [$course->post_author],
+            TutorPress_Course_Sync_Service::get_course_instructor_ids_from_usermeta( $course_id )
+        );
 
         // Build user query
         $args = [
@@ -1073,42 +1069,15 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        // Ensure instructor_ids is an array
-        if (!is_array($instructor_ids)) {
-            $instructor_ids = [];
-        }
-
-        // Validate instructor IDs
-        $valid_instructor_ids = [];
-        foreach ($instructor_ids as $instructor_id) {
-            $user = get_user_by('id', $instructor_id);
-            if ($user && (user_can($instructor_id, 'edit_posts') || user_can($instructor_id, 'tutor_instructor'))) {
-                $valid_instructor_ids[] = $instructor_id;
-            }
-        }
+        $valid_instructor_ids = TutorPress_Course_Sync_Service::validate_course_instructor_ids( $instructor_ids );
 
         // Try to update the meta field with fallback approach
-        $result = update_post_meta($course_id, '_tutor_course_instructors', $valid_instructor_ids);
-        
-        if ($result === false) {
-            // Try alternative approach - delete and add
-            delete_post_meta($course_id, '_tutor_course_instructors');
-            $result = add_post_meta($course_id, '_tutor_course_instructors', $valid_instructor_ids, true);
-            
-            if ($result === false) {
-                return new WP_Error(
-                    'update_failed',
-                    __('Failed to update course instructors. Database error.', 'tutorpress'),
-                    ['status' => 500]
-                );
-            }
-        }
-
-        // Sync to Tutor LMS compatibility (user meta)
-        try {
-            $this->sync_instructors_to_tutor_lms($course_id, $valid_instructor_ids);
-        } catch (Exception $e) {
-            // Don't fail the request if sync fails
+        if ( ! TutorPress_Course_Sync_Service::save_route_instructors( $course_id, $valid_instructor_ids ) ) {
+            return new WP_Error(
+                'update_failed',
+                __('Failed to update course instructors. Database error.', 'tutorpress'),
+                ['status' => 500]
+            );
         }
 
         return rest_ensure_response([
@@ -1120,30 +1089,6 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             ],
             'course_id' => $course_id,
         ]);
-    }
-
-    /**
-     * Sync instructors to Tutor LMS compatibility format
-     *
-     * @param int $course_id The course ID
-     * @param array $instructor_ids Array of instructor user IDs
-     * @return void
-     */
-    private function sync_instructors_to_tutor_lms($course_id, $instructor_ids) {
-        // Remove old instructor associations
-        global $wpdb;
-        $wpdb->delete(
-            $wpdb->usermeta,
-            [
-                'meta_key' => '_tutor_instructor_course_id',
-                'meta_value' => $course_id,
-            ]
-        );
-
-        // Add new instructor associations
-        foreach ($instructor_ids as $instructor_id) {
-            add_user_meta($instructor_id, '_tutor_instructor_course_id', $course_id);
-        }
     }
 
     /**
