@@ -583,6 +583,163 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Read pricing, selling option, and product link settings.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Pricing and product settings.
+	 */
+	public static function get_pricing_product_settings( $post_id ) {
+		$sale_price = get_post_meta( $post_id, 'tutor_course_sale_price', true );
+
+		return array(
+			'is_free'                => 'free' === get_post_meta( $post_id, '_tutor_course_price_type', true ),
+			'pricing_model'          => get_post_meta( $post_id, '_tutor_course_price_type', true ) ?: 'free',
+			'price'                  => (float) get_post_meta( $post_id, 'tutor_course_price', true ) ?: 0,
+			'sale_price'             => ( '' === $sale_price || null === $sale_price ) ? null : (float) $sale_price,
+			'selling_option'         => get_post_meta( $post_id, 'tutor_course_selling_option', true ) ?: 'one_time',
+			'woocommerce_product_id' => TutorPress_Addon_Checker::is_woocommerce_monetization() ? get_post_meta( $post_id, '_tutor_course_product_id', true ) ?: '' : '',
+			'edd_product_id'         => TutorPress_Addon_Checker::is_edd_monetization() ? get_post_meta( $post_id, '_tutor_course_product_id', true ) ?: '' : '',
+			'subscription_enabled'   => 'subscription' === get_post_meta( $post_id, 'tutor_course_selling_option', true ),
+		);
+	}
+
+	/**
+	 * Normalize pricing, selling option, and product link settings.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings   Raw settings payload.
+	 * @param array $normalized Existing normalized settings payload.
+	 * @return array Normalized settings payload.
+	 */
+	public static function normalize_pricing_product_for_save( array $settings, array $normalized ) {
+		if ( array_key_exists( 'pricing_model', $settings ) ) {
+			$pricing_model = sanitize_text_field( (string) $settings['pricing_model'] );
+			$normalized['pricing_model'] = 'free' === $pricing_model ? 'free' : 'paid';
+		}
+
+		if ( array_key_exists( 'price', $settings ) ) {
+			$normalized['price'] = round( max( 0, (float) $settings['price'] ), 2 );
+		}
+
+		if ( array_key_exists( 'sale_price', $settings ) ) {
+			$normalized['sale_price'] = ( null === $settings['sale_price'] || '' === $settings['sale_price'] ) ? null : round( max( 0, (float) $settings['sale_price'] ), 2 );
+		}
+
+		if ( array_key_exists( 'selling_option', $settings ) ) {
+			$selling_option = sanitize_text_field( (string) $settings['selling_option'] );
+			$valid_options = array( 'one_time', 'subscription', 'both', 'membership', 'all' );
+			$normalized['selling_option'] = in_array( $selling_option, $valid_options, true ) ? $selling_option : 'one_time';
+		} elseif ( array_key_exists( 'subscription_enabled', $settings ) ) {
+			$normalized['selling_option'] = ! empty( $settings['subscription_enabled'] ) ? 'subscription' : 'one_time';
+		}
+
+		if ( array_key_exists( 'woocommerce_product_id', $settings ) ) {
+			$normalized['woocommerce_product_id'] = sanitize_text_field( (string) $settings['woocommerce_product_id'] );
+		}
+
+		if ( array_key_exists( 'edd_product_id', $settings ) ) {
+			$normalized['edd_product_id'] = sanitize_text_field( (string) $settings['edd_product_id'] );
+		}
+
+		if ( array_key_exists( 'is_public_course', $normalized ) && array_key_exists( 'pricing_model', $normalized ) && $normalized['is_public_course'] && 'paid' === $normalized['pricing_model'] ) {
+			$normalized['pricing_model'] = 'free';
+			$normalized['price'] = 0;
+			$normalized['sale_price'] = 0;
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Sanitize pricing, selling option, and product link settings for shadow writes.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings  Raw settings payload.
+	 * @param array $sanitized Existing sanitized settings payload.
+	 * @return array Sanitized settings payload.
+	 */
+	public static function sanitize_pricing_product( array $settings, array $sanitized ) {
+		if ( isset( $settings['pricing_model'] ) ) {
+			$sanitized['pricing_model'] = in_array( $settings['pricing_model'], array( 'free', 'paid' ), true ) ? $settings['pricing_model'] : 'free';
+		}
+
+		$is_public = isset( $sanitized['is_public_course'] ) ? $sanitized['is_public_course'] : ( isset( $settings['is_public_course'] ) ? $settings['is_public_course'] : false );
+		$pricing_model = isset( $sanitized['pricing_model'] ) ? $sanitized['pricing_model'] : ( isset( $settings['pricing_model'] ) ? $settings['pricing_model'] : 'free' );
+		if ( $is_public && 'paid' === $pricing_model ) {
+			$sanitized['pricing_model'] = 'free';
+			$sanitized['is_free'] = true;
+			$sanitized['price'] = 0;
+			$sanitized['sale_price'] = 0;
+		}
+
+		if ( isset( $settings['price'] ) ) {
+			$sanitized['price'] = round( max( 0, (float) $settings['price'] ), 2 );
+		}
+
+		if ( array_key_exists( 'sale_price', $settings ) ) {
+			$sanitized['sale_price'] = ( null === $settings['sale_price'] || '' === $settings['sale_price'] ) ? null : round( max( 0, (float) $settings['sale_price'] ), 2 );
+		}
+
+		if ( isset( $settings['selling_option'] ) ) {
+			$sanitized['selling_option'] = in_array( $settings['selling_option'], array( 'one_time', 'subscription', 'both', 'membership', 'all' ), true ) ? $settings['selling_option'] : 'one_time';
+		}
+
+		if ( isset( $settings['woocommerce_product_id'] ) ) {
+			$sanitized['woocommerce_product_id'] = sanitize_text_field( $settings['woocommerce_product_id'] );
+		}
+
+		if ( isset( $settings['edd_product_id'] ) ) {
+			$sanitized['edd_product_id'] = sanitize_text_field( $settings['edd_product_id'] );
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Save pricing, selling option, and product link settings.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id                 Course post ID.
+	 * @param array $normalized_settings     Normalized settings payload.
+	 * @param array $existing_tutor_settings Existing Tutor settings blob.
+	 * @return void
+	 */
+	public static function save_pricing_product( $post_id, array $normalized_settings, array &$existing_tutor_settings ) {
+		if ( array_key_exists( 'pricing_model', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_course_price_type', 'free' === $normalized_settings['pricing_model'] ? 'free' : 'paid' );
+		}
+
+		if ( array_key_exists( 'price', $normalized_settings ) ) {
+			update_post_meta( $post_id, 'tutor_course_price', (float) $normalized_settings['price'] );
+		}
+
+		if ( array_key_exists( 'sale_price', $normalized_settings ) ) {
+			update_post_meta( $post_id, 'tutor_course_sale_price', null === $normalized_settings['sale_price'] ? '' : (float) $normalized_settings['sale_price'] );
+		}
+
+		if ( array_key_exists( 'selling_option', $normalized_settings ) ) {
+			update_post_meta( $post_id, 'tutor_course_selling_option', $normalized_settings['selling_option'] );
+		}
+
+		if ( array_key_exists( 'woocommerce_product_id', $normalized_settings ) || array_key_exists( 'edd_product_id', $normalized_settings ) ) {
+			$active_product_id = '';
+			if ( array_key_exists( 'woocommerce_product_id', $normalized_settings ) && TutorPress_Addon_Checker::is_woocommerce_monetization() ) {
+				$active_product_id = $normalized_settings['woocommerce_product_id'];
+			} elseif ( array_key_exists( 'edd_product_id', $normalized_settings ) && TutorPress_Addon_Checker::is_edd_monetization() ) {
+				$active_product_id = $normalized_settings['edd_product_id'];
+			}
+			update_post_meta( $post_id, '_tutor_course_product_id', $active_product_id );
+		}
+
+		foreach ( array( 'pricing_model', 'price', 'sale_price', 'selling_option', 'woocommerce_product_id', 'edd_product_id' ) as $key ) {
+			if ( array_key_exists( $key, $normalized_settings ) ) {
+				$existing_tutor_settings[ $key ] = $normalized_settings[ $key ];
+			}
+		}
+	}
+
+	/**
 	 * Save the REST after-insert intro video subset behavior.
 	 *
 	 * @since 1.14.3
