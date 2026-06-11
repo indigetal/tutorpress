@@ -966,7 +966,7 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
     }
 
     /**
-     * Get attachment metadata for video duration extraction
+     * Get attachment metadata for lesson media fields.
      *
      * @since 0.1.0
      * @param WP_REST_Request $request The request object.
@@ -992,28 +992,25 @@ class TutorPress_REST_Lessons_Controller extends TutorPress_REST_Controller {
                 );
             }
 
-            // Check if it's a video file
             $mime_type = get_post_mime_type($attachment_id);
-            if (!str_starts_with($mime_type, 'video/')) {
-                return new WP_Error(
-                    'not_video',
-                    __('Attachment is not a video file.', 'tutorpress'),
-                    ['status' => 400]
-                );
+            $file_path = get_attached_file($attachment_id);
+            $file_url = wp_get_attachment_url($attachment_id);
+            $filename = $file_path ? wp_basename($file_path) : '';
+            if (!$filename && $file_url) {
+                $filename = wp_basename((string) wp_parse_url($file_url, PHP_URL_PATH));
             }
-
-            // Get WordPress attachment metadata
-            $metadata = wp_get_attachment_metadata($attachment_id);
             
             $response_data = [
                 'id' => $attachment_id,
-                'url' => wp_get_attachment_url($attachment_id),
+                'filename' => $filename ?: get_the_title($attachment_id),
+                'url' => $file_url,
                 'mime_type' => $mime_type,
                 'duration' => null,
             ];
             
-            // Extract video duration if available
-            if ($metadata) {
+            // Extract video duration if available. Non-video exercise files still return filename metadata.
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if ($metadata && $mime_type && str_starts_with($mime_type, 'video/')) {
                 $duration = [
                     'hours' => 0,
                     'minutes' => 0,

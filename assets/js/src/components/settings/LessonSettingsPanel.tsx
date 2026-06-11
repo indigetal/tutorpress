@@ -65,6 +65,10 @@ interface AttachmentDuration {
 interface AttachmentMetadata {
   success: boolean;
   data?: {
+    id: number;
+    filename: string;
+    url: string;
+    mime_type: string;
     duration: AttachmentDuration | null;
   };
 }
@@ -125,43 +129,19 @@ const LessonSettingsPanel: React.FC = () => {
 
       setIsLoadingExerciseFiles(true);
       try {
-        // Fetch metadata for each exercise file using WordPress REST API
+        // Fetch metadata for each exercise file using the lesson attachment endpoint.
         const metadataPromises = exerciseFileIds.map(async (attachmentId: number) => {
           try {
-            // Use WordPress REST API with proper authentication headers
-            const apiBase = (window as any).wpApiSettings?.root || "/wp-json/";
-            const nonce = (window as any).wpApiSettings?.nonce || "";
-
-            const response = await fetch(`${apiBase}wp/v2/media/${attachmentId}`, {
-              headers: {
-                "X-WP-Nonce": nonce,
-                "Content-Type": "application/json",
-              },
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-
-            // Extract filename with extension
-            let filename =
-              data.title?.rendered || data.media_details?.file?.split("/").pop() || `File ID: ${attachmentId}`;
-
-            // Add file extension if we have mime_type but no extension in filename
-            if (data.mime_type && !filename.includes(".")) {
-              const extension = data.mime_type.split("/")[1];
-              if (extension) {
-                filename = `${filename}.${extension}`;
-              }
-            }
+            const result = (await (window as any).wp.apiFetch({
+              path: `/tutorpress/v1/attachments/${attachmentId}`,
+            })) as AttachmentMetadata;
+            const data = result.data;
 
             return {
               id: attachmentId,
-              filename: filename,
-              url: data.source_url,
-              mime_type: data.mime_type,
+              filename: data?.filename || `File ID: ${attachmentId}`,
+              url: data?.url || "",
+              mime_type: data?.mime_type || "",
             };
           } catch (error) {
             console.error(`Failed to fetch metadata for attachment ${attachmentId}:`, error);
