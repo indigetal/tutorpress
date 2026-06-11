@@ -519,6 +519,70 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Read attachment settings from the TutorPress editor mirror.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Attachment settings.
+	 */
+	public static function get_attachment_settings( $post_id ) {
+		return array(
+			'attachments' => get_post_meta( $post_id, '_tutor_course_attachments', true ) ?: array(),
+		);
+	}
+
+	/**
+	 * Normalize attachment IDs for canonical saves.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Normalized settings payload.
+	 */
+	public static function normalize_attachments_for_save( array $settings ) {
+		if ( ! array_key_exists( 'attachments', $settings ) ) {
+			return array();
+		}
+
+		return array(
+			'attachments' => is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : array(),
+		);
+	}
+
+	/**
+	 * Sanitize attachment IDs for direct shadow meta writes.
+	 *
+	 * @since 1.14.3
+	 * @param array $settings Raw settings payload.
+	 * @return array Sanitized settings payload.
+	 */
+	public static function sanitize_attachments( array $settings ) {
+		if ( ! isset( $settings['attachments'] ) ) {
+			return array();
+		}
+
+		return array(
+			'attachments' => is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : array(),
+		);
+	}
+
+	/**
+	 * Save attachments to TutorPress and Tutor LMS attachment mirrors.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id                 Course post ID.
+	 * @param array $normalized_settings     Normalized settings payload.
+	 * @param array $existing_tutor_settings Existing Tutor settings blob.
+	 * @return void
+	 */
+	public static function save_attachments( $post_id, array $normalized_settings, array &$existing_tutor_settings ) {
+		if ( array_key_exists( 'attachments', $normalized_settings ) ) {
+			update_post_meta( $post_id, '_tutor_course_attachments', $normalized_settings['attachments'] );
+			update_post_meta( $post_id, '_tutor_attachments', $normalized_settings['attachments'] );
+			$existing_tutor_settings['attachments'] = $normalized_settings['attachments'];
+		}
+	}
+
+	/**
 	 * Save the REST after-insert intro video subset behavior.
 	 *
 	 * @since 1.14.3
@@ -535,6 +599,68 @@ class TutorPress_Course_Sync_Service {
 		if ( is_array( $intro_video ) ) {
 			update_post_meta( $post_id, '_video', $intro_video );
 		}
+	}
+
+	/**
+	 * Save the REST after-insert attachment subset behavior.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id  Course post ID.
+	 * @param array $settings REST course settings payload.
+	 * @return void
+	 */
+	public function save_rest_after_insert_attachments( $post_id, array $settings ) {
+		if ( ! $this->sync_context->has_rest_after_insert_settings_key( $settings, 'attachments' ) ) {
+			return;
+		}
+
+		$attachment_ids = is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : array();
+		update_post_meta( $post_id, '_tutor_course_attachments', $attachment_ids );
+		update_post_meta( $post_id, '_tutor_attachments', $attachment_ids );
+	}
+
+	/**
+	 * Mirror external Tutor LMS attachment updates into the TutorPress editor mirror.
+	 *
+	 * @since 1.14.3
+	 * @param int    $post_id    Course post ID.
+	 * @param string $meta_key   Updated meta key.
+	 * @param mixed  $meta_value Updated meta value.
+	 * @return void
+	 */
+	public function handle_tutor_attachments_meta_update( $post_id, $meta_key, $meta_value ) {
+		if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_attachments' ) ) ) {
+			return;
+		}
+
+		if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_attachments_last_sync' ) ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
+		$attachment_ids = is_array( $meta_value ) ? array_map( 'absint', $meta_value ) : array();
+		update_post_meta( $post_id, '_tutor_course_attachments', $attachment_ids );
+	}
+
+	/**
+	 * Mirror external Tutor LMS attachment deletions into the TutorPress editor mirror.
+	 *
+	 * @since 1.14.3
+	 * @param int    $post_id  Course post ID.
+	 * @param string $meta_key Deleted meta key.
+	 * @return void
+	 */
+	public function handle_tutor_attachments_meta_delete( $post_id, $meta_key ) {
+		if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_attachments' ) ) ) {
+			return;
+		}
+
+		if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_attachments_last_sync' ) ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_attachments_last_sync', time() );
+		update_post_meta( $post_id, '_tutor_course_attachments', array() );
 	}
 
 	/**

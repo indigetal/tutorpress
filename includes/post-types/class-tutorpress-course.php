@@ -90,6 +90,7 @@ class TutorPress_Course {
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_individual_field_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_course_settings_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
+        add_action( 'deleted_post_meta', [ $this, 'handle_tutor_attachments_meta_delete' ], 10, 4 );
         
         // Also hook into REST API updates (Gutenberg uses REST API, not traditional meta updates)
         add_action( 'rest_after_insert_courses', [ $this, 'handle_rest_course_update' ], 10, 3 );
@@ -693,11 +694,10 @@ class TutorPress_Course {
         $core_settings = TutorPress_Course_Sync_Service::get_core_details_and_material_settings( $post_id );
         $access_settings = TutorPress_Course_Sync_Service::get_access_enrollment_prerequisite_and_schedule_settings( $post_id, $tutor_settings );
         $intro_video_settings = TutorPress_Course_Sync_Service::get_intro_video_settings( $post_id, $tutor_settings );
+		$attachment_settings = TutorPress_Course_Sync_Service::get_attachment_settings( $post_id );
         
         // Build settings structure (preserving Tutor LMS compatibility)
-        $settings = array_merge( $core_settings, $access_settings, $intro_video_settings, [
-            'attachments' => get_post_meta($post_id, '_tutor_course_attachments', true) ?: [],
-            
+		$settings = array_merge( $core_settings, $access_settings, $intro_video_settings, $attachment_settings, [
             // Pricing Model Section: Read from individual Tutor LMS meta fields
             'is_free' => get_post_meta($post_id, '_tutor_course_price_type', true) === 'free',
             'pricing_model' => get_post_meta($post_id, '_tutor_course_price_type', true) ?: 'free',
@@ -758,11 +758,7 @@ class TutorPress_Course {
         try {
             TutorPress_Course_Sync_Service::save_core_details_and_materials( $post_id, $normalized_settings, $existing_tutor_settings );
             TutorPress_Course_Sync_Service::save_intro_video( $post_id, $normalized_settings, $existing_tutor_settings );
-
-            if ( array_key_exists( 'attachments', $normalized_settings ) ) {
-                update_post_meta( $post_id, '_tutor_course_attachments', $normalized_settings['attachments'] );
-                update_post_meta( $post_id, '_tutor_attachments', $normalized_settings['attachments'] );
-            }
+			TutorPress_Course_Sync_Service::save_attachments( $post_id, $normalized_settings, $existing_tutor_settings );
 
             if ( array_key_exists( 'pricing_model', $normalized_settings ) ) {
                 update_post_meta( $post_id, '_tutor_course_price_type', $normalized_settings['pricing_model'] === 'free' ? 'free' : 'paid' );
@@ -797,7 +793,6 @@ class TutorPress_Course {
             TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
 
             foreach ( [
-                'attachments',
                 'pricing_model',
                 'price',
                 'sale_price',
@@ -846,10 +841,7 @@ class TutorPress_Course {
     private static function normalize_course_settings_for_save( array $settings ) {
         $normalized = TutorPress_Course_Sync_Service::normalize_core_details_and_materials_for_save( $settings );
         $normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_intro_video_for_save( $settings ) );
-
-        if ( array_key_exists( 'attachments', $settings ) ) {
-            $normalized['attachments'] = is_array( $settings['attachments'] ) ? array_map( 'absint', $settings['attachments'] ) : [];
-        }
+		$normalized = array_merge( $normalized, TutorPress_Course_Sync_Service::normalize_attachments_for_save( $settings ) );
 
         if ( array_key_exists( 'pricing_model', $settings ) ) {
             $pricing_model = sanitize_text_field( (string) $settings['pricing_model'] );
@@ -940,15 +932,7 @@ class TutorPress_Course {
         
         $sanitized = TutorPress_Course_Sync_Service::sanitize_core_details_and_materials( $settings );
         $sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_intro_video( $settings ) );
-        
-        if (isset($settings['attachments'])) {
-            $attachments = $settings['attachments'];
-            if (is_array($attachments)) {
-                $sanitized['attachments'] = array_map('absint', $attachments);
-            } else {
-                $sanitized['attachments'] = [];
-            }
-        }
+		$sanitized = array_merge( $sanitized, TutorPress_Course_Sync_Service::sanitize_attachments( $settings ) );
         
         // Pricing Model Section: Sanitize individual fields
         if (isset($settings['pricing_model'])) {
@@ -1168,20 +1152,23 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_attachments_meta_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // Only handle _tutor_attachments updates for courses
-        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_attachments' ) ) ) {
-            return;
-        }
+		$this->sync_service->handle_tutor_attachments_meta_update( $post_id, $meta_key, $meta_value );
+    }
 
-        // Avoid infinite loops
-        if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_attachments_last_sync' ) ) {
-            return;
-        }
-
-        // Sync course attachments
-        update_post_meta($post_id, '_tutorpress_attachments_last_sync', time());
-        $attachment_ids = is_array($meta_value) ? array_map('absint', $meta_value) : [];
-        update_post_meta($post_id, '_tutor_course_attachments', $attachment_ids);
+    /**
+     * Handle Tutor LMS attachments meta deletion.
+     *
+     * Tutor Pro deletes _tutor_attachments when all attachments are removed.
+     *
+     * @since 1.14.3
+     * @param array  $meta_ids   Deleted meta IDs.
+     * @param int    $post_id    Post ID.
+     * @param string $meta_key   Meta key.
+     * @param mixed  $meta_value Deleted meta value.
+     * @return void
+     */
+    public function handle_tutor_attachments_meta_delete( $meta_ids, $post_id, $meta_key, $meta_value ) {
+		$this->sync_service->handle_tutor_attachments_meta_delete( $post_id, $meta_key );
     }
 
     /**
@@ -1231,11 +1218,7 @@ class TutorPress_Course {
             update_post_meta($post->ID, '_tutor_course_material_includes', $settings['course_material_includes']);
         }
 
-        if ( $this->sync_context->has_rest_after_insert_settings_key( $settings, 'attachments' ) ) {
-            $attachment_ids = is_array($settings['attachments']) ? array_map('absint', $settings['attachments']) : [];
-            update_post_meta($post->ID, '_tutor_course_attachments', $attachment_ids);
-            update_post_meta($post->ID, '_tutor_attachments', $attachment_ids);
-        }
+		$this->sync_service->save_rest_after_insert_attachments( $post->ID, $settings );
     }
 
     /**
