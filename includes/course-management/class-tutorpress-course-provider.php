@@ -107,12 +107,7 @@ class TutorPress_Course_Provider {
      * @return array Course settings
      */
     public function get_course_settings(int $course_id): array {
-        // Get Tutor LMS course settings
-        $tutor_settings = get_post_meta($course_id, '_tutor_course_settings', true);
-        
-        if (!is_array($tutor_settings)) {
-            $tutor_settings = [];
-        }
+        $tutor_settings = TutorPress_Course_Sync_Service::get_raw_tutor_course_settings($course_id);
 
         // Apply filter for extensibility
         return apply_filters('tutorpress_course_settings', $tutor_settings, $course_id);
@@ -170,7 +165,7 @@ class TutorPress_Course_Provider {
         $settings = apply_filters('tutorpress_course_settings_before_save', $settings, $course_id);
 
         // Save through the shared canonical saver so all write surfaces fan out identically.
-        $result = TutorPress_Course::save_canonical_course_settings($course_id, $settings);
+        $result = TutorPress_Course_Sync_Service::save_canonical_course_settings($course_id, $settings);
 
         // Fire action for integrations
         do_action('tutorpress_course_settings_saved', $course_id, $settings);

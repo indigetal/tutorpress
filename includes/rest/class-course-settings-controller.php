@@ -435,7 +435,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        $course_settings = TutorPress_Course::get_canonical_course_settings( $course_id );
+        $course_settings = TutorPress_Course_Sync_Service::get_course_settings_for_course( $course_id );
 
         return rest_ensure_response(array(
             'success' => true,
@@ -815,7 +815,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
             );
         }
 
-        $current_settings = TutorPress_Course::get_canonical_course_settings( $course_id );
+        $current_settings = TutorPress_Course_Sync_Service::get_course_settings_for_course( $course_id );
         $settings_updates = $this->extract_settings_from_request(
             $request,
             [
@@ -875,7 +875,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
      * @return array|false
      */
     private function save_controller_settings( $course_id, array $settings ) {
-        return TutorPress_Course::save_canonical_course_settings( $course_id, $settings );
+        return TutorPress_Course_Sync_Service::save_canonical_course_settings( $course_id, $settings );
     }
 
     /**

@@ -89,6 +89,7 @@ class TutorPress_Course {
         // Compatibility shadow refresh hooks for Tutor LMS-backed storage
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_individual_field_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_course_settings_update' ], 10, 4 );
+        add_action( 'added_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
         add_action( 'updated_post_meta', [ $this, 'handle_tutor_attachments_meta_update' ], 10, 4 );
         add_action( 'deleted_post_meta', [ $this, 'handle_tutor_attachments_meta_delete' ], 10, 4 );
         

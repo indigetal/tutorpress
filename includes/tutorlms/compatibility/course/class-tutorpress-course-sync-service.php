@@ -49,6 +49,17 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Get canonical course settings by course ID.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Canonical course settings.
+	 */
+	public static function get_course_settings_for_course( $post_id ) {
+		return TutorPress_Course::get_canonical_course_settings( $post_id );
+	}
+
+	/**
 	 * Update course settings via REST API.
 	 *
 	 * @since 1.14.3
@@ -58,6 +69,35 @@ class TutorPress_Course_Sync_Service {
 	 */
 	public function update_course_settings( $value, $post ) {
 		return false !== TutorPress_Course::save_canonical_course_settings( $post->ID, $value );
+	}
+
+	/**
+	 * Get the raw Tutor LMS course settings blob.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Tutor LMS course settings blob.
+	 */
+	public static function get_raw_tutor_course_settings( $post_id ) {
+		$tutor_settings = get_post_meta( $post_id, '_tutor_course_settings', true );
+
+		if ( ! is_array( $tutor_settings ) ) {
+			return array();
+		}
+
+		return $tutor_settings;
+	}
+
+	/**
+	 * Save course settings through the canonical fan-out path.
+	 *
+	 * @since 1.14.3
+	 * @param int   $post_id  Course post ID.
+	 * @param array $settings Settings payload.
+	 * @return array|false Canonical settings on success, false on failure.
+	 */
+	public static function save_canonical_course_settings( $post_id, array $settings ) {
+		return TutorPress_Course::save_canonical_course_settings( $post_id, $settings );
 	}
 
 	/**
