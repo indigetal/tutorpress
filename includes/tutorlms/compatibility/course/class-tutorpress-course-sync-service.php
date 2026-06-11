@@ -61,6 +61,126 @@ class TutorPress_Course_Sync_Service {
 	}
 
 	/**
+	 * Run a write while a TutorPress sync guard is set.
+	 *
+	 * @since 1.14.3
+	 * @param int      $post_id  Course post ID.
+	 * @param string   $meta_key Guard meta key.
+	 * @param callable $callback Guarded callback.
+	 * @return mixed Callback return value.
+	 */
+	public static function run_with_sync_guard( $post_id, $meta_key, $callback ) {
+		update_post_meta( $post_id, $meta_key, true );
+
+		try {
+			return $callback();
+		} finally {
+			delete_post_meta( $post_id, $meta_key );
+		}
+	}
+
+	/**
+	 * Refresh the compatibility shadow from canonical course settings.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return void
+	 */
+	public static function refresh_course_settings_shadow_from_canonical( $post_id ) {
+		self::run_with_sync_guard(
+			$post_id,
+			'_tutorpress_syncing_from_tutor',
+			static function () use ( $post_id ) {
+				update_post_meta( $post_id, 'course_settings', TutorPress_Course::get_canonical_course_settings( $post_id ) );
+			}
+		);
+	}
+
+	/**
+	 * Refresh shadow storage after a canonical TutorPress save.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return array Canonical settings written to shadow storage.
+	 */
+	public static function refresh_course_settings_shadow_after_canonical_save( $post_id ) {
+		update_post_meta( $post_id, '_tutorpress_course_settings_last_sync', time() );
+
+		$shadow_settings = TutorPress_Course::get_canonical_course_settings( $post_id );
+		update_post_meta( $post_id, 'course_settings', $shadow_settings );
+
+		return $shadow_settings;
+	}
+
+	/**
+	 * Refresh shadow storage after direct Tutor LMS field writes.
+	 *
+	 * @since 1.14.3
+	 * @param int    $post_id  Course post ID.
+	 * @param string $meta_key Updated meta key.
+	 * @return void
+	 */
+	public function handle_tutor_individual_field_update( $post_id, $meta_key ) {
+		$tutor_fields = array(
+			'_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration',
+			'_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
+			'_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
+			'_tutor_course_material_includes', '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price',
+			'tutor_course_selling_option',
+		);
+
+		if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, $tutor_fields ) ) {
+			return;
+		}
+
+		if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
+			return;
+		}
+
+		self::refresh_course_settings_shadow_from_canonical( $post_id );
+	}
+
+	/**
+	 * Refresh shadow storage after direct Tutor LMS settings blob writes.
+	 *
+	 * @since 1.14.3
+	 * @param int    $post_id  Course post ID.
+	 * @param string $meta_key Updated meta key.
+	 * @return void
+	 */
+	public function handle_tutor_course_settings_update( $post_id, $meta_key ) {
+		if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_course_settings' ) ) ) {
+			return;
+		}
+
+		if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
+			return;
+		}
+
+		if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_tutor_settings_last_sync' ) ) {
+			return;
+		}
+
+		update_post_meta( $post_id, '_tutorpress_tutor_settings_last_sync', time() );
+		self::refresh_course_settings_shadow_from_canonical( $post_id );
+	}
+
+	/**
+	 * Refresh shadow storage after upstream course save hooks have run.
+	 *
+	 * @since 1.14.3
+	 * @param int $post_id Course post ID.
+	 * @return void
+	 */
+	public function sync_on_course_save( $post_id ) {
+		if ( $this->sync_context->should_skip_save_boundary_sync( $post_id ) ) {
+			return;
+		}
+
+		self::refresh_course_settings_shadow_from_canonical( $post_id );
+	}
+
+	/**
 	 * Read course details and materials from Tutor LMS-backed meta.
 	 *
 	 * @since 1.14.3

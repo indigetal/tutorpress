@@ -735,27 +735,22 @@ class TutorPress_Course {
             $existing_tutor_settings = [];
         }
 
-        update_post_meta( $post_id, '_tutorpress_syncing', true );
+        return TutorPress_Course_Sync_Service::run_with_sync_guard(
+            $post_id,
+            '_tutorpress_syncing',
+            static function () use ( $post_id, $normalized_settings, &$existing_tutor_settings ) {
+                TutorPress_Course_Sync_Service::save_core_details_and_materials( $post_id, $normalized_settings, $existing_tutor_settings );
+                TutorPress_Course_Sync_Service::save_intro_video( $post_id, $normalized_settings, $existing_tutor_settings );
+                TutorPress_Course_Sync_Service::save_attachments( $post_id, $normalized_settings, $existing_tutor_settings );
+                TutorPress_Course_Sync_Service::save_pricing_product( $post_id, $normalized_settings, $existing_tutor_settings );
 
-        try {
-            TutorPress_Course_Sync_Service::save_core_details_and_materials( $post_id, $normalized_settings, $existing_tutor_settings );
-            TutorPress_Course_Sync_Service::save_intro_video( $post_id, $normalized_settings, $existing_tutor_settings );
-			TutorPress_Course_Sync_Service::save_attachments( $post_id, $normalized_settings, $existing_tutor_settings );
-			TutorPress_Course_Sync_Service::save_pricing_product( $post_id, $normalized_settings, $existing_tutor_settings );
+                TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
+                TutorPress_Course_Sync_Service::save_instructors( $post_id, $normalized_settings, $existing_tutor_settings );
 
-            TutorPress_Course_Sync_Service::save_access_enrollment_prerequisite_and_schedule( $post_id, $normalized_settings, $existing_tutor_settings );
-            TutorPress_Course_Sync_Service::save_instructors( $post_id, $normalized_settings, $existing_tutor_settings );
-
-            update_post_meta( $post_id, '_tutor_course_settings', $existing_tutor_settings );
-            update_post_meta( $post_id, '_tutorpress_course_settings_last_sync', time() );
-
-            $shadow_settings = self::get_canonical_course_settings( $post_id );
-            update_post_meta( $post_id, 'course_settings', $shadow_settings );
-        } finally {
-            delete_post_meta( $post_id, '_tutorpress_syncing' );
-        }
-
-        return $shadow_settings;
+                update_post_meta( $post_id, '_tutor_course_settings', $existing_tutor_settings );
+                return TutorPress_Course_Sync_Service::refresh_course_settings_shadow_after_canonical_save( $post_id );
+            }
+        );
     }
 
     /**
@@ -834,42 +829,7 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_individual_field_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // Only handle individual Tutor LMS fields for courses
-        $tutor_fields = [
-            '_tutor_course_level', '_tutor_is_public_course', '_tutor_enable_qa', '_course_duration',
-            '_tutor_course_prerequisites_ids', '_tutor_maximum_students', '_tutor_enrollment_status',
-            '_tutor_course_enrollment_period', '_tutor_enrollment_starts_at', '_tutor_enrollment_ends_at',
-            '_tutor_course_material_includes', '_tutor_course_price_type', 'tutor_course_price', 'tutor_course_sale_price',
-            'tutor_course_selling_option'
-        ];
-        
-        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, $tutor_fields ) ) {
-            return;
-        }
-
-        // Skip if we're currently syncing to Tutor LMS
-        if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
-            return;
-        }
-
-        self::refresh_course_settings_shadow_from_canonical( $post_id );
-    }
-
-    /**
-     * Refresh the compatibility shadow from canonical course settings.
-     *
-     * @since 1.14.2
-     * @param int $post_id Post ID.
-     * @return void
-     */
-    private static function refresh_course_settings_shadow_from_canonical( $post_id ) {
-        update_post_meta( $post_id, '_tutorpress_syncing_from_tutor', true );
-
-        try {
-            update_post_meta( $post_id, 'course_settings', self::get_canonical_course_settings( $post_id ) );
-        } finally {
-            delete_post_meta( $post_id, '_tutorpress_syncing_from_tutor' );
-        }
+        $this->sync_service->handle_tutor_individual_field_update( $post_id, $meta_key );
     }
 
     /**
@@ -895,16 +855,15 @@ class TutorPress_Course {
             unset( $course_settings['content_drip_type'] );
         }
 
-        update_post_meta( $post_id, '_tutorpress_syncing_to_tutor', true );
-
-        try {
-            update_post_meta( $post_id, '_tutor_course_settings', $course_settings );
-            self::refresh_course_settings_shadow_from_canonical( $post_id );
-        } finally {
-            delete_post_meta( $post_id, '_tutorpress_syncing_to_tutor' );
-        }
-
-        return true;
+        return (bool) TutorPress_Course_Sync_Service::run_with_sync_guard(
+            $post_id,
+            '_tutorpress_syncing_to_tutor',
+            static function () use ( $post_id, $course_settings ) {
+                update_post_meta( $post_id, '_tutor_course_settings', $course_settings );
+                TutorPress_Course_Sync_Service::refresh_course_settings_shadow_from_canonical( $post_id );
+                return true;
+            }
+        );
     }
 
     /**
@@ -920,23 +879,7 @@ class TutorPress_Course {
      * @return void
      */
     public function handle_tutor_course_settings_update( $meta_id, $post_id, $meta_key, $meta_value ) {
-        // Only handle _tutor_course_settings updates for courses
-        if ( ! $this->sync_context->is_direct_course_meta_update( $post_id, $meta_key, array( '_tutor_course_settings' ) ) ) {
-            return;
-        }
-
-        // Skip if we're currently syncing to Tutor LMS
-        if ( $this->sync_context->is_syncing_to_tutor( $post_id ) ) {
-            return;
-        }
-
-        // Avoid rapid updates
-        if ( $this->sync_context->is_recent_post_meta_timestamp( $post_id, '_tutorpress_tutor_settings_last_sync' ) ) {
-            return;
-        }
-
-        update_post_meta($post_id, '_tutorpress_tutor_settings_last_sync', time());
-        self::refresh_course_settings_shadow_from_canonical( $post_id );
+        $this->sync_service->handle_tutor_course_settings_update( $post_id, $meta_key );
     }
 
     /**
@@ -1026,11 +969,7 @@ class TutorPress_Course {
      * This uses the simple merge strategy from the working implementations
      */
     public function sync_on_course_save($post_id, $post, $update) {
-        if ( $this->sync_context->should_skip_save_boundary_sync( $post_id ) ) {
-            return;
-        }
-
-        self::refresh_course_settings_shadow_from_canonical( $post_id );
+        $this->sync_service->sync_on_course_save( $post_id );
     }
 
     /**
