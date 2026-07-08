@@ -12,34 +12,67 @@ document.addEventListener("DOMContentLoaded", function () {
 
   var adminUrl = TutorPressData.adminUrl || window.location.origin + "/wp-admin/";
 
-  // Override "Create A New Course" button
-  // Uses clone-and-replace to remove Tutor's event listeners, then sets href for direct navigation
-  var createCourseButton = document.querySelector(".tutor-header-right-side .tutor-create-new-course");
-  if (createCourseButton) {
-    var newCourseBtn = createCourseButton.cloneNode(true);
-    // Remove Tutor's class to prevent their event delegation handler from firing
-    newCourseBtn.classList.remove("tutor-create-new-course");
-    // Set href for direct navigation (works for both <a> and <button> styled as links)
-    newCourseBtn.setAttribute("href", adminUrl + "post-new.php?post_type=courses");
-    // For <button> elements, add click handler to navigate
-    if (newCourseBtn.tagName === "BUTTON") {
-      newCourseBtn.addEventListener("click", function (e) {
-        e.preventDefault();
-        window.location.href = adminUrl + "post-new.php?post_type=courses";
-      });
+  var courseCreateUrl = adminUrl + "post-new.php?post_type=courses";
+  var bundleCreateUrl = adminUrl + "post-new.php?post_type=course-bundle";
+
+  function addUniqueControl(controls, control) {
+    if (control && controls.indexOf(control) === -1) {
+      controls.push(control);
     }
-    createCourseButton.parentNode.replaceChild(newCourseBtn, createCourseButton);
   }
 
-  // Override "Create A New Bundle" button
-  // Frontend bundle button is an <a> tag with data-source="frontend"
-  var createBundleButton = document.querySelector("a.tutor-add-new-course-bundle[data-source='frontend']");
-  if (createBundleButton) {
-    var newBundleBtn = createBundleButton.cloneNode(true);
-    // Remove Tutor's class to prevent their event delegation handler from firing
-    newBundleBtn.classList.remove("tutor-add-new-course-bundle");
-    // Set href for direct navigation
-    newBundleBtn.setAttribute("href", adminUrl + "post-new.php?post_type=course-bundle");
-    createBundleButton.parentNode.replaceChild(newBundleBtn, createBundleButton);
+  function redirectControl(control, redirectUrl, classToRemove) {
+    if (!control || !control.parentNode) {
+      return;
+    }
+
+    var replacement = control.cloneNode(true);
+
+    if (classToRemove) {
+      replacement.classList.remove(classToRemove);
+    }
+
+    replacement.removeAttribute("@click");
+    replacement.removeAttribute("x-on:click");
+
+    if (replacement.tagName === "A") {
+      replacement.setAttribute("href", redirectUrl);
+    } else if (replacement.tagName === "BUTTON" && !replacement.hasAttribute("type")) {
+      replacement.setAttribute("type", "button");
+    }
+
+    replacement.addEventListener("click", function (e) {
+      e.preventDefault();
+      window.location.href = redirectUrl;
+    });
+
+    control.parentNode.replaceChild(replacement, control);
   }
+
+  function isTutorCreateCourseBinding(control) {
+    var clickBinding = control.getAttribute("@click") || control.getAttribute("x-on:click") || "";
+
+    return clickBinding.replace(/\s+/g, "") === "handleCreateCourse()";
+  }
+
+  // Override Tutor LMS course creation controls across legacy and Tutor LMS 4.0 dashboards.
+  var courseControls = [];
+  document.querySelectorAll(".tutor-header-right-side .tutor-create-new-course, .tutor-create-new-course").forEach(function (control) {
+    addUniqueControl(courseControls, control);
+  });
+
+  document.querySelectorAll('[x-data="tutorMyCourses()"] button').forEach(function (control) {
+    if (isTutorCreateCourseBinding(control)) {
+      addUniqueControl(courseControls, control);
+    }
+  });
+
+  courseControls.forEach(function (control) {
+    redirectControl(control, courseCreateUrl, "tutor-create-new-course");
+  });
+
+  // Override Tutor LMS Pro bundle creation controls across anchor and button variants.
+  document.querySelectorAll("a.tutor-add-new-course-bundle[data-source='frontend'], button.tutor-add-new-course-bundle[data-source='frontend']").forEach(function (control) {
+    redirectControl(control, bundleCreateUrl, "tutor-add-new-course-bundle");
+  });
 });
