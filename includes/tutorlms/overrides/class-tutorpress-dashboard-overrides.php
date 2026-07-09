@@ -26,17 +26,23 @@ class TutorPress_Dashboard_Overrides {
     }
 
     public static function add_extra_dashboard_links($nav_items) {
+        $is_tutor_lms_4_or_later = defined( 'TUTOR_VERSION' ) && version_compare( TUTOR_VERSION, '4.0.0', '>=' );
+        $media_library_icons = $is_tutor_lms_4_or_later
+            ? [ 'icon' => 'store-image', 'active_icon' => 'store-image' ]
+            : [ 'icon' => 'tutor-icon-images' ];
+        $interactive_content_icons = $is_tutor_lms_4_or_later
+            ? [ 'icon' => 'quiz-h5p', 'active_icon' => 'quiz-h5p' ]
+            : [ 'icon' => 'tutor-icon-puzzle' ];
+
         $extra_links = [
-            [
+            array_merge( [
                 'title' => __('Media Library', 'tutorpress'),
                 'url' => admin_url('upload.php'),
-                'icon' => 'tutor-icon-images'
-            ],
-            [
+            ], $media_library_icons ),
+            array_merge( [
                 'title' => __('Interactive Content', 'tutorpress'),
                 'url' => admin_url('admin.php?page=h5p'),
-                'icon' => 'tutor-icon-puzzle'
-            ],
+            ], $interactive_content_icons ),
         ];
 
         return array_merge($nav_items, $extra_links);
@@ -77,6 +83,3 @@ class TutorPress_Dashboard_Overrides {
 
     
 }
-
-// Initialize the class
-TutorPress_Dashboard_Overrides::init();
