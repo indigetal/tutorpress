@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
   // Remove unnecessary tabs in lesson pages
-  let tabsToRemove = ["[data-tutor-query-value='comments']", "[data-tutor-query-value='overview']"];
+  let tabsToRemove = ["[data-tutor-query-value='comments']"];
   tabsToRemove.forEach((selector) => {
     let tab = document.querySelector(selector);
     if (tab) {
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Ensure close button works
-  if (sidebarClose) {
+  if (sidebarClose && sidebar) {
     sidebarClose.addEventListener("click", function () {
       sidebar.classList.remove("tutor-course-single-sidebar-open"); // Close sidebar
       document.body.classList.remove("tutor-overflow-hidden"); // Enable scrolling again
@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Ensure clicking the comment bubble opens the sidebar with Discussion tab
-  if (commentBubble) {
+  if (commentBubble && sidebar) {
     commentBubble.addEventListener("click", function () {
       sidebar.classList.add("tutor-course-single-sidebar-open");
       document.body.classList.add("tutor-overflow-hidden"); // Prevent scrolling
@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Detect screen width auto-collapse in Tutor LMS
   function checkSidebarAutoCollapse() {
-    if (window.innerWidth < 1200) {
+    if (sidebar && window.innerWidth < 1200) {
       sidebar.classList.remove("tutor-course-single-sidebar-open");
       document.body.classList.remove("tutor-overflow-hidden");
     }

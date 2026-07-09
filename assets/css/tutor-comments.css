@@ -93,7 +93,6 @@
   margin: 0 !important;
 }
 
-[data-tutor-query-value="comments"],
-[data-tutor-query-value="overview"] {
+[data-tutor-query-value="comments"] {
   display: none !important;
 }
