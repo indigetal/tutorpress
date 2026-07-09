@@ -6,6 +6,15 @@
 defined('ABSPATH') || exit;
 
 class TutorPress_Sidebar_Tabs {
+    private const DISCUSSION_TEMPLATE = 'tutorpress.learning-area.lesson.discussion';
+    private const DISCUSSION_TEMPLATE_PATH = 'tutorpress/learning-area/lesson/discussion';
+    private const TUTOR_COMMENTS_TEMPLATES = [
+        'single.lesson.parts.comments',
+        'single.lesson.comment',
+        'single.lesson.comments-loop',
+        'learning-area.lesson.comments',
+    ];
+
     public static function init() {
         // Check if the feature is enabled in the settings (use Freemius-aware wrapper)
         $options = get_option('tutorpress_settings', []);
@@ -20,6 +29,7 @@ class TutorPress_Sidebar_Tabs {
         add_filter('tutor_lesson_single_nav_contents', [__CLASS__, 'filter_nav_contents']);
         add_filter('should_tutor_load_template', [__CLASS__, 'should_load_tutor_template'], 10, 3);
         add_filter('tutor_get_template_path', [__CLASS__, 'filter_template_path'], 10, 2);
+        add_filter('tutor_not_found_template_warning_msg', [__CLASS__, 'suppress_discussion_template_warning']);
     }
 
     /**
@@ -75,31 +85,67 @@ class TutorPress_Sidebar_Tabs {
     /**
      * Filters Tutor LMS lesson nav items.
      *
-     * Step 3 implements the TutorPress Discussion nav changes.
-     *
      * @param array $nav_items Tutor LMS lesson nav items.
      * @return array Filtered nav items.
      */
     public static function filter_nav_items($nav_items) {
+        foreach ($nav_items as $key => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $template = isset($item['template']) ? $item['template'] : '';
+            $is_comments_item = $key === 'comments'
+                || (isset($item['id']) && $item['id'] === 'comments')
+                || (isset($item['value']) && $item['value'] === 'comments')
+                || in_array($template, self::TUTOR_COMMENTS_TEMPLATES, true);
+
+            if (!$is_comments_item) {
+                continue;
+            }
+
+            if (self::is_learning_area_mode()) {
+                $nav_items[$key] = array_merge($item, [
+                    'id'       => 'comments',
+                    'label'    => __('Discussion', 'tutorpress'),
+                    'template' => self::DISCUSSION_TEMPLATE,
+                ]);
+                continue;
+            }
+
+            unset($nav_items[$key]);
+        }
+
         return $nav_items;
     }
 
     /**
      * Filters Tutor LMS lesson nav contents.
      *
-     * Step 3 implements the Tutor LMS <4.0 comments content removal.
-     *
      * @param array $nav_contents Tutor LMS lesson nav contents.
      * @return array Filtered nav contents.
      */
     public static function filter_nav_contents($nav_contents) {
+        foreach ($nav_contents as $key => $content) {
+            if (!is_array($content)) {
+                continue;
+            }
+
+            $template_path = isset($content['template_path']) ? $content['template_path'] : '';
+            $is_comments_content = $key === 'comments'
+                || (isset($content['value']) && $content['value'] === 'comments')
+                || $template_path === 'single.lesson.parts.comments';
+
+            if ($is_comments_content) {
+                unset($nav_contents[$key]);
+            }
+        }
+
         return $nav_contents;
     }
 
     /**
      * Determines whether Tutor LMS should load a requested template.
-     *
-     * Step 4 implements native Tutor comment template suppression.
      *
      * @param bool   $should_load  Whether Tutor LMS should load the template.
      * @param string $template     Template slug being requested.
@@ -107,20 +153,42 @@ class TutorPress_Sidebar_Tabs {
      * @return bool Whether Tutor LMS should load the template.
      */
     public static function should_load_tutor_template($should_load, $template, $variables) {
+        if (in_array($template, self::TUTOR_COMMENTS_TEMPLATES, true)) {
+            return false;
+        }
+
         return $should_load;
     }
 
     /**
      * Filters Tutor LMS resolved template paths.
      *
-     * Step 4 implements TutorPress Discussion template routing.
-     *
      * @param string $template_path Resolved template path.
      * @param string $template      Template slug being requested.
      * @return string Filtered template path.
      */
     public static function filter_template_path($template_path, $template) {
-        return $template_path;
+        if (!in_array($template, [self::DISCUSSION_TEMPLATE, self::DISCUSSION_TEMPLATE_PATH], true)) {
+            return $template_path;
+        }
+
+        $plugin_path = defined('TUTORPRESS_PATH') ? TUTORPRESS_PATH : dirname(__DIR__, 3) . '/';
+
+        return $plugin_path . 'templates/tutorpress/learning-area/lesson/discussion.php';
+    }
+
+    /**
+     * Suppresses Tutor's premature missing-template warning for the routed TutorPress template.
+     *
+     * @param string $warning_msg Tutor LMS missing-template warning.
+     * @return string Filtered warning.
+     */
+    public static function suppress_discussion_template_warning($warning_msg) {
+        if (strpos($warning_msg, self::DISCUSSION_TEMPLATE_PATH . '.php') !== false) {
+            return '';
+        }
+
+        return $warning_msg;
     }
 }
 
