@@ -245,6 +245,7 @@ declare global {
       adminUrl: string;
       restUrl?: string;
       nonce?: string;
+      tutorNonce?: string;
       courseId?: number;
     };
 

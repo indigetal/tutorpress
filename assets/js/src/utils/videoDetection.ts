@@ -100,10 +100,15 @@ export async function getExternalVideoDuration(videoUrl: string): Promise<number
  */
 export async function getYouTubeVideoDuration(videoId: string): Promise<string | null> {
   try {
+    const tutorNonce = window.tutorPressCurriculum?.tutorNonce;
+    if (!tutorNonce) {
+      return null;
+    }
+
     const formData = new FormData();
     formData.append("action", "tutor_youtube_video_duration");
     formData.append("video_id", videoId);
-    formData.append("_wpnonce", (window as any).tutorpressData?.nonce || "");
+    formData.append("_tutor_nonce", tutorNonce);
 
     const response = await fetch((window as any).ajaxurl || "/wp-admin/admin-ajax.php", {
       method: "POST",

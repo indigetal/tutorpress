@@ -167,6 +167,17 @@ class TutorPress_Assets {
         // Get settings for localization
         $options = get_option('tutorpress_settings', []);
 
+        $tutor_nonce = '';
+        if (function_exists('tutor')) {
+            $tutor_instance = tutor();
+            if (is_object($tutor_instance)) {
+                $tutor_nonce_action = $tutor_instance->nonce_action;
+                if (is_string($tutor_nonce_action) && '' !== $tutor_nonce_action) {
+                    $tutor_nonce = wp_create_nonce($tutor_nonce_action);
+                }
+            }
+        }
+
         // Add TutorPressData for overrides (use wrapper to respect Freemius gating)
         $dashboard_enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_dashboard_redirects', false) : !empty($options['enable_dashboard_redirects']);
         $admin_enabled = function_exists('tutorpress_get_setting') ? tutorpress_get_setting('enable_admin_redirects', false) : !empty($options['enable_admin_redirects']);
@@ -180,6 +191,7 @@ class TutorPress_Assets {
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorPressCurriculum', [
             'restUrl' => rest_url(),
             'restNonce' => wp_create_nonce('wp_rest'),
+            'tutorNonce' => $tutor_nonce,
             'isLesson' => 'lesson' === $screen->post_type,
             'isAssignment' => 'tutor_assignments' === $screen->post_type,
             'adminUrl' => admin_url(),
