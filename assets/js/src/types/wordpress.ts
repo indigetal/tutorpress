@@ -246,6 +246,7 @@ declare global {
       restUrl?: string;
       nonce?: string;
       tutorNonce?: string;
+      youtubeApiKeyExists?: boolean;
       courseId?: number;
     };
 

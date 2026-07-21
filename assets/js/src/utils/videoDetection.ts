@@ -21,6 +21,14 @@ export interface VideoDuration {
  */
 export type VideoSource = "youtube" | "vimeo" | "html5" | "external_url";
 
+interface TutorYouTubeDurationResponse {
+  status_code: number;
+  message: string;
+  data: {
+    duration?: string;
+  } | null;
+}
+
 /**
  * Video validation patterns (same as Tutor LMS)
  */
@@ -119,10 +127,11 @@ export async function getYouTubeVideoDuration(videoId: string): Promise<string |
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as TutorYouTubeDurationResponse;
+    const duration = data?.data?.duration;
 
-    if (data.success && data.data?.duration) {
-      return data.data.duration; // ISO 8601 format
+    if (data?.status_code === 200 && typeof duration === "string" && duration.trim() !== "") {
+      return duration; // ISO 8601 format
     }
 
     return null;
@@ -251,7 +260,7 @@ export async function detectVideoDuration(source: VideoSource, url: string): Pro
  * Check if YouTube API is available (same check as Tutor LMS)
  */
 export function isYouTubeApiAvailable(): boolean {
-  return (window as any).tutorConfig?.settings?.youtube_api_key_exist === true;
+  return window.tutorPressCurriculum?.youtubeApiKeyExists === true;
 }
 
 /**

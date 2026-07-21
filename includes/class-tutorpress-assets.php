@@ -168,7 +168,11 @@ class TutorPress_Assets {
         $options = get_option('tutorpress_settings', []);
 
         $tutor_nonce = '';
+        $youtube_api_key_exists = false;
         if (function_exists('tutor')) {
+            $tutor_options = get_option('tutor_option', []);
+            $youtube_api_key_exists = is_array($tutor_options) && !empty($tutor_options['lesson_video_duration_youtube_api_key']);
+
             $tutor_instance = tutor();
             if (is_object($tutor_instance)) {
                 $tutor_nonce_action = $tutor_instance->nonce_action;
@@ -200,6 +204,11 @@ class TutorPress_Assets {
                 'canEditCourses' => current_user_can('edit_courses'),
             ]
         ]);
+        wp_add_inline_script(
+            'tutorpress-curriculum-metabox',
+            'tutorPressCurriculum.youtubeApiKeyExists = ' . wp_json_encode($youtube_api_key_exists) . ';',
+            'before'
+        );
 
         // Expose comprehensive addon and payment engine data to frontend
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorpressAddons', 
