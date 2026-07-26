@@ -421,9 +421,36 @@ class TutorPress_REST_H5P_Controller extends TutorPress_REST_Controller {
                 }
             }
 
+            // Normalize retained H5P.* machine names to H5PContentQuery display names.
+            // Direct display-name values are accepted as-is; unknown filters yield an empty set.
+            if (is_string($content_type) && '' !== $content_type) {
+                $machine_to_display = [
+                    'H5P.SingleChoiceSet' => 'Single Choice Set',
+                    'H5P.MultiChoice'     => 'Multiple Choice',
+                    'H5P.TrueFalse'       => 'True/False Question',
+                    'H5P.FillInTheBlanks' => 'Fill in the Blanks',
+                    'H5P.DragQuestion'    => 'Drag and Drop',
+                    'H5P.MarkTheWords'    => 'Mark the Words',
+                    'H5P.DragText'        => 'Drag the Words',
+                    'H5P.Accordion'       => 'Accordion',
+                    'H5P.ImageHotspots'   => 'Image Hotspots',
+                ];
+
+                $normalized_content_type = $machine_to_display[$content_type] ?? $content_type;
+
+                $filtered_h5p_contents = array_values(
+                    array_filter(
+                        $filtered_h5p_contents,
+                        static function ($content) use ($normalized_content_type) {
+                            return ($content->content_type ?? '') === $normalized_content_type;
+                        }
+                    )
+                );
+            }
+
             // Apply pagination to filtered results (since H5P query doesn't support pagination)
             $total_items = count($filtered_h5p_contents);
-            $total_pages = ceil($total_items / $per_page);
+            $total_pages = (int) ceil($total_items / $per_page);
             $offset = ($page - 1) * $per_page;
             $paginated_contents = array_slice($filtered_h5p_contents, $offset, $per_page);
 

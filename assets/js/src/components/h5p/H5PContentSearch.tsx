@@ -41,12 +41,10 @@ export const H5PContentSearch: React.FC<H5PContentSearchProps> = ({
   onContentTypeChange,
   isLoading = false,
 }) => {
-  // Content type options based on quiz-compatible H5P types
+  // Content type options based on quiz-compatible H5P types.
+  // Denied Tutor library titles (Interactive Video, Course Presentation, Question Set) are omitted.
   const contentTypeOptions = [
     { label: __("All Content Types", "tutorpress"), value: "" },
-    { label: __("Interactive Video", "tutorpress"), value: "H5P.InteractiveVideo" },
-    { label: __("Course Presentation", "tutorpress"), value: "H5P.CoursePresentation" },
-    { label: __("Question Set", "tutorpress"), value: "H5P.QuestionSet" },
     { label: __("Single Choice Set", "tutorpress"), value: "H5P.SingleChoiceSet" },
     { label: __("Multiple Choice", "tutorpress"), value: "H5P.MultiChoice" },
     { label: __("True/False", "tutorpress"), value: "H5P.TrueFalse" },

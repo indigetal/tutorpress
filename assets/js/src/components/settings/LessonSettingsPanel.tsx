@@ -452,11 +452,7 @@ const LessonSettingsPanel: React.FC = () => {
                   }
                 }}
                 disabled={isSaving}
-                help={
-                  isSourceSupported("youtube")
-                    ? __("Enter the full YouTube URL or just the video ID", "tutorpress")
-                    : __("YouTube API key not configured - duration auto-detection disabled", "tutorpress")
-                }
+                help={__("Enter the full YouTube URL or just the video ID", "tutorpress")}
               />
               {showVideoDetectionLoading && (
                 <div style={{ textAlign: "center", padding: "8px" }}>
@@ -672,6 +668,8 @@ const LessonSettingsPanel: React.FC = () => {
             >
               {hasDuration
                 ? __("Video duration is set and will be tracked for student progress", "tutorpress")
+                : lessonSettings.video.source === "youtube" && !isSourceSupported("youtube")
+                  ? __("YouTube API key not configured - duration auto-detection disabled", "tutorpress")
                 : __("Duration will be auto-detected for supported video sources", "tutorpress")}
             </p>
           </div>
