@@ -124,6 +124,33 @@ class TutorPress_Assets {
         wp_localize_script('tutorpress-sidebar-tabs', 'TutorPressSidebar', [
             'enableSidebarTabs' => $enabledSidebar,
         ]);
+
+        // Late dequeue after lesson content may set Step 5 adaptation success (before core prints footer scripts at 20).
+        if (!has_action('wp_footer', [__CLASS__, 'maybe_dequeue_legacy_sidebar_tabs_script'])) {
+            add_action('wp_footer', [__CLASS__, 'maybe_dequeue_legacy_sidebar_tabs_script'], 19);
+        }
+    }
+
+    /**
+     * Dequeue legacy sidebar-wrapper JS only after successful Tutor 4.0 modern/kids discussion adaptation.
+     *
+     * Runs on wp_footer before wp_print_footer_scripts (priority 20). Discussion CSS is never suppressed.
+     *
+     * @return void
+     */
+    public static function maybe_dequeue_legacy_sidebar_tabs_script() {
+        if (
+            !class_exists('TutorPress_Sidebar_Tabs')
+            || !method_exists('TutorPress_Sidebar_Tabs', 'did_discussion_adaptation_succeed')
+        ) {
+            return;
+        }
+
+        if (!TutorPress_Sidebar_Tabs::did_discussion_adaptation_succeed()) {
+            return;
+        }
+
+        wp_dequeue_script('tutorpress-sidebar-tabs');
     }
 
     /**
