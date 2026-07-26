@@ -25,7 +25,7 @@ import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { H5PContentSelectionModal } from "./interactive-quiz/H5PContentSelectionModal";
 import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
-import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption } from "../../types/quiz";
+import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption, DataStatus } from "../../types/quiz";
 
 interface InteractiveQuizModalProps {
   isOpen: boolean;
@@ -68,6 +68,8 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuizQuestionType | null>(null);
   const [questionTypes] = useState([]); // Empty for Interactive Quiz - no question types needed
   const [loadingQuestionTypes] = useState(false);
+  const [deletedQuestionIds, setDeletedQuestionIds] = useState<number[]>([]);
+  const [deletedAnswerIds, setDeletedAnswerIds] = useState<number[]>([]);
 
   // H5P Content Selection Modal state
   const [isH5PModalOpen, setIsH5PModalOpen] = useState(false);
@@ -98,6 +100,8 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const loadExistingQuizData = async (id: number) => {
     setIsLoading(true);
     setLoadError(null);
+    setDeletedQuestionIds([]);
+    setDeletedAnswerIds([]);
 
     try {
       // Use the curriculum store to get quiz details (same as QuizModal)
@@ -227,6 +231,8 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       setQuestions([]);
       setSelectedQuestionIndex(null);
       setSelectedH5PContent(null);
+      setDeletedQuestionIds([]);
+      setDeletedAnswerIds([]);
     }
   }, [isOpen, quizId, resetToDefaults]);
 
@@ -315,14 +321,43 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   };
 
   const handleDeleteQuestion = (questionIndex: number) => {
-    const questionToDelete = questions[questionIndex];
-    const updatedQuestions = questions.filter((_, index) => index !== questionIndex);
-    setQuestions(updatedQuestions);
-    setSelectedQuestionIndex(null);
+    if (questionIndex < 0 || questionIndex >= questions.length) {
+      return;
+    }
 
-    // Clear selectedH5PContent if we're deleting the H5P question
-    if (questionToDelete?.question_type === "h5p") {
+    const questionToDelete = questions[questionIndex];
+
+    // Track deleted IDs for existing questions (those with real database IDs)
+    if (questionToDelete.question_id > 0) {
+      setDeletedQuestionIds((prev) => [...prev, questionToDelete.question_id]);
+
+      // Track deleted answer IDs (H5P usually has none; mirror Tutor's generic contract)
+      const answerIdsToDelete = questionToDelete.question_answers
+        .filter((answer) => answer.answer_id > 0)
+        .map((answer) => answer.answer_id);
+
+      if (answerIdsToDelete.length > 0) {
+        setDeletedAnswerIds((prev) => [...prev, ...answerIdsToDelete]);
+      }
+    }
+
+    const updatedQuestions = questions.filter((_, index) => index !== questionIndex);
+
+    // Update question orders; persisted survivors intentionally become "update"
+    const reorderedQuestions = updatedQuestions.map((question, index) => ({
+      ...question,
+      question_order: index + 1,
+      _data_status: question._data_status === "new" ? ("new" as DataStatus) : ("update" as DataStatus),
+    }));
+
+    setQuestions(reorderedQuestions);
+
+    // Adjust selection
+    if (selectedQuestionIndex === questionIndex) {
+      setSelectedQuestionIndex(null);
       setSelectedH5PContent(null);
+    } else if (selectedQuestionIndex !== null && selectedQuestionIndex > questionIndex) {
+      setSelectedQuestionIndex(selectedQuestionIndex - 1);
     }
   };
 
@@ -453,6 +488,10 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
         questions: questions,
       };
 
+      // Add deleted IDs to form data before assigning ID (same as QuizModal)
+      formData.deleted_question_ids = deletedQuestionIds;
+      formData.deleted_answer_ids = deletedAnswerIds;
+
       // Add quiz ID for updates
       if (quizId) {
         formData.ID = quizId;
@@ -508,6 +547,8 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     setIsAddingQuestion(false);
     setSelectedQuestionType(null);
     setSelectedH5PContent(null);
+    setDeletedQuestionIds([]);
+    setDeletedAnswerIds([]);
     setIsH5PModalOpen(false);
     setLoadError(null);
     setSaveError(null);
