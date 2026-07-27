@@ -31,6 +31,7 @@
 import { useMemo } from "react";
 import { __ } from "@wordpress/i18n";
 import type { QuizQuestion, QuizQuestionType } from "../../types/quiz";
+import { parseScaleAnswer } from "../../utils/quizQuestionTypes";
 
 /**
  * Validation result for a single question
@@ -358,6 +359,33 @@ export const useQuestionValidation = () => {
             return [__("Ordering options must be unique.", "tutorpress")];
           }
           return [];
+        },
+      ],
+
+      // Range validation rules
+      //
+      // These are Tutor's two native Range constraints. A stored value TutorPress cannot
+      // parse deliberately produces no error: the row is preserved untouched and saved as
+      // `no_change`, so blocking the quiz save would trap the author with no way to fix it.
+      scale: [
+        // Maximum must exceed minimum
+        (question: QuizQuestion) => {
+          const parsed = parseScaleAnswer(question.question_answers?.[0]?.answer_two_gap_match);
+          return parsed.status === "valid" && parsed.data.config.max <= parsed.data.config.min
+            ? [__("The maximum value must be greater than the minimum value.", "tutorpress")]
+            : [];
+        },
+
+        // Correct value within the configured range
+        (question: QuizQuestion) => {
+          const parsed = parseScaleAnswer(question.question_answers?.[0]?.answer_two_gap_match);
+          if (parsed.status !== "valid") {
+            return [];
+          }
+          const { value, config } = parsed.data;
+          return value < config.min || value > config.max
+            ? [__("The correct value must be between the minimum and maximum values.", "tutorpress")]
+            : [];
         },
       ],
 

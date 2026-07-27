@@ -162,6 +162,161 @@ export const getFallbackPickerTypes = (): Array<{ slug: QuizQuestionType; meta: 
     .sort((a, b) => getQuizQuestionTypePickerOrder(a.slug) - getQuizQuestionTypePickerOrder(b.slug));
 
 /**
+ * Range (`scale`) configuration stored inside the answer row's JSON.
+ *
+ * Every key is consumed by Tutor Pro's frontend scale renderer. Only `min`, `max`, and
+ * `labelEvery` are editable in Tutor's own builder; the rest are written on creation and
+ * carried forward untouched.
+ */
+export interface ScaleConfig {
+  min: number;
+  max: number;
+  /**
+   * Always `1`.
+   *
+   * Tutor's native editor forces this on creation, on load, and on every config change,
+   * so authoring any other value would be silently rewritten the next time the question
+   * is opened in Tutor's builder.
+   */
+  step: number;
+  defaultValue: number;
+  pxPerUnit: number;
+  labelEvery: number;
+  minorTickEvery: number;
+  precision: number;
+}
+
+/**
+ * Range answer contract stored in `answer_two_gap_match` with `answer_view_format: "scale"`.
+ *
+ * `value` is the instructor's correct value. Tutor Pro's grader reads `value`,
+ * `config.step`, and `config.precision`.
+ */
+export interface ScaleAnswerData {
+  value: number;
+  config: ScaleConfig;
+}
+
+/**
+ * Tutor's defaults for a newly created Range row.
+ */
+export const NATIVE_SCALE_DEFAULTS: ScaleAnswerData = {
+  value: 50,
+  config: {
+    min: 0,
+    max: 100,
+    step: 1,
+    defaultValue: 50,
+    pxPerUnit: 10,
+    labelEvery: 10,
+    minorTickEvery: 5,
+    precision: 0,
+  },
+};
+
+/**
+ * Result of reading a stored Range answer value.
+ *
+ * `empty` means nothing is stored yet and defaults may be seeded. `malformed` means Tutor
+ * holds a value TutorPress cannot interpret; that value must be preserved, never replaced.
+ */
+export type ScaleAnswerParseResult =
+  | { status: "empty" }
+  | { status: "valid"; data: ScaleAnswerData }
+  | { status: "malformed" };
+
+/**
+ * Coerce an unknown stored value to a finite number, falling back when it is not one.
+ */
+const toFiniteNumber = (raw: unknown, fallback: number): number => {
+  const parsed = typeof raw === "number" ? raw : parseFloat(String(raw));
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+/**
+ * Apply Tutor's config normalization.
+ *
+ * Mirrors the native editor's `normalizeScaleConfig()`, which pins `step` to `1`.
+ */
+export const normalizeScaleConfig = (config: ScaleConfig): ScaleConfig => ({ ...config, step: 1 });
+
+/**
+ * Parse a stored Range answer value defensively.
+ *
+ * Accepts a value only when it carries a finite numeric `value` and a `config` object,
+ * which is the same acceptance test Tutor's native editor applies. Missing config keys
+ * fall back to Tutor's defaults per key rather than rejecting the whole value.
+ */
+export const parseScaleAnswer = (raw: string | null | undefined): ScaleAnswerParseResult => {
+  if (!raw || !raw.trim()) {
+    return { status: "empty" };
+  }
+
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(raw);
+  } catch {
+    return { status: "malformed" };
+  }
+
+  if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+    return { status: "malformed" };
+  }
+
+  const candidate = decoded as { value?: unknown; config?: unknown };
+  if (typeof candidate.value !== "number" || !Number.isFinite(candidate.value)) {
+    return { status: "malformed" };
+  }
+  if (!candidate.config || typeof candidate.config !== "object" || Array.isArray(candidate.config)) {
+    return { status: "malformed" };
+  }
+
+  const config = candidate.config as Record<string, unknown>;
+  const defaults = NATIVE_SCALE_DEFAULTS.config;
+
+  return {
+    status: "valid",
+    data: {
+      value: candidate.value,
+      config: normalizeScaleConfig({
+        min: toFiniteNumber(config.min, defaults.min),
+        max: toFiniteNumber(config.max, defaults.max),
+        step: defaults.step,
+        defaultValue: toFiniteNumber(config.defaultValue, defaults.defaultValue),
+        pxPerUnit: toFiniteNumber(config.pxPerUnit, defaults.pxPerUnit),
+        labelEvery: toFiniteNumber(config.labelEvery, defaults.labelEvery),
+        minorTickEvery: toFiniteNumber(config.minorTickEvery, defaults.minorTickEvery),
+        precision: toFiniteNumber(config.precision, defaults.precision),
+      }),
+    },
+  };
+};
+
+/**
+ * Serialize a Range answer value.
+ *
+ * Key order matches Tutor's native editor so an untouched default row serializes
+ * identically on both builders.
+ */
+export const serializeScaleAnswer = (data: ScaleAnswerData): string => {
+  const config = normalizeScaleConfig(data.config);
+
+  return JSON.stringify({
+    value: data.value,
+    config: {
+      min: config.min,
+      max: config.max,
+      step: config.step,
+      defaultValue: config.defaultValue,
+      pxPerUnit: config.pxPerUnit,
+      labelEvery: config.labelEvery,
+      minorTickEvery: config.minorTickEvery,
+      precision: config.precision,
+    },
+  });
+};
+
+/**
  * Generate a temporary ID for an unsaved question or answer row.
  *
  * Negative so Tutor's save path and TutorPress's deletion tracking can distinguish

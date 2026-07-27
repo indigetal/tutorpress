@@ -485,12 +485,22 @@ try {
             'Could not delimit QuestionComponentMap.'
         );
 
-        foreach (array_keys($native_metadata) as $slug) {
+        // Native types whose TutorPress editor does not exist yet must stay unregistered.
+        // `scale` is deliberately excluded: Step 5 implemented its editor, so it must be
+        // registered, and the assertion below proves that positively.
+        $unimplemented_natives = ['draw_image', 'pin_image', 'coordinates', 'puzzle'];
+
+        foreach ($unimplemented_natives as $slug) {
             $assert(
                 !preg_match('/^\s*' . preg_quote($slug, '/') . ':/m', $map_block[1]),
                 "{$slug} is registered as a local editor before its component exists."
             );
         }
+
+        $assert(
+            1 === preg_match('/^\s*scale:\s*ScaleQuestion\s*,/m', $map_block[1]),
+            'scale is not registered to ScaleQuestion, so Range is not locally authorable.'
+        );
 
         $assert(
             !preg_match('/^\s*h5p:/m', $map_block[1]),
@@ -544,6 +554,124 @@ try {
         $assert(
             false !== strpos($validation, 'validationRegistry[question.question_type] || []'),
             'Validation dispatch lost its no-rules fallback for an unknown slug.'
+        );
+
+        // Range (`scale`) native answer contract.
+        //
+        // The stored value is JSON in the answer row's `answer_two_gap_match`: a top-level
+        // `value` plus a `config` object holding Tutor's eight keys, with
+        // `answer_view_format` set to `scale`. Tutor Pro's grader reads `value`,
+        // `config.step`, and `config.precision`, so the shape and key names are an
+        // external contract rather than a TutorPress choice.
+        $scale_editor = $read_source('components/modals/quiz/questions/ScaleQuestion.tsx');
+
+        $assert(
+            1 === preg_match(
+                '/NATIVE_SCALE_DEFAULTS:\s*ScaleAnswerData\s*=\s*\{\s*value:\s*50\s*,\s*config:\s*\{(.+?)\}\s*,?\s*\}/s',
+                $type_metadata,
+                $defaults_block
+            ),
+            'Range creation defaults are absent or no longer match the native shape.'
+        );
+
+        $native_scale_defaults = [
+            'min'            => '0',
+            'max'            => '100',
+            'step'           => '1',
+            'defaultValue'   => '50',
+            'pxPerUnit'      => '10',
+            'labelEvery'     => '10',
+            'minorTickEvery' => '5',
+            'precision'      => '0',
+        ];
+
+        foreach ($native_scale_defaults as $key => $expected) {
+            $assert(
+                1 === preg_match('/\b' . preg_quote($key, '/') . ':\s*(-?[\d.]+)\s*,/', $defaults_block[1], $found),
+                "Range default config key {$key} is missing."
+            );
+            $assert(
+                $expected === $found[1],
+                "Range default {$key} is {$found[1]}, expected {$expected}."
+            );
+        }
+
+        // The serializer must emit those eight config keys and nothing else, in Tutor's
+        // own order, so an untouched default row is byte-identical across both builders.
+        $assert(
+            1 === preg_match(
+                '/serializeScaleAnswer\s*=\s*\(.*?JSON\.stringify\(\{\s*value:\s*data\.value\s*,\s*config:\s*\{(.+?)\}\s*,?\s*\}\)/s',
+                $type_metadata,
+                $serialized_block
+            ),
+            'Range serialization no longer emits a top-level value plus a config object.'
+        );
+
+        $assert(
+            0 < preg_match_all('/(\w+):\s*config\.\w+/', $serialized_block[1], $serialized_keys),
+            'Range serialization emits no config keys.'
+        );
+        $assert(
+            array_keys($native_scale_defaults) === $serialized_keys[1],
+            'Range serialization emits ' . implode(',', $serialized_keys[1])
+                . ' instead of exactly ' . implode(',', array_keys($native_scale_defaults)) . ' in that order.'
+        );
+
+        // Tutor pins `step` to 1 on create, on load, and on every config change.
+        $assert(
+            1 === preg_match('/normalizeScaleConfig\s*=\s*\([^)]*\)[^=]*=>\s*\(\{\s*\.\.\.config\s*,\s*step:\s*1\s*\}\)/s', $type_metadata),
+            'Range config normalization no longer pins step to 1 as Tutor does.'
+        );
+
+        // The answer row must carry Tutor's view format and correctness flag, and a value
+        // TutorPress cannot parse must never be rewritten.
+        $assert(
+            1 === preg_match('/SCALE_ANSWER_VIEW_FORMAT\s*=\s*"scale"/', $scale_editor),
+            'The Range editor does not set answer_view_format to scale.'
+        );
+        $view_format_writes = preg_match_all('/answer_view_format:/', $scale_editor);
+        $assert(
+            0 < $view_format_writes
+                && $view_format_writes === preg_match_all('/answer_view_format:\s*SCALE_ANSWER_VIEW_FORMAT/', $scale_editor),
+            'The Range editor writes an answer_view_format value other than the native scale constant.'
+        );
+        $assert(
+            1 === preg_match('/parsed\.status\s*!==\s*"empty"[^;]*seededRef/s', $scale_editor),
+            'The Range editor seeds defaults over a value that is already stored.'
+        );
+        $assert(
+            1 === preg_match('/if\s*\(parsed\.status\s*!==\s*"valid"\)\s*\{\s*return;/s', $scale_editor),
+            'The Range editor can commit a change while the stored value is unreadable.'
+        );
+
+        // Range has no file lifecycle: it must not touch temporary-mask deletion state,
+        // media selection, or any request of its own.
+        $assert(
+            !preg_match('/deleted_temp_mask_values|fetch\(|wp\.media|apiFetch/', $scale_editor),
+            'The Range editor introduces a file or request lifecycle it must not own.'
+        );
+
+        // Tutor defines exactly two Range constraints; no step or precision rule exists.
+        $assert(
+            1 === preg_match('/^\s*scale:\s*\[(.+?)^\s*\],$/ms', $validation, $scale_rules),
+            'Range validation rules are absent.'
+        );
+        $assert(
+            2 === preg_match_all('/\(question:\s*QuizQuestion\)\s*=>/', $scale_rules[1], $rule_count),
+            'Range has ' . preg_match_all('/\(question:\s*QuizQuestion\)\s*=>/', $scale_rules[1])
+                . ' validation rules instead of Tutor\'s two.'
+        );
+        $assert(
+            false !== strpos($scale_rules[1], 'The maximum value must be greater than the minimum value.'),
+            'Range is missing the max-greater-than-min rule.'
+        );
+        $assert(
+            false !== strpos($scale_rules[1], 'The correct value must be between the minimum and maximum values.'),
+            'Range is missing the correct-value-in-range rule.'
+        );
+        $assert(
+            !preg_match('/config\.step|config\.precision|minorTickEvery/', $scale_rules[1]),
+            'Range validation asserts a step, precision, or tick constraint Tutor does not define.'
         );
     }
 } catch (Throwable $exception) {

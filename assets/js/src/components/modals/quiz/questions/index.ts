@@ -27,6 +27,7 @@ export { OrderingQuestion } from "./OrderingQuestion";
 export { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
 export { MatchingQuestion } from "./MatchingQuestion";
 export { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
+export { ScaleQuestion } from "./ScaleQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -43,6 +44,7 @@ import { OrderingQuestion } from "./OrderingQuestion";
 import { ImageAnsweringQuestion } from "./ImageAnsweringQuestion";
 import { MatchingQuestion } from "./MatchingQuestion";
 import { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
+import { ScaleQuestion } from "./ScaleQuestion";
 
 /**
  * Common props interface for all question components
@@ -70,9 +72,9 @@ export type QuestionComponent = React.FC<QuestionComponentProps>;
  *
  *              Registration is deliberately explicit and is the sole authority on local
  *              editor availability: a type is not locally authorable until its component
- *              appears here. The five Tutor 4.0 native types and `h5p` are therefore
- *              absent on purpose. `h5p` stays out permanently because it is authored
- *              through the separate Interactive Quiz modal.
+ *              appears here. The Tutor 4.0 native types without a TutorPress editor yet,
+ *              and `h5p`, are therefore absent on purpose. `h5p` stays out permanently
+ *              because it is authored through the separate Interactive Quiz modal.
  */
 export const QuestionComponentMap = {
   true_false: TrueFalseQuestion,
@@ -85,6 +87,7 @@ export const QuestionComponentMap = {
   matching: MatchingQuestion,
   image_matching: MatchingQuestion, // Image matching uses the same component as matching
   fill_in_the_blank: FillInTheBlanksQuestion,
+  scale: ScaleQuestion, // Range (Tutor 4.0 native)
   // Additional question types will be added here as they are implemented
   // h5p: H5PQuestion,
 } as const;
