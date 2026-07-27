@@ -486,9 +486,10 @@ try {
         );
 
         // Native types whose TutorPress editor does not exist yet must stay unregistered.
-        // `scale` is deliberately excluded: Step 5 implemented its editor, so it must be
-        // registered, and the assertion below proves that positively.
-        $unimplemented_natives = ['draw_image', 'pin_image', 'coordinates', 'puzzle'];
+        // `scale` and `coordinates` are deliberately excluded: Steps 5 and 6 implemented
+        // their editors, so they must be registered, and the assertions below prove that
+        // positively. Both directions matter, which is why each is checked either way.
+        $unimplemented_natives = ['draw_image', 'pin_image', 'puzzle'];
 
         foreach ($unimplemented_natives as $slug) {
             $assert(
@@ -500,6 +501,10 @@ try {
         $assert(
             1 === preg_match('/^\s*scale:\s*ScaleQuestion\s*,/m', $map_block[1]),
             'scale is not registered to ScaleQuestion, so Range is not locally authorable.'
+        );
+        $assert(
+            1 === preg_match('/^\s*coordinates:\s*CoordinatesQuestion\s*,/m', $map_block[1]),
+            'coordinates is not registered to CoordinatesQuestion, so Graph is not locally authorable.'
         );
 
         $assert(
@@ -672,6 +677,142 @@ try {
         $assert(
             !preg_match('/config\.step|config\.precision|minorTickEvery/', $scale_rules[1]),
             'Range validation asserts a step, precision, or tick constraint Tutor does not define.'
+        );
+
+        // Graph (`coordinates`) native answer contract.
+        //
+        // The stored value is a BARE JSON array of integer {x,y} points in the answer row's
+        // `answer_two_gap_match`, with `answer_view_format` set to `coordinates`. Tutor's own
+        // editor writes `JSON.stringify(points)`, Tutor core's validator accepts an array or
+        // a legacy single object, and Tutor Pro's review renderer requires an array. A
+        // `{points:...}` wrapper is the STUDENT response shape, not the instructor answer.
+        $coordinates_editor = $read_source('components/modals/quiz/questions/CoordinatesQuestion.tsx');
+
+        $assert(
+            1 === preg_match('/COORDINATES_ANSWER_VIEW_FORMAT\s*=\s*"coordinates"/', $coordinates_editor),
+            'The Graph editor does not set answer_view_format to coordinates.'
+        );
+        $coordinates_view_format_writes = preg_match_all('/answer_view_format:/', $coordinates_editor);
+        $assert(
+            0 < $coordinates_view_format_writes
+                && $coordinates_view_format_writes === preg_match_all(
+                    '/answer_view_format:\s*COORDINATES_ANSWER_VIEW_FORMAT/',
+                    $coordinates_editor
+                ),
+            'The Graph editor writes an answer_view_format value other than the native coordinates constant.'
+        );
+
+        // Serialization must emit the bare array with Tutor's per-point key order, and must
+        // refuse an empty set: Tutor can never store `[]` (its editor coerces an empty set
+        // back to the origin and refuses to delete the last point) and core's validator
+        // rejects a zero-length array, so writing one produces a row Tutor will not save.
+        $assert(
+            1 === preg_match(
+                '/serializeCoordinatesAnswer\s*=\s*\((.+?)\n\};/s',
+                $type_metadata,
+                $coordinates_serializer
+            ),
+            'Graph serialization is absent from the shared contract module.'
+        );
+        $assert(
+            1 === preg_match(
+                '/JSON\.stringify\(points\.map\(\(point\)\s*=>\s*\(\{\s*x:\s*point\.x\s*,\s*y:\s*point\.y\s*\}\)\)\)/',
+                $coordinates_serializer[1]
+            ),
+            'Graph serialization no longer emits a bare array of {x,y} points in Tutor\'s key order.'
+        );
+        $assert(
+            1 === preg_match('/points\.length\s*===\s*0\s*\)\s*\{\s*return null;/s', $coordinates_serializer[1]),
+            'Graph serialization can emit an empty array, which Tutor refuses to save.'
+        );
+        $assert(
+            !preg_match('/"points"|points:\s*\[|\{\s*points\s*:/', $coordinates_serializer[1]),
+            'Graph serialization wraps points in an object; that is the student response shape.'
+        );
+
+        // The last point must be undeletable, mirroring Tutor's own hard return.
+        $assert(
+            1 === preg_match('/displayPoints\.length\s*<=\s*1\s*\)\s*\{\s*return;/s', $coordinates_editor),
+            'The Graph editor can delete the last coordinate, which Tutor never allows.'
+        );
+
+        // No mount-time write: a newly created Graph row keeps Tutor's empty answer value
+        // until the author commits a point.
+        $assert(
+            !preg_match('/useEffect\([^)]*\)\s*=>\s*\{[^}]*writeCoordinates/s', $coordinates_editor),
+            'The Graph editor writes an answer value on mount instead of leaving Tutor\'s empty row.'
+        );
+
+        // Only Tutor's two axis ranges exist, spanning -n through n, defaulted at creation
+        // by the shared question factory the way Tutor seeds it in its own.
+        $assert(
+            1 === preg_match(
+                '/COORDINATES_AXIS_RANGE_OPTIONS:\s*CoordinatesAxisRange\[\]\s*=\s*\[\s*10\s*,\s*20\s*\]/',
+                $type_metadata
+            ),
+            'Graph offers axis ranges other than Tutor\'s 10 and 20.'
+        );
+        $assert(
+            1 === preg_match(
+                '/resolveCoordinatesAxisRange\s*=\s*\([^)]*\)[^=]*=>\s*Number\([^)]*\)\s*===\s*20\s*\?\s*20\s*:\s*NATIVE_COORDINATES_AXIS_RANGE/s',
+                $type_metadata
+            ),
+            'Graph axis-range normalization no longer resolves anything but 20 to the native default.'
+        );
+        $assert(
+            1 === preg_match(
+                '/questionType\s*===\s*"coordinates"\s*&&\s*\{\s*coordinates_axis_range:\s*10\s*\}/',
+                $read_source('types/quiz.ts')
+            ),
+            'The shared question factory does not seed coordinates_axis_range at creation.'
+        );
+
+        // Graph has no file lifecycle: no temporary-mask state, media selection, or request.
+        $assert(
+            !preg_match('/deleted_temp_mask_values|fetch\(|wp\.media|apiFetch/', $coordinates_editor),
+            'The Graph editor introduces a file or request lifecycle it must not own.'
+        );
+
+        // Tutor core defines three Graph constraints (1-5 points, integers, within +/-axis).
+        // Duplicates are permitted and ordering is never normalized, so neither may appear.
+        $assert(
+            1 === preg_match('/^\s*coordinates:\s*\[(.+?)^\s*\],$/ms', $validation, $coordinates_rules),
+            'Graph validation rules are absent.'
+        );
+        $coordinates_rule_count = preg_match_all('/\(question:\s*QuizQuestion\)\s*=>/', $coordinates_rules[1]);
+        $assert(
+            3 === $coordinates_rule_count,
+            "Graph has {$coordinates_rule_count} validation rules instead of Tutor's three."
+        );
+        $assert(
+            false !== strpos($coordinates_rules[1], 'Add at least one correct coordinate.'),
+            'Graph is missing the at-least-one-point rule.'
+        );
+        // Asserted as the comparison rather than a bare mention of the constant: the
+        // constant also appears in the rule's own message argument, so a substring test
+        // would still pass with a hardcoded limit in the comparison itself.
+        $assert(
+            1 === preg_match('/parsed\.points\.length\s*>\s*MAX_COORDINATE_POINTS/', $coordinates_rules[1]),
+            'Graph does not compare the stored point count against Tutor\'s maximum.'
+        );
+        $assert(
+            false !== strpos($coordinates_rules[1], 'resolveCoordinatesAxisRange'),
+            'Graph validation does not check points against the configured axis range.'
+        );
+        $assert(
+            !preg_match('/duplicate|\.sort\(/i', $coordinates_rules[1]),
+            'Graph validation asserts a duplicate or ordering constraint Tutor does not define.'
+        );
+
+        // A stored value TutorPress cannot parse must produce no validation error, or a
+        // preserved row would block every quiz save with no way for the author to repair it.
+        $assert(
+            1 === preg_match('/status\s*===\s*"empty"\s*\?/', $coordinates_rules[1]),
+            'The Graph at-least-one-point rule fires for a malformed value, not just an empty one.'
+        );
+        $assert(
+            !preg_match('/status\s*===\s*"malformed"/', $coordinates_rules[1]),
+            'Graph validation reports a malformed stored value, which would trap the author.'
         );
     }
 } catch (Throwable $exception) {

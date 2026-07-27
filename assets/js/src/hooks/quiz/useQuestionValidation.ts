@@ -29,9 +29,14 @@
  */
 
 import { useMemo } from "react";
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import type { QuizQuestion, QuizQuestionType } from "../../types/quiz";
-import { parseScaleAnswer } from "../../utils/quizQuestionTypes";
+import {
+  MAX_COORDINATE_POINTS,
+  parseCoordinatesAnswer,
+  parseScaleAnswer,
+  resolveCoordinatesAxisRange,
+} from "../../utils/quizQuestionTypes";
 
 /**
  * Validation result for a single question
@@ -385,6 +390,59 @@ export const useQuestionValidation = () => {
           const { value, config } = parsed.data;
           return value < config.min || value > config.max
             ? [__("The correct value must be between the minimum and maximum values.", "tutorpress")]
+            : [];
+        },
+      ],
+
+      // Graph validation rules
+      //
+      // These are Tutor core's three native Graph constraints, split so each reports its
+      // own message (`validateQuizQuestion()` emits one combined string). Duplicate points
+      // are deliberately permitted: Tutor allows them and its grader compares deduplicated
+      // sets. As with Range, a stored value TutorPress cannot parse produces no error, so a
+      // preserved row cannot block the quiz save.
+      coordinates: [
+        // At least one point
+        (question: QuizQuestion) => {
+          const parsed = parseCoordinatesAnswer(question.question_answers?.[0]?.answer_two_gap_match);
+          return parsed.status === "empty" ? [__("Add at least one correct coordinate.", "tutorpress")] : [];
+        },
+
+        // No more than Tutor's maximum
+        (question: QuizQuestion) => {
+          const parsed = parseCoordinatesAnswer(question.question_answers?.[0]?.answer_two_gap_match);
+          return parsed.status === "valid" && parsed.points.length > MAX_COORDINATE_POINTS
+            ? [
+                sprintf(
+                  // translators: %d is the maximum number of coordinates allowed.
+                  __("A Graph question can have at most %d coordinates.", "tutorpress"),
+                  MAX_COORDINATE_POINTS
+                ),
+              ]
+            : [];
+        },
+
+        // Every point within the configured axis range
+        (question: QuizQuestion) => {
+          const parsed = parseCoordinatesAnswer(question.question_answers?.[0]?.answer_two_gap_match);
+          if (parsed.status !== "valid") {
+            return [];
+          }
+
+          const axisRange = resolveCoordinatesAxisRange(question.question_settings?.coordinates_axis_range);
+          const hasOutOfRangePoint = parsed.points.some(
+            (point) => Math.abs(point.x) > axisRange || Math.abs(point.y) > axisRange
+          );
+
+          return hasOutOfRangePoint
+            ? [
+                sprintf(
+                  // translators: %1$d is the lowest coordinate value, %2$d is the highest.
+                  __("Every coordinate must be between %1$d and %2$d.", "tutorpress"),
+                  -axisRange,
+                  axisRange
+                ),
+              ]
             : [];
         },
       ],

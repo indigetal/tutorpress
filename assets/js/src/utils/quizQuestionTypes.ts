@@ -317,6 +317,155 @@ export const serializeScaleAnswer = (data: ScaleAnswerData): string => {
 };
 
 /**
+ * One Graph (`coordinates`) grid point. Both axes are integers.
+ */
+export interface CoordinatePoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * The only axis ranges Tutor offers. An axis range of `n` spans `-n` through `n`.
+ */
+export type CoordinatesAxisRange = 10 | 20;
+
+/**
+ * Tutor's default axis range for a newly created Graph question.
+ *
+ * Also the fallback everywhere the stored setting is absent or unreadable, matching
+ * Tutor Pro's grader and both of its Graph templates.
+ */
+export const NATIVE_COORDINATES_AXIS_RANGE: CoordinatesAxisRange = 10;
+
+/** The axis ranges offered in the editor's selector. */
+export const COORDINATES_AXIS_RANGE_OPTIONS: CoordinatesAxisRange[] = [10, 20];
+
+/** Tutor's upper bound on correct answer points. */
+export const MAX_COORDINATE_POINTS = 5;
+
+/** The point Tutor shows for a Graph question with nothing stored yet. */
+export const NATIVE_COORDINATES_DEFAULT_POINT: CoordinatePoint = { x: 0, y: 0 };
+
+/**
+ * Normalize a stored or selected axis range to one of Tutor's two supported values.
+ *
+ * Mirrors the native editor's `resolveAxisRange()` and Tutor's `Number()` coercion of
+ * `coordinates_axis_range` on save: anything that is not 20 resolves to 10.
+ */
+export const resolveCoordinatesAxisRange = (raw: unknown): CoordinatesAxisRange =>
+  Number(raw) === 20 ? 20 : NATIVE_COORDINATES_AXIS_RANGE;
+
+/**
+ * Round to the nearest integer and clamp both axes into the current grid extent.
+ *
+ * Mirrors the native editor's `sanitizePoint()`, which it applies to the whole point set
+ * on every commit.
+ */
+export const sanitizeCoordinatePoint = (point: CoordinatePoint, axisRange: CoordinatesAxisRange): CoordinatePoint => {
+  const clamp = (value: number): number => Math.max(-axisRange, Math.min(axisRange, Math.round(value)));
+
+  return { x: clamp(point.x), y: clamp(point.y) };
+};
+
+/**
+ * Result of reading a stored Graph answer value.
+ *
+ * `empty` means nothing usable is stored yet, which includes a stored `[]`. `malformed`
+ * means Tutor holds a value TutorPress must preserve rather than interpret.
+ */
+export type CoordinatesAnswerParseResult =
+  | { status: "empty" }
+  | { status: "valid"; points: CoordinatePoint[] }
+  | { status: "malformed" };
+
+/**
+ * Read one point from an unknown stored element, or `null` when it is not one.
+ *
+ * Coordinates are rounded, matching the native editor's own parse. Tutor's validator
+ * requires integers, so a fractional stored value could not have come from either builder.
+ */
+const parseCoordinatePoint = (raw: unknown): CoordinatePoint | null => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+
+  const candidate = raw as { x?: unknown; y?: unknown };
+  if (typeof candidate.x !== "number" || typeof candidate.y !== "number") {
+    return null;
+  }
+  if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) {
+    return null;
+  }
+
+  return { x: Math.round(candidate.x), y: Math.round(candidate.y) };
+};
+
+/**
+ * Parse a stored Graph answer value defensively.
+ *
+ * Accepts only the two shapes Tutor itself accepts: a bare array of points, and a legacy
+ * single `{x,y}` object, which Tutor's core validator wraps into a one-element list.
+ * Every other shape is reported malformed so the stored value is preserved untouched —
+ * that is what keeps an optional grader-honored `config` from ever being stripped, since
+ * such a row is never rewritten.
+ *
+ * The point count is deliberately not capped here. A row holding more than Tutor's
+ * five remains editable so the author can delete down to the limit; validation blocks
+ * the save until then.
+ */
+export const parseCoordinatesAnswer = (raw: string | null | undefined): CoordinatesAnswerParseResult => {
+  if (!raw || !raw.trim()) {
+    return { status: "empty" };
+  }
+
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(raw);
+  } catch {
+    return { status: "malformed" };
+  }
+
+  if (Array.isArray(decoded)) {
+    if (decoded.length === 0) {
+      return { status: "empty" };
+    }
+
+    const points: CoordinatePoint[] = [];
+    for (const element of decoded) {
+      const point = parseCoordinatePoint(element);
+      if (!point) {
+        return { status: "malformed" };
+      }
+      points.push(point);
+    }
+
+    return { status: "valid", points };
+  }
+
+  const legacySinglePoint = parseCoordinatePoint(decoded);
+  return legacySinglePoint ? { status: "valid", points: [legacySinglePoint] } : { status: "malformed" };
+};
+
+/**
+ * Serialize a Graph answer value.
+ *
+ * Produces the bare array Tutor's native editor writes, with the same per-point key
+ * order. Author order is preserved: Tutor never sorts, and Tutor Pro's grader sorts
+ * normalized point strings itself, so ordering cannot affect grading.
+ *
+ * Returns `null` for an empty set. Tutor can never store `[]` — its editor coerces an
+ * empty set back to the origin and refuses to delete the last point — and its validator
+ * rejects a zero-length array, so writing one would produce a row Tutor will not save.
+ */
+export const serializeCoordinatesAnswer = (points: CoordinatePoint[]): string | null => {
+  if (points.length === 0) {
+    return null;
+  }
+
+  return JSON.stringify(points.map((point) => ({ x: point.x, y: point.y })));
+};
+
+/**
  * Generate a temporary ID for an unsaved question or answer row.
  *
  * Negative so Tutor's save path and TutorPress's deletion tracking can distinguish

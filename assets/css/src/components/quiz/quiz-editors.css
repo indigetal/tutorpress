@@ -315,6 +315,184 @@
   color: var(--gray-500);
 }
 
+/* Graph (coordinates) Question Editor */
+.quiz-modal-coordinates-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.quiz-modal-coordinates-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-coordinates-section-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+.quiz-modal-coordinates-label {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.quiz-modal-coordinates-axis-select {
+  width: 100%;
+  max-width: 200px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-sm);
+}
+
+.quiz-modal-coordinates-help-text {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.quiz-modal-coordinates-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.quiz-modal-coordinates-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.quiz-modal-coordinates-row--active {
+  border-color: var(--color-primary);
+}
+
+.quiz-modal-coordinates-row-index {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  font-size: var(--text-xs);
+  color: var(--gray-700);
+}
+
+.quiz-modal-coordinates-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-sm);
+}
+
+.quiz-modal-coordinates-input:disabled {
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.quiz-modal-coordinates-row-action,
+.quiz-modal-coordinates-add-button {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-xs);
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+.quiz-modal-coordinates-add-button {
+  align-self: flex-start;
+}
+
+.quiz-modal-coordinates-row-action:hover:not(:disabled),
+.quiz-modal-coordinates-add-button:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+
+.quiz-modal-coordinates-row-action:disabled,
+.quiz-modal-coordinates-add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-coordinates-grid-wrapper {
+  width: 100%;
+  max-width: 420px;
+}
+
+.quiz-modal-coordinates-grid {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  cursor: crosshair;
+}
+
+.quiz-modal-coordinates-grid-line line {
+  stroke: var(--gray-300);
+  stroke-width: 0.5;
+}
+
+.quiz-modal-coordinates-axis-line {
+  stroke: var(--gray-700);
+  stroke-width: 1.5;
+}
+
+.quiz-modal-coordinates-axis-label {
+  fill: var(--gray-500);
+  font-size: 11px;
+}
+
+.quiz-modal-coordinates-marker {
+  fill: var(--color-primary);
+}
+
+.quiz-modal-coordinates-marker--active {
+  stroke: var(--gray-700);
+  stroke-width: 2;
+}
+
+.quiz-modal-coordinates-preserved-notice {
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-coordinates-preserved-title {
+  display: block;
+  margin-bottom: var(--space-xs);
+  color: var(--gray-700);
+}
+
+.quiz-modal-coordinates-preserved-description {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
 /* Override WordPress editor tab styles in quiz modal */
 .quiz-modal-wp-editor .wp-switch-editor {
   padding: var(--space-sm) var(--space-lg);
