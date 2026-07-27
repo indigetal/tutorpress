@@ -16,6 +16,7 @@
 
 import React from "react";
 import type { QuizQuestion, QuizQuestionType } from "../../../../types/quiz";
+import { isKnownQuizQuestionType } from "../../../../utils/quizQuestionTypes";
 
 // Import all question components
 export { TrueFalseQuestion } from "./TrueFalseQuestion";
@@ -66,6 +67,12 @@ export type QuestionComponent = React.FC<QuestionComponentProps>;
  * @description This registry allows the QuizModal to dynamically render
  *              the appropriate component based on the question type without
  *              having to maintain a large switch statement.
+ *
+ *              Registration is deliberately explicit and is the sole authority on local
+ *              editor availability: a type is not locally authorable until its component
+ *              appears here. The five Tutor 4.0 native types and `h5p` are therefore
+ *              absent on purpose. `h5p` stays out permanently because it is authored
+ *              through the separate Interactive Quiz modal.
  */
 export const QuestionComponentMap = {
   true_false: TrueFalseQuestion,
@@ -100,4 +107,19 @@ export const getQuestionComponent = (questionType: QuizQuestionType): QuestionCo
  */
 export const hasQuestionComponent = (questionType: QuizQuestionType): boolean => {
   return questionType in QuestionComponentMap;
+};
+
+/**
+ * Check whether TutorPress can author a question type locally
+ *
+ * @description A type is locally authorable only when TutorPress has metadata for the
+ *              slug and a registered editor for it. This is a necessary condition, never
+ *              a sufficient one: the server capability contract must also permit the
+ *              type. Callers combine both, so metadata can only subtract capability.
+ *
+ * @param questionType The stored or selected question type slug
+ * @returns True when a local editor exists for the type
+ */
+export const isLocallyAuthorable = (questionType: string): boolean => {
+  return isKnownQuizQuestionType(questionType) && hasQuestionComponent(questionType);
 };

@@ -184,7 +184,6 @@ export interface TutorPressApi {
  */
 export interface TutorPressQuizUtils {
   getDefaultQuizSettings: () => any;
-  getDefaultQuestionSettings: (questionType: any) => any;
   isValidQuizQuestion: (question: unknown) => boolean;
   isValidQuizDetails: (quiz: unknown) => boolean;
   createQuizError: (code: any, message: string, operation: any, context?: any) => any;

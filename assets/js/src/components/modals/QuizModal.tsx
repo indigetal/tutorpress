@@ -17,7 +17,14 @@ import { useSelect, useDispatch } from "@wordpress/data";
 import { useQuizForm } from "../../hooks/quiz/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
-import { getQuestionComponent } from "./quiz/questions";
+import { getQuestionComponent, isLocallyAuthorable } from "./quiz/questions";
+import {
+  createDefaultQuestion,
+  getFallbackPickerTypes,
+  getQuizQuestionTypeLabel,
+  getQuizQuestionTypePickerOrder,
+  isHiddenFromPicker,
+} from "../../utils/quizQuestionTypes";
 import { useQuestionValidation } from "../../hooks/quiz";
 import { BaseModalLayout, BaseModalHeader } from "../common";
 import type {
@@ -28,7 +35,6 @@ import type {
   QuizDetails,
   QuizForm,
   QuizQuestionSettings,
-  getDefaultQuestionSettings,
   QuizQuestionOption,
   DataStatus,
   QuestionTypeOption,
@@ -47,20 +53,15 @@ interface QuizModalProps {
   quizId?: number; // For editing existing quiz
 }
 
-/** Alias-only registry entries TutorPress has never offered in its picker. */
-const ALIAS_ONLY_PICKER_TYPES = ["single_choice", "image_matching"];
-
-/** Established pre-4.0 picker order. Types outside it keep Tutor's registry order. */
-const PRE_40_PICKER_ORDER = [
-  "true_false",
-  "multiple_choice",
-  "open_ended",
-  "fill_in_the_blank",
-  "short_answer",
-  "matching",
-  "image_answering",
-  "ordering",
-];
+/**
+ * Reason a type the server permits still cannot be created here.
+ *
+ * This is a client-side condition, not one of the server contract's machine codes, so it
+ * has no reason code. The wording matches the loaded-row preservation notice so the
+ * picker and the notice give one explanation for one situation.
+ */
+const getLocalEditorUnavailableLabel = (): string =>
+  __("This question type is not yet editable in TutorPress.", "tutorpress");
 
 /**
  * Translate a machine reason code from the server capability contract.
@@ -81,41 +82,52 @@ const getUnavailableReasonLabel = (reason: QuizTypeUnavailableReason): string =>
 /**
  * Build picker options from the authoritative server capability contract.
  *
- * When the contract is unavailable, the known pre-4.0 list is returned as
- * creation-disabled display metadata so authoring is never silently enabled.
+ * Labels, Pro flags, and availability all come from the contract; shared metadata
+ * supplies only the picker order and the hidden-entry list. When the contract is
+ * unavailable, shared metadata is returned as creation-disabled display metadata so
+ * authoring is never silently enabled.
+ *
+ * A type is offered only when the server permits creating it AND TutorPress has a
+ * registered local editor for it, so metadata can never widen server capability.
  */
 const buildQuestionTypeOptions = (capabilities?: QuizCapabilities): QuestionTypeOption[] => {
   if (!capabilities || !Array.isArray(capabilities.questionTypes) || capabilities.questionTypes.length === 0) {
     const unavailableReason = __("Question type availability could not be determined.", "tutorpress");
-    const fallbackTypes: Array<Pick<QuestionTypeOption, "label" | "value" | "is_pro">> = [
-      { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
-      { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
-      { label: __("Open Ended/Essay", "tutorpress"), value: "open_ended", is_pro: false },
-      { label: __("Fill In The Blanks", "tutorpress"), value: "fill_in_the_blank", is_pro: false },
-      { label: __("Short Answer", "tutorpress"), value: "short_answer", is_pro: true },
-      { label: __("Matching", "tutorpress"), value: "matching", is_pro: true },
-      { label: __("Image Answering", "tutorpress"), value: "image_answering", is_pro: true },
-      { label: __("Ordering", "tutorpress"), value: "ordering", is_pro: true },
-    ];
 
-    return fallbackTypes.map((type) => ({ ...type, disabled: true, unavailableReason }));
+    return getFallbackPickerTypes().map(({ slug, meta }) => ({
+      label: meta.label,
+      value: slug,
+      is_pro: meta.isPro,
+      disabled: true,
+      unavailableReason,
+    }));
   }
 
-  const orderIndex = (slug: string): number => {
-    const index = PRE_40_PICKER_ORDER.indexOf(slug);
-    return index === -1 ? PRE_40_PICKER_ORDER.length : index;
-  };
-
   return capabilities.questionTypes
-    .filter((type) => !ALIAS_ONLY_PICKER_TYPES.includes(type.slug))
-    .map((type) => ({
-      label: type.label,
-      value: type.slug as QuizQuestionType,
-      is_pro: type.is_pro,
-      disabled: !type.registered || !type.can_create,
-      unavailableReason: getUnavailableReasonLabel(type.unavailable_reason),
-    }))
-    .sort((a, b) => orderIndex(a.value) - orderIndex(b.value));
+    .filter((type) => !isHiddenFromPicker(type.slug))
+    .map((type) => {
+      const serverReason = getUnavailableReasonLabel(type.unavailable_reason);
+      const serverAllowsCreate = type.registered && type.can_create;
+      const hasLocalEditor = isLocallyAuthorable(type.slug);
+
+      // A server reason outranks the local-editor reason: Legacy mode and Pro-inactive
+      // are the more informative explanations.
+      let unavailableReason = "";
+      if (!serverAllowsCreate) {
+        unavailableReason = serverReason;
+      } else if (!hasLocalEditor) {
+        unavailableReason = getLocalEditorUnavailableLabel();
+      }
+
+      return {
+        label: type.label,
+        value: type.slug as QuizQuestionType,
+        is_pro: type.is_pro,
+        disabled: !serverAllowsCreate || !hasLocalEditor,
+        unavailableReason,
+      };
+    })
+    .sort((a, b) => getQuizQuestionTypePickerOrder(a.value) - getQuizQuestionTypePickerOrder(b.value));
 };
 
 // Add TinyMCE Editor Component
@@ -868,30 +880,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       return;
     }
 
-    // Generate unique temporary ID (negative numbers to distinguish from real IDs)
-    const tempQuestionId = -(Date.now() + Math.floor(Math.random() * 1000));
-
-    // Create a new question object
-    const newQuestion: QuizQuestion = {
-      question_id: tempQuestionId,
-      question_title: "",
-      question_description: "",
-      question_mark: 1,
-      answer_explanation: "",
-      question_order: questions.length + 1,
-      question_type: typeToUse,
-      question_settings: {
-        question_type: typeToUse,
-        answer_required: true,
-        randomize_question: false,
-        question_mark: 1,
-        show_question_mark: true,
-        has_multiple_correct_answer: typeToUse === "multiple_choice",
-        is_image_matching: typeToUse.includes("image"),
-      },
-      question_answers: [],
-      _data_status: "new",
-    };
+    const newQuestion = createDefaultQuestion(typeToUse, questions.length + 1);
 
     // Add to questions array
     const updatedQuestions = [...questions, newQuestion];
@@ -991,6 +980,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   /**
    * Get question type display name for badges - Step 3.2
+   *
+   * Prefers Tutor's own label from the picker options, then shared metadata for slugs the
+   * contract does not carry, such as `h5p` and hidden alias entries. An unknown stored
+   * slug degrades to a humanized form of itself.
    */
   const getQuestionTypeDisplayName = (questionType: QuizQuestionType): string => {
     const typeOption = questionTypes.find((type) => type.value === questionType);
@@ -998,22 +991,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       return typeOption.label;
     }
 
-    // Fallback display names
-    const displayNames: Partial<Record<QuizQuestionType, string>> = {
-      true_false: __("True/False", "tutorpress"),
-      single_choice: __("Single Choice", "tutorpress"),
-      multiple_choice: __("Multiple Choice", "tutorpress"),
-      open_ended: __("Open Ended", "tutorpress"),
-      fill_in_the_blank: __("Fill in the Blanks", "tutorpress"),
-      short_answer: __("Short Answer", "tutorpress"),
-      matching: __("Matching", "tutorpress"),
-      image_matching: __("Image Matching", "tutorpress"),
-      image_answering: __("Image Answering", "tutorpress"),
-      ordering: __("Ordering", "tutorpress"),
-      h5p: __("H5P", "tutorpress"),
-    };
-
-    return displayNames[questionType] || questionType.replace(/_/g, " ");
+    return getQuizQuestionTypeLabel(questionType);
   };
 
   /**

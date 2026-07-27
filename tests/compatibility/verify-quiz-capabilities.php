@@ -425,6 +425,126 @@ try {
             false !== strpos($read_source('types/quiz.ts'), 'interface QuestionTypeOption'),
             'The shared QuestionTypeOption type is missing from types/quiz.ts.'
         );
+
+        // Shared metadata must own the five native entries exactly, and must be the only
+        // place native labels live. Entries are checked by slug rather than by counting
+        // rows, so the `h5p` and alias-only rows cannot affect the result.
+        $type_metadata = $read_source('utils/quizQuestionTypes.ts');
+
+        $native_metadata = [
+            'draw_image'  => array( 'label' => 'Image Marking', 'order' => 8 ),
+            'scale'       => array( 'label' => 'Range', 'order' => 9 ),
+            'pin_image'   => array( 'label' => 'Pin', 'order' => 10 ),
+            'coordinates' => array( 'label' => 'Graph', 'order' => 11 ),
+            'puzzle'      => array( 'label' => 'Puzzle', 'order' => 12 ),
+        ];
+
+        foreach ($native_metadata as $slug => $expected) {
+            $pattern = '/^\s*' . preg_quote($slug, '/')
+                . ':\s*\{\s*label:\s*__\(\s*"([^"]*)"[^)]*\)\s*,\s*pickerOrder:\s*(\d+)\s*,'
+                . '\s*isPro:\s*(true|false)\s*,\s*modernModeOnly:\s*(true|false)\s*\}/m';
+
+            $assert(
+                1 === preg_match($pattern, $type_metadata, $entry),
+                "Native metadata entry for {$slug} is absent or malformed."
+            );
+            $assert(
+                $expected['label'] === $entry[1],
+                "Native metadata label for {$slug} is \"{$entry[1]}\", expected \"{$expected['label']}\"."
+            );
+            $assert(
+                $expected['order'] === (int) $entry[2],
+                "Native picker order for {$slug} is {$entry[2]}, expected {$expected['order']}."
+            );
+            $assert('true' === $entry[3], "Native metadata does not mark {$slug} as Pro.");
+            $assert('true' === $entry[4], "Native metadata does not mark {$slug} as modern-mode only.");
+        }
+
+        $assert(
+            1 === preg_match('/^\s*ordering:\s*\{[^}]*pickerOrder:\s*7\s*,/m', $type_metadata),
+            'The five native types no longer follow the established pre-4.0 picker order.'
+        );
+
+        // Step 1's temporary inline fallback map must be gone, with no native label left
+        // behind in QuizModal.
+        $assert(
+            false === strpos($quiz_modal, 'Partial<Record<QuizQuestionType, string>>'),
+            'The temporary QuizModal inline fallback label map is still present.'
+        );
+        $assert(
+            !preg_match('/Image Marking|"Range"|"Pin"|"Graph"|"Puzzle"/', $quiz_modal),
+            'QuizModal duplicates a native question-type label that shared metadata owns.'
+        );
+
+        // A type with no registered component must not be locally authorable, and the
+        // picker must require both server permission and a local editor.
+        $question_registry = $read_source('components/modals/quiz/questions/index.ts');
+
+        $assert(
+            1 === preg_match('/QuestionComponentMap\s*=\s*\{(.+?)\}\s*as const;/s', $question_registry, $map_block),
+            'Could not delimit QuestionComponentMap.'
+        );
+
+        foreach (array_keys($native_metadata) as $slug) {
+            $assert(
+                !preg_match('/^\s*' . preg_quote($slug, '/') . ':/m', $map_block[1]),
+                "{$slug} is registered as a local editor before its component exists."
+            );
+        }
+
+        $assert(
+            !preg_match('/^\s*h5p:/m', $map_block[1]),
+            'h5p was added to the regular component registry; it belongs to the Interactive Quiz modal.'
+        );
+        $assert(
+            1 === preg_match('/isLocallyAuthorable[^}]*isKnownQuizQuestionType[^}]*hasQuestionComponent/s', $question_registry),
+            'isLocallyAuthorable does not require both known metadata and a registered component.'
+        );
+        $assert(
+            false !== strpos($quiz_modal, 'isLocallyAuthorable(type.slug)'),
+            'The picker does not consult local editor availability.'
+        );
+        $assert(
+            false !== strpos($quiz_modal, 'disabled: !serverAllowsCreate || !hasLocalEditor'),
+            'The picker does not require both server permission and a local editor.'
+        );
+
+        // Existing pre-4.0 component and validation entries must survive centralization.
+        $pre_40_types = [
+            'true_false',
+            'single_choice',
+            'multiple_choice',
+            'open_ended',
+            'fill_in_the_blank',
+            'short_answer',
+            'matching',
+            'image_matching',
+            'image_answering',
+            'ordering',
+        ];
+
+        $validation = $read_source('hooks/quiz/useQuestionValidation.ts');
+
+        foreach ($pre_40_types as $slug) {
+            $assert(
+                1 === preg_match('/^\s*' . preg_quote($slug, '/') . ':\s*[A-Z]/m', $map_block[1]),
+                "Pre-4.0 component registration for {$slug} was lost."
+            );
+            $assert(
+                1 === preg_match('/^\s*' . preg_quote($slug, '/') . ':\s*\[/m', $validation),
+                "Pre-4.0 validation rules for {$slug} were lost."
+            );
+        }
+
+        // A strict registry key must not cost the unknown-slug dispatch fallback.
+        $assert(
+            false !== strpos($validation, 'Partial<Record<QuizQuestionType, ValidationRule[]>>'),
+            'The validation registry key is not constrained to known question types.'
+        );
+        $assert(
+            false !== strpos($validation, 'validationRegistry[question.question_type] || []'),
+            'Validation dispatch lost its no-rules fallback for an unknown slug.'
+        );
     }
 } catch (Throwable $exception) {
     $failure_message = $exception->getMessage();

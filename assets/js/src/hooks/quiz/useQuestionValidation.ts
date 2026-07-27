@@ -69,10 +69,13 @@ export type ValidationRule = (question: QuizQuestion) => string[];
 
 /**
  * Question validation registry
+ *
+ * Keyed by known question type so a typo'd slug fails to compile rather than silently
+ * registering rules nothing will ever dispatch. Partial because a type with no
+ * type-specific rules is legitimate; dispatch falls back to no rules, which also covers
+ * an unknown slug arriving at runtime.
  */
-interface QuestionValidationRegistry {
-  [key: string]: ValidationRule[];
-}
+type QuestionValidationRegistry = Partial<Record<QuizQuestionType, ValidationRule[]>>;
 
 /**
  * Question Validation Hook
@@ -472,10 +475,9 @@ export const useQuestionValidation = () => {
    * Register a new validation rule for a question type
    */
   const registerValidationRule = (questionType: QuizQuestionType, rule: ValidationRule) => {
-    if (!validationRegistry[questionType]) {
-      validationRegistry[questionType] = [];
-    }
-    validationRegistry[questionType].push(rule);
+    const rules = validationRegistry[questionType] ?? [];
+    rules.push(rule);
+    validationRegistry[questionType] = rules;
   };
 
   return {
