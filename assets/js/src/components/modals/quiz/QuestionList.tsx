@@ -30,19 +30,13 @@
  */
 
 import React, { useState } from "react";
-import { Button, SelectControl, Spinner, Icon } from "@wordpress/components";
+import { Button, SelectControl, Icon } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createQuizDragHandlers } from "../../../components/common";
-import type { QuizQuestion, QuizQuestionType } from "../../../types/quiz";
-
-interface QuestionTypeOption {
-  label: string;
-  value: QuizQuestionType;
-  is_pro: boolean;
-}
+import type { QuizQuestion, QuizQuestionType, QuestionTypeOption } from "../../../types/quiz";
 
 interface QuestionListProps {
   questions: QuizQuestion[];
@@ -50,7 +44,6 @@ interface QuestionListProps {
   isAddingQuestion: boolean;
   selectedQuestionType: QuizQuestionType | null;
   questionTypes: QuestionTypeOption[];
-  loadingQuestionTypes: boolean;
   formTitle: string;
   isSaving: boolean;
   onAddQuestion: () => void;
@@ -141,7 +134,6 @@ export const QuestionList: React.FC<QuestionListProps> = ({
   isAddingQuestion,
   selectedQuestionType,
   questionTypes,
-  loadingQuestionTypes,
   formTitle,
   isSaving,
   onAddQuestion,
@@ -201,8 +193,10 @@ export const QuestionList: React.FC<QuestionListProps> = ({
             options={[
               { label: __("Select Question Type", "tutorpress"), value: "" },
               ...questionTypes.map((type) => ({
-                label: type.label,
+                // Unavailable types stay visible so their absence is explained.
+                label: type.unavailableReason ? `${type.label} — ${type.unavailableReason}` : type.label,
                 value: type.value,
+                disabled: type.disabled,
               })),
             ]}
             onChange={(value) => {
@@ -210,16 +204,9 @@ export const QuestionList: React.FC<QuestionListProps> = ({
                 onQuestionTypeSelect(value as QuizQuestionType);
               }
             }}
-            disabled={loadingQuestionTypes || isSaving}
+            disabled={isSaving}
             className="quiz-modal-question-type-select"
           />
-
-          {loadingQuestionTypes && (
-            <div className="quiz-modal-loading-question-types">
-              <Spinner style={{ margin: "0 8px 0 0" }} />
-              <span>{__("Loading question types...", "tutorpress")}</span>
-            </div>
-          )}
 
           <div className="quiz-modal-question-type-actions">
             <Button variant="secondary" isSmall onClick={onCancelAddQuestion}>

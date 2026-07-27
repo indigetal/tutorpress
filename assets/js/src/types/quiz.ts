@@ -23,7 +23,12 @@ export type QuizQuestionType =
   | "image_matching"
   | "image_answering"
   | "ordering"
-  | "h5p";
+  | "h5p"
+  | "draw_image"
+  | "scale"
+  | "pin_image"
+  | "coordinates"
+  | "puzzle";
 
 /**
  * Time unit types for quiz time limits
@@ -49,6 +54,67 @@ export type QuestionOrder = "rand" | "sorting" | "asc" | "desc";
  * Data status tracking for quiz builder operations
  */
 export type DataStatus = "new" | "update" | "no_change";
+
+// ============================================================================
+// Server Capability Contract
+// ============================================================================
+
+/**
+ * Normalized Tutor learning mode reported by the server contract.
+ */
+export type TutorLearningMode = "legacy" | "modern" | "kids" | "unknown";
+
+/**
+ * Machine-readable reason a question type cannot be created.
+ *
+ * An empty string means the type is creatable. The client owns translation.
+ */
+export type QuizTypeUnavailableReason = "" | "unsupported_tutor_version" | "pro_required" | "legacy_mode";
+
+/**
+ * Per-type capability entry derived from Tutor's authoritative registry.
+ */
+export interface QuizQuestionTypeCapability {
+  slug: string;
+  label: string;
+  is_pro: boolean;
+  registered: boolean;
+  can_create: boolean;
+  can_edit_existing: boolean;
+  unavailable_reason: QuizTypeUnavailableReason;
+}
+
+/**
+ * TutorPress-owned quiz capability contract localized by the server.
+ *
+ * This is the single authoritative source for question-type availability. It
+ * replaces the absent Tutor discovery surfaces the client previously probed.
+ */
+export interface QuizCapabilities {
+  tutorActive: boolean;
+  tutorVersion: string;
+  meetsSupportedFloor: boolean;
+  hasNativeQuizTypes: boolean;
+  learningMode: TutorLearningMode;
+  proActive: boolean;
+  proNativeQuizSupport: boolean;
+  supportsTempMaskDeletion: boolean;
+  questionTypes: QuizQuestionTypeCapability[];
+}
+
+/**
+ * A question type as presented in the quiz builder's picker.
+ *
+ * Derived from `QuizCapabilities.questionTypes`. `unavailableReason` is already
+ * translated for display; the machine code stays on the server contract.
+ */
+export interface QuestionTypeOption {
+  label: string;
+  value: QuizQuestionType;
+  is_pro: boolean;
+  disabled: boolean;
+  unavailableReason: string;
+}
 
 // ============================================================================
 // Quiz Settings Interfaces
@@ -106,6 +172,12 @@ export interface QuizQuestionSettings {
   show_question_mark: boolean;
   has_multiple_correct_answer: boolean;
   is_image_matching: boolean;
+  /** Draw Image overlap threshold, integer 40-100. Tutor 4.0 native contract. */
+  draw_image_threshold_percent?: number;
+  /** Graph axis range, native values 10 or 20. Tutor 4.0 native contract. */
+  coordinates_axis_range?: number;
+  /** Puzzle grid size, integer 2-7. Tutor 4.0 native contract. */
+  puzzle_grid_size?: number;
 }
 
 /**

@@ -11,6 +11,22 @@ defined('ABSPATH') || exit;
 class TutorPress_Assets {
 
     /**
+     * Lowest Tutor LMS version TutorPress claims compatibility with.
+     *
+     * @since 0.1.0
+     * @var string
+     */
+    const TUTOR_SUPPORTED_FLOOR = '3.9.15';
+
+    /**
+     * Tutor 4.0 question-type slugs that require modern/kids mode and Tutor Pro.
+     *
+     * @since 0.1.0
+     * @var string[]
+     */
+    const TUTOR_NATIVE_QUESTION_TYPES = ['draw_image', 'scale', 'pin_image', 'coordinates', 'puzzle'];
+
+    /**
      * Initialize the class.
      *
      * @since 0.1.0
@@ -237,6 +253,13 @@ class TutorPress_Assets {
             'before'
         );
 
+        // Strict types matter here, so the contract is assigned rather than localized as strings.
+        wp_add_inline_script(
+            'tutorpress-curriculum-metabox',
+            'tutorPressCurriculum.quizCapabilities = ' . wp_json_encode(self::get_quiz_capabilities()) . ';',
+            'before'
+        );
+
         // Expose comprehensive addon and payment engine data to frontend
         wp_localize_script('tutorpress-curriculum-metabox', 'tutorpressAddons', 
             TutorPress_Addon_Checker::get_comprehensive_status()
@@ -260,6 +283,204 @@ class TutorPress_Assets {
                 'button'  => __('Upgrade', 'tutorpress')
             ],
         ]);
+    }
+
+    /**
+     * Build the authoritative quiz capability contract for the Gutenberg bundle.
+     *
+     * Question types come from Tutor's own registry rather than a TutorPress list.
+     * Every creation decision fails closed when a contract is missing or ambiguous.
+     *
+     * @since 0.1.0
+     * @return array
+     */
+    public static function get_quiz_capabilities() {
+        $capabilities = [
+            'tutorActive'              => false,
+            'tutorVersion'             => '',
+            'meetsSupportedFloor'      => false,
+            'hasNativeQuizTypes'       => false,
+            'learningMode'             => 'unknown',
+            'proActive'                => false,
+            'proNativeQuizSupport'     => false,
+            'supportsTempMaskDeletion' => false,
+            'questionTypes'            => [],
+        ];
+
+        if (!function_exists('tutor') || !function_exists('tutor_utils')) {
+            return $capabilities;
+        }
+
+        $capabilities['tutorActive']  = true;
+        $capabilities['tutorVersion'] = defined('TUTOR_VERSION') ? (string) TUTOR_VERSION : '';
+        $capabilities['meetsSupportedFloor'] = '' !== $capabilities['tutorVersion']
+            && version_compare($capabilities['tutorVersion'], self::TUTOR_SUPPORTED_FLOOR, '>=');
+
+        $capabilities['learningMode']             = self::get_normalized_learning_mode();
+        $capabilities['hasNativeQuizTypes']       = self::has_native_quiz_type_registry();
+        $capabilities['proActive']                = defined('TUTOR_PRO_VERSION');
+        $capabilities['proNativeQuizSupport']     = $capabilities['proActive'] && self::has_pro_native_quiz_runtime();
+        $capabilities['supportsTempMaskDeletion'] = self::supports_temp_mask_deletion();
+        $capabilities['questionTypes']            = self::build_question_type_capabilities($capabilities);
+
+        return $capabilities;
+    }
+
+    /**
+     * Normalize Tutor's stored learning mode.
+     *
+     * @since 0.1.0
+     * @return string One of legacy, modern, kids, or unknown.
+     */
+    private static function get_normalized_learning_mode() {
+        $utils = tutor_utils();
+        if (!is_object($utils) || !method_exists($utils, 'get_option')) {
+            return 'unknown';
+        }
+
+        $mode = $utils->get_option('learning_mode');
+        $mode = is_string($mode) ? strtolower(trim($mode)) : '';
+
+        return in_array($mode, ['legacy', 'modern', 'kids'], true) ? $mode : 'unknown';
+    }
+
+    /**
+     * Detect Tutor 4.0's native question-type registry contract.
+     *
+     * @since 0.1.0
+     * @return bool
+     */
+    private static function has_native_quiz_type_registry() {
+        return is_callable(['\Tutor\Models\QuizModel', 'get_question_types'])
+            && is_callable(['\Tutor\Models\QuizModel', 'get_modern_mode_quiz_types']);
+    }
+
+    /**
+     * Detect Tutor Pro's runtime support for all five native question types.
+     *
+     * @since 0.1.0
+     * @return bool
+     */
+    private static function has_pro_native_quiz_runtime() {
+        if (!class_exists('\TUTOR_PRO\Quiz')) {
+            return false;
+        }
+
+        $required_methods = [
+            'grade_draw_image_question',
+            'grade_scale_question',
+            'grade_pin_image_question',
+            'grade_coordinates_question',
+            'grade_puzzle_question',
+        ];
+
+        foreach ($required_methods as $method) {
+            if (!method_exists('\TUTOR_PRO\Quiz', $method)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Detect Tutor 4.0's temporary-mask deletion contract.
+     *
+     * Tutor 3.9.x accepts two deletion arrays; Tutor 4.0 adds a third parameter.
+     *
+     * @since 0.1.0
+     * @return bool
+     */
+    private static function supports_temp_mask_deletion() {
+        if (!class_exists('\TUTOR\QuizBuilder') || !method_exists('\TUTOR\QuizBuilder', 'handle_delete')) {
+            return false;
+        }
+
+        try {
+            $reflection = new ReflectionMethod('\TUTOR\QuizBuilder', 'handle_delete');
+        } catch (ReflectionException $exception) {
+            return false;
+        }
+
+        return $reflection->getNumberOfParameters() >= 3;
+    }
+
+    /**
+     * Read Tutor's authoritative question-type registry.
+     *
+     * @since 0.1.0
+     * @param bool $has_native_registry Whether Tutor 4.0's registry contract is present.
+     * @return array
+     */
+    private static function get_tutor_question_registry($has_native_registry) {
+        if ($has_native_registry) {
+            $types = \Tutor\Models\QuizModel::get_question_types();
+            return is_array($types) ? $types : [];
+        }
+
+        $utils = tutor_utils();
+        if (is_object($utils) && method_exists($utils, 'get_question_types')) {
+            $types = $utils->get_question_types();
+            return is_array($types) ? $types : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Derive per-type creation and editing capability from Tutor's registry.
+     *
+     * @since 0.1.0
+     * @param array $capabilities Normalized environment capability values.
+     * @return array
+     */
+    private static function build_question_type_capabilities(array $capabilities) {
+        $entries      = [];
+        $modern_modes = ['modern', 'kids'];
+
+        foreach (self::get_tutor_question_registry($capabilities['hasNativeQuizTypes']) as $slug => $definition) {
+            $slug   = (string) $slug;
+            $native = in_array($slug, self::TUTOR_NATIVE_QUESTION_TYPES, true);
+            $is_pro = is_array($definition) && !empty($definition['is_pro']);
+
+            // Tutor stores icon markup alongside the label; only the plain label is exposed.
+            $label = is_array($definition) && isset($definition['name'])
+                ? wp_strip_all_tags((string) $definition['name'])
+                : $slug;
+
+            $reason = '';
+            if (!$capabilities['meetsSupportedFloor']) {
+                $reason = 'unsupported_tutor_version';
+            } elseif ($native && !$capabilities['hasNativeQuizTypes']) {
+                $reason = 'unsupported_tutor_version';
+            } elseif ($native && !$capabilities['proNativeQuizSupport']) {
+                $reason = 'pro_required';
+            } elseif ($native && !in_array($capabilities['learningMode'], $modern_modes, true)) {
+                $reason = 'legacy_mode';
+            } elseif ($is_pro && !$capabilities['proActive']) {
+                $reason = 'pro_required';
+            }
+
+            $can_edit_existing = $capabilities['meetsSupportedFloor'];
+            if ($native) {
+                // Pro may be inactive and still permit editing an existing native row.
+                $can_edit_existing = $can_edit_existing
+                    && $capabilities['hasNativeQuizTypes']
+                    && in_array($capabilities['learningMode'], $modern_modes, true);
+            }
+
+            $entries[] = [
+                'slug'               => $slug,
+                'label'              => $label,
+                'is_pro'             => $is_pro,
+                'registered'         => true,
+                'can_create'         => '' === $reason,
+                'can_edit_existing'  => $can_edit_existing,
+                'unavailable_reason' => $reason,
+            ];
+        }
+
+        return $entries;
     }
 
     /**

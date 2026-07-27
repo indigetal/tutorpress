@@ -38,13 +38,7 @@ import React from "react";
 import { Notice, TextControl, TextareaControl } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { QuestionList } from "./QuestionList";
-import type { QuizQuestion, QuizQuestionType } from "../../../types/quiz";
-
-interface QuestionTypeOption {
-  label: string;
-  value: QuizQuestionType;
-  is_pro: boolean;
-}
+import type { QuizQuestion, QuizQuestionType, QuestionTypeOption } from "../../../types/quiz";
 
 interface QuestionDetailsTabProps {
   // Form state
@@ -58,7 +52,6 @@ interface QuestionDetailsTabProps {
   isAddingQuestion: boolean;
   selectedQuestionType: QuizQuestionType | null;
   questionTypes: QuestionTypeOption[];
-  loadingQuestionTypes: boolean;
 
   // UI state
   isSaving: boolean;
@@ -91,7 +84,6 @@ export const QuestionDetailsTab: React.FC<QuestionDetailsTabProps> = ({
   isAddingQuestion,
   selectedQuestionType,
   questionTypes,
-  loadingQuestionTypes,
   isSaving,
   saveSuccess,
   saveError,
@@ -153,7 +145,6 @@ export const QuestionDetailsTab: React.FC<QuestionDetailsTabProps> = ({
             isAddingQuestion={isAddingQuestion}
             selectedQuestionType={selectedQuestionType}
             questionTypes={questionTypes}
-            loadingQuestionTypes={loadingQuestionTypes}
             formTitle={formTitle}
             isSaving={isSaving}
             onAddQuestion={onAddQuestion}

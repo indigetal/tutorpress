@@ -67,7 +67,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuizQuestionType | null>(null);
   const [questionTypes] = useState([]); // Empty for Interactive Quiz - no question types needed
-  const [loadingQuestionTypes] = useState(false);
   const [deletedQuestionIds, setDeletedQuestionIds] = useState<number[]>([]);
   const [deletedAnswerIds, setDeletedAnswerIds] = useState<number[]>([]);
 
@@ -680,7 +679,6 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   isAddingQuestion={isAddingQuestion}
                   selectedQuestionType={selectedQuestionType}
                   questionTypes={questionTypes}
-                  loadingQuestionTypes={loadingQuestionTypes}
                   // UI state
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}

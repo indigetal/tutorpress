@@ -2,6 +2,8 @@
  * WordPress package type declarations and global interface augmentations
  */
 
+import type { QuizCapabilities } from "./quiz";
+
 // ============================================================================
 // WordPress Data Store Types
 // ============================================================================
@@ -247,6 +249,7 @@ declare global {
       nonce?: string;
       tutorNonce?: string;
       youtubeApiKeyExists?: boolean;
+      quizCapabilities?: QuizCapabilities;
       courseId?: number;
     };
 

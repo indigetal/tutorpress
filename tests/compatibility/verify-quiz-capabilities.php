@@ -1,0 +1,463 @@
+<?php
+/**
+ * Verify TutorPress's authoritative quiz capability contract.
+ *
+ * Asserts the normalized server contract, its Gutenberg localization, and the
+ * version/mode/Pro gating matrix for Tutor 4.0's five native question types.
+ */
+
+$fail = static function ($message) {
+    fwrite(STDERR, "FAIL: {$message}\n");
+    exit(1);
+};
+
+if (!class_exists('TutorPress_Assets')) {
+    $fail('TutorPress assets class is unavailable.');
+}
+
+if (!function_exists('set_current_screen')) {
+    require_once ABSPATH . 'wp-admin/includes/screen.php';
+}
+
+$assert = static function ($condition, $message) {
+    if (!$condition) {
+        throw new RuntimeException($message);
+    }
+};
+
+$native_slugs = ['draw_image', 'scale', 'pin_image', 'coordinates', 'puzzle'];
+$modern_modes = ['modern', 'kids'];
+
+/**
+ * Assert the structural contract every capability object must satisfy.
+ */
+$assert_contract_shape = static function (array $capabilities) use ($assert, $native_slugs, $modern_modes) {
+    $booleans = [
+        'tutorActive',
+        'meetsSupportedFloor',
+        'hasNativeQuizTypes',
+        'proActive',
+        'proNativeQuizSupport',
+        'supportsTempMaskDeletion',
+    ];
+
+    foreach ($booleans as $key) {
+        $assert(
+            array_key_exists($key, $capabilities) && is_bool($capabilities[$key]),
+            "Capability field {$key} is not a strict boolean."
+        );
+    }
+
+    $assert(
+        isset($capabilities['tutorVersion']) && is_string($capabilities['tutorVersion']),
+        'tutorVersion is not a string.'
+    );
+    $assert(
+        in_array($capabilities['learningMode'] ?? null, ['legacy', 'modern', 'kids', 'unknown'], true),
+        'learningMode is not a normalized value.'
+    );
+    $assert(
+        isset($capabilities['questionTypes']) && is_array($capabilities['questionTypes']),
+        'questionTypes is not an array.'
+    );
+
+    $is_modern_mode = in_array($capabilities['learningMode'], $modern_modes, true);
+
+    foreach ($capabilities['questionTypes'] as $entry) {
+        $assert(is_array($entry), 'A question-type entry is not an array.');
+
+        foreach (['slug', 'label'] as $key) {
+            $assert(
+                isset($entry[$key]) && is_string($entry[$key]) && '' !== $entry[$key],
+                "A question-type entry has an empty {$key}."
+            );
+        }
+
+        foreach (['is_pro', 'registered', 'can_create', 'can_edit_existing'] as $key) {
+            $assert(
+                array_key_exists($key, $entry) && is_bool($entry[$key]),
+                "Question type {$entry['slug']} has a non-boolean {$key}."
+            );
+        }
+
+        $assert(
+            in_array(
+                $entry['unavailable_reason'] ?? null,
+                ['', 'unsupported_tutor_version', 'pro_required', 'legacy_mode'],
+                true
+            ),
+            "Question type {$entry['slug']} has an unrecognized unavailable_reason."
+        );
+
+        $assert(
+            $entry['can_create'] === ('' === $entry['unavailable_reason']),
+            "Question type {$entry['slug']} disagrees with its unavailable_reason."
+        );
+
+        $assert(
+            false === strpos($entry['label'], '<'),
+            "Question type {$entry['slug']} label contains markup."
+        );
+
+        if (!in_array($entry['slug'], $native_slugs, true)) {
+            continue;
+        }
+
+        $assert(
+            $capabilities['hasNativeQuizTypes'],
+            "Native type {$entry['slug']} was advertised without the Tutor 4.0 registry contract."
+        );
+        $assert(
+            $entry['is_pro'],
+            "Native type {$entry['slug']} is not flagged as Pro."
+        );
+
+        $expected_create = $capabilities['meetsSupportedFloor']
+            && $capabilities['proNativeQuizSupport']
+            && $is_modern_mode;
+        $assert(
+            $expected_create === $entry['can_create'],
+            "Native type {$entry['slug']} create capability does not match the gating matrix."
+        );
+
+        $expected_edit = $capabilities['meetsSupportedFloor'] && $is_modern_mode;
+        $assert(
+            $expected_edit === $entry['can_edit_existing'],
+            "Native type {$entry['slug']} edit capability does not match the gating matrix."
+        );
+    }
+};
+
+/**
+ * Assert the exact create/edit/reason matrix for every reported type.
+ *
+ * Precedence is asserted independently of the builder so a reordered guard or a
+ * collapsed create/edit distinction fails here.
+ */
+$assert_capability_matrix = static function (array $capabilities) use ($assert, $native_slugs, $modern_modes) {
+    $is_modern_mode = in_array($capabilities['learningMode'], $modern_modes, true);
+
+    foreach ($capabilities['questionTypes'] as $entry) {
+        $native = in_array($entry['slug'], $native_slugs, true);
+
+        if (!$capabilities['meetsSupportedFloor']) {
+            $expected_reason = 'unsupported_tutor_version';
+        } elseif ($native && !$capabilities['hasNativeQuizTypes']) {
+            $expected_reason = 'unsupported_tutor_version';
+        } elseif ($native && !$capabilities['proNativeQuizSupport']) {
+            $expected_reason = 'pro_required';
+        } elseif ($native && !$is_modern_mode) {
+            $expected_reason = 'legacy_mode';
+        } elseif ($entry['is_pro'] && !$capabilities['proActive']) {
+            $expected_reason = 'pro_required';
+        } else {
+            $expected_reason = '';
+        }
+
+        $assert(
+            $expected_reason === $entry['unavailable_reason'],
+            sprintf(
+                'Type %s reported reason "%s" but the matrix requires "%s".',
+                $entry['slug'],
+                $entry['unavailable_reason'],
+                $expected_reason
+            )
+        );
+
+        // Editing an existing row must survive Pro deactivation.
+        $expected_edit = $capabilities['meetsSupportedFloor']
+            && (!$native || ($capabilities['hasNativeQuizTypes'] && $is_modern_mode));
+        $assert(
+            $expected_edit === $entry['can_edit_existing'],
+            sprintf('Type %s edit capability does not match the matrix.', $entry['slug'])
+        );
+
+        // The picker derives its disabled state from these two fields alone.
+        $assert(
+            $entry['registered'] && ('' === $expected_reason) === $entry['can_create'],
+            sprintf('Type %s create capability does not match its reason.', $entry['slug'])
+        );
+
+        if ('pro_required' === $expected_reason && !$native) {
+            $assert(
+                $entry['can_edit_existing'],
+                sprintf('Pre-4.0 Pro type %s lost edit capability while Pro is inactive.', $entry['slug'])
+            );
+        }
+    }
+};
+
+$original_tutor_option = get_option('tutor_option');
+$tracked_globals       = ['current_screen', 'pagenow', 'wp_scripts', 'wp_styles'];
+$original_globals      = [];
+
+foreach ($tracked_globals as $global_name) {
+    $original_globals[$global_name] = [
+        'exists' => array_key_exists($global_name, $GLOBALS),
+        'value'  => $GLOBALS[$global_name] ?? null,
+    ];
+}
+
+$failure_message = '';
+
+try {
+    $capabilities = TutorPress_Assets::get_quiz_capabilities();
+    $assert(is_array($capabilities), 'Capability contract is not an array.');
+    $assert_contract_shape($capabilities);
+    $assert_capability_matrix($capabilities);
+
+    $assert(
+        function_exists('tutor') === $capabilities['tutorActive'],
+        'tutorActive does not match Tutor availability.'
+    );
+    $assert(
+        defined('TUTOR_PRO_VERSION') === $capabilities['proActive'],
+        'proActive does not match Tutor Pro availability.'
+    );
+    $assert(
+        !$capabilities['proNativeQuizSupport'] || $capabilities['proActive'],
+        'proNativeQuizSupport was reported without active Tutor Pro.'
+    );
+
+    if (!$capabilities['tutorActive']) {
+        $assert([] === $capabilities['questionTypes'], 'Types were advertised without Tutor active.');
+    }
+
+    // The registry must come from Tutor, not from a TutorPress-invented list.
+    $reported_slugs = array_column($capabilities['questionTypes'], 'slug');
+    if ($capabilities['tutorActive']) {
+        if ($capabilities['hasNativeQuizTypes']) {
+            $registry = \Tutor\Models\QuizModel::get_question_types();
+        } else {
+            $registry = tutor_utils()->get_question_types();
+        }
+
+        $assert(is_array($registry) && [] !== $registry, 'Tutor question registry is unavailable.');
+        $assert(
+            array_map('strval', array_keys($registry)) === $reported_slugs,
+            'Reported question types do not match Tutor registry keys or order.'
+        );
+    }
+
+    $present_native = array_values(array_intersect($native_slugs, $reported_slugs));
+    if ($capabilities['hasNativeQuizTypes']) {
+        $assert(
+            [] === array_values(array_diff($native_slugs, $reported_slugs)),
+            'Tutor 4.0 registry is present but a native slug is missing from the contract.'
+        );
+    } else {
+        $assert(
+            [] === $present_native,
+            'A native Tutor 4.0 slug was advertised on a pre-4.0 registry.'
+        );
+        $assert(
+            !$capabilities['supportsTempMaskDeletion'],
+            'Temporary-mask deletion was reported on a pre-4.0 contract.'
+        );
+    }
+
+    // Learning-mode normalization across every stored value, including garbage.
+    if ($capabilities['tutorActive'] && is_array($original_tutor_option)) {
+        $mode_cases = [
+            'legacy'     => 'legacy',
+            'modern'     => 'modern',
+            'kids'       => 'kids',
+            'not-a-mode' => 'unknown',
+        ];
+
+        foreach ($mode_cases as $stored => $expected) {
+            $fixture_option                  = $original_tutor_option;
+            $fixture_option['learning_mode'] = $stored;
+            update_option('tutor_option', $fixture_option);
+
+            $fixture = TutorPress_Assets::get_quiz_capabilities();
+            $assert_contract_shape($fixture);
+            $assert_capability_matrix($fixture);
+            $assert(
+                $expected === $fixture['learningMode'],
+                "Stored learning mode '{$stored}' normalized to '{$fixture['learningMode']}'."
+            );
+
+            if (in_array($expected, ['legacy', 'unknown'], true)) {
+                foreach ($fixture['questionTypes'] as $entry) {
+                    if (!in_array($entry['slug'], $native_slugs, true)) {
+                        continue;
+                    }
+                    $assert(
+                        !$entry['can_create'],
+                        "Native type {$entry['slug']} is creatable in {$expected} mode."
+                    );
+                }
+            }
+        }
+
+        update_option('tutor_option', $original_tutor_option);
+    }
+
+    // The contract must reach the Gutenberg bundle with its strict types intact.
+    $GLOBALS['pagenow'] = 'post.php';
+    set_current_screen('courses');
+
+    $screen = get_current_screen();
+    $assert($screen && 'courses' === $screen->post_type, 'Could not establish a course admin screen.');
+
+    unset($GLOBALS['wp_scripts'], $GLOBALS['wp_styles']);
+    wp_scripts();
+    wp_styles();
+
+    TutorPress_Assets::enqueue_admin_assets('post.php');
+
+    $scripts = wp_scripts();
+    $handle  = 'tutorpress-curriculum-metabox';
+    $assert(
+        ($scripts->registered[$handle] ?? null) instanceof _WP_Dependency,
+        'TutorPress Gutenberg bundle was not registered.'
+    );
+
+    $before_scripts = $scripts->get_data($handle, 'before');
+    $assert(is_array($before_scripts), 'TutorPress typed capability assignment is absent.');
+    $before_output = implode("\n", $before_scripts);
+
+    $matched = preg_match(
+        '/tutorPressCurriculum\.quizCapabilities = (\{.*?\});$/m',
+        $before_output,
+        $matches
+    );
+    $assert(1 === $matched, 'Could not parse the localized quiz capability contract.');
+
+    $localized = json_decode($matches[1], true);
+    $assert(
+        is_array($localized) && JSON_ERROR_NONE === json_last_error(),
+        'Localized quiz capability contract is not valid JSON.'
+    );
+    $assert_contract_shape($localized);
+    $assert_capability_matrix($localized);
+    $assert(
+        $localized == TutorPress_Assets::get_quiz_capabilities(),
+        'Localized contract differs from the server contract.'
+    );
+
+    // The contract must carry no credential or key material.
+    $assert(
+        !preg_match('/nonce|api_key|apikey|secret|password|token/i', $matches[1]),
+        'Quiz capability contract exposes sensitive data.'
+    );
+
+    $tutor_options = get_option('tutor_option', []);
+    $raw_key       = is_array($tutor_options)
+        ? ($tutor_options['lesson_video_duration_youtube_api_key'] ?? '')
+        : '';
+    if (is_string($raw_key) && '' !== $raw_key) {
+        $assert(
+            false === strpos($matches[1], $raw_key),
+            'Quiz capability contract exposes the YouTube API key.'
+        );
+    }
+
+    // Client wiring: the picker must have exactly one authoritative input and no
+    // disabled type may reach the question factory. Built installations ship no
+    // TypeScript source, so this block reports itself as skipped rather than
+    // failing where it cannot run.
+    $source_root = dirname(__DIR__, 2) . '/assets/js/src';
+    $read_source = static function ($relative_path) use ($assert, $source_root) {
+        $path = $source_root . '/' . $relative_path;
+        $assert(is_readable($path), "Client source {$relative_path} is unreadable.");
+
+        $contents = file_get_contents($path);
+        $assert(is_string($contents) && '' !== $contents, "Client source {$relative_path} is empty.");
+
+        return $contents;
+    };
+
+    $client_wiring = is_dir($source_root) ? 'checked' : 'skipped';
+
+    if ('checked' === $client_wiring) {
+        $quiz_modal    = $read_source('components/modals/QuizModal.tsx');
+        $question_list = $read_source('components/modals/quiz/QuestionList.tsx');
+
+        $assert(
+            !preg_match('#tutor_utils|get_question_types|_tutorobject|/tutor/v1/question-types#', $quiz_modal),
+            'QuizModal still references an absent Tutor question-type discovery surface.'
+        );
+        $assert(
+            false !== strpos($quiz_modal, 'quizCapabilities'),
+            'QuizModal does not consume the server capability contract.'
+        );
+
+        $handler_start = strpos($quiz_modal, 'const handleQuestionTypeSelect');
+        $assert(false !== $handler_start, 'handleQuestionTypeSelect is absent.');
+
+        $handler_end = strpos($quiz_modal, 'const handleQuestionSelect', $handler_start);
+        $assert(false !== $handler_end, 'Could not delimit handleQuestionTypeSelect.');
+
+        $handler_body = substr($quiz_modal, $handler_start, $handler_end - $handler_start);
+        $guard_return = strpos($handler_body, 'return;');
+        $factory_call = strpos($handler_body, 'handleCreateNewQuestion(');
+        $assert(
+            false !== strpos($handler_body, 'disabled'),
+            'handleQuestionTypeSelect does not inspect the disabled state.'
+        );
+        $assert(
+            false !== $guard_return && false !== $factory_call && $guard_return < $factory_call,
+            'handleQuestionTypeSelect can reach the question factory before rejecting a disabled type.'
+        );
+
+        $assert(
+            false !== strpos($question_list, 'disabled: type.disabled'),
+            'The question-type picker does not forward each option disabled state.'
+        );
+
+        // The picker option shape must not drift back into per-component copies.
+        $option_consumers = [
+            'components/modals/QuizModal.tsx',
+            'components/modals/quiz/QuestionList.tsx',
+            'components/modals/quiz/QuestionDetailsTab.tsx',
+        ];
+
+        foreach ($option_consumers as $relative_path) {
+            $assert(
+                false === strpos($read_source($relative_path), 'interface QuestionTypeOption'),
+                "{$relative_path} redeclares QuestionTypeOption instead of importing it."
+            );
+        }
+
+        $assert(
+            false !== strpos($read_source('types/quiz.ts'), 'interface QuestionTypeOption'),
+            'The shared QuestionTypeOption type is missing from types/quiz.ts.'
+        );
+    }
+} catch (Throwable $exception) {
+    $failure_message = $exception->getMessage();
+} finally {
+    if (false === $original_tutor_option) {
+        delete_option('tutor_option');
+    } else {
+        update_option('tutor_option', $original_tutor_option);
+    }
+
+    foreach ($original_globals as $global_name => $original) {
+        if ($original['exists']) {
+            $GLOBALS[$global_name] = $original['value'];
+        } else {
+            unset($GLOBALS[$global_name]);
+        }
+    }
+}
+
+if ('' !== $failure_message) {
+    $fail($failure_message);
+}
+
+$summary = sprintf(
+    'Tutor %s | mode %s | pro %s | native %s | pro-native %s | temp-mask %s | %d types | client wiring %s',
+    '' !== $capabilities['tutorVersion'] ? $capabilities['tutorVersion'] : 'unknown',
+    $capabilities['learningMode'],
+    $capabilities['proActive'] ? 'yes' : 'no',
+    $capabilities['hasNativeQuizTypes'] ? 'yes' : 'no',
+    $capabilities['proNativeQuizSupport'] ? 'yes' : 'no',
+    $capabilities['supportsTempMaskDeletion'] ? 'yes' : 'no',
+    count($capabilities['questionTypes']),
+    $client_wiring
+);
+
+WP_CLI::log("PASS: TutorPress quiz capability contract is valid. {$summary}");

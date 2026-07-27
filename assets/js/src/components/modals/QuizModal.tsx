@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   TabPanel,
   Button,
@@ -12,12 +12,12 @@ import {
   Spinner,
   Icon,
 } from "@wordpress/components";
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import { useSelect, useDispatch } from "@wordpress/data";
 import { useQuizForm } from "../../hooks/quiz/useQuizForm";
 import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
-import { getQuestionComponent, hasQuestionComponent } from "./quiz/questions";
+import { getQuestionComponent } from "./quiz/questions";
 import { useQuestionValidation } from "../../hooks/quiz";
 import { BaseModalLayout, BaseModalHeader } from "../common";
 import type {
@@ -31,6 +31,10 @@ import type {
   getDefaultQuestionSettings,
   QuizQuestionOption,
   DataStatus,
+  QuestionTypeOption,
+  QuizCapabilities,
+  QuizQuestionTypeCapability,
+  QuizTypeUnavailableReason,
 } from "../../types/quiz";
 import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { SettingsTab } from "./quiz/SettingsTab";
@@ -43,11 +47,76 @@ interface QuizModalProps {
   quizId?: number; // For editing existing quiz
 }
 
-interface QuestionTypeOption {
-  label: string;
-  value: QuizQuestionType;
-  is_pro: boolean;
-}
+/** Alias-only registry entries TutorPress has never offered in its picker. */
+const ALIAS_ONLY_PICKER_TYPES = ["single_choice", "image_matching"];
+
+/** Established pre-4.0 picker order. Types outside it keep Tutor's registry order. */
+const PRE_40_PICKER_ORDER = [
+  "true_false",
+  "multiple_choice",
+  "open_ended",
+  "fill_in_the_blank",
+  "short_answer",
+  "matching",
+  "image_answering",
+  "ordering",
+];
+
+/**
+ * Translate a machine reason code from the server capability contract.
+ */
+const getUnavailableReasonLabel = (reason: QuizTypeUnavailableReason): string => {
+  switch (reason) {
+    case "pro_required":
+      return __("Requires Tutor LMS Pro.", "tutorpress");
+    case "legacy_mode":
+      return __("Not available in legacy learning mode.", "tutorpress");
+    case "unsupported_tutor_version":
+      return __("Requires a newer version of Tutor LMS.", "tutorpress");
+    default:
+      return "";
+  }
+};
+
+/**
+ * Build picker options from the authoritative server capability contract.
+ *
+ * When the contract is unavailable, the known pre-4.0 list is returned as
+ * creation-disabled display metadata so authoring is never silently enabled.
+ */
+const buildQuestionTypeOptions = (capabilities?: QuizCapabilities): QuestionTypeOption[] => {
+  if (!capabilities || !Array.isArray(capabilities.questionTypes) || capabilities.questionTypes.length === 0) {
+    const unavailableReason = __("Question type availability could not be determined.", "tutorpress");
+    const fallbackTypes: Array<Pick<QuestionTypeOption, "label" | "value" | "is_pro">> = [
+      { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
+      { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
+      { label: __("Open Ended/Essay", "tutorpress"), value: "open_ended", is_pro: false },
+      { label: __("Fill In The Blanks", "tutorpress"), value: "fill_in_the_blank", is_pro: false },
+      { label: __("Short Answer", "tutorpress"), value: "short_answer", is_pro: true },
+      { label: __("Matching", "tutorpress"), value: "matching", is_pro: true },
+      { label: __("Image Answering", "tutorpress"), value: "image_answering", is_pro: true },
+      { label: __("Ordering", "tutorpress"), value: "ordering", is_pro: true },
+    ];
+
+    return fallbackTypes.map((type) => ({ ...type, disabled: true, unavailableReason }));
+  }
+
+  const orderIndex = (slug: string): number => {
+    const index = PRE_40_PICKER_ORDER.indexOf(slug);
+    return index === -1 ? PRE_40_PICKER_ORDER.length : index;
+  };
+
+  return capabilities.questionTypes
+    .filter((type) => !ALIAS_ONLY_PICKER_TYPES.includes(type.slug))
+    .map((type) => ({
+      label: type.label,
+      value: type.slug as QuizQuestionType,
+      is_pro: type.is_pro,
+      disabled: !type.registered || !type.can_create,
+      unavailableReason: getUnavailableReasonLabel(type.unavailable_reason),
+    }))
+    .sort((a, b) => orderIndex(a.value) - orderIndex(b.value));
+};
 
 // Add TinyMCE Editor Component
 interface TinyMCEEditorProps {
@@ -284,8 +353,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   // Question management state
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuizQuestionType | null>(null);
-  const [questionTypes, setQuestionTypes] = useState<QuestionTypeOption[]>([]);
-  const [loadingQuestionTypes, setLoadingQuestionTypes] = useState(false);
+  // Question types come from TutorPress's server-owned capability contract.
+  const quizCapabilities = window.tutorPressCurriculum?.quizCapabilities;
+  const questionTypes = useMemo(() => buildQuestionTypeOptions(quizCapabilities), [quizCapabilities]);
 
   // Question list state - Step 3.2
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -442,13 +512,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       setDeletedAnswerIds([]);
     }
   }, [isOpen, quizId, resetToDefaults]);
-
-  // Load question types when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      loadQuestionTypes();
-    }
-  }, [isOpen]);
 
   // Check Course Preview addon availability on mount
   useEffect(() => {
@@ -752,98 +815,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
-   * Load question types from Tutor LMS
-   */
-  const loadQuestionTypes = async () => {
-    setLoadingQuestionTypes(true);
-    try {
-      // Check for Tutor LMS question types in multiple ways
-      let questionTypesData = null;
-
-      // Method 1: Try window.tutor_utils (if exposed globally)
-      if ((window as any).tutor_utils && typeof (window as any).tutor_utils.get_question_types === "function") {
-        questionTypesData = (window as any).tutor_utils.get_question_types();
-        console.log("Loaded question types from window.tutor_utils:", questionTypesData);
-      }
-      // Method 2: Try window._tutorobject (common Tutor LMS global)
-      else if ((window as any)._tutorobject && (window as any)._tutorobject.question_types) {
-        questionTypesData = (window as any)._tutorobject.question_types;
-        console.log("Loaded question types from _tutorobject:", questionTypesData);
-      }
-      // Method 3: Try REST API endpoint for question types
-      else {
-        try {
-          const response = await window.wp.apiFetch({
-            path: "/tutor/v1/question-types",
-            method: "GET",
-          });
-          if (response && response.data) {
-            questionTypesData = response.data;
-            console.log("Loaded question types from REST API:", questionTypesData);
-          }
-        } catch (apiError) {
-          console.log("REST API for question types not available:", apiError);
-        }
-      }
-
-      if (questionTypesData && typeof questionTypesData === "object") {
-        // Convert to our option format and filter out single_choice and image_matching
-        const options: QuestionTypeOption[] = Object.entries(questionTypesData)
-          .filter(([value]) => value !== "single_choice" && value !== "image_matching")
-          .map(([value, config]: [string, any]) => ({
-            label: config.name || value.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-            value: value as QuizQuestionType,
-            is_pro: config.is_pro || false,
-          }))
-          // Sort according to the specified order
-          .sort((a, b) => {
-            const order = [
-              "true_false",
-              "multiple_choice",
-              "open_ended",
-              "fill_in_the_blank",
-              "short_answer",
-              "matching",
-              "image_answering",
-              "ordering",
-            ];
-            const aIndex = order.indexOf(a.value);
-            const bIndex = order.indexOf(b.value);
-            return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-          });
-
-        setQuestionTypes(options);
-        console.log("Successfully loaded question types:", options);
-      } else {
-        // Fallback to static question types based on correct Tutor LMS order
-        // Excludes single_choice and image_matching from dropdown as requested
-        console.warn("Using fallback question types - Tutor LMS question types not available");
-        const fallbackTypes: QuestionTypeOption[] = [
-          { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
-          { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
-          { label: __("Open Ended/Essay", "tutorpress"), value: "open_ended", is_pro: false },
-          { label: __("Fill In The Blanks", "tutorpress"), value: "fill_in_the_blank", is_pro: false },
-          { label: __("Short Answer", "tutorpress"), value: "short_answer", is_pro: true },
-          { label: __("Matching", "tutorpress"), value: "matching", is_pro: true },
-          { label: __("Image Answering", "tutorpress"), value: "image_answering", is_pro: true },
-          { label: __("Ordering", "tutorpress"), value: "ordering", is_pro: true },
-        ];
-        setQuestionTypes(fallbackTypes);
-      }
-    } catch (error) {
-      console.error("Error loading question types:", error);
-      // Set empty array on error, but provide basic fallback
-      const basicTypes: QuestionTypeOption[] = [
-        { label: __("True/False", "tutorpress"), value: "true_false", is_pro: false },
-        { label: __("Multiple Choice", "tutorpress"), value: "multiple_choice", is_pro: false },
-      ];
-      setQuestionTypes(basicTypes);
-    } finally {
-      setLoadingQuestionTypes(false);
-    }
-  };
-
-  /**
    * Handle add question button click - Step 3.2 - Toggle dropdown
    */
   const handleAddQuestion = () => {
@@ -859,6 +830,17 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle question type selection
    */
   const handleQuestionTypeSelect = (questionType: QuizQuestionType) => {
+    const typeOption = questionTypes.find((type) => type.value === questionType);
+
+    // Reject before any local state exists so an unavailable type can never
+    // reach the question factory.
+    if (!typeOption || typeOption.disabled) {
+      setSaveError(
+        typeOption?.unavailableReason || __("This question type is not available here.", "tutorpress")
+      );
+      return;
+    }
+
     setSelectedQuestionType(questionType);
 
     // Immediately create a new question after type selection - Step 3.2
@@ -1017,7 +999,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     // Fallback display names
-    const displayNames: Record<QuizQuestionType, string> = {
+    const displayNames: Partial<Record<QuizQuestionType, string>> = {
       true_false: __("True/False", "tutorpress"),
       single_choice: __("Single Choice", "tutorpress"),
       multiple_choice: __("Multiple Choice", "tutorpress"),
@@ -1057,15 +1039,54 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   /**
+   * Render a read-only notice for a loaded question TutorPress cannot edit.
+   *
+   * This path is deliberately inert: it reports the stored slug and the reason
+   * without touching settings, answers, `content_id`, or `_data_status`.
+   */
+  const renderPreservedQuestionNotice = (
+    question: QuizQuestion,
+    capability?: QuizQuestionTypeCapability
+  ): JSX.Element => {
+    let reason: string;
+    if (!capability) {
+      reason = __("This question type is not registered by the active Tutor LMS installation.", "tutorpress");
+    } else if (!capability.can_edit_existing) {
+      reason = getUnavailableReasonLabel(capability.unavailable_reason);
+    } else {
+      reason = __("This question type is not yet editable in TutorPress.", "tutorpress");
+    }
+
+    return (
+      <div className="quiz-modal-question-placeholder">
+        <Notice status="warning" isDismissible={false}>
+          <p>
+            {sprintf(
+              /* translators: %s: stored question type slug. */
+              __('This question is stored as "%s" and cannot be edited here.', "tutorpress"),
+              question.question_type
+            )}
+          </p>
+          {reason && <p>{reason}</p>}
+          <p>{__("Its saved data is preserved exactly as it is.", "tutorpress")}</p>
+        </Notice>
+      </div>
+    );
+  };
+
+  /**
    * Render question type-specific content - Step 3.3
    */
   const renderQuestionTypeContent = (question: QuizQuestion): JSX.Element => {
     const questionIndex = questions.findIndex((q) => q.question_id === question.question_id);
+    const capability = quizCapabilities?.questionTypes.find((type) => type.slug === question.question_type);
 
     // Use the question component registry
     const QuestionComponent = getQuestionComponent(question.question_type);
 
-    if (QuestionComponent) {
+    // A loaded row is editable only when the server permits editing this type
+    // and a local editor exists for it.
+    if (QuestionComponent && capability?.can_edit_existing) {
       return (
         <QuestionComponent
           question={question}
@@ -1078,27 +1099,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       );
     }
 
-    // Fallback for question types not yet implemented
-    switch (question.question_type) {
-      case "open_ended":
-      case "short_answer":
-      case "matching":
-      case "image_matching":
-      case "image_answering":
-      case "ordering":
-      case "h5p":
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("This question type will be implemented in future steps", "tutorpress")}</p>
-          </div>
-        );
-      default:
-        return (
-          <div className="quiz-modal-question-placeholder">
-            <p>{__("Unknown question type", "tutorpress")}</p>
-          </div>
-        );
-    }
+    return renderPreservedQuestionNotice(question, capability);
   };
 
   /**
@@ -1301,7 +1302,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   isAddingQuestion={isAddingQuestion}
                   selectedQuestionType={selectedQuestionType}
                   questionTypes={questionTypes}
-                  loadingQuestionTypes={loadingQuestionTypes}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   saveError={saveError}
