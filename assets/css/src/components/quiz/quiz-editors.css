@@ -493,6 +493,117 @@
   color: var(--gray-500);
 }
 
+/* Shared image/canvas mask authoring (Draw Image, Pin Image) */
+.quiz-modal-image-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.quiz-modal-image-canvas-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.quiz-modal-image-canvas-button {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-xs);
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+.quiz-modal-image-canvas-button:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+
+.quiz-modal-image-canvas-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-image-canvas-help-text {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.quiz-modal-image-canvas-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-image-canvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 32px;
+}
+
+.quiz-modal-image-canvas-section-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+/* Sized by the image itself, so the canvas overlay can match it exactly. */
+.quiz-modal-image-canvas-stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  align-self: flex-start;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.quiz-modal-image-canvas-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.quiz-modal-image-canvas-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.quiz-modal-image-canvas-surface:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.quiz-modal-image-canvas-notice {
+  margin: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-xs);
+  color: var(--gray-700);
+}
+
+.quiz-modal-image-canvas-saved-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
 /* Override WordPress editor tab styles in quiz modal */
 .quiz-modal-wp-editor .wp-switch-editor {
   padding: var(--space-sm) var(--space-lg);

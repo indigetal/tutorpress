@@ -814,6 +814,180 @@ try {
             !preg_match('/status\s*===\s*"malformed"/', $coordinates_rules[1]),
             'Graph validation reports a malformed stored value, which would trap the author.'
         );
+
+        // Shared image/canvas mask authoring. The layer has no question type of its own;
+        // Draw Image and Pin Image consume it in later steps.
+        $canvas_hook      = $read_source('hooks/quiz/useQuizImageCanvas.ts');
+        $canvas_component = $read_source('components/modals/quiz/questions/QuizImageCanvas.tsx');
+
+        // Files, transfers, and Pro storage stay Tutor-owned. Media Library selection is
+        // deliberately absent from this list: it is the existing WordPress contract.
+        $canvas_sources = [
+            'useQuizImageCanvas.ts' => $canvas_hook,
+            'QuizImageCanvas.tsx'   => $canvas_component,
+        ];
+
+        foreach ($canvas_sources as $label => $canvas_source) {
+            $assert(
+                !preg_match(
+                    '#\bfetch\(|apiFetch|XMLHttpRequest|FormData|admin-ajax|wp-json|upload_dir'
+                        . '|QuizImageStorage|TUTOR_PRO|tutor/quiz-images|draw-mask-|pin-mask-#',
+                    $canvas_source
+                ),
+                "{$label} performs a request, filesystem, or Tutor Pro storage operation it must not own."
+            );
+        }
+
+        // The exported mask is written back down to the CSS box, independent of the device
+        // pixel ratio used for rendering. This is the invariant that regresses invisibly:
+        // the instructor mask sets the comparison grid for every future attempt, so a
+        // larger raster silently multiplies Tutor Pro's per-pixel grading cost and can
+        // cross the threshold where it switches to sampling every other pixel.
+        $assert(
+            1 === preg_match(
+                '/const exportMask = useCallback\((.+?)\n  \}, \[canvasRef\]\);/s',
+                $canvas_hook,
+                $export_block
+            ),
+            'Could not delimit the mask export path.'
+        );
+        $assert(
+            1 === preg_match('/const \{ width, height \} = cssSizeRef\.current;/', $export_block[1]),
+            'Mask export no longer measures the CSS box.'
+        );
+        $assert(
+            1 === preg_match(
+                '/exportCanvas\.width\s*=\s*Math\.round\(width\);\s*exportCanvas\.height\s*=\s*Math\.round\(height\);/',
+                $export_block[1]
+            ),
+            'The exported mask is not sized to the CSS box, which changes the grading grid.'
+        );
+        $assert(
+            !preg_match('/canvas\.width|canvas\.height|devicePixelRatio/', $export_block[1]),
+            'Mask export derives its size from the backing store or pixel ratio instead of the CSS box.'
+        );
+
+        // The pixel ratio sharpens the visible canvas only, and pointer input is measured
+        // against the rendered rect so a CSS-scaled canvas still maps correctly.
+        $assert(
+            1 === preg_match(
+                '/context\.setTransform\(\s*backing\.width \/ cssWidth,\s*0,\s*0,\s*backing\.height \/ cssHeight,\s*0,\s*0\s*\)/',
+                $canvas_hook
+            ),
+            'The canvas does not scale its drawing space back to CSS pixels for high-DPI rendering.'
+        );
+        $assert(
+            1 === preg_match('/scaleX = rect\.width > 0 \? cssWidth \/ rect\.width : 1/', $canvas_hook),
+            'Pointer mapping no longer scales client coordinates by the measured display rect.'
+        );
+
+        // Only a finished stroke or an explicit clear may commit. Mounting, loading a
+        // stored mask, and resizing must not, or opening a saved question at a different
+        // window width would re-encode its mask and move the grading basis underneath it.
+        $commit_calls = preg_match_all('/onMaskCommitRef\.current\(/', $canvas_hook);
+        $assert(
+            2 === $commit_calls,
+            "The canvas commits from {$commit_calls} places instead of a finished stroke and an explicit clear."
+        );
+        $assert(
+            1 === preg_match_all('/commitMask\(\);/', $canvas_hook),
+            'The canvas exports and commits a mask from somewhere other than the finished stroke.'
+        );
+        $assert(
+            1 === preg_match(
+                '/useEffect\(\(\) => \{(.+?)\}, \[initialMaskValue, redraw, syncCanvas\]\);/s',
+                $canvas_hook,
+                $mount_effect
+            ),
+            'Could not delimit the stored-mask display effect.'
+        );
+        $assert(
+            !preg_match('/commitMask|onMaskCommit/', $mount_effect[1]),
+            'Displaying a stored mask commits it, so merely opening a question would dirty its row.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const syncCanvas = useCallback\(\(\) => \{(.+?)\n  \}, \[canvasRef, imageRef, redraw\]\);/s',
+                $canvas_hook,
+                $sync_block
+            ),
+            'Could not delimit the canvas resize path.'
+        );
+        $assert(
+            !preg_match('/commitMask|onMaskCommit/', $sync_block[1]),
+            'Resizing commits the mask, which would re-encode an untouched answer.'
+        );
+
+        // Stored values are external data, so they reach an image source only after
+        // validation, and a value that cannot be read is reported rather than repaired.
+        $assert(
+            1 === preg_match('/const isSafeImageSource[\s\S]+?\n\};/', $canvas_hook, $safe_source),
+            'The stored-value guard is absent.'
+        );
+        // Asserted as the two anchored branches rather than a mention of "data:" or "http":
+        // the source escapes the slash for its regex literal, so a `data:image/` substring
+        // test silently never matches, and an unanchored test would pass for `javascript:`.
+        $assert(
+            false !== strpos($safe_source[0], 'data:image') && false !== strpos($safe_source[0], ';base64,'),
+            'The stored-value guard no longer restricts data URLs to base64 image payloads.'
+        );
+        $assert(
+            1 === preg_match('/\^https\?:/', $safe_source[0]),
+            'The stored-value guard no longer anchors URL sources to the http(s) schemes.'
+        );
+        $assert(
+            1 === preg_match('/!isSafeImageSource\(initialMaskValue\)/', $canvas_hook),
+            'A stored mask value is loaded without being validated first.'
+        );
+        $assert(
+            1 === preg_match('/isSafeImageSource\(imageUrl\) \? imageUrl : undefined/', $canvas_component)
+                && 1 === preg_match('/isSafeImageSource\(maskValue\) \? maskValue : undefined/', $canvas_component),
+            'The canvas component assigns a stored value as an image source without validating it.'
+        );
+
+        // A failed load or an unreadable canvas must leave the stored answer alone. A
+        // tainted canvas in particular must never be mistaken for a cleared mask.
+        $assert(
+            1 === preg_match(
+                '/const handleImageError = useCallback\(\(\) => \{\s*setHasLoadError\(true\);\s*\}, \[\]\);/',
+                $canvas_hook
+            ),
+            'A failed image load does more than report itself.'
+        );
+        $assert(
+            1 === preg_match('/catch \(error\) \{\s*return null;/', $canvas_hook),
+            'An unreadable canvas does not report an export failure distinctly from an empty mask.'
+        );
+        $assert(
+            1 === preg_match('/if \(exported === null\) \{\s*setHasExportError\(true\);\s*return;/', $canvas_hook),
+            'An unreadable canvas is committed as though the mask had been cleared.'
+        );
+
+        // The canvas layer registers no question type; Draw, Pin, and Puzzle stay unregistered.
+        $assert(
+            !preg_match('/QuizImageCanvas/', $question_registry),
+            'The shared canvas component was added to the question component registry.'
+        );
+
+        // The canvas reuses the existing Media Library hook, whose surface four existing
+        // image editors depend on.
+        $assert(
+            false !== strpos($canvas_component, 'useImageManagement()'),
+            'The canvas component does not reuse the shared Media Library hook.'
+        );
+
+        $image_management = $read_source('hooks/quiz/useImageManagement.ts');
+        $assert(
+            1 === preg_match('/\n  return \{(.+?)\n  \};/s', $image_management, $image_hook_surface),
+            'Could not delimit the shared image hook return value.'
+        );
+
+        foreach (['currentImage', 'setCurrentImage', 'openMediaLibrary', 'removeImage', 'isMediaLibraryAvailable', 'createImageHandlers'] as $member) {
+            $assert(
+                1 === preg_match('/^\s*' . preg_quote($member, '/') . ',$/m', $image_hook_surface[1]),
+                "The shared image hook no longer returns {$member}, which existing image editors consume."
+            );
+        }
     }
 } catch (Throwable $exception) {
     $failure_message = $exception->getMessage();

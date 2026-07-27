@@ -29,5 +29,24 @@ export type {
   UseImageManagementReturn,
 } from "./useImageManagement";
 
+// Shared image/canvas mask authoring hook (Draw Image, Pin Image)
+export {
+  useQuizImageCanvas,
+  computeCanvasPixelSize,
+  pointerToCanvasPoint,
+  moveKeyboardCursor,
+  isSafeImageSource,
+  EMPTY_MASK_VALUE,
+  QUIZ_MASK_BRUSH_SIZE,
+  QUIZ_MASK_STROKE_STYLE,
+} from "./useQuizImageCanvas";
+export type {
+  CanvasPoint,
+  CanvasPixelSize,
+  CanvasRect,
+  UseQuizImageCanvasOptions,
+  UseQuizImageCanvasReturn,
+} from "./useQuizImageCanvas";
+
 // Additional hooks will be exported here as we extract them
 // export { useQuestionManagement } from './useQuestionManagement';
