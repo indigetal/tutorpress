@@ -542,25 +542,26 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
             $question->answer_explanation = wp_unslash($question->answer_explanation);
             $question->question_title = wp_unslash($question->question_title);
             
-            // Parse and convert question_settings from serialized PHP data to structured object
-            $question_settings = [];
-            if (!empty($question->question_settings)) {
-                $parsed_settings = unserialize($question->question_settings);
-                if (is_array($parsed_settings)) {
-                    $question_settings = $parsed_settings;
-                }
-            }
+            // Parse question_settings from serialized PHP data without instantiating objects
+            $question_settings = $this->parse_question_settings($question->question_settings);
             
-            // Create properly structured question_settings with boolean conversion
-            $question->question_settings = [
-                'question_type' => $question->question_type,
-                'answer_required' => isset($question_settings['answer_required']) ? (bool) $question_settings['answer_required'] : true,
-                'randomize_question' => isset($question_settings['randomize_question']) ? (bool) $question_settings['randomize_question'] : false,
-                'question_mark' => (int) $question->question_mark,
-                'show_question_mark' => isset($question_settings['show_question_mark']) ? (bool) $question_settings['show_question_mark'] : true,
-                'has_multiple_correct_answer' => isset($question_settings['has_multiple_correct_answer']) ? (bool) $question_settings['has_multiple_correct_answer'] : false,
-                'is_image_matching' => isset($question_settings['is_image_matching']) ? (bool) $question_settings['is_image_matching'] : false,
-            ];
+            // Preserve every stored setting, including Tutor 4.0 native keys and unknown
+            // third-party keys, then normalize only the known booleans over the top. The
+            // question_type column is authoritative: save_questions() branches on it for
+            // the Legacy guards and stamps it into belongs_question_type, so a disagreeing
+            // stored copy must never win.
+            $question->question_settings = array_merge(
+                $question_settings,
+                [
+                    'question_type' => $question->question_type,
+                    'answer_required' => isset($question_settings['answer_required']) ? (bool) $question_settings['answer_required'] : true,
+                    'randomize_question' => isset($question_settings['randomize_question']) ? (bool) $question_settings['randomize_question'] : false,
+                    'question_mark' => (int) $question->question_mark,
+                    'show_question_mark' => isset($question_settings['show_question_mark']) ? (bool) $question_settings['show_question_mark'] : true,
+                    'has_multiple_correct_answer' => isset($question_settings['has_multiple_correct_answer']) ? (bool) $question_settings['has_multiple_correct_answer'] : false,
+                    'is_image_matching' => isset($question_settings['is_image_matching']) ? (bool) $question_settings['is_image_matching'] : false,
+                ]
+            );
             
             // Convert answers to proper types
             foreach ($answers as &$answer) {
@@ -585,6 +586,52 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
         }
         
         return $questions;
+    }
+
+    /**
+     * Parse a stored question_settings column into a safe associative array.
+     *
+     * Stored content is untrusted: it may be unserializable, may not be an array, and
+     * may encode objects. Object instantiation is disabled and any object value is
+     * dropped so nothing but scalars, nulls, and nested arrays reaches the response.
+     *
+     * @since 1.0.0
+     * @param mixed $stored Raw question_settings column value.
+     * @return array Sanitized settings, empty when the value cannot be trusted.
+     */
+    private function parse_question_settings($stored) {
+        if (empty($stored)) {
+            return [];
+        }
+
+        $parsed = is_serialized($stored) ? @unserialize($stored, ['allowed_classes' => false]) : $stored;
+
+        if (!is_array($parsed)) {
+            return [];
+        }
+
+        return $this->strip_non_scalar_values($parsed);
+    }
+
+    /**
+     * Recursively remove object values from an array.
+     *
+     * @since 1.0.0
+     * @param array $values Values to filter.
+     * @return array Values containing only scalars, nulls, and nested arrays.
+     */
+    private function strip_non_scalar_values(array $values) {
+        $filtered = [];
+
+        foreach ($values as $key => $value) {
+            if (is_array($value)) {
+                $filtered[$key] = $this->strip_non_scalar_values($value);
+            } elseif (is_scalar($value) || is_null($value)) {
+                $filtered[$key] = $value;
+            }
+        }
+
+        return $filtered;
     }
 
     /**

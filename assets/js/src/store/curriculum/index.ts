@@ -2082,13 +2082,17 @@ const resolvers = {
         payload: { quizData, courseId, topicId },
       };
 
-      // Sanitize quiz data similar to the original quiz service
+      // Sanitize quiz data similar to the original quiz service.
+      // Tutor serializes question_settings wholesale, so every key TutorPress omits is
+      // destroyed on update. Preserve the complete incoming object and normalize only the
+      // known booleans Tutor expects as 0/1. question_type stays column-authoritative.
       const sanitizedQuizData = {
         ...quizData,
         questions: quizData.questions.map((question) => {
           const { question_settings, ...questionBase } = question;
 
           const serializedSettings = {
+            ...question_settings,
             question_type: question.question_type,
             answer_required: question_settings.answer_required ? 1 : 0,
             randomize_question: question_settings.randomize_question ? 1 : 0,
@@ -2101,12 +2105,6 @@ const resolvers = {
           return {
             ...questionBase,
             question_settings: serializedSettings,
-            answer_required: question_settings.answer_required ? 1 : 0,
-            randomize_question: question_settings.randomize_question ? 1 : 0,
-            show_question_mark: question_settings.show_question_mark ? 1 : 0,
-            question_answers: question.question_answers.map((answer) => ({
-              ...answer,
-            })),
           };
         }),
       };
@@ -2134,6 +2132,16 @@ const resolvers = {
       if (sanitizedQuizData.deleted_answer_ids && sanitizedQuizData.deleted_answer_ids.length > 0) {
         sanitizedQuizData.deleted_answer_ids.forEach((id: number, index: number) => {
           formData.append(`deleted_answer_ids[${index}]`, id.toString());
+        });
+      }
+
+      // Abandoned temporary Draw/Pin/Puzzle values. Tutor reads these from $_POST and only
+      // deletes files it resolves inside its own quiz-images directory. Tutor 3.9.15's
+      // handle_delete() has no such parameter, so send the field only where it is supported.
+      const supportsTempMaskDeletion = window.tutorPressCurriculum?.quizCapabilities?.supportsTempMaskDeletion;
+      if (supportsTempMaskDeletion && quizData.deleted_temp_mask_values && quizData.deleted_temp_mask_values.length > 0) {
+        quizData.deleted_temp_mask_values.forEach((value: string, index: number) => {
+          formData.append(`deleted_temp_mask_values[${index}]`, value);
         });
       }
 

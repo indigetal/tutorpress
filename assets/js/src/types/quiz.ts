@@ -155,6 +155,8 @@ export interface QuizSettings {
   short_answer_characters_limit: number;
   open_ended_answer_characters_limit: number;
   content_drip_settings: QuizContentDripSettings;
+  /** Tutor quiz variant, e.g. `tutor_h5p_quiz` for Interactive Quizzes. */
+  quiz_type?: string;
 }
 
 // ============================================================================
@@ -194,6 +196,13 @@ export interface QuizQuestionOption {
   answer_two_gap_match: string;
   answer_view_format: string;
   answer_order: number;
+  /**
+   * Tutor-owned answer settings column, preserved on load.
+   *
+   * Inert on save: `prepare_answer_data()` hardcodes this column to `null` in both
+   * Tutor 3.9.6 and 4.0.2, so nothing TutorPress sends here is ever stored.
+   */
+  answer_settings?: string | null;
   _data_status?: DataStatus;
 }
 
@@ -210,6 +219,11 @@ export interface QuizQuestion {
   question_type: QuizQuestionType;
   question_settings: QuizQuestionSettings;
   question_answers: QuizQuestionOption[];
+  /**
+   * Content Bank linkage owned by Tutor. Opaque to TutorPress: it is forwarded unchanged
+   * so Tutor can apply its own linked-row update and delete semantics.
+   */
+  content_id?: number | string | null;
   _data_status?: DataStatus;
 }
 
@@ -228,6 +242,13 @@ export interface QuizForm {
   questions: QuizQuestion[];
   deleted_question_ids?: number[];
   deleted_answer_ids?: number[];
+  /**
+   * Abandoned temporary Draw/Pin/Puzzle mask values for Tutor 4.0 cleanup.
+   *
+   * Only unpersisted values belong here; persisted URLs and Content Bank-linked assets
+   * must never be registered.
+   */
+  deleted_temp_mask_values?: string[];
   menu_order?: number;
 }
 
