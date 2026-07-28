@@ -988,6 +988,159 @@ try {
                 "The shared image hook no longer returns {$member}, which existing image editors consume."
             );
         }
+
+        // ------------------------------------------------------------------
+        // Step 8: Tutor's temporary-mask deletion contract.
+        // ------------------------------------------------------------------
+        // This is the only step that can destroy a file, so the assertions below are
+        // about what TutorPress refuses to register, not only about what it sends. The
+        // serializer gate that carries the list to Tutor belongs to Step 3 and is
+        // asserted in verify-quiz-payload-preservation.php; here we prove the list is
+        // populated from exactly one trigger under exactly three gates.
+
+        // The mask-type list must stay the three slugs Tutor's own builder checks. A
+        // fourth entry would start registering values for a type Tutor never cleans up.
+        $assert(
+            1 === preg_match(
+                '/export const MASK_QUESTION_TYPES = \["draw_image", "pin_image", "puzzle"\] as const;/',
+                $type_metadata
+            ),
+            'MASK_QUESTION_TYPES is not exactly Tutor\'s three file-backed question types.'
+        );
+
+        $assert(
+            1 === preg_match(
+                '/export const collectAbandonedTempMaskValues = \(question: QuizQuestion\): string\[\] => \{(.+?)\n\};/s',
+                $type_metadata,
+                $harvest_block
+            ),
+            'Could not delimit the abandoned temporary-mask harvest.'
+        );
+        $harvest_body = $harvest_block[1];
+
+        // Three gates, each of which can only ever register less than Tutor does. The
+        // comparisons are asserted rather than the identifiers, because every one of
+        // these names also appears in the surrounding code.
+        $assert(
+            1 === preg_match('/question\._data_status !== "new"/', $harvest_body),
+            'The harvest no longer requires an unsaved question, so a persisted value could be registered.'
+        );
+        $assert(
+            1 === preg_match('/question\.question_id < 0/', $harvest_body),
+            'The harvest no longer requires a TutorPress temporary question ID.'
+        );
+        $assert(
+            1 === preg_match('/question\.content_id !== undefined/', $harvest_body)
+            && 1 === preg_match('/question\.content_id !== null/', $harvest_body),
+            'The harvest no longer excludes Content Bank-linked rows, whose files Tutor shares.'
+        );
+        $assert(
+            1 === preg_match('/!isMaskQuestionType\(question\.question_type\)/', $harvest_body),
+            'The harvest no longer restricts itself to the file-backed question types.'
+        );
+        $gate_returns = preg_match_all('/return \[\];/', $harvest_body);
+        $assert(
+            3 === $gate_returns,
+            "The harvest has {$gate_returns} refusal branches instead of the three required gates."
+        );
+
+        // Native-exact collection: both fields Tutor harvests, trimmed, empties dropped,
+        // exact duplicates collapsed.
+        $assert(
+            1 === preg_match('/\[answer\.answer_two_gap_match, answer\.image_url\]/', $harvest_body),
+            'The harvest does not read both value fields Tutor reads from each answer row.'
+        );
+        $assert(
+            1 === preg_match('/\.filter\(\(value\) => value\.length > 0\)/', $harvest_body),
+            'The harvest can register an empty value.'
+        );
+        $assert(
+            1 === preg_match('/Array\.from\(new Set\(values\)\)/', $harvest_body),
+            'The harvest no longer deduplicates the values it registers.'
+        );
+
+        // Exactly one trigger. Tutor registers only on deleting an unsaved question and
+        // has no editor callback; a replace or clear trigger would delete files Tutor
+        // itself leaves alone.
+        $harvest_consumers = [];
+        $source_iterator   = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source_root));
+        foreach ($source_iterator as $source_file) {
+            if (!$source_file->isFile() || !preg_match('/\.tsx?$/', $source_file->getFilename())) {
+                continue;
+            }
+
+            $contents = (string) file_get_contents($source_file->getPathname());
+            if (false !== strpos($contents, 'collectAbandonedTempMaskValues')) {
+                $harvest_consumers[] = str_replace($source_root . '/', '', $source_file->getPathname());
+            }
+        }
+        sort($harvest_consumers);
+        $assert(
+            ['components/modals/QuizModal.tsx', 'utils/quizQuestionTypes.ts'] === $harvest_consumers,
+            'The temporary-mask harvest is referenced from ' . implode(', ', $harvest_consumers)
+                . ' instead of its definition and the single delete-question trigger.'
+        );
+
+        $assert(
+            1 === preg_match(
+                '/const handleDeleteQuestion = \(questionIndex: number\) => \{(.+?)\n  \};/s',
+                $quiz_modal,
+                $delete_handler
+            ),
+            'Could not delimit handleDeleteQuestion.'
+        );
+        $assert(
+            1 === preg_match_all('/collectAbandonedTempMaskValues\(questionToDelete\)/', $delete_handler[1]),
+            'Deleting a question is not the single registration trigger.'
+        );
+        $modal_calls = preg_match_all('/collectAbandonedTempMaskValues\(/', $quiz_modal);
+        $assert(
+            1 === $modal_calls,
+            "QuizModal calls the temporary-mask harvest from {$modal_calls} places instead of one."
+        );
+
+        // Registration merges without duplicating a value already reported this session.
+        $assert(
+            1 === preg_match('/!prev\.includes\(value\)/', $delete_handler[1]),
+            'Registration no longer deduplicates against values already registered.'
+        );
+
+        // The list resets wherever the proven deletion lists reset, and nowhere else, so
+        // a failed save keeps its cleanup values for the retry.
+        $reset_sites = preg_match_all(
+            '/setDeletedAnswerIds\(\[\]\);\n\s*setDeletedTempMaskValues\(\[\]\);/',
+            $quiz_modal
+        );
+        $assert(
+            4 === $reset_sites,
+            "The temporary-mask list resets at {$reset_sites} of the four sites the persisted deletion lists use."
+        );
+        $assert(
+            4 === preg_match_all('/setDeletedTempMaskValues\(\[\]\);/', $quiz_modal),
+            'The temporary-mask list is cleared somewhere the persisted deletion lists are not.'
+        );
+
+        $assert(
+            1 === preg_match('/const handleSave = async \(\) => \{(.+?)\n  \};/s', $quiz_modal, $save_handler),
+            'Could not delimit handleSave.'
+        );
+        $assert(
+            !preg_match('/setDeletedTempMaskValues/', $save_handler[1]),
+            'handleSave clears the temporary-mask list, so a failed save would drop its cleanup values.'
+        );
+        $assert(
+            1 === preg_match(
+                '/formData\.deleted_temp_mask_values = deletedTempMaskValues;/',
+                $save_handler[1]
+            ),
+            'The save path does not attach the temporary-mask list to the quiz form.'
+        );
+
+        // Interactive Quiz keeps its own completed deletion path untouched.
+        $assert(
+            false === strpos($read_source('components/modals/InteractiveQuizModal.tsx'), 'deleted_temp_mask_values'),
+            'The Interactive Quiz modal now sends a temporary-mask deletion field.'
+        );
     }
 } catch (Throwable $exception) {
     $failure_message = $exception->getMessage();

@@ -50,18 +50,28 @@ $quiz_id          = 0;
 $question_ids     = [];
 $failure_message  = '';
 $notes            = [];
+// Files this script creates on disk for the temporary-mask deletion fixture. Removed
+// here so an assertion failure cannot strand them in the uploads directory.
+$mask_fixture_files = [];
 
 $cleanup = static function () use (
     &$course_id,
     &$topic_id,
     &$quiz_id,
     &$question_ids,
+    &$mask_fixture_files,
     $original_user_id,
     $original_post,
     $wpdb
 ) {
     $_POST = $original_post;
     wp_set_current_user($original_user_id);
+
+    foreach ($mask_fixture_files as $fixture_file) {
+        if (is_string($fixture_file) && is_file($fixture_file)) {
+            wp_delete_file($fixture_file);
+        }
+    }
 
     if ($quiz_id > 0) {
         $remaining = $wpdb->get_col(
@@ -681,6 +691,87 @@ try {
         && !isset($_POST['deleted_temp_mask_values']),
         'A deletion field was posted for empty deletion state.'
     );
+
+    // ------------------------------------------------------------------
+    // Tutor's temporary-mask deletion contract, exercised on the installed Tutor.
+    // ------------------------------------------------------------------
+    // TutorPress hands Tutor a list of abandoned values and never touches the filesystem.
+    // That is only safe because Tutor deletes a submitted value exclusively when it
+    // resolves to a readable file inside its own uploads/tutor/quiz-images directory.
+    // The whole safety case rests on that discrimination, so prove it against the
+    // installed Tutor rather than the reference tree, using files created here.
+    //
+    // Path-traversal values are deliberately not submitted. The guard belongs to Tutor,
+    // and a hostile probe Tutor failed would destroy a real file on this site.
+    $handle_delete        = new ReflectionMethod('\\TUTOR\\QuizBuilder', 'handle_delete');
+    $handle_delete_params = $handle_delete->getParameters();
+    $supports_temp_mask_deletion = isset($handle_delete_params[2])
+        && 'deleted_temp_mask_values' === $handle_delete_params[2]->getName();
+
+    $upload_dir = wp_upload_dir();
+    if (
+        $supports_temp_mask_deletion
+        && class_exists('\\TUTOR_PRO\\QuizImageStorage')
+        && empty($upload_dir['error'])
+    ) {
+        $uploads_base = trailingslashit($upload_dir['basedir']);
+        $quiz_dir     = $uploads_base . \TUTOR_PRO\QuizImageStorage::QUIZ_IMAGES_SUBDIR;
+        wp_mkdir_p($quiz_dir);
+        $assert(is_dir($quiz_dir), 'Could not prepare the Tutor quiz-images directory.');
+
+        // The submitted file carries a mask prefix so Tutor resolves it by basename. The
+        // outside file deliberately carries none, so it resolves through the uploads-URL
+        // branch and is rejected by the directory guard rather than by the filename rules.
+        $submitted_name = 'draw-mask-' . $prefix . '-submitted.png';
+        $bystander_name = 'draw-mask-' . $prefix . '-bystander.png';
+        $outside_name   = $prefix . '-outside.png';
+
+        $submitted_path = trailingslashit($quiz_dir) . $submitted_name;
+        $bystander_path = trailingslashit($quiz_dir) . $bystander_name;
+        $outside_path   = $uploads_base . $outside_name;
+
+        foreach ([$submitted_path, $bystander_path, $outside_path] as $fixture_path) {
+            $assert(
+                false !== file_put_contents($fixture_path, 'tutorpress-temp-mask-fixture'),
+                'Could not write a temporary-mask fixture file.'
+            );
+            $mask_fixture_files[] = $fixture_path;
+        }
+
+        $before_listing = scandir($quiz_dir);
+        $assert(is_array($before_listing), 'Could not read the quiz-images directory.');
+
+        // Of the three submitted values only the first names a file inside quiz-images.
+        $builder->handle_delete(
+            [],
+            [],
+            [$submitted_name, trailingslashit($upload_dir['baseurl']) . $outside_name, '']
+        );
+
+        $assert(!file_exists($submitted_path), 'Tutor did not delete the submitted temporary mask file.');
+        $assert(file_exists($bystander_path), 'Tutor deleted a quiz-images file that was never submitted.');
+        $assert(file_exists($outside_path), 'Tutor deleted a submitted uploads file outside quiz-images.');
+
+        $after_listing = scandir($quiz_dir);
+        $assert(is_array($after_listing), 'Could not re-read the quiz-images directory.');
+        $assert(
+            [$submitted_name] === array_values(array_diff($before_listing, $after_listing)),
+            'Temporary-mask deletion removed more from quiz-images than the one submitted file.'
+        );
+        $assert(
+            [] === array_values(array_diff($after_listing, $before_listing)),
+            'Temporary-mask deletion added files to the quiz-images directory.'
+        );
+
+        $notes[] = 'temp-mask deletion contract exercised';
+    } elseif (!$supports_temp_mask_deletion) {
+        // Tutor 3.9.x has the two-argument handle_delete() contract. Step 13 owns the
+        // version-boundary runtime check; this preservation script must remain runnable
+        // there without passing a field that version does not accept.
+        $notes[] = 'temp-mask deletion contract skipped (unsupported Tutor version)';
+    } else {
+        $notes[] = 'temp-mask deletion contract skipped (Tutor Pro storage unavailable)';
+    }
 
     // ------------------------------------------------------------------
     // Client wiring. Skipped on built installations with no TypeScript source.

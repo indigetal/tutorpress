@@ -465,6 +465,81 @@ export const serializeCoordinatesAnswer = (points: CoordinatePoint[]): string | 
   return JSON.stringify(points.map((point) => ({ x: point.x, y: point.y })));
 };
 
+// ============================================================================
+// Tutor 4.0 temporary mask deletion contract
+// ============================================================================
+
+/**
+ * Question types whose answer values can reference a Tutor Pro-owned quiz image file.
+ *
+ * Matches the three slugs Tutor's own builder checks before registering abandoned
+ * values (`QuestionList.tsx:344-347`) and the three its server accepts for file-backed
+ * deletion (`QuizBuilder.php:467`). Tutor's PHP `is_mask_image_question_type()` is a
+ * deliberately different, narrower list — draw and pin only — used for a different
+ * purpose, so do not reconcile the two.
+ */
+export const MASK_QUESTION_TYPES = ["draw_image", "pin_image", "puzzle"] as const;
+
+/**
+ * Whether a question type can reference a Tutor Pro-owned quiz image file.
+ */
+export const isMaskQuestionType = (questionType: string): boolean =>
+  (MASK_QUESTION_TYPES as readonly string[]).includes(questionType);
+
+/**
+ * Collect the temporary mask/image values abandoned by deleting an unsaved question.
+ *
+ * Tutor registers these in exactly one place — deleting a question that has never been
+ * persisted (`QuestionList.tsx:342-364`) — and harvests both `answer_two_gap_match` and
+ * `image_url` from every answer row. There is deliberately no replace or clear trigger:
+ * Tutor's client has none, and adding one would put TutorPress in the business of
+ * deleting files Tutor leaves alone. Tutor's server cleans a *replaced* mask only for
+ * `draw_image`/`pin_image` (`QuizBuilder.php:190-192`), only from
+ * `answer_two_gap_match`, and only on an update to an already-persisted row
+ * (`:151-164`). A replaced Puzzle asset and a replaced background image therefore leak
+ * a file in native Tutor; those are native leaks and stay native leaks. An abandoned
+ * unsaved mask is still a data URL that never became a file, so there is nothing for a
+ * client-side replace trigger to clean up in the first place.
+ *
+ * The caller hands the result to Tutor's `deleted_temp_mask_values` field and Tutor
+ * decides what to delete: it resolves each value to a path, requires the path to be
+ * readable, and requires it to sit inside its own `tutor/quiz-images` directory
+ * (`QuizBuilder.php:639-680`). TutorPress never inspects the filesystem and never
+ * deletes anything.
+ *
+ * Three gates guard registration, and they can only ever register less than Tutor does:
+ *
+ * 1. `_data_status === "new"` is Tutor's own gate.
+ * 2. `question_id < 0` requires a TutorPress temporary ID. **Keep this when question
+ *    duplication is implemented.** Tutor's `handleDuplicateQuestion()` spreads the
+ *    source row wholesale and stamps it `NEW`, so duplicating a persisted Draw question
+ *    and deleting the copy registers the *original's* stored file for deletion. A
+ *    duplicate that carries a non-numeric or persisted ID fails this gate and registers
+ *    nothing, which is the safe direction.
+ * 3. No `content_id`, so a Content Bank-linked row can never contribute a value. Tutor
+ *    shares those files between linked rows.
+ */
+export const collectAbandonedTempMaskValues = (question: QuizQuestion): string[] => {
+  if (question._data_status !== "new" || !(question.question_id < 0)) {
+    return [];
+  }
+
+  if (question.content_id !== undefined && question.content_id !== null && question.content_id !== "") {
+    return [];
+  }
+
+  if (!isMaskQuestionType(question.question_type)) {
+    return [];
+  }
+
+  const values = (question.question_answers || [])
+    .flatMap((answer) => [answer.answer_two_gap_match, answer.image_url])
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  return Array.from(new Set(values));
+};
+
 /**
  * Generate a temporary ID for an unsaved question or answer row.
  *

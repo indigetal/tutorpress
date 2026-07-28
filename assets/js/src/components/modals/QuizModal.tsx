@@ -19,6 +19,7 @@ import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { getQuestionComponent, isLocallyAuthorable } from "./quiz/questions";
 import {
+  collectAbandonedTempMaskValues,
   createDefaultQuestion,
   getFallbackPickerTypes,
   getQuizQuestionTypeLabel,
@@ -375,6 +376,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [deletedQuestionIds, setDeletedQuestionIds] = useState<number[]>([]);
   const [deletedAnswerIds, setDeletedAnswerIds] = useState<number[]>([]);
+  // Draw/Pin/Puzzle values abandoned by deleting an unsaved question. Tutor deletes only
+  // the ones it resolves inside its own quiz-images directory; TutorPress only reports them.
+  const [deletedTempMaskValues, setDeletedTempMaskValues] = useState<string[]>([]);
 
   // Editor visibility state
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
@@ -489,6 +493,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         setSelectedQuestionType(null);
         setDeletedQuestionIds([]);
         setDeletedAnswerIds([]);
+        setDeletedTempMaskValues([]);
 
         return quizData;
       } else {
@@ -522,6 +527,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       setSelectedQuestionType(null);
       setDeletedQuestionIds([]);
       setDeletedAnswerIds([]);
+      setDeletedTempMaskValues([]);
     }
   }, [isOpen, quizId, resetToDefaults]);
 
@@ -539,6 +545,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         setEditingQuestionId(null);
         setDeletedQuestionIds([]);
         setDeletedAnswerIds([]);
+        setDeletedTempMaskValues([]);
       }
     }
   }, [isOpen, checkCoursePreviewAddon, quizId]);
@@ -559,6 +566,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     setSelectedQuestionType(null);
     setDeletedQuestionIds([]);
     setDeletedAnswerIds([]);
+    setDeletedTempMaskValues([]);
     // Reset validation state - Step 3.6.8
     setShowValidationErrors(false);
     onClose();
@@ -603,6 +611,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       // Add deleted IDs to form data
       formData.deleted_question_ids = deletedQuestionIds;
       formData.deleted_answer_ids = deletedAnswerIds;
+      formData.deleted_temp_mask_values = deletedTempMaskValues;
 
       // Add quiz ID for updates
       if (quizId) {
@@ -924,6 +933,16 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       if (answerIdsToDelete.length > 0) {
         setDeletedAnswerIds((prev) => [...prev, ...answerIdsToDelete]);
       }
+    }
+
+    // Report Draw/Pin/Puzzle values the author abandoned before they were ever persisted.
+    // The helper owns every gate; anything it returns is safe to hand to Tutor.
+    const abandonedTempMaskValues = collectAbandonedTempMaskValues(questionToDelete);
+    if (abandonedTempMaskValues.length > 0) {
+      setDeletedTempMaskValues((prev) => [
+        ...prev,
+        ...abandonedTempMaskValues.filter((value) => !prev.includes(value)),
+      ]);
     }
 
     const updatedQuestions = questions.filter((_, index) => index !== questionIndex);
