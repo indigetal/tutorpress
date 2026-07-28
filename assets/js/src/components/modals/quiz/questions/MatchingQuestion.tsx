@@ -101,6 +101,9 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
 
   // Check if Image Matching is enabled
   const isImageMatching = question.question_settings.is_image_matching || false;
+  const matchingTextPlaceholder = isImageMatching
+    ? __("Image matched text..", "tutorpress")
+    : __("Question", "tutorpress");
 
   // Use centralized validation hook
   const { getQuestionErrors } = useQuestionValidation();
@@ -146,12 +149,12 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
    * Handle saving option
    */
   const handleSaveOption = () => {
-    if (!currentOptionText.trim()) {
+    if (!currentMatchingText.trim()) {
       return;
     }
 
-    // For text-only matching, also require the matching text
-    if (!isImageMatching && !currentMatchingText.trim()) {
+    // Tutor requires matched text only when Image Matching is disabled.
+    if (!isImageMatching && !currentOptionText.trim()) {
       return;
     }
 
@@ -369,13 +372,14 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
                     optionLabel={String.fromCharCode(65 + index)}
                     requireImage={isImageMatching} // Images required only when Image Matching is enabled
                     showImageUploadArea={isImageMatching} // Show upload area when Image Matching is enabled
-                    showMatchingTextField={!isImageMatching} // Show matching text field only for text-only matching
+                    showMatchingTextField={true}
+                    showMainTextField={!isImageMatching}
                     helperText={
                       isImageMatching
                         ? __("Image matched text...", "tutorpress")
                         : __("Enter the text to be matched.", "tutorpress")
                     }
-                    matchingTextPlaceholder={__("Question", "tutorpress")}
+                    matchingTextPlaceholder={matchingTextPlaceholder}
                     placeholder={__("Matched option", "tutorpress")} // Main text field placeholder
                     onEdit={() => handleEditOption(index)}
                     onDuplicate={() => handleDuplicateOption(index)}
@@ -410,10 +414,11 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
           currentMatchingText={currentMatchingText}
           currentImage={currentOptionImage}
           placeholder={__("Matched option", "tutorpress")} // Main text field placeholder
-          matchingTextPlaceholder={__("Question", "tutorpress")}
+          matchingTextPlaceholder={matchingTextPlaceholder}
           requireImage={isImageMatching} // Images required only when Image Matching is enabled
           showImageUploadArea={isImageMatching} // Show upload area when Image Matching is enabled
-          showMatchingTextField={!isImageMatching} // Show matching text field only for text-only matching
+          showMatchingTextField={true}
+          showMainTextField={!isImageMatching}
           helperText={
             isImageMatching
               ? __("Image matched text...", "tutorpress")

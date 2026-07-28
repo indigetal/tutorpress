@@ -69,7 +69,7 @@ export interface SortableOptionProps {
   isEditing: boolean;
   /** Current text being edited (only used when isEditing=true) */
   currentOptionText: string;
-  /** Current matching text being edited (only used when isEditing=true and showMatchingTextField=true) */
+  /** Current title text being edited when the matching title field is visible */
   currentMatchingText?: string;
   /** Current image being edited (only used when isEditing=true) */
   currentOptionImage: { id: number; url: string } | null;
@@ -81,8 +81,10 @@ export interface SortableOptionProps {
   requireImage?: boolean;
   /** Whether to show the image upload area above the text field instead of a button */
   showImageUploadArea?: boolean;
-  /** Whether to show the matching text field (for text-only matching questions) */
+  /** Whether to show the title field for matching questions */
   showMatchingTextField?: boolean;
+  /** Whether to show the main option text field */
+  showMainTextField?: boolean;
   /** Placeholder text for the matching text field */
   matchingTextPlaceholder?: string;
   /** Placeholder text for the main text field */
@@ -135,6 +137,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
   requireImage,
   showImageUploadArea,
   showMatchingTextField,
+  showMainTextField,
   matchingTextPlaceholder,
   placeholder,
   helperText,
@@ -181,6 +184,7 @@ export const SortableOption: React.FC<SortableOptionProps> = ({
           requireImage={requireImage}
           showImageUploadArea={showImageUploadArea}
           showMatchingTextField={showMatchingTextField}
+          showMainTextField={showMainTextField}
           matchingTextPlaceholder={matchingTextPlaceholder}
           placeholder={placeholder}
           helperText={helperText}

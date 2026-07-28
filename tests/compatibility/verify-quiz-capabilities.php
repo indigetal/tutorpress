@@ -1141,6 +1141,60 @@ try {
             false === strpos($read_source('components/modals/InteractiveQuizModal.tsx'), 'deleted_temp_mask_values'),
             'The Interactive Quiz modal now sends a temporary-mask deletion field.'
         );
+
+        // Step 8A: Image Matching shows Tutor's required title field and hides only
+        // the matched-text field. The validation registry remains native-exact.
+        $option_editor   = $read_source('components/modals/quiz/questions/OptionEditor.tsx');
+        $sortable_option = $read_source('components/modals/quiz/questions/SortableOption.tsx');
+        $matching_editor = $read_source('components/modals/quiz/questions/MatchingQuestion.tsx');
+
+        $assert(
+            1 === preg_match('/showMainTextField\s*=\s*true/', $option_editor),
+            'OptionEditor does not default the shared main text field to visible.'
+        );
+        $assert(
+            1 === preg_match('/const isSaveDisabled =(.+?);/s', $option_editor, $option_save_guard)
+                && 1 === preg_match(
+                    '/\(showMainTextField && !currentText\.trim\(\)\)/',
+                    $option_save_guard[1]
+                ),
+            'OptionEditor still requires hidden main text before saving.'
+        );
+        $assert(
+            1 === preg_match('/\{showMatchingTextField && \(\s*<textarea/s', $option_editor)
+                && 1 === preg_match('/\{showMainTextField && \(\s*<textarea/s', $option_editor),
+            'OptionEditor does not independently render its title and main text fields.'
+        );
+        $assert(
+            false !== strpos($sortable_option, 'showMainTextField={showMainTextField}'),
+            'SortableOption does not forward the main text field visibility.'
+        );
+        $assert(
+            2 === preg_match_all('/showMatchingTextField=\{true\}/', $matching_editor)
+                && 2 === preg_match_all('/showMainTextField=\{!isImageMatching\}/', $matching_editor),
+            'MatchingQuestion does not select the native field layout at both editor call sites.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const matchingTextPlaceholder = isImageMatching\s*\?\s*__\("Image matched text\.\.", "tutorpress"\)\s*:\s*__\("Question", "tutorpress"\);/',
+                $matching_editor
+            ) && 2 === preg_match_all('/matchingTextPlaceholder=\{matchingTextPlaceholder\}/', $matching_editor),
+            'MatchingQuestion does not use Tutor\'s mode-aware title placeholder at both call sites.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleSaveOption = \(\) => \{.*?if \(!currentMatchingText\.trim\(\)\) \{\s*return;\s*\}.*?if \(!isImageMatching && !currentOptionText\.trim\(\)\) \{\s*return;\s*\}/s',
+                $matching_editor
+            ),
+            'MatchingQuestion does not require title in both modes and matched text only in text mode.'
+        );
+        $assert(
+            1 === preg_match('/\n      matching:\s*\[(.+?)\n      \],/s', $validation, $matching_rules)
+                && 1 === preg_match('/\/\/ Empty option text rule(.+?)\/\/ Matching text requirement/s', $matching_rules[1], $title_rule)
+                && false === strpos($title_rule[1], 'isImageMatching')
+                && 1 === preg_match('/!option\.answer_title\?\.trim\(\)/', $title_rule[1]),
+            'The native matching answer_title rule is missing or gated by image mode.'
+        );
     }
 } catch (Throwable $exception) {
     $failure_message = $exception->getMessage();

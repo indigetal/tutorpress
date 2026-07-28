@@ -66,7 +66,7 @@ export interface OptionEditorProps {
   optionLabel: string;
   /** Current text being edited */
   currentText: string;
-  /** Current matching text being edited (for text-only matching questions) */
+  /** Current title text being edited for matching questions */
   currentMatchingText?: string;
   /** Current image being edited (if any) */
   currentImage: { id: number; url: string } | null;
@@ -76,8 +76,10 @@ export interface OptionEditorProps {
   requireImage?: boolean;
   /** Whether to show the image upload area above the text field instead of a button */
   showImageUploadArea?: boolean;
-  /** Whether to show the matching text field (for text-only matching questions) */
+  /** Whether to show the title field for matching questions */
   showMatchingTextField?: boolean;
+  /** Whether to show the main option text field */
+  showMainTextField?: boolean;
   /** Placeholder text for the matching text field */
   matchingTextPlaceholder?: string;
   /** Helper text to display below the text field */
@@ -120,6 +122,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
   requireImage = false,
   showImageUploadArea = false,
   showMatchingTextField = false,
+  showMainTextField = true,
   matchingTextPlaceholder = __("Matching text...", "tutorpress"),
   helperText,
   onTextChange,
@@ -136,7 +139,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
   // Determine if save button should be disabled
   const isSaveDisabled =
     isSaving ||
-    !currentText.trim() ||
+    (showMainTextField && !currentText.trim()) ||
     (requireImage && !currentImage) ||
     (showMatchingTextField && !currentMatchingText?.trim());
 
@@ -558,35 +561,22 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
         </div>
       )}
 
-      {/* Text Fields - Order matters for matching questions */}
-      {showMatchingTextField ? (
-        <>
-          {/* Matching Text Field (first - "Question" placeholder) */}
-          <textarea
-            className="quiz-modal-option-textarea quiz-modal-matching-textarea"
-            placeholder={matchingTextPlaceholder}
-            value={currentMatchingText || ""}
-            onChange={(e) => onMatchingTextChange?.(e.target.value)}
-            rows={2}
-            disabled={isSaving}
-            autoFocus={autoFocus}
-            style={{
-              marginBottom: "8px",
-            }}
-          />
-
-          {/* Main Text Field (second - "Matched option" placeholder) */}
-          <textarea
-            className="quiz-modal-option-textarea"
-            placeholder={placeholder}
-            value={currentText}
-            onChange={(e) => onTextChange(e.target.value)}
-            rows={rows}
-            disabled={isSaving}
-          />
-        </>
-      ) : (
-        /* Standard Text Editor (for non-matching questions) */
+      {/* Text fields - order matters for matching questions */}
+      {showMatchingTextField && (
+        <textarea
+          className="quiz-modal-option-textarea quiz-modal-matching-textarea"
+          placeholder={matchingTextPlaceholder}
+          value={currentMatchingText || ""}
+          onChange={(e) => onMatchingTextChange?.(e.target.value)}
+          rows={2}
+          disabled={isSaving}
+          autoFocus={autoFocus}
+          style={{
+            marginBottom: showMainTextField ? "8px" : undefined,
+          }}
+        />
+      )}
+      {showMainTextField && (
         <textarea
           className="quiz-modal-option-textarea"
           placeholder={placeholder}
@@ -594,7 +584,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
           onChange={(e) => onTextChange(e.target.value)}
           rows={rows}
           disabled={isSaving}
-          autoFocus={autoFocus}
+          autoFocus={!showMatchingTextField && autoFocus}
         />
       )}
 
@@ -618,7 +608,8 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
           title={
             requireImage && !currentImage
               ? __("Please upload an image before saving", "tutorpress")
-              : !currentText.trim()
+              : (showMainTextField && !currentText.trim()) ||
+                (showMatchingTextField && !currentMatchingText?.trim())
               ? __("Please enter option text before saving", "tutorpress")
               : __("Save option", "tutorpress")
           }
