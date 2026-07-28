@@ -69,7 +69,7 @@ export const getDrawImageAnswerState = (question: QuizQuestion): DrawImageAnswer
   const answer = answers[0];
   if (
     answer.belongs_question_type !== "draw_image" ||
-    (answer.answer_view_format !== "" && answer.answer_view_format !== "draw_image")
+    !["", "draw_image", "text_image"].includes(answer.answer_view_format)
   ) {
     return "preserved";
   }
@@ -109,7 +109,7 @@ export const getPinImageAnswerState = (question: QuizQuestion): PinImageAnswerSt
   const answer = answers[0];
   if (
     answer.belongs_question_type !== "pin_image" ||
-    (answer.answer_view_format !== "" && answer.answer_view_format !== "pin_image")
+    !["", "pin_image", "text_image"].includes(answer.answer_view_format)
   ) {
     return "preserved";
   }

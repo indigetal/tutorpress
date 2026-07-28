@@ -1293,7 +1293,9 @@ try {
             'Draw background replacement/clearing registers a temporary deletion value.'
         );
 
-        // Opaque rows—including Pro-inactive stored filenames—must remain untouched.
+        // Tutor's frontend builder rewrites image-bearing answers to text_image. Draw
+        // accepts only that native loaded form, its own format, or the empty creation
+        // form; the semantic type and every opaque-value guard remain independent.
         $assert(
             1 === preg_match(
                 '/export const getDrawImageAnswerState = \(question: QuizQuestion\): DrawImageAnswerState => \{(.+?)\n\};/s',
@@ -1303,9 +1305,20 @@ try {
             'Could not delimit Draw Image stored-answer classification.'
         );
         $assert(
+            1 === preg_match(
+                '/answer\.belongs_question_type !== "draw_image"\s*\|\|\s*!\["", "draw_image", "text_image"\]\.includes\(answer\.answer_view_format\)/',
+                $draw_state[1]
+            ),
+            'Draw Image does not accept exactly the native empty, draw_image, and text_image formats.'
+        );
+        $assert(
             1 === preg_match('/answers\.length !== 1/', $draw_state[1])
+                && 1 === preg_match(
+                    '/hasStoredImageId && \(!Number\.isInteger\(imageId\) \|\| imageId <= 0\)/',
+                    $draw_state[1]
+                )
                 && 2 === preg_match_all('/!isSafeImageSource\(/', $draw_state[1]),
-            'Draw Image does not preserve unsupported row counts or unavailable stored sources.'
+            'Draw Image does not preserve unsupported row counts, image IDs, or unavailable stored sources.'
         );
         $assert(
             1 === preg_match('/if \(answerState === "preserved"\) \{/', $draw_editor)
@@ -1463,8 +1476,9 @@ try {
             'Pin background replacement/clearing registers a temporary deletion value.'
         );
 
-        // Pin keeps a parallel classifier rather than weakening or generalizing Draw's
-        // verified boundary. Unsupported rows and unavailable stored sources are opaque.
+        // Pin keeps a parallel classifier and the same native text_image compatibility
+        // boundary. The opposite type-specific format and every unknown format remain
+        // opaque because the exact accepted set is asserted in the rejecting predicate.
         $assert(
             1 === preg_match(
                 '/export const getPinImageAnswerState = \(question: QuizQuestion\): PinImageAnswerState => \{(.+?)\n\};/s',
@@ -1474,11 +1488,20 @@ try {
             'Could not delimit Pin Image stored-answer classification.'
         );
         $assert(
+            1 === preg_match(
+                '/answer\.belongs_question_type !== "pin_image"\s*\|\|\s*!\["", "pin_image", "text_image"\]\.includes\(answer\.answer_view_format\)/',
+                $pin_state[1]
+            ),
+            'Pin Image does not accept exactly the native empty, pin_image, and text_image formats.'
+        );
+        $assert(
             1 === preg_match('/answers\.length !== 1/', $pin_state[1])
-                && 1 === preg_match('/answer\.belongs_question_type !== "pin_image"/', $pin_state[1])
-                && 1 === preg_match('/answer\.answer_view_format !== "pin_image"/', $pin_state[1])
+                && 1 === preg_match(
+                    '/hasStoredImageId && \(!Number\.isInteger\(imageId\) \|\| imageId <= 0\)/',
+                    $pin_state[1]
+                )
                 && 2 === preg_match_all('/!isSafeImageSource\(/', $pin_state[1]),
-            'Pin Image does not preserve unsupported row shapes or unavailable stored sources.'
+            'Pin Image does not preserve unsupported row counts, image IDs, or unavailable stored sources.'
         );
         $assert(
             1 === preg_match('/if \(answerState === "preserved"\) \{/', $pin_editor)
