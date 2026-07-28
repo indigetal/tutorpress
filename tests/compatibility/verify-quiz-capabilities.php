@@ -486,9 +486,9 @@ try {
         );
 
         // Native types whose TutorPress editor does not exist yet must stay unregistered.
-        // Range, Graph, and Draw Image are now implemented and asserted positively below.
+        // Range, Graph, Draw Image, and Pin Image are implemented and asserted below.
         // Both directions matter, which is why each native slug is checked either way.
-        $unimplemented_natives = ['pin_image', 'puzzle'];
+        $unimplemented_natives = ['puzzle'];
 
         foreach ($unimplemented_natives as $slug) {
             $assert(
@@ -508,6 +508,10 @@ try {
         $assert(
             1 === preg_match('/^\s*draw_image:\s*DrawImageQuestion\s*,/m', $map_block[1]),
             'draw_image is not registered to DrawImageQuestion, so Draw Image is not locally authorable.'
+        );
+        $assert(
+            1 === preg_match('/^\s*pin_image:\s*PinImageQuestion\s*,/m', $map_block[1]),
+            'pin_image is not registered to PinImageQuestion, so Pin Image is not locally authorable.'
         );
 
         $assert(
@@ -1360,6 +1364,153 @@ try {
                 $draw_rules[1]
             ),
             'Draw Image validation does not enforce Tutor Pro\'s inclusive threshold bounds.'
+        );
+
+        // ------------------------------------------------------------------
+        // Step 10: Pin Image authoring.
+        // ------------------------------------------------------------------
+        $pin_editor = $read_source('components/modals/quiz/questions/PinImageQuestion.tsx');
+
+        // Pin is a thin consumer of the completed freehand canvas. It must not duplicate
+        // media, raster, coordinate, request, storage, grading, or student-point logic.
+        $assert(
+            1 === preg_match('/import \{ QuizImageCanvas \} from "\.\/QuizImageCanvas";/', $pin_editor)
+                && 1 === preg_match_all('/<QuizImageCanvas\b/', $pin_editor),
+            'Pin Image does not consume exactly one shared QuizImageCanvas.'
+        );
+        $assert(
+            !preg_match(
+                '#\bfetch\(|apiFetch|XMLHttpRequest|FormData|admin-ajax|wp-json|upload_dir'
+                    . '|QuizImageStorage|TUTOR_PRO|tutor/quiz-images|pin-mask-'
+                    . '|is_pin_inside_mask|grade_pin_image_question|studentAnswer|normalizedPoint|achieved_mark#i',
+                $pin_editor
+            ),
+            'Pin Image performs a request, storage, grading, or student-point operation Tutor/Tutor Pro must own.'
+        );
+        $assert(
+            !preg_match('/\buseQuizImageCanvas\s*\(/', $pin_editor)
+                && !preg_match('/\buseImageManagement\s*\(/', $pin_editor),
+            'Pin Image duplicates the shared canvas or Media Library integration.'
+        );
+
+        // Tutor's answer row stores the background and instructor target mask separately.
+        $assert(
+            1 === preg_match('/PIN_IMAGE_ANSWER_VIEW_FORMAT\s*=\s*"pin_image"/', $pin_editor),
+            'Pin Image does not declare Tutor\'s pin_image answer view format.'
+        );
+        foreach ([
+            'belongs_question_type: "pin_image"'                 => 'belongs_question_type',
+            'is_correct: "1"'                                   => 'is_correct',
+            'answer_view_format: PIN_IMAGE_ANSWER_VIEW_FORMAT'   => 'answer_view_format',
+            'image_id: imageData.id'                             => 'background image ID',
+            'image_url: imageData.url'                           => 'background image URL',
+            'maskValue={answerRow?.answer_two_gap_match}'         => 'raw instructor mask',
+            'onQuestionUpdate(questionIndex, "question_answers", [updated])' => 'single answer row',
+        ] as $needle => $label) {
+            $assert(
+                false !== strpos($pin_editor, $needle),
+                "Pin Image does not write or display Tutor's {$label} contract."
+            );
+        }
+
+        // Pin has no circular authoring geometry and no type-specific setting.
+        $assert(
+            !preg_match('/\b(?:circle|radius|diameter|centerX|centerY)\b/i', $pin_editor),
+            'Pin Image reintroduces circular target geometry instead of the native freehand mask.'
+        );
+        $assert(
+            false === strpos($pin_editor, 'threshold')
+                && false === strpos($pin_editor, 'question_settings'),
+            'Pin Image adds a threshold or type-specific question setting Tutor does not define.'
+        );
+
+        // Opening, loading, or resizing cannot write an answer. Only an explicit shared
+        // canvas commit may update `answer_two_gap_match`.
+        $assert(
+            false === strpos($pin_editor, 'useEffect'),
+            'Pin Image writes or normalizes answer data from a component effect.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleMaskCommit = \(maskDataUrl: string\) => \{(.+?)\n  \};/s',
+                $pin_editor,
+                $pin_mask_handler
+            ) && 1 === preg_match('/writeAnswer\(\{ answer_two_gap_match: maskDataUrl \}\);/', $pin_mask_handler[1]),
+            'Pin Image does not write a mask only from the shared canvas commit callback.'
+        );
+
+        // Replacing or clearing the background invalidates the mask locally and does not
+        // create another Step 8 cleanup producer.
+        $assert(
+            1 === preg_match(
+                '/const handleImageSelect = \(imageData: ImageData\) => \{(.+?)\n  \};/s',
+                $pin_editor,
+                $pin_select_handler
+            ) && 1 === preg_match('/answer_two_gap_match:\s*""/', $pin_select_handler[1]),
+            'Replacing a Pin background does not clear the instructor mask locally.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleImageClear = \(\) => \{(.+?)\n  \};/s',
+                $pin_editor,
+                $pin_clear_handler
+            ) && 1 === preg_match('/image_id:\s*0,\s*image_url:\s*"",\s*answer_two_gap_match:\s*""/s', $pin_clear_handler[1]),
+            'Clearing a Pin background does not clear both the background and mask locally.'
+        );
+        $assert(
+            false === strpos($pin_editor, 'collectAbandonedTempMaskValues')
+                && false === strpos($pin_editor, 'deleted_temp_mask_values'),
+            'Pin background replacement/clearing registers a temporary deletion value.'
+        );
+
+        // Pin keeps a parallel classifier rather than weakening or generalizing Draw's
+        // verified boundary. Unsupported rows and unavailable stored sources are opaque.
+        $assert(
+            1 === preg_match(
+                '/export const getPinImageAnswerState = \(question: QuizQuestion\): PinImageAnswerState => \{(.+?)\n\};/s',
+                $validation,
+                $pin_state
+            ),
+            'Could not delimit Pin Image stored-answer classification.'
+        );
+        $assert(
+            1 === preg_match('/answers\.length !== 1/', $pin_state[1])
+                && 1 === preg_match('/answer\.belongs_question_type !== "pin_image"/', $pin_state[1])
+                && 1 === preg_match('/answer\.answer_view_format !== "pin_image"/', $pin_state[1])
+                && 2 === preg_match_all('/!isSafeImageSource\(/', $pin_state[1]),
+            'Pin Image does not preserve unsupported row shapes or unavailable stored sources.'
+        );
+        $assert(
+            1 === preg_match('/if \(answerState === "preserved"\) \{/', $pin_editor)
+                && false !== strpos($pin_editor, 'every value has been left exactly as saved'),
+            'Pin Image does not route an unavailable stored row to a preservation notice.'
+        );
+        $assert(
+            false === strpos($validation, 'getImageAnswerState'),
+            'The Draw and Pin classifiers were generalized instead of remaining parallel.'
+        );
+
+        // Exactly two rules: background and mask. Both no-op for opaque persisted rows.
+        $assert(
+            1 === preg_match('/\n      pin_image:\s*\[(.+?)\n      \],/s', $validation, $pin_rules),
+            'Could not delimit Pin Image validation rules.'
+        );
+        $pin_rule_count = preg_match_all('/\(question: QuizQuestion\) => \{/', $pin_rules[1]);
+        $assert(
+            2 === $pin_rule_count,
+            "Pin Image has {$pin_rule_count} validation rules instead of image and mask."
+        );
+        $assert(
+            2 === preg_match_all('/getPinImageAnswerState\(question\) === "preserved"/', $pin_rules[1]),
+            'Pin Image answer validation can block an opaque persisted row.'
+        );
+        $assert(
+            1 === preg_match('/imageId > 0[\s\S]+?answer\.image_url\.trim\(\)\.length > 0/', $pin_rules[1]),
+            'Pin Image validation does not require both background image ID and URL.'
+        );
+        $assert(
+            1 === preg_match('/answer_two_gap_match[\s\S]+?mask\.trim\(\)\.length > 0/', $pin_rules[1]),
+            'Pin Image validation does not require a non-empty instructor mask.'
         );
     }
 } catch (Throwable $exception) {

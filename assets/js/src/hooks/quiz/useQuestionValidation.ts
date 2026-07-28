@@ -47,6 +47,7 @@ export const DRAW_IMAGE_THRESHOLD_MIN = DRAW_IMAGE_THRESHOLD_OPTIONS[0];
 export const DRAW_IMAGE_THRESHOLD_MAX = DRAW_IMAGE_THRESHOLD_OPTIONS[DRAW_IMAGE_THRESHOLD_OPTIONS.length - 1];
 
 export type DrawImageAnswerState = "empty" | "editable" | "preserved";
+export type PinImageAnswerState = "empty" | "editable" | "preserved";
 
 /**
  * Decide whether TutorPress can safely expose a Draw Image answer for editing.
@@ -69,6 +70,46 @@ export const getDrawImageAnswerState = (question: QuizQuestion): DrawImageAnswer
   if (
     answer.belongs_question_type !== "draw_image" ||
     (answer.answer_view_format !== "" && answer.answer_view_format !== "draw_image")
+  ) {
+    return "preserved";
+  }
+
+  const imageId = Number(answer.image_id ?? 0);
+  const hasStoredImageId = answer.image_id !== undefined && Number(answer.image_id) !== 0;
+  if (hasStoredImageId && (!Number.isInteger(imageId) || imageId <= 0)) {
+    return "preserved";
+  }
+
+  const imageUrl = typeof answer.image_url === "string" ? answer.image_url.trim() : "";
+  const maskValue = typeof answer.answer_two_gap_match === "string" ? answer.answer_two_gap_match.trim() : "";
+  if ((imageUrl && !isSafeImageSource(imageUrl)) || (maskValue && !isSafeImageSource(maskValue))) {
+    return "preserved";
+  }
+
+  return "editable";
+};
+
+/**
+ * Decide whether TutorPress can safely expose a Pin Image answer for editing.
+ *
+ * Active Tutor Pro expands persisted mask filenames to an http(s) URL. Without that
+ * expansion—or when a future/third-party row has a shape this editor does not own—the
+ * raw answer must stay opaque. Empty image/mask fields remain editable so authors can
+ * complete a new or incomplete row through the normal validation path.
+ */
+export const getPinImageAnswerState = (question: QuizQuestion): PinImageAnswerState => {
+  const answers = question.question_answers || [];
+  if (answers.length === 0) {
+    return question.question_id > 0 ? "preserved" : "empty";
+  }
+  if (answers.length !== 1) {
+    return "preserved";
+  }
+
+  const answer = answers[0];
+  if (
+    answer.belongs_question_type !== "pin_image" ||
+    (answer.answer_view_format !== "" && answer.answer_view_format !== "pin_image")
   ) {
     return "preserved";
   }
@@ -469,6 +510,42 @@ export const useQuestionValidation = () => {
                   DRAW_IMAGE_THRESHOLD_MAX
                 ),
               ];
+        },
+      ],
+
+      // Pin Image validation rules
+      //
+      // Pin uses the same instructor-side freehand mask as Draw, but has no precision
+      // setting. Opaque persisted rows produce no errors so an unavailable Pro response
+      // cannot block an unrelated quiz edit.
+      pin_image: [
+        // Background image required
+        (question: QuizQuestion) => {
+          if (getPinImageAnswerState(question) === "preserved") {
+            return [];
+          }
+
+          const answer = question.question_answers?.[0];
+          const imageId = Number(answer?.image_id ?? 0);
+          const hasImage =
+            Number.isInteger(imageId) &&
+            imageId > 0 &&
+            typeof answer?.image_url === "string" &&
+            answer.image_url.trim().length > 0;
+
+          return hasImage ? [] : [__("Please upload a background image.", "tutorpress")];
+        },
+
+        // Non-empty instructor target mask required
+        (question: QuizQuestion) => {
+          if (getPinImageAnswerState(question) === "preserved") {
+            return [];
+          }
+
+          const mask = question.question_answers?.[0]?.answer_two_gap_match;
+          return typeof mask === "string" && mask.trim().length > 0
+            ? []
+            : [__("Please mark a valid area on the image.", "tutorpress")];
         },
       ],
 
