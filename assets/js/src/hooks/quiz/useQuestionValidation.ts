@@ -48,6 +48,19 @@ export const DRAW_IMAGE_THRESHOLD_MAX = DRAW_IMAGE_THRESHOLD_OPTIONS[DRAW_IMAGE_
 
 export type DrawImageAnswerState = "empty" | "editable" | "preserved";
 export type PinImageAnswerState = "empty" | "editable" | "preserved";
+export type PuzzleAnswerState = "editable" | "preserved";
+
+/** Tutor's native Puzzle creation default. */
+export const NATIVE_PUZZLE_GRID_SIZE = 4;
+
+/** The exact integer grid sizes offered by Tutor's Puzzle editor. */
+export const PUZZLE_GRID_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7] as const;
+export type PuzzleGridSize = (typeof PUZZLE_GRID_SIZE_OPTIONS)[number];
+
+export type PuzzleGridState =
+  | { status: "editable"; value: PuzzleGridSize }
+  | { status: "invalid" }
+  | { status: "preserved" };
 
 /**
  * Decide whether TutorPress can safely expose a Draw Image answer for editing.
@@ -127,6 +140,85 @@ export const getPinImageAnswerState = (question: QuizQuestion): PinImageAnswerSt
   }
 
   return "editable";
+};
+
+/**
+ * Decide whether TutorPress can safely expose a Puzzle answer for editing.
+ *
+ * Puzzle always has exactly one factory-created answer. `belongs_question_type` is the
+ * semantic discriminator because Tutor's frontend builder rewrites image-bearing rows to
+ * `text_image`. Linked Content Bank rows and every unfamiliar row/reference shape stay
+ * opaque so an unrelated quiz save cannot rewrite Pro-owned values.
+ */
+export const getPuzzleAnswerState = (question: QuizQuestion): PuzzleAnswerState => {
+  if (question.content_id !== undefined && question.content_id !== null && question.content_id !== "") {
+    return "preserved";
+  }
+
+  const answers = question.question_answers || [];
+  if (answers.length !== 1) {
+    return "preserved";
+  }
+
+  const answer = answers[0];
+  if (
+    answer.belongs_question_type !== "puzzle" ||
+    !["puzzle", "text_image"].includes(answer.answer_view_format)
+  ) {
+    return "preserved";
+  }
+
+  const rawImageId: unknown = answer.image_id;
+  const hasStoredImageId = rawImageId !== undefined && rawImageId !== null && rawImageId !== "";
+  if (hasStoredImageId) {
+    const imageId = Number(rawImageId);
+    if (
+      (typeof rawImageId !== "number" && typeof rawImageId !== "string") ||
+      !Number.isInteger(imageId) ||
+      imageId <= 0
+    ) {
+      return "preserved";
+    }
+  }
+
+  const imageUrl = typeof answer.image_url === "string" ? answer.image_url.trim() : "";
+  const puzzleReference =
+    typeof answer.answer_two_gap_match === "string" ? answer.answer_two_gap_match.trim() : "";
+  if (
+    (imageUrl && !isSafeImageSource(imageUrl)) ||
+    (puzzleReference && !isSafeImageSource(puzzleReference))
+  ) {
+    return "preserved";
+  }
+
+  return "editable";
+};
+
+/**
+ * Resolve the Puzzle grid without normalizing the stored setting.
+ *
+ * Missing/null values display Tutor's fallback `4`. Valid numbers and numeric strings
+ * become a selector value only; the stored value remains untouched until the author uses
+ * the selector. A malformed persisted value is opaque, while an invalid unsaved draft is
+ * exposed to validation.
+ */
+export const getPuzzleGridState = (question: QuizQuestion): PuzzleGridState => {
+  const rawGridSize: unknown = question.question_settings?.puzzle_grid_size;
+  if (rawGridSize === undefined || rawGridSize === null) {
+    return { status: "editable", value: NATIVE_PUZZLE_GRID_SIZE };
+  }
+
+  const isNumericInput =
+    typeof rawGridSize === "number" || (typeof rawGridSize === "string" && rawGridSize.trim().length > 0);
+  const gridSize = isNumericInput ? Number(rawGridSize) : Number.NaN;
+  if (
+    Number.isInteger(gridSize) &&
+    (PUZZLE_GRID_SIZE_OPTIONS as readonly number[]).includes(gridSize)
+  ) {
+    return { status: "editable", value: gridSize as PuzzleGridSize };
+  }
+
+  return question.question_id > 0 ? { status: "preserved" } : { status: "invalid" };
 };
 
 /**
@@ -626,6 +718,46 @@ export const useQuestionValidation = () => {
                 ),
               ]
             : [];
+        },
+      ],
+
+      // Puzzle validation rules
+      //
+      // Linked, malformed, and otherwise opaque rows produce no errors so unrelated quiz
+      // edits remain possible. Editable rows require one safe source and an exact native
+      // integer grid; attachment identity is deliberately optional.
+      puzzle: [
+        // At least one safe image/reference source
+        (question: QuizQuestion) => {
+          if (
+            getPuzzleAnswerState(question) === "preserved" ||
+            getPuzzleGridState(question).status === "preserved"
+          ) {
+            return [];
+          }
+
+          const answer = question.question_answers?.[0];
+          const hasSafeSource = [answer?.image_url, answer?.answer_two_gap_match].some(
+            (value) => typeof value === "string" && value.trim().length > 0 && isSafeImageSource(value.trim())
+          );
+
+          return hasSafeSource ? [] : [__("Please upload a valid puzzle image.", "tutorpress")];
+        },
+
+        // Grid size must be one of Tutor's exact integer choices
+        (question: QuizQuestion) => {
+          if (getPuzzleAnswerState(question) === "preserved") {
+            return [];
+          }
+
+          const gridState = getPuzzleGridState(question);
+          if (gridState.status === "preserved") {
+            return [];
+          }
+
+          return gridState.status === "editable"
+            ? []
+            : [__("Puzzle grid size must be an integer from 2 through 7.", "tutorpress")];
         },
       ],
 

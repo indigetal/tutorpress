@@ -596,6 +596,126 @@
   color: var(--gray-500);
 }
 
+/* Puzzle question editor */
+.quiz-modal-puzzle-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.quiz-modal-puzzle-section,
+.quiz-modal-puzzle-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-puzzle-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.quiz-modal-puzzle-section-title,
+.quiz-modal-puzzle-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+.quiz-modal-puzzle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.quiz-modal-puzzle-button {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: var(--text-xs);
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+.quiz-modal-puzzle-button:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+
+.quiz-modal-puzzle-button--remove {
+  color: var(--color-error);
+}
+
+.quiz-modal-puzzle-button:disabled,
+.quiz-modal-puzzle-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quiz-modal-puzzle-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 360px;
+  align-self: flex-start;
+  border-radius: var(--radius-sm);
+}
+
+.quiz-modal-puzzle-placeholder {
+  margin: 0;
+  padding: var(--space-lg);
+  border: 1px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+}
+
+.quiz-modal-puzzle-select {
+  width: min(100%, 320px);
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--gray-700);
+}
+
+.quiz-modal-puzzle-help-text {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.quiz-modal-puzzle-preserved-notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-puzzle-preserved-title {
+  color: var(--gray-700);
+}
+
+.quiz-modal-puzzle-preserved-description {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
 /* Shared image/canvas mask authoring (Draw Image, Pin Image) */
 .quiz-modal-image-canvas {
   display: flex;

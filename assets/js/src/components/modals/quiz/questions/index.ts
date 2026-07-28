@@ -31,6 +31,7 @@ export { ScaleQuestion } from "./ScaleQuestion";
 export { CoordinatesQuestion } from "./CoordinatesQuestion";
 export { DrawImageQuestion } from "./DrawImageQuestion";
 export { PinImageQuestion } from "./PinImageQuestion";
+export { PuzzleQuestion } from "./PuzzleQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -51,6 +52,7 @@ import { ScaleQuestion } from "./ScaleQuestion";
 import { CoordinatesQuestion } from "./CoordinatesQuestion";
 import { DrawImageQuestion } from "./DrawImageQuestion";
 import { PinImageQuestion } from "./PinImageQuestion";
+import { PuzzleQuestion } from "./PuzzleQuestion";
 
 /**
  * Common props interface for all question components
@@ -97,6 +99,7 @@ export const QuestionComponentMap = {
   coordinates: CoordinatesQuestion, // Graph (Tutor 4.0 native)
   draw_image: DrawImageQuestion, // Draw Image (Tutor 4.0 native)
   pin_image: PinImageQuestion, // Pin Image (Tutor 4.0 native)
+  puzzle: PuzzleQuestion, // Puzzle (Tutor 4.0 native)
   // Additional question types will be added here as they are implemented
   // h5p: H5PQuestion,
 } as const;

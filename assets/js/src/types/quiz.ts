@@ -526,4 +526,5 @@ export const getDefaultQuestionSettings = (questionType: QuizQuestionType): Quiz
   // literals avoid importing editor modules into this shared type/factory module.
   ...(questionType === "draw_image" && { draw_image_threshold_percent: 70 }),
   ...(questionType === "coordinates" && { coordinates_axis_range: 10 }),
+  ...(questionType === "puzzle" && { puzzle_grid_size: 4 }),
 });

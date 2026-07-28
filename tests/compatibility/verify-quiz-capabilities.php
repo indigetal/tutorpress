@@ -485,18 +485,6 @@ try {
             'Could not delimit QuestionComponentMap.'
         );
 
-        // Native types whose TutorPress editor does not exist yet must stay unregistered.
-        // Range, Graph, Draw Image, and Pin Image are implemented and asserted below.
-        // Both directions matter, which is why each native slug is checked either way.
-        $unimplemented_natives = ['puzzle'];
-
-        foreach ($unimplemented_natives as $slug) {
-            $assert(
-                !preg_match('/^\s*' . preg_quote($slug, '/') . ':/m', $map_block[1]),
-                "{$slug} is registered as a local editor before its component exists."
-            );
-        }
-
         $assert(
             1 === preg_match('/^\s*scale:\s*ScaleQuestion\s*,/m', $map_block[1]),
             'scale is not registered to ScaleQuestion, so Range is not locally authorable.'
@@ -512,6 +500,10 @@ try {
         $assert(
             1 === preg_match('/^\s*pin_image:\s*PinImageQuestion\s*,/m', $map_block[1]),
             'pin_image is not registered to PinImageQuestion, so Pin Image is not locally authorable.'
+        );
+        $assert(
+            1 === preg_match('/^\s*puzzle:\s*PuzzleQuestion\s*,/m', $map_block[1]),
+            'puzzle is not registered to PuzzleQuestion, so Puzzle is not locally authorable.'
         );
 
         $assert(
@@ -1534,6 +1526,182 @@ try {
         $assert(
             1 === preg_match('/answer_two_gap_match[\s\S]+?mask\.trim\(\)\.length > 0/', $pin_rules[1]),
             'Pin Image validation does not require a non-empty instructor mask.'
+        );
+
+        // ------------------------------------------------------------------
+        // Step 11: Puzzle authoring.
+        // ------------------------------------------------------------------
+        $puzzle_editor = $read_source('components/modals/quiz/questions/PuzzleQuestion.tsx');
+        $puzzle_code   = preg_replace('#/\*.*?\*/#s', '', $puzzle_editor);
+
+        // The shared factory is the sole creator: numeric grid 4 and exactly one native
+        // order-0 answer, with no initial attachment fields for the Media Library to fake.
+        $assert(
+            1 === preg_match(
+                '/questionType\s*===\s*"puzzle"\s*&&\s*\{\s*puzzle_grid_size:\s*4\s*\}/',
+                $quiz_types
+            ),
+            'The shared question settings factory does not seed Puzzle grid size 4.'
+        );
+        $assert(
+            1 === preg_match(
+                '/export const createDefaultQuestion = \(questionType: QuizQuestionType, questionOrder: number\): QuizQuestion => \{(.+?)\n\};/s',
+                $type_metadata,
+                $question_factory
+            ),
+            'Could not delimit the shared question factory.'
+        );
+        $assert(
+            1 === preg_match('/questionType === "puzzle"\s*\?\s*\[(.+?)\]\s*:\s*\[\]/s', $question_factory[1], $puzzle_row),
+            'The shared factory does not create exactly one Puzzle answer.'
+        );
+        foreach ([
+            'belongs_question_type: "puzzle"' => 'semantic type',
+            'answer_title: ""'                => 'empty title',
+            'is_correct: "1"'                 => 'correctness',
+            'answer_two_gap_match: ""'        => 'empty source reference',
+            'answer_view_format: "puzzle"'    => 'native format',
+            'answer_order: 0'                 => 'zero-based order',
+            '_data_status: "new"'             => 'new status',
+        ] as $needle => $label) {
+            $assert(false !== strpos($puzzle_row[1], $needle), "Puzzle factory row is missing {$label}.");
+        }
+        $assert(
+            false === strpos($puzzle_row[1], 'image_id') && false === strpos($puzzle_row[1], 'image_url'),
+            'Puzzle factory row invents attachment fields before image selection.'
+        );
+        $assert(
+            false === strpos($puzzle_code, 'useEffect')
+                && false === strpos($puzzle_code, 'createDefaultAnswerRow'),
+            'PuzzleQuestion seeds or repairs an answer from the component.'
+        );
+
+        // Loaded rows are editable only for the exact native formats and independent
+        // semantic type, attachment-ID, source-safety, and Content Bank guards.
+        $assert(
+            1 === preg_match(
+                '/export const getPuzzleAnswerState = \(question: QuizQuestion\): PuzzleAnswerState => \{(.+?)\n\};/s',
+                $validation,
+                $puzzle_state
+            ),
+            'Could not delimit Puzzle stored-answer classification.'
+        );
+        $assert(
+            1 === preg_match(
+                '/answer\.belongs_question_type !== "puzzle"\s*\|\|\s*!\["puzzle", "text_image"\]\.includes\(answer\.answer_view_format\)/',
+                $puzzle_state[1]
+            ),
+            'Puzzle does not accept exactly puzzle and text_image with its semantic type.'
+        );
+        $assert(
+            1 === preg_match('/answers\.length !== 1/', $puzzle_state[1])
+                && 1 === preg_match('/question\.content_id !== undefined.+question\.content_id !== null.+question\.content_id !== ""/s', $puzzle_state[1])
+                && 1 === preg_match('/typeof rawImageId !== "number".+typeof rawImageId !== "string"/s', $puzzle_state[1])
+                && 1 === preg_match('/!Number\.isInteger\(imageId\)\s*\|\|\s*imageId <= 0/', $puzzle_state[1])
+                && 2 === substr_count($puzzle_state[1], '!isSafeImageSource('),
+            'Puzzle does not preserve unsupported rows, links, image IDs, or unsafe sources.'
+        );
+        $assert(
+            !preg_match('/puzzleReference\.(?:includes|startsWith)|puzzle-|uploads-relative|wp_upload_dir/i', $puzzle_state[1]),
+            'Puzzle infers Content Bank linkage from a source-reference shape.'
+        );
+
+        // Missing/null grid displays 4 without a write; exact integer 2-7 numbers and
+        // numeric strings remain editable, while malformed persisted values are opaque.
+        $assert(
+            1 === preg_match(
+                '/export const getPuzzleGridState = \(question: QuizQuestion\): PuzzleGridState => \{(.+?)\n\};/s',
+                $validation,
+                $puzzle_grid
+            ),
+            'Could not delimit Puzzle grid classification.'
+        );
+        $assert(
+            false !== strpos($validation, 'NATIVE_PUZZLE_GRID_SIZE = 4')
+                && 1 === preg_match('/PUZZLE_GRID_SIZE_OPTIONS = \[2, 3, 4, 5, 6, 7\] as const/', $validation)
+                && false !== strpos($puzzle_grid[1], 'rawGridSize === undefined || rawGridSize === null')
+                && false !== strpos($puzzle_grid[1], 'value: NATIVE_PUZZLE_GRID_SIZE')
+                && 1 === preg_match('/typeof rawGridSize === "string" && rawGridSize\.trim\(\)\.length > 0/', $puzzle_grid[1])
+                && 1 === preg_match('/Number\.isInteger\(gridSize\).+PUZZLE_GRID_SIZE_OPTIONS/s', $puzzle_grid[1])
+                && false !== strpos($puzzle_grid[1], 'question.question_id > 0 ? { status: "preserved" }'),
+            'Puzzle grid handling does not preserve the exact fallback, options, coercion, and opaque boundary.'
+        );
+
+        // The editor consumes the existing media hook directly. Explicit image actions
+        // write all three source fields; grid-only edits never touch the answer.
+        $assert(
+            1 === preg_match_all('/useImageManagement\(\)/', $puzzle_code),
+            'Puzzle does not consume exactly one shared Media Library hook.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleSelectedImage = \(imageData: ImageData\) => \{(.+?)\n  \};/s',
+                $puzzle_editor,
+                $puzzle_select
+            )
+                && false !== strpos($puzzle_select[1], 'image_id: imageData.id')
+                && false !== strpos($puzzle_select[1], 'image_url: imageData.url')
+                && false !== strpos($puzzle_select[1], 'answer_two_gap_match: imageData.url'),
+            'Puzzle image selection does not write the exact native source fields.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleClearImage = \(\) => \{(.+?)\n  \};/s',
+                $puzzle_editor,
+                $puzzle_clear
+            )
+                && 1 === preg_match('/image_id:\s*undefined,\s*image_url:\s*"",\s*answer_two_gap_match:\s*""/s', $puzzle_clear[1]),
+            'Puzzle image clearing does not empty the exact native source fields.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleGridChange = \(rawValue: string\) => \{(.+?)\n  \};/s',
+                $puzzle_editor,
+                $puzzle_grid_handler
+            )
+                && false !== strpos($puzzle_grid_handler[1], 'puzzle_grid_size: gridSize')
+                && false === strpos($puzzle_grid_handler[1], 'writeImageAnswer'),
+            'Puzzle grid changes rewrite the answer or fail to update only question settings.'
+        );
+        $assert(
+            false !== strpos($puzzle_editor, 'answerRow.image_url.trim()')
+                && false !== strpos($puzzle_editor, 'answerRow.answer_two_gap_match.trim()')
+                && false !== strpos($puzzle_editor, 'quiz-modal-puzzle-preserved-notice')
+                && false !== strpos($puzzle_editor, 'every value has been left exactly as saved'),
+            'Puzzle does not support reference-only display and opaque-value presentation.'
+        );
+
+        // Exactly two rules: safe source and integer grid. Every opaque state no-ops and
+        // source completion never requires an attachment ID.
+        $assert(
+            1 === preg_match('/\n      puzzle:\s*\[(.+?)\n      \],/s', $validation, $puzzle_rules),
+            'Could not delimit Puzzle validation rules.'
+        );
+        $puzzle_rule_count = preg_match_all('/\(question: QuizQuestion\) => \{/', $puzzle_rules[1]);
+        $assert(
+            2 === $puzzle_rule_count,
+            "Puzzle has {$puzzle_rule_count} validation rules instead of source and grid."
+        );
+        $assert(
+            2 === preg_match_all('/getPuzzleAnswerState\(question\) === "preserved"/', $puzzle_rules[1])
+                && 2 === preg_match_all('/getPuzzleGridState\(question\)/', $puzzle_rules[1])
+                && 2 === preg_match_all('/status === "preserved"/', $puzzle_rules[1])
+                && false === strpos($puzzle_rules[1], 'image_id')
+                && 1 === preg_match('/\[answer\?\.image_url, answer\?\.answer_two_gap_match\]/', $puzzle_rules[1]),
+            'Puzzle validation can block opaque rows or requires attachment identity.'
+        );
+
+        // Puzzle is media-only and adds no second cleanup producer or Pro-owned protocol.
+        $assert(
+            !preg_match(
+                '#QuizImageCanvas|useQuizImageCanvas|\bcanvas\b|toDataURL|useEffect'
+                    . '|collectAbandonedTempMaskValues|deleted_temp_mask_values'
+                    . '|\bfetch\(|apiFetch|XMLHttpRequest|FormData|admin-ajax|wp-json'
+                    . '|QuizImageStorage|TUTOR_PRO|tutor/quiz-images|\btoken\b|\blocks\b'
+                    . '|\bsnapshot\b|\bgrading\b|\battempt\b|wp_delete_file#i',
+                $puzzle_code
+            ),
+            'Puzzle duplicates canvas, cleanup, request, storage, attempt, or grading ownership.'
         );
     }
 } catch (Throwable $exception) {

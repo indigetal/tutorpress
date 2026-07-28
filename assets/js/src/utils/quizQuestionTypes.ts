@@ -552,20 +552,42 @@ const createTemporaryId = (): number => -(Date.now() + Math.floor(Math.random() 
  * Create a new, unsaved question of the given type.
  *
  * Settings come from `getDefaultQuestionSettings()`, the single definition of question
- * defaults, so no caller can drift from it.
+ * defaults, so no caller can drift from it. Puzzle is the one native type whose factory
+ * creates its required answer immediately; the editor must never repair or seed that row
+ * on mount.
  */
-export const createDefaultQuestion = (questionType: QuizQuestionType, questionOrder: number): QuizQuestion => ({
-  question_id: createTemporaryId(),
-  question_title: "",
-  question_description: "",
-  question_mark: 1,
-  answer_explanation: "",
-  question_order: questionOrder,
-  question_type: questionType,
-  question_settings: getDefaultQuestionSettings(questionType),
-  question_answers: [],
-  _data_status: "new",
-});
+export const createDefaultQuestion = (questionType: QuizQuestionType, questionOrder: number): QuizQuestion => {
+  const questionId = createTemporaryId();
+  const questionAnswers: QuizQuestionOption[] =
+    questionType === "puzzle"
+      ? [
+          {
+            answer_id: createTemporaryId(),
+            belongs_question_id: questionId,
+            belongs_question_type: "puzzle",
+            answer_title: "",
+            is_correct: "1",
+            answer_two_gap_match: "",
+            answer_view_format: "puzzle",
+            answer_order: 0,
+            _data_status: "new",
+          },
+        ]
+      : [];
+
+  return {
+    question_id: questionId,
+    question_title: "",
+    question_description: "",
+    question_mark: 1,
+    answer_explanation: "",
+    question_order: questionOrder,
+    question_type: questionType,
+    question_settings: getDefaultQuestionSettings(questionType),
+    question_answers: questionAnswers,
+    _data_status: "new",
+  };
+};
 
 /**
  * Create a new, unsaved answer row for a question.
