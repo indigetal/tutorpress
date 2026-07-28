@@ -9,8 +9,8 @@
  *
  * Coverage: a pre-4.0 question, every known Tutor 4.0 native settings key, an unknown
  * future settings key, an unknown question slug, a content_id-linked row, H5P
- * description/content-ID preservation, untrusted settings payloads, and both the
- * no_change and genuinely edited save paths.
+ * description/content-ID preservation, filtered mask responses, untrusted settings
+ * payloads, and both the no_change and genuinely edited save paths.
  *
  * All fixtures are created and removed by this script. Real course and quiz data is
  * never touched.
@@ -372,24 +372,59 @@ try {
         $question_ids[$key] = (int) $wpdb->insert_id;
     }
 
-    // A native answer row carrying the contract Range/Graph depend on.
-    $answer_json = wp_json_encode(['value' => 7, 'min' => 0, 'max' => 10]);
-    $answer_inserted = $wpdb->insert(
-        $wpdb->prefix . 'tutor_quiz_question_answers',
-        [
-            'belongs_question_id' => $question_ids['coordinates'],
-            'belongs_question_type' => 'coordinates',
-            'answer_title' => $prefix . '_answer',
-            'is_correct' => 1,
-            'image_id' => 0,
-            'answer_two_gap_match' => $answer_json,
-            'answer_view_format' => 'scale',
-            'answer_settings' => null,
-            'answer_order' => 1,
-        ],
-        ['%d', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d']
-    );
-    $assert(false !== $answer_inserted && $wpdb->insert_id > 0, 'Failed to insert answer fixture.');
+    // Native answer rows carrying the contracts used by Graph and the file-backed
+    // types. The Draw basename is intentionally not backed by a file: Pro resolves a
+    // syntactically valid stored basename for display without requiring one. The
+    // Puzzle value is deliberately not any supported filename, URL, or relative path.
+    $answer_json          = wp_json_encode(['value' => 7, 'min' => 0, 'max' => 10]);
+    $draw_mask_basename   = 'draw-mask-' . str_replace('_', '-', sanitize_key($prefix)) . '.png';
+    $unknown_mask_value   = 'tp-invalid-mask::' . $prefix;
+    $answer_fixture_specs = [
+        'coordinates' => [$answer_json, 'scale'],
+        'draw_image' => [$draw_mask_basename, 'draw_image'],
+        'puzzle' => [$unknown_mask_value, 'puzzle'],
+    ];
+
+    foreach ($answer_fixture_specs as $key => [$stored_value, $view_format]) {
+        $answer_inserted = $wpdb->insert(
+            $wpdb->prefix . 'tutor_quiz_question_answers',
+            [
+                'belongs_question_id' => $question_ids[$key],
+                'belongs_question_type' => $fixtures[$key]['type'],
+                'answer_title' => $prefix . '_' . $key . '_answer',
+                'is_correct' => 1,
+                'image_id' => 0,
+                'answer_two_gap_match' => $stored_value,
+                'answer_view_format' => $view_format,
+                'answer_settings' => null,
+                'answer_order' => 1,
+            ],
+            ['%d', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d']
+        );
+        $assert(false !== $answer_inserted && $wpdb->insert_id > 0, "Failed to insert {$key} answer fixture.");
+    }
+
+    $assert_raw_mask_storage = static function ($context) use (
+        $read_answers,
+        $assert,
+        $question_ids,
+        $draw_mask_basename,
+        $unknown_mask_value
+    ) {
+        $draw_answers   = $read_answers($question_ids['draw_image']);
+        $puzzle_answers = $read_answers($question_ids['puzzle']);
+        $assert(1 === count($draw_answers), "Expected one raw Draw answer {$context}.");
+        $assert(1 === count($puzzle_answers), "Expected one raw Puzzle answer {$context}.");
+        $assert(
+            $draw_mask_basename === (string) $draw_answers[0]->answer_two_gap_match,
+            "REST/save processing mutated the stored Draw basename {$context}."
+        );
+        $assert(
+            $unknown_mask_value === (string) $puzzle_answers[0]->answer_two_gap_match,
+            "REST/save processing mutated the unknown mask value {$context}."
+        );
+    };
+    $assert_raw_mask_storage('after fixture insertion');
 
     // ------------------------------------------------------------------
     // Hop 1: the REST loader must hand every stored key to the client.
@@ -467,6 +502,34 @@ try {
         array_key_exists('answer_settings', $loaded_answer),
         'answer_settings is missing from the loaded answer.'
     );
+
+    // TutorPress must expose the same response mapping as Tutor's native answer loader.
+    // Active 4.0 Pro expands valid stored basenames; pre-4.0 and Pro-inactive runs retain
+    // the raw value. Unknown values remain opaque in every state.
+    $upload_dir = wp_upload_dir();
+    $assert(empty($upload_dir['error']), 'Could not resolve the WordPress uploads URL.');
+    $has_mask_response_filter = defined('TUTOR_PRO_VERSION')
+        && defined('TUTOR_VERSION')
+        && version_compare(TUTOR_VERSION, '4.0.0', '>=')
+        && false !== has_filter('tutor_quiz_question_answers');
+    $expected_draw_response = $has_mask_response_filter
+        ? trailingslashit($upload_dir['baseurl']) . 'tutor/quiz-images/' . $draw_mask_basename
+        : $draw_mask_basename;
+
+    $loaded_draw_answers = (array) $loaded[$question_ids['draw_image']]['question_answers'];
+    $assert(1 === count($loaded_draw_answers), 'Expected one loaded Draw answer.');
+    $assert(
+        $expected_draw_response === (string) ((array) $loaded_draw_answers[0])['answer_two_gap_match'],
+        'REST loader did not reproduce Tutor\'s filtered Draw mask response.'
+    );
+
+    $loaded_puzzle_answers = (array) $loaded[$question_ids['puzzle']]['question_answers'];
+    $assert(1 === count($loaded_puzzle_answers), 'Expected one loaded Puzzle answer.');
+    $assert(
+        $unknown_mask_value === (string) ((array) $loaded_puzzle_answers[0])['answer_two_gap_match'],
+        'REST loader changed an unknown/unresolvable mask value.'
+    );
+    $assert_raw_mask_storage('after REST load');
 
     // ------------------------------------------------------------------
     // Untrusted stored settings must not fatal, leak objects, or persist.
@@ -558,6 +621,7 @@ try {
             "no_change save altered content_id for {$key}."
         );
     }
+    $assert_raw_mask_storage('after no_change save');
 
     // ------------------------------------------------------------------
     // Hop 2b: edited save. This is the destructive path before Step 3.
@@ -667,6 +731,7 @@ try {
         'scale' === (string) $persisted_answers[0]->answer_view_format,
         'answer_view_format did not survive the save.'
     );
+    $assert_raw_mask_storage('after edited save');
 
     // ------------------------------------------------------------------
     // Hop 3: reload and confirm the client sees everything it started with.
@@ -682,6 +747,19 @@ try {
         987654 === (int) $reloaded[$question_ids['linked']]['content_id'],
         'content_id did not survive the full round trip.'
     );
+    $reloaded_draw_answers = (array) $reloaded[$question_ids['draw_image']]['question_answers'];
+    $reloaded_puzzle_answers = (array) $reloaded[$question_ids['puzzle']]['question_answers'];
+    $assert(
+        1 === count($reloaded_draw_answers)
+        && $expected_draw_response === (string) ((array) $reloaded_draw_answers[0])['answer_two_gap_match'],
+        'Filtered Draw mask response did not survive the full round trip.'
+    );
+    $assert(
+        1 === count($reloaded_puzzle_answers)
+        && $unknown_mask_value === (string) ((array) $reloaded_puzzle_answers[0])['answer_two_gap_match'],
+        'Unknown mask response did not survive the full round trip.'
+    );
+    $assert_raw_mask_storage('after REST reload');
 
     // ------------------------------------------------------------------
     // Empty deletion state must add no request fields.
@@ -806,6 +884,31 @@ try {
         $assert(
             false === strpos($controller, 'unserialize($question->question_settings)'),
             'REST loader still calls unserialize() without the allowed_classes guard.'
+        );
+        $filter_call = <<<'PHP'
+$answers = apply_filters(
+                'tutor_quiz_question_answers',
+                $answers,
+                $question->question_id,
+                $question->question_type
+            );
+PHP;
+        $image_mapping_position = strpos($controller, 'wp_get_attachment_image_url');
+        $filter_position        = strpos($controller, $filter_call);
+        $response_position      = strpos($controller, '$question->question_answers = $answers ?: [];');
+        $assert(
+            false !== $image_mapping_position
+            && false !== $filter_position
+            && false !== $response_position
+            && $image_mapping_position < $filter_position
+            && $filter_position < $response_position,
+            'REST loader does not apply Tutor\'s exact answer-response filter after image mapping.'
+        );
+        $assert(
+            false === strpos($controller, 'QuizImageStorage')
+            && false === strpos($controller, 'TUTOR_PRO')
+            && false === strpos($controller, 'tutor/quiz-images'),
+            'REST loader directly depends on Tutor Pro or constructs a quiz-image URL.'
         );
         $notes[] = 'client wiring asserted';
     } else {

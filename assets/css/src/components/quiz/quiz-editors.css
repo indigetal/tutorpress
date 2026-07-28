@@ -493,6 +493,76 @@
   color: var(--gray-500);
 }
 
+/* Draw Image question editor */
+.quiz-modal-draw-image-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.quiz-modal-draw-image-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-modal-draw-image-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-draw-image-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+.quiz-modal-draw-image-select {
+  width: min(100%, 180px);
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--gray-700);
+}
+
+.quiz-modal-draw-image-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.quiz-modal-draw-image-help-text {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.quiz-modal-draw-image-preserved-notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--gray-300);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+
+.quiz-modal-draw-image-preserved-title {
+  color: var(--gray-700);
+}
+
+.quiz-modal-draw-image-preserved-description {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
 /* Shared image/canvas mask authoring (Draw Image, Pin Image) */
 .quiz-modal-image-canvas {
   display: flex;

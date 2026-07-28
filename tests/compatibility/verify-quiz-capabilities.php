@@ -486,10 +486,9 @@ try {
         );
 
         // Native types whose TutorPress editor does not exist yet must stay unregistered.
-        // `scale` and `coordinates` are deliberately excluded: Steps 5 and 6 implemented
-        // their editors, so they must be registered, and the assertions below prove that
-        // positively. Both directions matter, which is why each is checked either way.
-        $unimplemented_natives = ['draw_image', 'pin_image', 'puzzle'];
+        // Range, Graph, and Draw Image are now implemented and asserted positively below.
+        // Both directions matter, which is why each native slug is checked either way.
+        $unimplemented_natives = ['pin_image', 'puzzle'];
 
         foreach ($unimplemented_natives as $slug) {
             $assert(
@@ -505,6 +504,10 @@ try {
         $assert(
             1 === preg_match('/^\s*coordinates:\s*CoordinatesQuestion\s*,/m', $map_block[1]),
             'coordinates is not registered to CoordinatesQuestion, so Graph is not locally authorable.'
+        );
+        $assert(
+            1 === preg_match('/^\s*draw_image:\s*DrawImageQuestion\s*,/m', $map_block[1]),
+            'draw_image is not registered to DrawImageQuestion, so Draw Image is not locally authorable.'
         );
 
         $assert(
@@ -963,10 +966,11 @@ try {
             'An unreadable canvas is committed as though the mask had been cleared.'
         );
 
-        // The canvas layer registers no question type; Draw, Pin, and Puzzle stay unregistered.
+        // The shared canvas itself is never registered as a question editor. Draw Image
+        // registers its complete wrapper component; Pin and Puzzle remain unimplemented.
         $assert(
             !preg_match('/QuizImageCanvas/', $question_registry),
-            'The shared canvas component was added to the question component registry.'
+            'The shared canvas component was registered directly instead of through a complete question editor.'
         );
 
         // The canvas reuses the existing Media Library hook, whose surface four existing
@@ -1194,6 +1198,168 @@ try {
                 && false === strpos($title_rule[1], 'isImageMatching')
                 && 1 === preg_match('/!option\.answer_title\?\.trim\(\)/', $title_rule[1]),
             'The native matching answer_title rule is missing or gated by image mode.'
+        );
+
+        // ------------------------------------------------------------------
+        // Step 9: Draw Image authoring.
+        // ------------------------------------------------------------------
+        $draw_editor = $read_source('components/modals/quiz/questions/DrawImageQuestion.tsx');
+        $quiz_types  = $read_source('types/quiz.ts');
+
+        // Draw consumes the completed shared canvas. It must not duplicate its media,
+        // raster, coordinate, request, storage, or grading responsibilities.
+        $assert(
+            1 === preg_match('/import \{ QuizImageCanvas \} from "\.\/QuizImageCanvas";/', $draw_editor)
+                && 1 === preg_match_all('/<QuizImageCanvas\b/', $draw_editor),
+            'Draw Image does not consume exactly one shared QuizImageCanvas.'
+        );
+        $assert(
+            !preg_match(
+                '#\bfetch\(|apiFetch|XMLHttpRequest|FormData|admin-ajax|wp-json|upload_dir'
+                    . '|QuizImageStorage|TUTOR_PRO|tutor/quiz-images|draw-mask-'
+                    . '|compare_draw_image_masks|grade_draw_image_question|score_ratio|achieved_mark#i',
+                $draw_editor
+            ),
+            'Draw Image performs a request, file-storage, or grading operation Tutor/Tutor Pro must own.'
+        );
+        $assert(
+            !preg_match('/\buseQuizImageCanvas\s*\(/', $draw_editor)
+                && !preg_match('/\buseImageManagement\s*\(/', $draw_editor),
+            'Draw Image duplicates the shared canvas or Media Library integration.'
+        );
+
+        // Tutor's answer row stores the background and instructor mask separately.
+        $assert(
+            1 === preg_match('/DRAW_IMAGE_ANSWER_VIEW_FORMAT\s*=\s*"draw_image"/', $draw_editor),
+            'Draw Image does not declare Tutor\'s draw_image answer view format.'
+        );
+        foreach ([
+            'belongs_question_type: "draw_image"'                  => 'belongs_question_type',
+            'is_correct: "1"'                                     => 'is_correct',
+            'answer_view_format: DRAW_IMAGE_ANSWER_VIEW_FORMAT'    => 'answer_view_format',
+            'image_id: imageData.id'                               => 'background image ID',
+            'image_url: imageData.url'                             => 'background image URL',
+            'maskValue={answerRow?.answer_two_gap_match}'          => 'raw instructor mask',
+            'onQuestionUpdate(questionIndex, "question_answers", [updated])' => 'single answer row',
+        ] as $needle => $label) {
+            $assert(
+                false !== strpos($draw_editor, $needle),
+                "Draw Image does not write or display Tutor's {$label} contract."
+            );
+        }
+
+        // Opening, loading, or resizing cannot write an answer. The component has no
+        // mount effect; the already-asserted shared canvas commits only on a completed
+        // stroke or explicit clear.
+        $assert(
+            false === strpos($draw_editor, 'useEffect'),
+            'Draw Image writes or normalizes answer data from a component effect.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleMaskCommit = \(maskDataUrl: string\) => \{(.+?)\n  \};/s',
+                $draw_editor,
+                $draw_mask_handler
+            ) && 1 === preg_match('/writeAnswer\(\{ answer_two_gap_match: maskDataUrl \}\);/', $draw_mask_handler[1]),
+            'Draw Image does not write a mask only from the shared canvas commit callback.'
+        );
+
+        // Changing or clearing the background invalidates the mask locally. It must not
+        // invent Step 8 registration: unsaved masks are data URLs, while persisted-mask
+        // cleanup belongs to Tutor core during a later answer update.
+        $assert(
+            1 === preg_match(
+                '/const handleImageSelect = \(imageData: ImageData\) => \{(.+?)\n  \};/s',
+                $draw_editor,
+                $draw_select_handler
+            ) && 1 === preg_match('/answer_two_gap_match:\s*""/', $draw_select_handler[1]),
+            'Replacing a Draw background does not clear the instructor mask locally.'
+        );
+        $assert(
+            1 === preg_match(
+                '/const handleImageClear = \(\) => \{(.+?)\n  \};/s',
+                $draw_editor,
+                $draw_clear_handler
+            ) && 1 === preg_match('/image_id:\s*0,\s*image_url:\s*"",\s*answer_two_gap_match:\s*""/s', $draw_clear_handler[1]),
+            'Clearing a Draw background does not clear both the background and mask locally.'
+        );
+        $assert(
+            false === strpos($draw_editor, 'collectAbandonedTempMaskValues')
+                && false === strpos($draw_editor, 'deleted_temp_mask_values'),
+            'Draw background replacement/clearing registers a temporary deletion value.'
+        );
+
+        // Opaque rows—including Pro-inactive stored filenames—must remain untouched.
+        $assert(
+            1 === preg_match(
+                '/export const getDrawImageAnswerState = \(question: QuizQuestion\): DrawImageAnswerState => \{(.+?)\n\};/s',
+                $validation,
+                $draw_state
+            ),
+            'Could not delimit Draw Image stored-answer classification.'
+        );
+        $assert(
+            1 === preg_match('/answers\.length !== 1/', $draw_state[1])
+                && 2 === preg_match_all('/!isSafeImageSource\(/', $draw_state[1]),
+            'Draw Image does not preserve unsupported row counts or unavailable stored sources.'
+        );
+        $assert(
+            1 === preg_match('/if \(answerState === "preserved"\) \{/', $draw_editor)
+                && false !== strpos($draw_editor, 'every value has been left exactly as saved'),
+            'Draw Image does not route an unavailable stored row to a preservation notice.'
+        );
+
+        // Native threshold provenance: Tutor creates at 70, offers these seven values,
+        // and Pro clamps grading to inclusive 40-100.
+        $assert(
+            1 === preg_match(
+                '/DRAW_IMAGE_THRESHOLD_OPTIONS\s*=\s*\[\s*40,\s*50,\s*60,\s*70,\s*80,\s*90,\s*100\s*\]\s*as const/',
+                $validation
+            ),
+            'Draw Image precision choices do not match Tutor\'s native field.'
+        );
+        $assert(
+            1 === preg_match(
+                '/questionType\s*===\s*"draw_image"\s*&&\s*\{\s*draw_image_threshold_percent:\s*70\s*\}/',
+                $quiz_types
+            ),
+            'The shared question factory does not seed Draw Image precision at 70.'
+        );
+        $assert(
+            false !== strpos($draw_editor, 'DRAW_IMAGE_THRESHOLD_OPTIONS.map((value)')
+                && false !== strpos($draw_editor, 'draw_image_threshold_percent: Number(rawValue)'),
+            'Draw Image does not render and store the native precision choices.'
+        );
+
+        // Exactly three rules: background, mask, and inclusive threshold. Preserved
+        // external rows skip the two answer-shape rules but never get repaired.
+        $assert(
+            1 === preg_match('/\n      draw_image:\s*\[(.+?)\n      \],/s', $validation, $draw_rules),
+            'Could not delimit Draw Image validation rules.'
+        );
+        $draw_rule_count = preg_match_all('/\(question: QuizQuestion\) => \{/', $draw_rules[1]);
+        $assert(
+            3 === $draw_rule_count,
+            "Draw Image has {$draw_rule_count} validation rules instead of image, mask, and threshold."
+        );
+        $assert(
+            2 === preg_match_all('/getDrawImageAnswerState\(question\) === "preserved"/', $draw_rules[1]),
+            'Draw Image answer validation can block an opaque persisted row.'
+        );
+        $assert(
+            1 === preg_match('/imageId > 0[\s\S]+?answer\.image_url\.trim\(\)\.length > 0/', $draw_rules[1]),
+            'Draw Image validation does not require both background image ID and URL.'
+        );
+        $assert(
+            1 === preg_match('/answer_two_gap_match[\s\S]+?mask\.trim\(\)\.length > 0/', $draw_rules[1]),
+            'Draw Image validation does not require a non-empty instructor mask.'
+        );
+        $assert(
+            1 === preg_match(
+                '/threshold >= DRAW_IMAGE_THRESHOLD_MIN\s*&&\s*threshold <= DRAW_IMAGE_THRESHOLD_MAX/',
+                $draw_rules[1]
+            ),
+            'Draw Image validation does not enforce Tutor Pro\'s inclusive threshold bounds.'
         );
     }
 } catch (Throwable $exception) {

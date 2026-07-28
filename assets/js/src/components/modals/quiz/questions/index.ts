@@ -29,6 +29,7 @@ export { MatchingQuestion } from "./MatchingQuestion";
 export { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
 export { ScaleQuestion } from "./ScaleQuestion";
 export { CoordinatesQuestion } from "./CoordinatesQuestion";
+export { DrawImageQuestion } from "./DrawImageQuestion";
 export { SortableOption } from "./SortableOption";
 export type { SortableOptionProps } from "./SortableOption";
 export { OptionEditor } from "./OptionEditor";
@@ -47,6 +48,7 @@ import { MatchingQuestion } from "./MatchingQuestion";
 import { FillInTheBlanksQuestion } from "./FillInTheBlanksQuestion";
 import { ScaleQuestion } from "./ScaleQuestion";
 import { CoordinatesQuestion } from "./CoordinatesQuestion";
+import { DrawImageQuestion } from "./DrawImageQuestion";
 
 /**
  * Common props interface for all question components
@@ -91,6 +93,7 @@ export const QuestionComponentMap = {
   fill_in_the_blank: FillInTheBlanksQuestion,
   scale: ScaleQuestion, // Range (Tutor 4.0 native)
   coordinates: CoordinatesQuestion, // Graph (Tutor 4.0 native)
+  draw_image: DrawImageQuestion, // Draw Image (Tutor 4.0 native)
   // Additional question types will be added here as they are implemented
   // h5p: H5PQuestion,
 } as const;

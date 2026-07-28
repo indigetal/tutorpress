@@ -581,6 +581,16 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
                     $answer->image_url = '';
                 }
             }
+
+            // Match Tutor's answer-response boundary. Optional integrations such as
+            // Tutor Pro may expand stored values for display; without a callback,
+            // WordPress returns the original answer array unchanged.
+            $answers = apply_filters(
+                'tutor_quiz_question_answers',
+                $answers,
+                $question->question_id,
+                $question->question_type
+            );
             
             $question->question_answers = $answers ?: [];
         }

@@ -522,9 +522,8 @@ export const getDefaultQuestionSettings = (questionType: QuizQuestionType): Quiz
   show_question_mark: true,
   has_multiple_correct_answer: questionType === "multiple_choice",
   is_image_matching: questionType === "image_matching",
-  // Graph is the only type that needs a type-specific setting at creation. Tutor seeds it
-  // the same way in its own new-question factory. The literal avoids importing
-  // `NATIVE_COORDINATES_AXIS_RANGE`, which would make this module and
-  // `utils/quizQuestionTypes` a cycle.
+  // Tutor seeds these type-specific settings in its own new-question factory. The
+  // literals avoid importing editor modules into this shared type/factory module.
+  ...(questionType === "draw_image" && { draw_image_threshold_percent: 70 }),
   ...(questionType === "coordinates" && { coordinates_axis_range: 10 }),
 });

@@ -37,6 +37,56 @@ import {
   parseScaleAnswer,
   resolveCoordinatesAxisRange,
 } from "../../utils/quizQuestionTypes";
+import { isSafeImageSource } from "./useQuizImageCanvas";
+
+/** Tutor's native Draw Image precision choices. */
+export const DRAW_IMAGE_THRESHOLD_OPTIONS = [40, 50, 60, 70, 80, 90, 100] as const;
+
+/** The inclusive bounds enforced by Tutor Pro's Draw Image grader. */
+export const DRAW_IMAGE_THRESHOLD_MIN = DRAW_IMAGE_THRESHOLD_OPTIONS[0];
+export const DRAW_IMAGE_THRESHOLD_MAX = DRAW_IMAGE_THRESHOLD_OPTIONS[DRAW_IMAGE_THRESHOLD_OPTIONS.length - 1];
+
+export type DrawImageAnswerState = "empty" | "editable" | "preserved";
+
+/**
+ * Decide whether TutorPress can safely expose a Draw Image answer for editing.
+ *
+ * Active Tutor Pro expands persisted mask filenames to an http(s) URL. Without that
+ * expansion—or when a future/third-party row has a shape this editor does not own—the
+ * raw answer must stay opaque. Empty image/mask fields remain editable so authors can
+ * complete a new or incomplete row through the normal validation path.
+ */
+export const getDrawImageAnswerState = (question: QuizQuestion): DrawImageAnswerState => {
+  const answers = question.question_answers || [];
+  if (answers.length === 0) {
+    return question.question_id > 0 ? "preserved" : "empty";
+  }
+  if (answers.length !== 1) {
+    return "preserved";
+  }
+
+  const answer = answers[0];
+  if (
+    answer.belongs_question_type !== "draw_image" ||
+    (answer.answer_view_format !== "" && answer.answer_view_format !== "draw_image")
+  ) {
+    return "preserved";
+  }
+
+  const imageId = Number(answer.image_id ?? 0);
+  const hasStoredImageId = answer.image_id !== undefined && Number(answer.image_id) !== 0;
+  if (hasStoredImageId && (!Number.isInteger(imageId) || imageId <= 0)) {
+    return "preserved";
+  }
+
+  const imageUrl = typeof answer.image_url === "string" ? answer.image_url.trim() : "";
+  const maskValue = typeof answer.answer_two_gap_match === "string" ? answer.answer_two_gap_match.trim() : "";
+  if ((imageUrl && !isSafeImageSource(imageUrl)) || (maskValue && !isSafeImageSource(maskValue))) {
+    return "preserved";
+  }
+
+  return "editable";
+};
 
 /**
  * Validation result for a single question
@@ -364,6 +414,61 @@ export const useQuestionValidation = () => {
             return [__("Ordering options must be unique.", "tutorpress")];
           }
           return [];
+        },
+      ],
+
+      // Draw Image validation rules
+      //
+      // Tutor's native editor cannot draw without a background and clears the mask when
+      // that background changes. Core separately requires a marked area, while Pro grades
+      // against an inclusive 40-100 threshold. Opaque persisted rows produce no errors:
+      // blocking them would prevent unrelated quiz edits while Pro is unavailable.
+      draw_image: [
+        // Background image required
+        (question: QuizQuestion) => {
+          if (getDrawImageAnswerState(question) === "preserved") {
+            return [];
+          }
+
+          const answer = question.question_answers?.[0];
+          const imageId = Number(answer?.image_id ?? 0);
+          const hasImage =
+            Number.isInteger(imageId) &&
+            imageId > 0 &&
+            typeof answer?.image_url === "string" &&
+            answer.image_url.trim().length > 0;
+
+          return hasImage ? [] : [__("Please upload a background image.", "tutorpress")];
+        },
+
+        // Non-empty instructor mask required
+        (question: QuizQuestion) => {
+          if (getDrawImageAnswerState(question) === "preserved") {
+            return [];
+          }
+
+          const mask = question.question_answers?.[0]?.answer_two_gap_match;
+          return typeof mask === "string" && mask.trim().length > 0
+            ? []
+            : [__("Please mark a valid area on the image.", "tutorpress")];
+        },
+
+        // Precision must remain inside Tutor Pro's grading bounds
+        (question: QuizQuestion) => {
+          const rawThreshold = question.question_settings?.draw_image_threshold_percent ?? 70;
+          const threshold = Number(rawThreshold);
+          return Number.isFinite(threshold) &&
+            threshold >= DRAW_IMAGE_THRESHOLD_MIN &&
+            threshold <= DRAW_IMAGE_THRESHOLD_MAX
+            ? []
+            : [
+                sprintf(
+                  // translators: %1$d is the lowest precision percentage, %2$d is the highest.
+                  __("Precision Level must be between %1$d%% and %2$d%%.", "tutorpress"),
+                  DRAW_IMAGE_THRESHOLD_MIN,
+                  DRAW_IMAGE_THRESHOLD_MAX
+                ),
+              ];
         },
       ],
 
