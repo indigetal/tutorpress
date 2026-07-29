@@ -2109,10 +2109,12 @@ const resolvers = {
         }),
       };
 
-      // Get Tutor LMS nonce
+      // Use the server-localized nonce first. Tutor's global object can retain a stale
+      // nonce on long-lived block-editor screens, which must fail visibly instead of
+      // being reported as a successful quiz save.
       const tutorObject = (window as any)._tutorobject;
       const ajaxUrl = tutorObject?.ajaxurl || "/wp-admin/admin-ajax.php";
-      const nonce = tutorObject?._tutor_nonce || "";
+      const nonce = window.tutorPressCurriculum?.tutorNonce || tutorObject?._tutor_nonce || "";
 
       // Prepare FormData for Tutor LMS AJAX endpoint
       const formData = new FormData();
@@ -2246,6 +2248,7 @@ const resolvers = {
           },
         },
       };
+      throw error;
     }
   },
 

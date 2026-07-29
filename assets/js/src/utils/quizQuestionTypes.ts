@@ -29,6 +29,7 @@
 import { __ } from "@wordpress/i18n";
 import {
   getDefaultQuestionSettings,
+  type QuizCapabilities,
   type QuizQuestion,
   type QuizQuestionOption,
   type QuizQuestionType,
@@ -101,6 +102,111 @@ export const QUIZ_QUESTION_TYPE_META: Record<QuizQuestionType, QuizQuestionTypeM
   // registry, so it is never offered here and `isPro` is inert. The label exists
   // because Interactive Quiz question badges still need one.
   h5p: { label: __("H5P", "tutorpress"), pickerOrder: null, isPro: false, modernModeOnly: false },
+};
+
+/**
+ * Tutor 4.0 question types that Tutor's Legacy save path cannot safely accept.
+ *
+ * Tutor core currently throws for four of these before checking `_data_status`.
+ * Graph is included deliberately so TutorPress exposes one deterministic failure
+ * boundary for the complete modern-only set.
+ */
+export const TUTOR_4_NATIVE_QUESTION_TYPES = [
+  "draw_image",
+  "scale",
+  "pin_image",
+  "coordinates",
+  "puzzle",
+] as const;
+
+/**
+ * Whether a stored slug is one of Tutor 4.0's five modern-only native types.
+ */
+export const isTutor4NativeQuestionType = (questionType: string): boolean =>
+  (TUTOR_4_NATIVE_QUESTION_TYPES as readonly string[]).includes(questionType);
+
+/**
+ * Decide whether a loaded row may use its local editor under the active contract.
+ *
+ * The server must positively identify the row as registered and editable, and the
+ * caller must positively identify a complete local editor. Missing or malformed
+ * capability data therefore fails closed without changing the stored row.
+ */
+export const canEditLoadedQuestion = (
+  questionType: string,
+  capabilities: QuizCapabilities | undefined,
+  hasLocalEditor: (questionType: string) => boolean
+): boolean => {
+  if (!capabilities || !Array.isArray(capabilities.questionTypes) || !hasLocalEditor(questionType)) {
+    return false;
+  }
+
+  const capability = capabilities.questionTypes.find(
+    (entry) => Boolean(entry) && entry.slug === questionType
+  );
+
+  return capability?.registered === true && capability.can_edit_existing === true;
+};
+
+/**
+ * Why TutorPress must stop a quiz save before Tutor's AJAX endpoint.
+ */
+export type QuizQuestionSaveBlockReason = "legacy_mode" | "unavailable_contract";
+
+/**
+ * One loaded row that makes the current save unsafe.
+ */
+export interface QuizQuestionSaveBlock {
+  questionType: string;
+  reason: QuizQuestionSaveBlockReason;
+}
+
+/**
+ * Find the first row TutorPress must refuse to submit.
+ *
+ * Tutor 4.0 Legacy inspects modern-only slugs before `_data_status`, so even an
+ * untouched row must be blocked. Tutor 3.9.x explicitly reports
+ * `hasNativeQuizTypes: false`; downgraded native rows may pass only while they remain
+ * `no_change`, which is the generic preservation path verified by Step 12.
+ *
+ * Every other row without a positively available editor is likewise allowed only as
+ * `no_change`. This keeps unknown, malformed-contract, and unavailable rows opaque
+ * while preventing reorder or other accidental mutations from reaching Tutor.
+ */
+export const getQuestionSaveBlock = (
+  questions: QuizQuestion[],
+  capabilities: QuizCapabilities | undefined,
+  hasLocalEditor: (questionType: string) => boolean
+): QuizQuestionSaveBlock | null => {
+  const legacyRejectsNativeRows =
+    capabilities?.learningMode === "legacy" && capabilities.hasNativeQuizTypes !== false;
+
+  if (legacyRejectsNativeRows) {
+    const nativeQuestion = questions.find((question) => isTutor4NativeQuestionType(question.question_type));
+    if (nativeQuestion) {
+      return {
+        questionType: nativeQuestion.question_type,
+        reason: "legacy_mode",
+      };
+    }
+  }
+
+  for (const question of questions) {
+    if (canEditLoadedQuestion(question.question_type, capabilities, hasLocalEditor)) {
+      continue;
+    }
+
+    if (question._data_status === "no_change") {
+      continue;
+    }
+
+    return {
+      questionType: question.question_type,
+      reason: "unavailable_contract",
+    };
+  }
+
+  return null;
 };
 
 /**

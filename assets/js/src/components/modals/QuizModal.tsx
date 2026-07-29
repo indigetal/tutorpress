@@ -19,9 +19,11 @@ import { curriculumStore } from "../../store/curriculum";
 import { store as noticesStore } from "@wordpress/notices";
 import { getQuestionComponent, isLocallyAuthorable } from "./quiz/questions";
 import {
+  canEditLoadedQuestion,
   collectAbandonedTempMaskValues,
   createDefaultQuestion,
   getFallbackPickerTypes,
+  getQuestionSaveBlock,
   getQuizQuestionTypeLabel,
   getQuizQuestionTypePickerOrder,
   isHiddenFromPicker,
@@ -573,6 +575,34 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   const handleSave = async () => {
+    const saveBlock = getQuestionSaveBlock(questions, quizCapabilities, isLocallyAuthorable);
+    if (saveBlock) {
+      const typeLabel =
+        questionTypes.find((type) => type.value === saveBlock.questionType)?.label ??
+        getQuizQuestionTypeLabel(saveBlock.questionType);
+
+      if (saveBlock.reason === "legacy_mode") {
+        setSaveError(
+          sprintf(
+            /* translators: %s: question type label. */
+            __('The "%s" question type cannot be saved in Legacy learning mode.', "tutorpress"),
+            typeLabel
+          )
+        );
+      } else {
+        setSaveError(
+          sprintf(
+            /* translators: %s: question type label. */
+            __('The "%s" question changed while its editing contract was unavailable. Reload before saving.', "tutorpress"),
+            typeLabel
+          )
+        );
+      }
+
+      setShowValidationErrors(false);
+      return;
+    }
+
     if (!validateEntireForm()) {
       setSaveError(__("Please fix the form errors before saving.", "tutorpress"));
       return;
@@ -588,7 +618,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
 
     // Verify Tutor LMS compatibility - Step 3.6.8
-    if (!verifyTutorLMSCompatibility(questions)) {
+    const editableQuestions = questions.filter((question) =>
+      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
+    );
+    if (!verifyTutorLMSCompatibility(editableQuestions)) {
       setSaveError(
         __("Data format is not compatible with Tutor LMS. Please check your question configuration.", "tutorpress")
       );
@@ -1081,9 +1114,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // Use the question component registry
     const QuestionComponent = getQuestionComponent(question.question_type);
 
-    // A loaded row is editable only when the server permits editing this type
-    // and a local editor exists for it.
-    if (QuestionComponent && capability?.can_edit_existing) {
+    // Keep rendering and save/validation decisions on the same fail-closed contract.
+    if (
+      QuestionComponent &&
+      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
+    ) {
       return (
         <QuestionComponent
           question={question}
@@ -1159,7 +1194,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Validate all questions before save - Step 3.6.8
    */
   const validateAllQuestions = (): { isValid: boolean; errors: string[] } => {
-    const result = validateAllQuestionsHook(questions);
+    // Read-only preservation rows have no repair UI. Validate only rows whose active
+    // server contract and local registry positively allow editing.
+    const editableQuestions = questions.filter((question) =>
+      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
+    );
+    const result = validateAllQuestionsHook(editableQuestions);
     return {
       isValid: result.isValid,
       errors: result.errors,
