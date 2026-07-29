@@ -154,6 +154,8 @@ export const useImageManagement = (): UseImageManagementReturn => {
         if (onSelect) {
           onSelect(imageData);
         }
+
+        mediaFrame.close();
       });
 
       mediaFrame.open();

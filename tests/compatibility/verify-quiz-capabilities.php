@@ -988,6 +988,15 @@ try {
                 "The shared image hook no longer returns {$member}, which existing image editors consume."
             );
         }
+        $assert(
+            1 === preg_match(
+                '/mediaFrame\.on\("select", \(\) => \{.+?'
+                    . 'if \(onSelect\) \{\s*onSelect\(imageData\);\s*\}\s*'
+                    . 'mediaFrame\.close\(\);\s*\}\);/s',
+                $image_management
+            ),
+            'The shared Media Library frame does not close after applying a valid image selection.'
+        );
 
         // ------------------------------------------------------------------
         // Step 8: Tutor's temporary-mask deletion contract.
