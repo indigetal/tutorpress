@@ -271,6 +271,29 @@ export interface QuizSettingsFormModel {
 }
 
 /**
+ * Inputs are explicit so stored identity and addon data cannot select editor policy.
+ */
+export interface QuizSettingsLoadInput {
+  contract: QuizSettingsContract;
+  contentType: QuizContentType;
+  rawSettings: RawQuizSettings;
+  contentDripAvailable: boolean;
+  hasProContentDripSettings: boolean;
+  proContentDripSettings?: RawQuizContentDripSettings | unknown[];
+}
+
+/**
+ * Unavailable contracts retain raw storage but deliberately have no editable values.
+ */
+export interface QuizSettingsLoadResult {
+  contract: QuizSettingsContract;
+  contentType: QuizContentType;
+  rawSettings: RawQuizSettings;
+  effectiveSettings: QuizEffectiveSettings | null;
+  dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
+}
+
+/**
  * Comprehensive quiz settings interface matching Tutor LMS structure
  */
 export interface QuizSettings {

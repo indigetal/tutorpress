@@ -33,12 +33,14 @@ import type {
   QuizSettings,
   QuizSettingsContract,
   QuizSettingsDirtyGroup,
+  QuizSettingsLoadInput,
   RawQuizSettings,
   TimeUnit,
   FeedbackMode,
 } from "../../types/quiz";
 import { getDefaultQuizSettings } from "../../types/quiz";
 import {
+  convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
   getQuizSettingsContract,
 } from "../../utils/quizSettingsContract";
@@ -77,21 +79,10 @@ export interface UseQuizFormOptions {
   capabilities?: QuizCapabilities;
   contentType: QuizContentType;
   initialData?: Partial<QuizForm>;
+  contentDripAvailable?: boolean;
+  hasProContentDripSettings?: boolean;
+  proContentDripSettings?: QuizSettingsLoadInput["proContentDripSettings"];
 }
-
-const cloneRawQuizSettings = (settings: QuizSettings): RawQuizSettings => {
-  const rawSettings = { ...settings } as unknown as RawQuizSettings;
-
-  if ("time_limit" in settings && settings.time_limit) {
-    rawSettings.time_limit = { ...settings.time_limit };
-  }
-
-  if ("content_drip_settings" in settings && settings.content_drip_settings) {
-    rawSettings.content_drip_settings = { ...settings.content_drip_settings };
-  }
-
-  return rawSettings;
-};
 
 /**
  * Course Preview addon availability
@@ -131,17 +122,29 @@ export const createInitialQuizFormState = ({
   capabilities,
   contentType,
   initialData,
+  contentDripAvailable = false,
+  hasProContentDripSettings = false,
+  proContentDripSettings,
 }: UseQuizFormOptions): QuizFormState => {
   const settingsContract = getQuizSettingsContract(capabilities);
 
   if (initialData?.quiz_option) {
+    const loadedModel = convertRawQuizSettingsToFormModel({
+      contract: settingsContract,
+      contentType,
+      rawSettings: initialData.quiz_option as unknown as RawQuizSettings,
+      contentDripAvailable,
+      hasProContentDripSettings,
+      proContentDripSettings,
+    });
+
     return {
       title: initialData.post_title || "",
       description: initialData.post_content || "",
       settings: initialData.quiz_option,
-      rawSettings: cloneRawQuizSettings(initialData.quiz_option),
-      effectiveSettings: null,
-      dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
+      rawSettings: loadedModel.rawSettings,
+      effectiveSettings: loadedModel.effectiveSettings,
+      dirtySettingsGroups: loadedModel.dirtyGroups,
       settingsContract,
       contentType,
       errors: {},
@@ -193,7 +196,14 @@ export const createInitialQuizFormState = ({
 };
 
 export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
-  const { capabilities, contentType, initialData } = options;
+  const {
+    capabilities,
+    contentType,
+    initialData,
+    contentDripAvailable = false,
+    hasProContentDripSettings = false,
+    proContentDripSettings,
+  } = options;
   // Initialize form state
   const [formState, setFormState] = useState<QuizFormState>(() => createInitialQuizFormState(options));
 
@@ -406,8 +416,24 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
    * Reset form to initial state or defaults for new quiz
    */
   const resetForm = useCallback(() => {
-    setFormState(createInitialQuizFormState({ capabilities, contentType, initialData }));
-  }, [capabilities, contentType, initialData]);
+    setFormState(
+      createInitialQuizFormState({
+        capabilities,
+        contentType,
+        initialData,
+        contentDripAvailable,
+        hasProContentDripSettings,
+        proContentDripSettings,
+      })
+    );
+  }, [
+    capabilities,
+    contentType,
+    initialData,
+    contentDripAvailable,
+    hasProContentDripSettings,
+    proContentDripSettings,
+  ]);
 
   /**
    * Reset form to completely clean defaults (for new quiz)
@@ -481,6 +507,16 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   const initializeWithData = useCallback(
     (data: Partial<QuizForm>) => {
       const convertedSettings = data.quiz_option ? convertTutorBooleans(data.quiz_option) : getDefaultQuizSettings();
+      const loadedModel = data.quiz_option
+        ? convertRawQuizSettingsToFormModel({
+            contract: getQuizSettingsContract(capabilities),
+            contentType,
+            rawSettings: data.quiz_option as unknown as RawQuizSettings,
+            contentDripAvailable,
+            hasProContentDripSettings,
+            proContentDripSettings,
+          })
+        : null;
 
       setFormState((prevState) => {
         const newState = {
@@ -488,8 +524,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           title: data.post_title || "",
           description: data.post_content || "",
           settings: convertedSettings,
-          rawSettings: data.quiz_option ? cloneRawQuizSettings(data.quiz_option) : {},
-          effectiveSettings: null,
+          rawSettings: loadedModel?.rawSettings ?? {},
+          effectiveSettings: loadedModel?.effectiveSettings ?? null,
           dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
           isDirty: false, // Key: Keep isDirty as false for initialization
         };
@@ -502,7 +538,15 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         return newState;
       });
     },
-    [validateForm, convertTutorBooleans]
+    [
+      validateForm,
+      convertTutorBooleans,
+      capabilities,
+      contentType,
+      contentDripAvailable,
+      hasProContentDripSettings,
+      proContentDripSettings,
+    ]
   );
 
   return {
