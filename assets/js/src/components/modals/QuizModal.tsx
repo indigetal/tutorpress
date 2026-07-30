@@ -407,7 +407,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     isValid,
     isDirty,
     errors,
-  } = useQuizForm();
+  } = useQuizForm({
+    capabilities: quizCapabilities,
+    contentType: "tutor_quiz",
+  });
 
   // Get quiz duplication state from curriculum store
   const quizDuplicationState = useSelect((select) => {

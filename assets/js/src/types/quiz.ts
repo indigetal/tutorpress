@@ -161,6 +161,115 @@ export interface QuizContentDripSettings {
   prerequisites: number[];
 }
 
+export type QuizContentType = "tutor_quiz" | "tutor_h5p_quiz";
+
+export type QuizPaginationType = "shape" | "number" | "radio";
+export type RawQuizBoolean = boolean | 0 | 1 | "0" | "1";
+export type RawQuizScalar = string | number | boolean | null;
+
+/**
+ * Open storage shapes retain unknown Tutor and third-party keys.
+ */
+export interface RawQuizTimeLimit {
+  time_value?: RawQuizScalar;
+  time_type?: RawQuizScalar;
+  [key: string]: unknown;
+}
+
+export interface RawQuizContentDripSettings {
+  unlock_date?: RawQuizScalar;
+  after_xdays_of_enroll?: RawQuizScalar;
+  prerequisites?: unknown;
+  [key: string]: unknown;
+}
+
+export interface RawQuizSettings {
+  time_limit?: RawQuizTimeLimit;
+  hide_quiz_time_display?: RawQuizBoolean;
+  feedback_mode?: FeedbackMode | string;
+  limit_attempts_allowed?: RawQuizBoolean;
+  attempts_allowed?: RawQuizScalar;
+  pass_is_required?: RawQuizBoolean;
+  passing_grade?: RawQuizScalar;
+  max_questions_for_answer?: RawQuizScalar;
+  quiz_auto_start?: RawQuizBoolean;
+  auto_start_delay?: RawQuizScalar;
+  question_layout_view?: QuestionLayoutView | string;
+  enable_pagination?: RawQuizBoolean;
+  pagination_type?: QuizPaginationType | string;
+  question_pagination_style?: QuizPaginationType | string;
+  enable_answer_reveal?: RawQuizBoolean;
+  answers_reveal_duration?: RawQuizScalar;
+  hide_previous_button?: RawQuizBoolean;
+  questions_order?: QuestionOrder | string;
+  hide_question_number_overview?: RawQuizBoolean;
+  short_answer_characters_limit?: RawQuizScalar;
+  open_ended_answer_characters_limit?: RawQuizScalar;
+  content_drip_settings?: RawQuizContentDripSettings;
+  quiz_type?: RawQuizScalar;
+  [key: string]: unknown;
+}
+
+export type QuizEffectiveLayout = "single_question" | "question_below_each_other";
+
+/**
+ * Normalized editor values, including toggles that are never persisted directly.
+ */
+export interface QuizEffectiveSettings {
+  enable_time_limit: boolean;
+  time_limit: QuizTimeLimit;
+  hide_quiz_time_display: boolean;
+  feedback_mode: FeedbackMode;
+  limit_attempts_allowed: boolean;
+  attempts_allowed: number;
+  pass_is_required: boolean;
+  passing_grade: number;
+  limit_questions_to_answer: boolean;
+  max_questions_for_answer: number;
+  quiz_auto_start: boolean;
+  auto_start_delay: number;
+  question_layout_view: QuizEffectiveLayout;
+  enable_pagination: boolean;
+  pagination_type: QuizPaginationType;
+  enable_answer_reveal: boolean;
+  answers_reveal_duration: number;
+  hide_previous_button: boolean;
+  questions_order: QuestionOrder;
+  hide_question_number_overview: boolean;
+  short_answer_characters_limit: number | "";
+  open_ended_answer_characters_limit: number | "";
+  content_drip_settings: QuizContentDripSettings;
+}
+
+export type QuizSettingsDirtyGroup =
+  | "passing_grade"
+  | "question_order"
+  | "attempts"
+  | "answer_reveal"
+  | "legacy_feedback"
+  | "question_limit"
+  | "time_limit"
+  | "hide_countdown"
+  | "auto_start"
+  | "layout"
+  | "pagination"
+  | "hide_previous"
+  | "hide_question_number"
+  | "short_answer_character_limit"
+  | "open_ended_character_limit"
+  | "pass_required"
+  | "drip_unlock_date"
+  | "drip_available_after_days"
+  | "drip_prerequisites";
+
+export interface QuizSettingsFormModel {
+  contract: QuizSettingsContract;
+  contentType: QuizContentType;
+  rawSettings: RawQuizSettings;
+  effectiveSettings: QuizEffectiveSettings;
+  dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
+}
+
 /**
  * Comprehensive quiz settings interface matching Tutor LMS structure
  */
@@ -274,6 +383,20 @@ export interface QuizForm {
    */
   deleted_temp_mask_values?: string[];
   menu_order?: number;
+}
+
+export interface QuizContentDripPostFields {
+  "content_drip_settings[unlock_date]"?: string;
+  "content_drip_settings[after_xdays_of_enroll]"?: number;
+  "content_drip_settings[prerequisites]"?: number[] | "";
+}
+
+/**
+ * Keeps Tutor's JSON quiz payload separate from top-level Pro POST fields.
+ */
+export interface QuizSaveEnvelope {
+  quiz: QuizForm;
+  contentDripPostFields: QuizContentDripPostFields;
 }
 
 /**

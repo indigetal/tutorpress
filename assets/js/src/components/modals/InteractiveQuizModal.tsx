@@ -44,6 +44,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
 }) => {
   // Quiz data state for loading existing Interactive Quizzes
   const [quizData, setQuizData] = useState<QuizDetails | null>(null);
+  const quizCapabilities = window.tutorPressCurriculum?.quizCapabilities;
 
   // Use the same quiz form hook as QuizModal for consistency
   const {
@@ -59,7 +60,10 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     isValid,
     isDirty,
     errors,
-  } = useQuizForm();
+  } = useQuizForm({
+    capabilities: quizCapabilities,
+    contentType: "tutor_h5p_quiz",
+  });
 
   // Question management state (identical to QuizModal)
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);

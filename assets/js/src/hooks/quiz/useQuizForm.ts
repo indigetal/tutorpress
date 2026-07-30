@@ -24,8 +24,24 @@
 
 import { useState, useCallback } from "react";
 import { __ } from "@wordpress/i18n";
-import type { QuizForm, QuizSettings, QuizQuestion, TimeUnit, FeedbackMode } from "../../types/quiz";
+import type {
+  QuizCapabilities,
+  QuizContentType,
+  QuizEffectiveSettings,
+  QuizForm,
+  QuizQuestion,
+  QuizSettings,
+  QuizSettingsContract,
+  QuizSettingsDirtyGroup,
+  RawQuizSettings,
+  TimeUnit,
+  FeedbackMode,
+} from "../../types/quiz";
 import { getDefaultQuizSettings } from "../../types/quiz";
+import {
+  createNewQuizSettingsFormModel,
+  getQuizSettingsContract,
+} from "../../utils/quizSettingsContract";
 
 /**
  * Quiz form validation errors
@@ -47,10 +63,35 @@ export interface QuizFormState {
   title: string;
   description: string;
   settings: QuizSettings;
+  rawSettings: RawQuizSettings;
+  effectiveSettings: QuizEffectiveSettings | null;
+  dirtySettingsGroups: ReadonlySet<QuizSettingsDirtyGroup>;
+  settingsContract: QuizSettingsContract;
+  contentType: QuizContentType;
   errors: QuizFormErrors;
   isValid: boolean;
   isDirty: boolean;
 }
+
+export interface UseQuizFormOptions {
+  capabilities?: QuizCapabilities;
+  contentType: QuizContentType;
+  initialData?: Partial<QuizForm>;
+}
+
+const cloneRawQuizSettings = (settings: QuizSettings): RawQuizSettings => {
+  const rawSettings = { ...settings } as unknown as RawQuizSettings;
+
+  if ("time_limit" in settings && settings.time_limit) {
+    rawSettings.time_limit = { ...settings.time_limit };
+  }
+
+  if ("content_drip_settings" in settings && settings.content_drip_settings) {
+    rawSettings.content_drip_settings = { ...settings.content_drip_settings };
+  }
+
+  return rawSettings;
+};
 
 /**
  * Course Preview addon availability
@@ -86,16 +127,75 @@ export interface UseQuizFormReturn {
 /**
  * Custom hook for managing quiz form state
  */
-export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn => {
-  // Initialize form state
-  const [formState, setFormState] = useState<QuizFormState>(() => ({
+export const createInitialQuizFormState = ({
+  capabilities,
+  contentType,
+  initialData,
+}: UseQuizFormOptions): QuizFormState => {
+  const settingsContract = getQuizSettingsContract(capabilities);
+
+  if (initialData?.quiz_option) {
+    return {
+      title: initialData.post_title || "",
+      description: initialData.post_content || "",
+      settings: initialData.quiz_option,
+      rawSettings: cloneRawQuizSettings(initialData.quiz_option),
+      effectiveSettings: null,
+      dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
+      settingsContract,
+      contentType,
+      errors: {},
+      isValid: true,
+      isDirty: false,
+    };
+  }
+
+  const model = createNewQuizSettingsFormModel(capabilities, contentType);
+  const effective = model?.effectiveSettings;
+  const settings: QuizSettings = effective
+    ? {
+        time_limit: { ...effective.time_limit },
+        hide_quiz_time_display: effective.hide_quiz_time_display,
+        feedback_mode: effective.feedback_mode,
+        attempts_allowed: effective.attempts_allowed,
+        pass_is_required: effective.pass_is_required,
+        passing_grade: effective.passing_grade,
+        max_questions_for_answer: effective.max_questions_for_answer,
+        quiz_auto_start: effective.quiz_auto_start,
+        question_layout_view: effective.question_layout_view,
+        questions_order: effective.questions_order,
+        hide_question_number_overview: effective.hide_question_number_overview,
+        short_answer_characters_limit:
+          typeof effective.short_answer_characters_limit === "number"
+            ? effective.short_answer_characters_limit
+            : 0,
+        open_ended_answer_characters_limit:
+          typeof effective.open_ended_answer_characters_limit === "number"
+            ? effective.open_ended_answer_characters_limit
+            : 0,
+        content_drip_settings: { ...effective.content_drip_settings },
+      }
+    : getDefaultQuizSettings();
+
+  return {
     title: initialData?.post_title || "",
     description: initialData?.post_content || "",
-    settings: initialData?.quiz_option || getDefaultQuizSettings(),
+    settings,
+    rawSettings: model ? { ...model.rawSettings } : {},
+    effectiveSettings: effective ? { ...effective } : null,
+    dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
+    settingsContract,
+    contentType,
     errors: {},
     isValid: true,
     isDirty: false,
-  }));
+  };
+};
+
+export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
+  const { capabilities, contentType, initialData } = options;
+  // Initialize form state
+  const [formState, setFormState] = useState<QuizFormState>(() => createInitialQuizFormState(options));
 
   // Course Preview addon state
   const [coursePreviewAddon, setCoursePreviewAddon] = useState<CoursePreviewAddon>({
@@ -306,29 +406,15 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
    * Reset form to initial state or defaults for new quiz
    */
   const resetForm = useCallback(() => {
-    setFormState({
-      title: initialData?.post_title || "",
-      description: initialData?.post_content || "",
-      settings: initialData?.quiz_option || getDefaultQuizSettings(),
-      errors: {},
-      isValid: true,
-      isDirty: false,
-    });
-  }, [initialData]);
+    setFormState(createInitialQuizFormState({ capabilities, contentType, initialData }));
+  }, [capabilities, contentType, initialData]);
 
   /**
    * Reset form to completely clean defaults (for new quiz)
    */
   const resetToDefaults = useCallback(() => {
-    setFormState({
-      title: "",
-      description: "",
-      settings: getDefaultQuizSettings(),
-      errors: {},
-      isValid: true,
-      isDirty: false,
-    });
-  }, []);
+    setFormState(createInitialQuizFormState({ capabilities, contentType }));
+  }, [capabilities, contentType]);
 
   /**
    * Convert booleans back to integers for Tutor LMS compatibility
@@ -402,6 +488,9 @@ export const useQuizForm = (initialData?: Partial<QuizForm>): UseQuizFormReturn 
           title: data.post_title || "",
           description: data.post_content || "",
           settings: convertedSettings,
+          rawSettings: data.quiz_option ? cloneRawQuizSettings(data.quiz_option) : {},
+          effectiveSettings: null,
+          dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
           isDirty: false, // Key: Keep isDirty as false for initialization
         };
 
