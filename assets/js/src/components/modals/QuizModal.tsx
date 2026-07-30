@@ -637,13 +637,20 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       return;
     }
 
+    const formDataResult = getFormData(questions, quizId === undefined);
+    if (formDataResult.status === "blocked") {
+      const message = __("Quiz settings are unavailable and cannot be saved.", "tutorpress");
+      setSaveError(message);
+      createNotice("error", message, { isDismissible: true });
+      return;
+    }
+    const formData = formDataResult.formData;
+
     setIsSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
-      const formData = getFormData(questions);
-
       // Add deleted IDs to form data
       formData.deleted_question_ids = deletedQuestionIds;
       formData.deleted_answer_ids = deletedAnswerIds;

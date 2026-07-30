@@ -54,6 +54,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     updateSettings,
     updateTimeLimit,
     updateContentDrip,
+    getFormData,
     resetForm,
     resetToDefaults,
     initializeWithData,
@@ -473,24 +474,20 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       return;
     }
 
+    const formDataResult = getFormData(questions, quizId === undefined);
+    if (formDataResult.status === "blocked") {
+      const message = __("Interactive Quiz settings are unavailable and cannot be saved.", "tutorpress");
+      setSaveError(message);
+      createNotice("error", message, { isDismissible: true });
+      return;
+    }
+    const formData = formDataResult.formData;
+
     setIsSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
-      // Build form data in the same format as QuizModal
-      const formData: any = {
-        post_title: formState.title,
-        post_content: formState.description,
-        quiz_option: {
-          // Include all default quiz settings for Tutor LMS frontend course builder compatibility
-          ...formState.settings,
-          // Override with Interactive Quiz identifier
-          quiz_type: "tutor_h5p_quiz",
-        },
-        questions: questions,
-      };
-
       // Add deleted IDs to form data before assigning ID (same as QuizModal)
       formData.deleted_question_ids = deletedQuestionIds;
       formData.deleted_answer_ids = deletedAnswerIds;

@@ -293,6 +293,35 @@ export interface QuizSettingsLoadResult {
   dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
 }
 
+export interface QuizSettingsSaveInput {
+  contract: QuizSettingsContract;
+  contentType: QuizContentType;
+  rawSettings: RawQuizSettings;
+  effectiveSettings: QuizEffectiveSettings | null;
+  dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
+  isNewQuiz: boolean;
+  h5pRuntimeAvailable: boolean;
+}
+
+export type QuizSettingsSaveBlockedReason =
+  | "settings_contract_unavailable"
+  | "effective_settings_unavailable"
+  | "interactive_v4_required"
+  | "h5p_runtime_unavailable";
+
+export interface QuizSettingsSaveReadyResult {
+  status: "ready";
+  settings: RawQuizSettings;
+}
+
+export interface QuizSettingsSaveBlockedResult {
+  status: "blocked";
+  reason: QuizSettingsSaveBlockedReason;
+  rawSettings: RawQuizSettings;
+}
+
+export type QuizSettingsSaveResult = QuizSettingsSaveReadyResult | QuizSettingsSaveBlockedResult;
+
 /**
  * Comprehensive quiz settings interface matching Tutor LMS structure
  */

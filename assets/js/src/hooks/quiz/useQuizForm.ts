@@ -34,16 +34,18 @@ import type {
   QuizSettingsContract,
   QuizSettingsDirtyGroup,
   QuizSettingsLoadInput,
+  QuizSettingsSaveBlockedResult,
   RawQuizSettings,
   TimeUnit,
-  FeedbackMode,
 } from "../../types/quiz";
 import { getDefaultQuizSettings } from "../../types/quiz";
 import {
+  convertQuizSettingsFormModelToPayload,
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
   getQuizSettingsContract,
 } from "../../utils/quizSettingsContract";
+import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
 
 /**
  * Quiz form validation errors
@@ -107,13 +109,20 @@ export interface UseQuizFormReturn {
   resetToDefaults: () => void;
   validateEntireForm: () => boolean;
   checkCoursePreviewAddon: () => Promise<boolean>;
-  getFormData: (questions: QuizQuestion[]) => QuizForm;
+  getFormData: (questions: QuizQuestion[], isNewQuiz: boolean) => QuizFormDataResult;
   isValid: boolean;
   isDirty: boolean;
   errors: QuizFormErrors;
   // Initialization functions (no dirty state marking)
   initializeWithData: (data: Partial<QuizForm>) => void;
 }
+
+export type QuizFormDataResult =
+  | {
+      status: "ready";
+      formData: QuizForm;
+    }
+  | QuizSettingsSaveBlockedResult;
 
 /**
  * Custom hook for managing quiz form state
@@ -195,6 +204,129 @@ export const createInitialQuizFormState = ({
   };
 };
 
+const getDirtyGroupsForSettings = (settings: Partial<QuizSettings>): QuizSettingsDirtyGroup[] => {
+  const groups = new Set<QuizSettingsDirtyGroup>();
+
+  Object.keys(settings).forEach((key) => {
+    switch (key as keyof QuizSettings) {
+      case "time_limit":
+        groups.add("time_limit");
+        break;
+      case "hide_quiz_time_display":
+        groups.add("hide_countdown");
+        break;
+      case "feedback_mode":
+      case "attempts_allowed":
+        groups.add("legacy_feedback");
+        break;
+      case "pass_is_required":
+        groups.add("pass_required");
+        break;
+      case "passing_grade":
+        groups.add("passing_grade");
+        break;
+      case "max_questions_for_answer":
+        groups.add("question_limit");
+        break;
+      case "quiz_auto_start":
+        groups.add("auto_start");
+        break;
+      case "question_layout_view":
+        groups.add("layout");
+        break;
+      case "questions_order":
+        groups.add("question_order");
+        break;
+      case "hide_question_number_overview":
+        groups.add("hide_question_number");
+        break;
+      case "short_answer_characters_limit":
+        groups.add("short_answer_character_limit");
+        break;
+      case "open_ended_answer_characters_limit":
+        groups.add("open_ended_character_limit");
+        break;
+      case "content_drip_settings":
+        groups.add("drip_available_after_days");
+        break;
+    }
+  });
+
+  return [...groups];
+};
+
+const applySettingsToEffective = (
+  effectiveSettings: QuizEffectiveSettings | null,
+  settings: Partial<QuizSettings>
+): QuizEffectiveSettings | null => {
+  if (!effectiveSettings) {
+    return null;
+  }
+
+  const next = {
+    ...effectiveSettings,
+    time_limit: { ...effectiveSettings.time_limit },
+    content_drip_settings: { ...effectiveSettings.content_drip_settings },
+  };
+
+  if (settings.time_limit) {
+    next.time_limit = { ...settings.time_limit };
+    next.enable_time_limit = settings.time_limit.time_value > 0;
+  }
+  if (settings.hide_quiz_time_display !== undefined) {
+    next.hide_quiz_time_display = settings.hide_quiz_time_display;
+  }
+  if (settings.feedback_mode !== undefined) {
+    next.feedback_mode = settings.feedback_mode;
+    next.limit_attempts_allowed = settings.feedback_mode === "retry";
+    next.enable_answer_reveal = settings.feedback_mode === "reveal";
+  }
+  if (settings.attempts_allowed !== undefined) {
+    next.attempts_allowed = settings.attempts_allowed;
+  }
+  if (settings.pass_is_required !== undefined) {
+    next.pass_is_required = settings.pass_is_required;
+  }
+  if (settings.passing_grade !== undefined) {
+    next.passing_grade = settings.passing_grade;
+  }
+  if (settings.max_questions_for_answer !== undefined) {
+    next.limit_questions_to_answer = settings.max_questions_for_answer > 0;
+    next.max_questions_for_answer =
+      settings.max_questions_for_answer > 0 ? settings.max_questions_for_answer : 10;
+  }
+  if (settings.quiz_auto_start !== undefined) {
+    next.quiz_auto_start = settings.quiz_auto_start;
+  }
+  if (settings.question_layout_view !== undefined) {
+    next.question_layout_view =
+      settings.question_layout_view === "question_below_each_other"
+        ? "question_below_each_other"
+        : "single_question";
+    next.enable_pagination = settings.question_layout_view === "question_pagination";
+  }
+  if (settings.questions_order !== undefined) {
+    next.questions_order = settings.questions_order;
+  }
+  if (settings.hide_question_number_overview !== undefined) {
+    next.hide_question_number_overview = settings.hide_question_number_overview;
+  }
+  if (settings.short_answer_characters_limit !== undefined) {
+    next.short_answer_characters_limit = settings.short_answer_characters_limit;
+  }
+  if (settings.open_ended_answer_characters_limit !== undefined) {
+    next.open_ended_answer_characters_limit = settings.open_ended_answer_characters_limit;
+  }
+  if (settings.content_drip_settings) {
+    next.content_drip_settings = {
+      ...next.content_drip_settings,
+      ...settings.content_drip_settings,
+    };
+  }
+
+  return next;
+};
+
 export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   const {
     capabilities,
@@ -256,7 +388,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
       }
 
       // Time limit validation
-      if (state.settings.time_limit.time_value < 0) {
+      const timeValue = state.settings.time_limit?.time_value;
+      if (timeValue !== undefined && timeValue < 0) {
         errors.timeLimit = __("Time limit cannot be negative", "tutorpress");
       }
 
@@ -271,7 +404,12 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
       }
 
       // Available after days validation (if Course Preview addon is available)
-      if (coursePreviewAddon.available && state.settings.content_drip_settings.after_xdays_of_enroll < 0) {
+      const availableAfterDays = state.settings.content_drip_settings?.after_xdays_of_enroll;
+      if (
+        coursePreviewAddon.available &&
+        availableAfterDays !== undefined &&
+        availableAfterDays < 0
+      ) {
         errors.availableAfterDays = __("Available after days cannot be negative", "tutorpress");
       }
 
@@ -360,6 +498,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
     (settings: Partial<QuizSettings>) => {
       // Convert Tutor LMS integer booleans to actual booleans
       const convertedSettings = convertTutorBooleans(settings);
+      const dirtyGroups = getDirtyGroupsForSettings(convertedSettings);
 
       setFormState((prevState) => {
         const newState = {
@@ -368,6 +507,14 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
             ...prevState.settings,
             ...convertedSettings,
           },
+          effectiveSettings: applySettingsToEffective(
+            prevState.effectiveSettings,
+            convertedSettings
+          ),
+          dirtySettingsGroups: new Set([
+            ...prevState.dirtySettingsGroups,
+            ...dirtyGroups,
+          ]),
           isDirty: true,
         };
 
@@ -443,48 +590,39 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   }, [capabilities, contentType]);
 
   /**
-   * Convert booleans back to integers for Tutor LMS compatibility
-   */
-  const convertBooleansToIntegers = useCallback((settings: any): any => {
-    const booleanFields = [
-      "hide_quiz_time_display",
-      "quiz_auto_start",
-      "hide_question_number_overview",
-      "pass_is_required",
-    ];
-
-    const converted = { ...settings };
-
-    booleanFields.forEach((field) => {
-      if (field in converted && typeof converted[field] === "boolean") {
-        // Convert boolean to integer (0/1) for Tutor LMS
-        converted[field] = converted[field] ? 1 : 0;
-      }
-    });
-
-    return converted;
-  }, []);
-
-  /**
    * Get form data for saving
    */
   const getFormData = useCallback(
-    (currentQuestions?: QuizQuestion[]): QuizForm => {
-      // Convert booleans back to integers for Tutor LMS compatibility
-      const tutorCompatibleSettings = convertBooleansToIntegers(formState.settings);
+    (currentQuestions: QuizQuestion[], isNewQuiz: boolean): QuizFormDataResult => {
+      const settingsResult = convertQuizSettingsFormModelToPayload({
+        contract: formState.settingsContract,
+        contentType: formState.contentType,
+        rawSettings: formState.rawSettings,
+        effectiveSettings: formState.effectiveSettings,
+        dirtyGroups: formState.dirtySettingsGroups,
+        isNewQuiz,
+        h5pRuntimeAvailable: isH5pEnabled() && isH5pPluginActive(),
+      });
+
+      if (settingsResult.status === "blocked") {
+        return settingsResult;
+      }
 
       return {
-        ID: initialData?.ID,
-        post_title: formState.title.trim(),
-        post_content: formState.description.trim(),
-        quiz_option: tutorCompatibleSettings,
-        questions: currentQuestions || initialData?.questions || [],
-        deleted_question_ids: initialData?.deleted_question_ids || [],
-        deleted_answer_ids: initialData?.deleted_answer_ids || [],
-        menu_order: initialData?.menu_order || 0,
+        status: "ready",
+        formData: {
+          ID: initialData?.ID,
+          post_title: formState.title.trim(),
+          post_content: formState.description.trim(),
+          quiz_option: settingsResult.settings as unknown as QuizSettings,
+          questions: currentQuestions,
+          deleted_question_ids: initialData?.deleted_question_ids || [],
+          deleted_answer_ids: initialData?.deleted_answer_ids || [],
+          menu_order: initialData?.menu_order || 0,
+        },
       };
     },
-    [formState, initialData, convertBooleansToIntegers]
+    [formState, initialData]
   );
 
   /**

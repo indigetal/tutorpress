@@ -11,6 +11,8 @@ import type {
   QuizEffectiveSettings,
   QuizSettingsLoadInput,
   QuizSettingsLoadResult,
+  QuizSettingsSaveInput,
+  QuizSettingsSaveResult,
   QuizSettingsDirtyGroup,
   QuizSettingsFormModel,
   QuizSettingsContract,
@@ -364,5 +366,243 @@ export const createNewQuizSettingsFormModel = (
     rawSettings: contract === "v4" ? createV4RawDefaults(effectiveSettings) : createLegacyRawDefaults(),
     effectiveSettings,
     dirtyGroups: new Set<QuizSettingsDirtyGroup>(),
+  };
+};
+
+const toWireBoolean = (value: boolean): "0" | "1" => (value ? "1" : "0");
+
+const withoutUndefined = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== undefined).map(withoutUndefined);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, withoutUndefined(item)])
+    );
+  }
+
+  return value;
+};
+
+const clonePayloadSettings = (settings: RawQuizSettings): RawQuizSettings =>
+  withoutUndefined(settings) as RawQuizSettings;
+
+const getRawDripSettings = (settings: RawQuizSettings): RawQuizContentDripSettings => {
+  const dripSettings = settings.content_drip_settings;
+  return dripSettings && typeof dripSettings === "object" && !Array.isArray(dripSettings)
+    ? { ...dripSettings }
+    : {};
+};
+
+/**
+ * Converts effective editor values to Tutor's version-specific wire contract.
+ */
+export const convertQuizSettingsFormModelToPayload = ({
+  contract,
+  contentType,
+  rawSettings,
+  effectiveSettings,
+  dirtyGroups,
+  isNewQuiz,
+  h5pRuntimeAvailable,
+}: QuizSettingsSaveInput): QuizSettingsSaveResult => {
+  const preservedRawSettings = clonePayloadSettings(rawSettings);
+
+  if (contract === "unavailable") {
+    return {
+      status: "blocked",
+      reason: "settings_contract_unavailable",
+      rawSettings: preservedRawSettings,
+    };
+  }
+
+  if (!effectiveSettings) {
+    return {
+      status: "blocked",
+      reason: "effective_settings_unavailable",
+      rawSettings: preservedRawSettings,
+    };
+  }
+
+  if (contentType === "tutor_h5p_quiz") {
+    if (contract !== "v4") {
+      return {
+        status: "blocked",
+        reason: "interactive_v4_required",
+        rawSettings: preservedRawSettings,
+      };
+    }
+
+    if (!h5pRuntimeAvailable) {
+      return {
+        status: "blocked",
+        reason: "h5p_runtime_unavailable",
+        rawSettings: preservedRawSettings,
+      };
+    }
+  }
+
+  const defaultEffectiveSettings = createEffectiveDefaults(contract, contentType);
+  const payload = isNewQuiz
+    ? contract === "v4"
+      ? createV4RawDefaults(defaultEffectiveSettings)
+      : createLegacyRawDefaults()
+    : preservedRawSettings;
+  const isDirty = (...groups: QuizSettingsDirtyGroup[]): boolean =>
+    groups.some((group) => dirtyGroups.has(group));
+
+  if (isDirty("passing_grade")) {
+    payload.passing_grade = toFiniteNumber(effectiveSettings.passing_grade, 80);
+  }
+  if (isDirty("question_order")) {
+    payload.questions_order = oneOf(
+      effectiveSettings.questions_order,
+      ["rand", "sorting", "asc", "desc"],
+      "rand"
+    );
+  }
+  if (isDirty("question_limit")) {
+    payload.max_questions_for_answer = effectiveSettings.limit_questions_to_answer
+      ? toFiniteNumber(effectiveSettings.max_questions_for_answer, 10)
+      : 0;
+  }
+  if (isDirty("time_limit")) {
+    payload.time_limit = {
+      ...(payload.time_limit && typeof payload.time_limit === "object" ? payload.time_limit : {}),
+      time_value: effectiveSettings.enable_time_limit
+        ? toFiniteNumber(effectiveSettings.time_limit.time_value, 0)
+        : 0,
+      time_type: oneOf<TimeUnit>(
+        effectiveSettings.time_limit.time_type,
+        ["seconds", "minutes", "hours", "days", "weeks"],
+        "minutes"
+      ),
+    };
+  }
+  if (isDirty("hide_countdown")) {
+    payload.hide_quiz_time_display = toWireBoolean(effectiveSettings.hide_quiz_time_display);
+  }
+  if (isDirty("auto_start")) {
+    payload.quiz_auto_start = toWireBoolean(effectiveSettings.quiz_auto_start);
+    if (contract === "v4") {
+      payload.auto_start_delay = toFiniteNumber(effectiveSettings.auto_start_delay, 5);
+    }
+  }
+  if (isDirty("hide_question_number")) {
+    payload.hide_question_number_overview = toWireBoolean(
+      effectiveSettings.hide_question_number_overview
+    );
+  }
+  if (isDirty("short_answer_character_limit")) {
+    payload.short_answer_characters_limit =
+      effectiveSettings.short_answer_characters_limit === ""
+        ? ""
+        : toFiniteNumber(effectiveSettings.short_answer_characters_limit, 0);
+  }
+  if (isDirty("open_ended_character_limit")) {
+    payload.open_ended_answer_characters_limit =
+      effectiveSettings.open_ended_answer_characters_limit === ""
+        ? ""
+        : toFiniteNumber(effectiveSettings.open_ended_answer_characters_limit, 0);
+  }
+  if (isDirty("pass_required")) {
+    payload.pass_is_required = toWireBoolean(effectiveSettings.pass_is_required);
+  }
+
+  if (contract === "v4") {
+    if (isDirty("attempts", "answer_reveal", "legacy_feedback")) {
+      payload.limit_attempts_allowed = toWireBoolean(effectiveSettings.limit_attempts_allowed);
+      payload.enable_answer_reveal = toWireBoolean(effectiveSettings.enable_answer_reveal);
+      delete payload.feedback_mode;
+
+      if (isDirty("attempts", "legacy_feedback")) {
+        payload.attempts_allowed = toFiniteNumber(effectiveSettings.attempts_allowed, 10);
+      }
+      if (isDirty("answer_reveal", "legacy_feedback")) {
+        payload.answers_reveal_duration = toFiniteNumber(
+          effectiveSettings.answers_reveal_duration,
+          5
+        );
+      }
+    }
+
+    if (isDirty("layout", "pagination")) {
+      payload.question_layout_view = oneOf(
+        effectiveSettings.question_layout_view,
+        ["single_question", "question_below_each_other"],
+        "single_question"
+      );
+      payload.enable_pagination = toWireBoolean(effectiveSettings.enable_pagination);
+      payload.pagination_type = oneOf(
+        effectiveSettings.pagination_type,
+        ["shape", "number", "radio"],
+        "shape"
+      );
+      delete payload.question_pagination_style;
+    }
+    if (isDirty("hide_previous")) {
+      payload.hide_previous_button = toWireBoolean(effectiveSettings.hide_previous_button);
+    }
+
+    const dripSettings = getRawDripSettings(payload);
+    if (isDirty("drip_unlock_date")) {
+      dripSettings.unlock_date =
+        typeof effectiveSettings.content_drip_settings.unlock_date === "string"
+          ? effectiveSettings.content_drip_settings.unlock_date
+          : "";
+    }
+    if (isDirty("drip_available_after_days")) {
+      dripSettings.after_xdays_of_enroll = Math.max(
+        0,
+        Math.trunc(
+          toFiniteNumber(effectiveSettings.content_drip_settings.after_xdays_of_enroll, 0)
+        )
+      );
+    }
+    if (isDirty("drip_prerequisites")) {
+      dripSettings.prerequisites = toPrerequisites(
+        effectiveSettings.content_drip_settings.prerequisites
+      );
+    }
+    if (isDirty("drip_unlock_date", "drip_available_after_days", "drip_prerequisites")) {
+      payload.content_drip_settings = dripSettings;
+    }
+  } else {
+    if (isDirty("legacy_feedback")) {
+      payload.feedback_mode = oneOf(
+        effectiveSettings.feedback_mode,
+        ["default", "reveal", "retry"],
+        "default"
+      );
+      payload.attempts_allowed = toFiniteNumber(effectiveSettings.attempts_allowed, 0);
+    }
+
+    if (isDirty("layout", "pagination")) {
+      payload.question_layout_view =
+        effectiveSettings.question_layout_view === "question_below_each_other"
+          ? "question_below_each_other"
+          : effectiveSettings.enable_pagination
+            ? "question_pagination"
+            : "single_question";
+      payload.question_pagination_style = oneOf(
+        effectiveSettings.pagination_type,
+        ["shape", "number", "radio"],
+        "shape"
+      );
+    }
+  }
+
+  if (contentType === "tutor_h5p_quiz") {
+    payload.quiz_type = "tutor_h5p_quiz";
+  } else if (payload.quiz_type === "tutor_h5p_quiz") {
+    delete payload.quiz_type;
+  }
+
+  return {
+    status: "ready",
+    settings: clonePayloadSettings(payload),
   };
 };

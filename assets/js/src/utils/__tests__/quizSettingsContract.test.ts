@@ -1,13 +1,24 @@
 import { describe, expect, it } from "@jest/globals";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import type {
   QuizCapabilities,
+  QuizEffectiveSettings,
   QuizSettingsLoadInput,
   QuizSettings,
   QuizSettingsContract,
+  QuizSettingsDirtyGroup,
+  QuizSettingsSaveResult,
   RawQuizSettings,
 } from "../../types/quiz";
-import { createInitialQuizFormState } from "../../hooks/quiz/useQuizForm";
 import {
+  createInitialQuizFormState,
+  useQuizForm,
+  type UseQuizFormOptions,
+  type UseQuizFormReturn,
+} from "../../hooks/quiz/useQuizForm";
+import {
+  convertQuizSettingsFormModelToPayload,
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
   QUIZ_SETTINGS_GROUP_FIELDS,
@@ -49,6 +60,96 @@ const loadSettings = (
     ...options,
     rawSettings,
   });
+
+interface SaveSettingsOptions {
+  contract?: QuizSettingsContract;
+  contentType?: QuizSettingsLoadInput["contentType"];
+  dirtyGroups?: QuizSettingsDirtyGroup[];
+  isNewQuiz?: boolean;
+  h5pRuntimeAvailable?: boolean;
+  updateEffective?: (settings: QuizEffectiveSettings) => void;
+}
+
+const saveSettings = (
+  rawSettings: RawQuizSettings,
+  {
+    contract = "v4",
+    contentType = "tutor_quiz",
+    dirtyGroups = [],
+    isNewQuiz = false,
+    h5pRuntimeAvailable = true,
+    updateEffective,
+  }: SaveSettingsOptions = {}
+): QuizSettingsSaveResult => {
+  const loaded = loadSettings(rawSettings, { contract, contentType });
+  const effectiveSettings = loaded.effectiveSettings
+    ? {
+        ...loaded.effectiveSettings,
+        time_limit: { ...loaded.effectiveSettings.time_limit },
+        content_drip_settings: { ...loaded.effectiveSettings.content_drip_settings },
+      }
+    : null;
+
+  if (effectiveSettings && updateEffective) {
+    updateEffective(effectiveSettings);
+  }
+
+  return convertQuizSettingsFormModelToPayload({
+    contract,
+    contentType,
+    rawSettings,
+    effectiveSettings,
+    dirtyGroups: new Set(dirtyGroups),
+    isNewQuiz,
+    h5pRuntimeAvailable,
+  });
+};
+
+const getReadySettings = (result: QuizSettingsSaveResult): RawQuizSettings => {
+  expect(result.status).toBe("ready");
+  if (result.status !== "ready") {
+    throw new Error(`Expected a ready save result, received ${result.reason}`);
+  }
+  return result.settings;
+};
+
+const containsUndefined = (value: unknown): boolean => {
+  if (Array.isArray(value)) {
+    return value.some(containsUndefined);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some((item) => item === undefined || containsUndefined(item));
+  }
+  return false;
+};
+
+const renderQuizFormHook = (options: UseQuizFormOptions) => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  let current: UseQuizFormReturn | undefined;
+  const container = document.createElement("div");
+  const root = createRoot(container);
+
+  const Harness = () => {
+    current = useQuizForm(options);
+    return null;
+  };
+
+  act(() => {
+    root.render(createElement(Harness));
+  });
+
+  return {
+    current: (): UseQuizFormReturn => {
+      if (!current) {
+        throw new Error("Quiz form hook did not render");
+      }
+      return current;
+    },
+    unmount: () => {
+      act(() => root.unmount());
+    },
+  };
+};
 
 describe("Quiz Settings defaults contract", () => {
   it("creates Tutor 4 defaults for a standard quiz", () => {
@@ -485,6 +586,669 @@ describe("Quiz Settings raw-to-effective loading", () => {
     expect(result.effectiveSettings).toBeNull();
     expect(result.rawSettings).toEqual(rawSettings);
     expect(result.dirtyGroups.size).toBe(0);
+  });
+});
+
+describe("Quiz Settings dirty-aware payload conversion", () => {
+  it("preserves an existing raw snapshot exactly on a no-op save", () => {
+    const rawSettings: RawQuizSettings = {
+      passing_grade: "64",
+      time_limit: { time_value: "0", time_type: "minutes", future_time: "keep" },
+      content_drip_settings: {
+        unlock_date: "2026-08-01",
+        future_nested: ["keep", 42],
+      },
+      future_top_level: { enabled: true },
+    };
+    const before = JSON.parse(JSON.stringify(rawSettings));
+    const payload = getReadySettings(saveSettings(rawSettings));
+
+    expect(payload).toEqual(before);
+    expect(rawSettings).toEqual(before);
+    expect(payload).not.toBe(rawSettings);
+    expect(payload.time_limit).not.toBe(rawSettings.time_limit);
+    expect(payload.content_drip_settings).not.toBe(rawSettings.content_drip_settings);
+  });
+
+  it.each([
+    ["passing grade", "passing_grade", (settings: QuizEffectiveSettings) => (settings.passing_grade = 72), {
+      passing_grade: 72,
+    }],
+    [
+      "question order",
+      "question_order",
+      (settings: QuizEffectiveSettings) => (settings.questions_order = "desc"),
+      { questions_order: "desc" },
+    ],
+    [
+      "question limit",
+      "question_limit",
+      (settings: QuizEffectiveSettings) => {
+        settings.limit_questions_to_answer = true;
+        settings.max_questions_for_answer = 6;
+      },
+      { max_questions_for_answer: 6 },
+    ],
+    [
+      "time limit",
+      "time_limit",
+      (settings: QuizEffectiveSettings) => {
+        settings.enable_time_limit = true;
+        settings.time_limit = { time_value: 25, time_type: "hours" };
+      },
+      { time_limit: { time_value: 25, time_type: "hours", future_time: "keep" } },
+    ],
+    [
+      "countdown visibility",
+      "hide_countdown",
+      (settings: QuizEffectiveSettings) => (settings.hide_quiz_time_display = true),
+      { hide_quiz_time_display: "1" },
+    ],
+    [
+      "auto start",
+      "auto_start",
+      (settings: QuizEffectiveSettings) => {
+        settings.quiz_auto_start = true;
+        settings.auto_start_delay = 7;
+      },
+      { quiz_auto_start: "1", auto_start_delay: 7 },
+    ],
+    [
+      "question number visibility",
+      "hide_question_number",
+      (settings: QuizEffectiveSettings) => (settings.hide_question_number_overview = true),
+      { hide_question_number_overview: "1" },
+    ],
+    [
+      "short-answer limit",
+      "short_answer_character_limit",
+      (settings: QuizEffectiveSettings) => (settings.short_answer_characters_limit = ""),
+      { short_answer_characters_limit: "" },
+    ],
+    [
+      "open-ended limit",
+      "open_ended_character_limit",
+      (settings: QuizEffectiveSettings) => (settings.open_ended_answer_characters_limit = 320),
+      { open_ended_answer_characters_limit: 320 },
+    ],
+    [
+      "pass requirement",
+      "pass_required",
+      (settings: QuizEffectiveSettings) => (settings.pass_is_required = true),
+      { pass_is_required: "1" },
+    ],
+    [
+      "previous-button visibility",
+      "hide_previous",
+      (settings: QuizEffectiveSettings) => (settings.hide_previous_button = true),
+      { hide_previous_button: "1" },
+    ],
+    [
+      "unlock date",
+      "drip_unlock_date",
+      (settings: QuizEffectiveSettings) =>
+        (settings.content_drip_settings.unlock_date = "2026-09-01"),
+      { content_drip_settings: { unlock_date: "2026-09-01", future_nested: "keep" } },
+    ],
+    [
+      "available-after days",
+      "drip_available_after_days",
+      (settings: QuizEffectiveSettings) =>
+        (settings.content_drip_settings.after_xdays_of_enroll = 4),
+      { content_drip_settings: { after_xdays_of_enroll: 4, future_nested: "keep" } },
+    ],
+    [
+      "prerequisites",
+      "drip_prerequisites",
+      (settings: QuizEffectiveSettings) => (settings.content_drip_settings.prerequisites = [12, 14]),
+      { content_drip_settings: { prerequisites: [12, 14], future_nested: "keep" } },
+    ],
+  ] as Array<
+    [
+      string,
+      QuizSettingsDirtyGroup,
+      (settings: QuizEffectiveSettings) => void,
+      Partial<RawQuizSettings>,
+    ]
+  >)("writes only the dirty %s group", (_label, dirtyGroup, updateEffective, expected) => {
+    const rawSettings: RawQuizSettings = {
+      untouched: { value: "keep" },
+      time_limit: { time_value: 0, time_type: "minutes", future_time: "keep" },
+      content_drip_settings: { future_nested: "keep" },
+    };
+    const payload = getReadySettings(
+      saveSettings(rawSettings, {
+        dirtyGroups: [dirtyGroup],
+        updateEffective,
+      })
+    );
+
+    expect(payload).toMatchObject(expected);
+    expect(payload.untouched).toEqual({ value: "keep" });
+  });
+
+  it.each(["attempts", "answer_reveal", "legacy_feedback"] as QuizSettingsDirtyGroup[])(
+    "atomically materializes V4 feedback flags when %s is edited",
+    (dirtyGroup) => {
+      const payload = getReadySettings(
+        saveSettings(
+          {
+            feedback_mode: "retry",
+            attempts_allowed: "4",
+            answers_reveal_duration: "5",
+            future_top_level: "keep",
+          },
+          {
+            dirtyGroups: [dirtyGroup],
+            updateEffective: (settings) => {
+              settings.limit_attempts_allowed = true;
+              settings.attempts_allowed = 3;
+              settings.enable_answer_reveal = true;
+              settings.answers_reveal_duration = 7;
+            },
+          }
+        )
+      );
+
+      expect(payload).toMatchObject({
+        limit_attempts_allowed: "1",
+        enable_answer_reveal: "1",
+        future_top_level: "keep",
+      });
+      expect(payload).not.toHaveProperty("feedback_mode");
+      if (dirtyGroup !== "answer_reveal") {
+        expect(payload.attempts_allowed).toBe(3);
+      }
+      if (dirtyGroup !== "attempts") {
+        expect(payload.answers_reveal_duration).toBe(7);
+      }
+    }
+  );
+
+  it.each(["layout", "pagination"] as QuizSettingsDirtyGroup[])(
+    "atomically canonicalizes V4 layout and pagination when %s is edited",
+    (dirtyGroup) => {
+      const payload = getReadySettings(
+        saveSettings(
+          {
+            question_layout_view: "question_pagination",
+            question_pagination_style: "radio",
+            future_top_level: "keep",
+          },
+          {
+            dirtyGroups: [dirtyGroup],
+            updateEffective: (settings) => {
+              settings.question_layout_view = "single_question";
+              settings.enable_pagination = false;
+              settings.pagination_type = "number";
+            },
+          }
+        )
+      );
+
+      expect(payload).toMatchObject({
+        question_layout_view: "single_question",
+        enable_pagination: "0",
+        pagination_type: "number",
+        future_top_level: "keep",
+      });
+      expect(payload).not.toHaveProperty("question_pagination_style");
+    }
+  );
+
+  it("does not clear hidden dependent values during an unrelated edit", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        {
+          question_layout_view: "question_below_each_other",
+          enable_answer_reveal: "1",
+          hide_question_number_overview: "1",
+          enable_pagination: "1",
+          hide_previous_button: "1",
+        },
+        {
+          dirtyGroups: ["passing_grade"],
+          updateEffective: (settings) => (settings.passing_grade = 90),
+        }
+      )
+    );
+
+    expect(payload).toMatchObject({
+      passing_grade: 90,
+      enable_answer_reveal: "1",
+      hide_question_number_overview: "1",
+      enable_pagination: "1",
+      hide_previous_button: "1",
+    });
+  });
+
+  it("writes legacy feedback without changing opaque V4 keys", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        {
+          feedback_mode: "default",
+          attempts_allowed: 10,
+          limit_attempts_allowed: "0",
+          enable_answer_reveal: "1",
+          answers_reveal_duration: 10,
+        },
+        {
+          contract: "legacy",
+          dirtyGroups: ["legacy_feedback"],
+          updateEffective: (settings) => {
+            settings.feedback_mode = "retry";
+            settings.attempts_allowed = 2;
+          },
+        }
+      )
+    );
+
+    expect(payload).toEqual({
+      feedback_mode: "retry",
+      attempts_allowed: 2,
+      limit_attempts_allowed: "0",
+      enable_answer_reveal: "1",
+      answers_reveal_duration: 10,
+    });
+  });
+
+  it.each([
+    ["Single Question without pagination", "single_question", false, "single_question"],
+    ["Single Question with pagination", "single_question", true, "question_pagination"],
+    ["Full Page", "question_below_each_other", true, "question_below_each_other"],
+  ] as Array<
+    [
+      string,
+      "single_question" | "question_below_each_other",
+      boolean,
+      "single_question" | "question_pagination" | "question_below_each_other",
+    ]
+  >)(
+    "translates legacy layout for %s",
+    (_label, layout, paginationEnabled, expectedLayout) => {
+      const payload = getReadySettings(
+        saveSettings(
+          {
+            enable_pagination: "0",
+            pagination_type: "number",
+            hide_previous_button: "1",
+          },
+          {
+            contract: "legacy",
+            dirtyGroups: ["layout"],
+            updateEffective: (settings) => {
+              settings.question_layout_view = layout;
+              settings.enable_pagination = paginationEnabled;
+              settings.pagination_type = "radio";
+            },
+          }
+        )
+      );
+
+      expect(payload).toMatchObject({
+        question_layout_view: expectedLayout,
+        question_pagination_style: "radio",
+        enable_pagination: "0",
+        pagination_type: "number",
+        hide_previous_button: "1",
+      });
+    }
+  );
+
+  it("does not generate Tutor 4-only keys for a new legacy quiz", () => {
+    const payload = getReadySettings(
+      saveSettings({}, { contract: "legacy", isNewQuiz: true })
+    );
+    const v4OnlyKeys = [
+      "limit_attempts_allowed",
+      "auto_start_delay",
+      "enable_pagination",
+      "pagination_type",
+      "enable_answer_reveal",
+      "answers_reveal_duration",
+      "hide_previous_button",
+    ];
+
+    v4OnlyKeys.forEach((key) => expect(payload).not.toHaveProperty(key));
+  });
+
+  it("ignores V4-only dirty groups under the legacy contract", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { future_top_level: "keep" },
+        {
+          contract: "legacy",
+          dirtyGroups: ["attempts", "answer_reveal", "hide_previous"],
+          updateEffective: (settings) => {
+            settings.limit_attempts_allowed = true;
+            settings.enable_answer_reveal = true;
+            settings.hide_previous_button = true;
+          },
+        }
+      )
+    );
+
+    expect(payload).toEqual({ future_top_level: "keep" });
+  });
+
+  it.each([
+    ["unavailable contract", "unavailable", true, "settings_contract_unavailable"],
+    ["legacy contract", "legacy", true, "interactive_v4_required"],
+    ["missing H5P runtime", "v4", false, "h5p_runtime_unavailable"],
+  ] as Array<[string, QuizSettingsContract, boolean, string]>)(
+    "blocks Interactive conversion for %s without changing raw identity",
+    (_label, contract, h5pRuntimeAvailable, reason) => {
+      const rawSettings: RawQuizSettings = {
+        quiz_type: "future_identity",
+        future_top_level: "keep",
+      };
+      const result = saveSettings(rawSettings, {
+        contract,
+        contentType: "tutor_h5p_quiz",
+        h5pRuntimeAvailable,
+      });
+
+      expect(result).toEqual({
+        status: "blocked",
+        reason,
+        rawSettings,
+      });
+    }
+  );
+
+  it("enforces H5P identity for a valid Interactive conversion", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { quiz_type: "future_identity", future_top_level: "keep" },
+        { contentType: "tutor_h5p_quiz" }
+      )
+    );
+
+    expect(payload).toEqual({
+      quiz_type: "tutor_h5p_quiz",
+      future_top_level: "keep",
+    });
+  });
+
+  it.each([
+    ["exact stale H5P identity", "tutor_h5p_quiz", undefined],
+    ["unknown identity", "future_identity", "future_identity"],
+    ["null identity", null, null],
+  ] as Array<[string, string | null, string | null | undefined]>)(
+    "applies standard identity policy for %s",
+    (_label, rawIdentity, expectedIdentity) => {
+      const payload = getReadySettings(
+        saveSettings({ quiz_type: rawIdentity, future_top_level: "keep" })
+      );
+
+      if (expectedIdentity === undefined) {
+        expect(payload).not.toHaveProperty("quiz_type");
+      } else {
+        expect(payload.quiz_type).toBe(expectedIdentity);
+      }
+      expect(payload.future_top_level).toBe("keep");
+    }
+  );
+
+  it("serializes a new untouched Interactive maximum as zero", () => {
+    const payload = getReadySettings(
+      saveSettings({}, { contentType: "tutor_h5p_quiz", isNewQuiz: true })
+    );
+
+    expect(payload.max_questions_for_answer).toBe(0);
+    expect(payload.quiz_type).toBe("tutor_h5p_quiz");
+  });
+
+  it.each([
+    ["absent", {}, undefined],
+    ["zero", { max_questions_for_answer: 0 }, 0],
+    ["positive", { max_questions_for_answer: 7 }, 7],
+  ] as Array<[string, RawQuizSettings, number | undefined]>)(
+    "preserves an untouched existing Interactive maximum that is %s",
+    (_label, rawMaximum, expectedMaximum) => {
+      const payload = getReadySettings(
+        saveSettings(rawMaximum, { contentType: "tutor_h5p_quiz" })
+      );
+
+      if (expectedMaximum === undefined) {
+        expect(payload).not.toHaveProperty("max_questions_for_answer");
+      } else {
+        expect(payload.max_questions_for_answer).toBe(expectedMaximum);
+      }
+    }
+  );
+
+  it("writes an enabled Interactive maximum exactly", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { max_questions_for_answer: 0 },
+        {
+          contentType: "tutor_h5p_quiz",
+          dirtyGroups: ["question_limit"],
+          updateEffective: (settings) => {
+            settings.limit_questions_to_answer = true;
+            settings.max_questions_for_answer = 6;
+          },
+        }
+      )
+    );
+
+    expect(payload.max_questions_for_answer).toBe(6);
+  });
+
+  it("writes zero when the Interactive maximum is disabled", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { max_questions_for_answer: 8 },
+        {
+          contentType: "tutor_h5p_quiz",
+          dirtyGroups: ["question_limit"],
+          updateEffective: (settings) => {
+            settings.limit_questions_to_answer = false;
+            settings.max_questions_for_answer = 8;
+          },
+        }
+      )
+    );
+
+    expect(payload.max_questions_for_answer).toBe(0);
+  });
+
+  it("starts new payloads from contract defaults rather than an existing raw snapshot", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        {
+          passing_grade: 12,
+          future_top_level: "do-not-merge",
+        },
+        { isNewQuiz: true }
+      )
+    );
+
+    expect(payload.passing_grade).toBe(80);
+    expect(payload).not.toHaveProperty("future_top_level");
+  });
+
+  it("removes undefined values without dropping defined unknown data", () => {
+    const rawSettings = {
+      undefined_top_level: undefined,
+      future_top_level: {
+        keep: true,
+        remove: undefined,
+        values: [1, undefined, 2],
+      },
+      content_drip_settings: {
+        future_nested: "keep",
+        remove: undefined,
+      },
+    } as RawQuizSettings;
+    const payload = getReadySettings(saveSettings(rawSettings));
+
+    expect(containsUndefined(payload)).toBe(false);
+    expect(payload).toEqual({
+      future_top_level: {
+        keep: true,
+        values: [1, 2],
+      },
+      content_drip_settings: {
+        future_nested: "keep",
+      },
+    });
+  });
+});
+
+describe("Quiz Settings runtime save integration", () => {
+  it("returns a ready standard form after dirty updates and preserves unrelated raw data", () => {
+    window.tutorpressAddons = {
+      h5p: true,
+      h5p_plugin_active: false,
+    } as typeof window.tutorpressAddons;
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+      initialData: {
+        ID: 41,
+        post_title: " Existing quiz ",
+        quiz_option: {
+          feedback_mode: "retry",
+          attempts_allowed: 4,
+          passing_grade: 80,
+          quiz_type: "tutor_h5p_quiz",
+          future_top_level: { keep: true },
+        } as unknown as QuizSettings,
+      },
+    });
+
+    try {
+      act(() => {
+        hook.current().updateSettings({
+          feedback_mode: "reveal",
+          passing_grade: 75,
+        });
+      });
+
+      const result = hook.current().getFormData([], false);
+      expect(result.status).toBe("ready");
+      if (result.status !== "ready") {
+        throw new Error(`Expected ready result, received ${result.reason}`);
+      }
+
+      expect(result.formData.post_title).toBe("Existing quiz");
+      expect(result.formData.quiz_option).toMatchObject({
+        passing_grade: 75,
+        limit_attempts_allowed: "0",
+        enable_answer_reveal: "1",
+        attempts_allowed: 4,
+        future_top_level: { keep: true },
+      });
+      expect(result.formData.quiz_option).not.toHaveProperty("feedback_mode");
+      expect(result.formData.quiz_option).not.toHaveProperty("quiz_type");
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it("returns blocked then ready Interactive results from localized H5P runtime state", () => {
+    window.tutorpressAddons = {
+      h5p: true,
+      h5p_plugin_active: false,
+    } as typeof window.tutorpressAddons;
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_h5p_quiz",
+      initialData: {
+        ID: 42,
+        post_title: "Interactive quiz",
+        quiz_option: {
+          quiz_type: "future_identity",
+          future_top_level: "keep",
+        } as unknown as QuizSettings,
+      },
+    });
+
+    try {
+      const blocked = hook.current().getFormData([], false);
+      expect(blocked).toMatchObject({
+        status: "blocked",
+        reason: "h5p_runtime_unavailable",
+        rawSettings: {
+          quiz_type: "future_identity",
+          future_top_level: "keep",
+        },
+      });
+      expect(blocked).not.toHaveProperty("formData");
+
+      window.tutorpressAddons = {
+        h5p: true,
+        h5p_plugin_active: true,
+      } as typeof window.tutorpressAddons;
+      const ready = hook.current().getFormData([], false);
+      expect(ready.status).toBe("ready");
+      if (ready.status !== "ready") {
+        throw new Error(`Expected ready result, received ${ready.reason}`);
+      }
+
+      expect(ready.formData.quiz_option).toEqual({
+        quiz_type: "tutor_h5p_quiz",
+        future_top_level: "keep",
+      });
+      expect(ready.formData.quiz_option).not.toHaveProperty("max_questions_for_answer");
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it("returns a blocked caller result for an unavailable settings contract", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("unavailable"),
+      contentType: "tutor_quiz",
+      initialData: {
+        ID: 43,
+        quiz_option: {
+          quiz_type: "tutor_h5p_quiz",
+          future_top_level: "keep",
+        } as unknown as QuizSettings,
+      },
+    });
+
+    try {
+      expect(hook.current().getFormData([], false)).toEqual({
+        status: "blocked",
+        reason: "settings_contract_unavailable",
+        rawSettings: {
+          quiz_type: "tutor_h5p_quiz",
+          future_top_level: "keep",
+        },
+      });
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it("returns contract defaults plus dirty values for a new caller", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+    });
+
+    try {
+      act(() => {
+        hook.current().updateSettings({ passing_grade: 65 });
+      });
+      const result = hook.current().getFormData([], true);
+
+      expect(result.status).toBe("ready");
+      if (result.status !== "ready") {
+        throw new Error(`Expected ready result, received ${result.reason}`);
+      }
+      expect(result.formData.quiz_option).toMatchObject({
+        passing_grade: 65,
+        max_questions_for_answer: 0,
+        question_layout_view: "single_question",
+      });
+    } finally {
+      hook.unmount();
+    }
   });
 });
 
