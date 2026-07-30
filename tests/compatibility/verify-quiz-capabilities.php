@@ -29,9 +29,61 @@ $native_slugs = ['draw_image', 'scale', 'pin_image', 'coordinates', 'puzzle'];
 $modern_modes = ['modern', 'kids'];
 
 /**
+ * Assert the version-aware Quiz Settings portion of the capability contract.
+ */
+$assert_settings_contract_shape = static function (array $capabilities) use ($assert) {
+    $contract = $capabilities['quizSettingsContract'] ?? null;
+    $reason   = $capabilities['quizSettingsUnavailableReason'] ?? null;
+    $flags    = [
+        'supportsOrthogonalFeedback',
+        'supportsSeparatePagination',
+        'supportsV4TimingNavigation',
+        'supportsLegacyFeedbackLayout',
+        'supportsV4QuizContentDrip',
+    ];
+
+    $assert(in_array($contract, ['v4', 'legacy', 'unavailable'], true), 'Quiz Settings contract is invalid.');
+    $assert(
+        is_string($reason)
+            && in_array(
+                $reason,
+                ['', 'tutor_inactive', 'tutor_version_missing', 'unsupported_tutor_version', 'legacy_contract_unavailable'],
+                true
+            ),
+        'Quiz Settings unavailable reason is invalid.'
+    );
+    $assert(
+        ('unavailable' === $contract) === ('' !== $reason),
+        'Quiz Settings contract and unavailable reason disagree.'
+    );
+
+    $expected_flags = [
+        'v4'          => [true, true, true, false, true],
+        'legacy'      => [false, false, false, true, false],
+        'unavailable' => [false, false, false, false, false],
+    ][$contract];
+
+    foreach ($flags as $index => $flag) {
+        $assert(
+            array_key_exists($flag, $capabilities)
+                && is_bool($capabilities[$flag])
+                && $expected_flags[$index] === $capabilities[$flag],
+            "Quiz Settings capability {$flag} disagrees with contract {$contract}."
+        );
+    }
+};
+
+/**
  * Assert the structural contract every capability object must satisfy.
  */
-$assert_contract_shape = static function (array $capabilities) use ($assert, $native_slugs, $modern_modes) {
+$assert_contract_shape = static function (array $capabilities) use (
+    $assert,
+    $native_slugs,
+    $modern_modes,
+    $assert_settings_contract_shape
+) {
+    $assert_settings_contract_shape($capabilities);
+
     $booleans = [
         'tutorActive',
         'meetsSupportedFloor',
@@ -205,6 +257,34 @@ try {
     $assert(is_array($capabilities), 'Capability contract is not an array.');
     $assert_contract_shape($capabilities);
     $assert_capability_matrix($capabilities);
+
+    $legacy_probe = [
+        'feedbackModes'      => ['default', 'reveal', 'retry'],
+        'questionLayouts'    => ['single_question', 'question_pagination', 'question_below_each_other'],
+        'hasPaginationStyle' => true,
+    ];
+    $classifier_cases = [
+        ['V4 boundary', '4.0.0', [], true, 'v4', ''],
+        ['V4 later release', '4.9.0', [], true, 'v4', ''],
+        ['legacy floor', '3.9.15', $legacy_probe, true, 'legacy', ''],
+        ['legacy later release', '3.9.99', $legacy_probe, true, 'legacy', ''],
+        ['inactive Tutor', '', [], false, 'unavailable', 'tutor_inactive'],
+        ['missing version', '', [], true, 'unavailable', 'tutor_version_missing'],
+        ['below floor', '3.9.14', $legacy_probe, true, 'unavailable', 'unsupported_tutor_version'],
+        ['missing feedback catalog', '3.9.15', array_merge($legacy_probe, ['feedbackModes' => []]), true, 'unavailable', 'legacy_contract_unavailable'],
+        ['missing layout catalog', '3.9.15', array_merge($legacy_probe, ['questionLayouts' => []]), true, 'unavailable', 'legacy_contract_unavailable'],
+        ['missing pagination style', '3.9.15', array_merge($legacy_probe, ['hasPaginationStyle' => false]), true, 'unavailable', 'legacy_contract_unavailable'],
+    ];
+
+    foreach ($classifier_cases as [$label, $version, $probe, $active, $expected_contract, $expected_reason]) {
+        $classified = TutorPress_Assets::classify_quiz_settings_contract($version, $probe, $active);
+        $assert_settings_contract_shape($classified);
+        $assert(
+            $expected_contract === $classified['quizSettingsContract']
+                && $expected_reason === $classified['quizSettingsUnavailableReason'],
+            "{$label} classification failed."
+        );
+    }
 
     $assert(
         function_exists('tutor') === $capabilities['tutorActive'],

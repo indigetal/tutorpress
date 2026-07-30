@@ -295,7 +295,7 @@ class TutorPress_Assets {
      * @return array
      */
     public static function get_quiz_capabilities() {
-        $capabilities = [
+        $capabilities = array_merge([
             'tutorActive'              => false,
             'tutorVersion'             => '',
             'meetsSupportedFloor'      => false,
@@ -305,7 +305,7 @@ class TutorPress_Assets {
             'proNativeQuizSupport'     => false,
             'supportsTempMaskDeletion' => false,
             'questionTypes'            => [],
-        ];
+        ], self::classify_quiz_settings_contract('', [], false));
 
         if (!function_exists('tutor') || !function_exists('tutor_utils')) {
             return $capabilities;
@@ -323,7 +323,108 @@ class TutorPress_Assets {
         $capabilities['supportsTempMaskDeletion'] = self::supports_temp_mask_deletion();
         $capabilities['questionTypes']            = self::build_question_type_capabilities($capabilities);
 
+        $capabilities = array_merge(
+            $capabilities,
+            self::classify_quiz_settings_contract(
+                $capabilities['tutorVersion'],
+                self::probe_legacy_quiz_settings_capabilities()
+            )
+        );
         return $capabilities;
+    }
+
+    /**
+     * Classify the executable Quiz Settings contract.
+     *
+     * @since 0.1.0
+     * @param string $version Tutor LMS version.
+     * @param array  $legacy_capabilities Probed legacy settings surfaces.
+     * @param bool   $tutor_active Whether Tutor LMS is active.
+     * @return array
+     */
+    public static function classify_quiz_settings_contract($version, array $legacy_capabilities, $tutor_active = true) {
+        $contract = [
+            'quizSettingsContract'          => 'unavailable',
+            'quizSettingsUnavailableReason' => '',
+            'supportsOrthogonalFeedback'    => false,
+            'supportsSeparatePagination'    => false,
+            'supportsV4TimingNavigation'    => false,
+            'supportsLegacyFeedbackLayout'  => false,
+            'supportsV4QuizContentDrip'     => false,
+        ];
+
+        if (!$tutor_active) {
+            $contract['quizSettingsUnavailableReason'] = 'tutor_inactive';
+            return $contract;
+        }
+        $version = is_string($version) ? trim($version) : '';
+        if ('' === $version) {
+            $contract['quizSettingsUnavailableReason'] = 'tutor_version_missing';
+            return $contract;
+        }
+        if (version_compare($version, self::TUTOR_SUPPORTED_FLOOR, '<')) {
+            $contract['quizSettingsUnavailableReason'] = 'unsupported_tutor_version';
+            return $contract;
+        }
+        if (version_compare($version, '4.0.0', '>=')) {
+            $contract['quizSettingsContract']       = 'v4';
+            $contract['supportsOrthogonalFeedback'] = true;
+            $contract['supportsSeparatePagination'] = true;
+            $contract['supportsV4TimingNavigation'] = true;
+            $contract['supportsV4QuizContentDrip']  = true;
+            return $contract;
+        }
+        $feedback_modes = isset($legacy_capabilities['feedbackModes'])
+            && is_array($legacy_capabilities['feedbackModes'])
+            ? $legacy_capabilities['feedbackModes']
+            : [];
+        $question_layouts = isset($legacy_capabilities['questionLayouts'])
+            && is_array($legacy_capabilities['questionLayouts'])
+            ? $legacy_capabilities['questionLayouts']
+            : [];
+        $has_feedback_modes = [] === array_diff(['default', 'reveal', 'retry'], $feedback_modes);
+        $has_question_layouts = [] === array_diff(
+            ['single_question', 'question_pagination', 'question_below_each_other'],
+            $question_layouts
+        );
+        $has_pagination_style = true === ($legacy_capabilities['hasPaginationStyle'] ?? false);
+        if (!$has_feedback_modes || !$has_question_layouts || !$has_pagination_style) {
+            $contract['quizSettingsUnavailableReason'] = 'legacy_contract_unavailable';
+            return $contract;
+        }
+        $contract['quizSettingsContract']         = 'legacy';
+        $contract['supportsLegacyFeedbackLayout'] = true;
+        return $contract;
+    }
+
+    /**
+     * Probe Tutor's executable pre-4 Quiz Settings surfaces.
+     *
+     * @since 0.1.0
+     * @return array
+     */
+    private static function probe_legacy_quiz_settings_capabilities() {
+        $unavailable = [
+            'feedbackModes'     => [],
+            'questionLayouts'   => [],
+            'hasPaginationStyle' => false,
+        ];
+        if (!is_callable(['\TUTOR\Quiz', 'get_default_quiz_settings'])) {
+            return $unavailable;
+        }
+        $defaults = \TUTOR\Quiz::get_default_quiz_settings();
+        if (
+            !is_array($defaults)
+            || !array_key_exists('feedback_mode', $defaults)
+            || !array_key_exists('question_layout_view', $defaults)
+        ) {
+            return $unavailable;
+        }
+        return [
+            'feedbackModes'      => ['default', 'reveal', 'retry'],
+            'questionLayouts'    => ['single_question', 'question_pagination', 'question_below_each_other'],
+            'hasPaginationStyle' => true,
+        ];
     }
 
     /**

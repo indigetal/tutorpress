@@ -3,7 +3,7 @@ Contributors: brandonmeyer, indigetal webcraft
 Tags: tutor-lms, gutenberg, lms, course-builder, freemius
 Requires at least: 5.8
 Tested up to: 6.4
-Stable tag: 2.1.2
+Stable tag: 2.2.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -41,6 +41,9 @@ Support included with license; see <support URL>.
 2. Quiz modal
 
 == Changelog ==
+= 2.2.0 =
+* Version bump to 2.2.0
+
 = 2.0.0 =
 * Major: Premium launch; Gutenberg-native course builder; 14-day trial via Freemius
 * Added: Course Curriculum metabox, advanced quiz builder, REST API endpoints

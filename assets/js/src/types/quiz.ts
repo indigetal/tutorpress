@@ -65,6 +65,23 @@ export type DataStatus = "new" | "update" | "no_change";
 export type TutorLearningMode = "legacy" | "modern" | "kids" | "unknown";
 
 /**
+ * Executable Quiz Settings contract selected by the PHP runtime.
+ */
+export type QuizSettingsContract = "v4" | "legacy" | "unavailable";
+
+/**
+ * Machine-readable reason Quiz Settings compatibility is unavailable.
+ *
+ * An empty string means the selected contract is executable. The UI owns translation.
+ */
+export type QuizSettingsUnavailableReason =
+  | ""
+  | "tutor_inactive"
+  | "tutor_version_missing"
+  | "unsupported_tutor_version"
+  | "legacy_contract_unavailable";
+
+/**
  * Machine-readable reason a question type cannot be created.
  *
  * An empty string means the type is creatable. The client owns translation.
@@ -99,6 +116,13 @@ export interface QuizCapabilities {
   proActive: boolean;
   proNativeQuizSupport: boolean;
   supportsTempMaskDeletion: boolean;
+  quizSettingsContract: QuizSettingsContract;
+  quizSettingsUnavailableReason: QuizSettingsUnavailableReason;
+  supportsOrthogonalFeedback: boolean;
+  supportsSeparatePagination: boolean;
+  supportsV4TimingNavigation: boolean;
+  supportsLegacyFeedbackLayout: boolean;
+  supportsV4QuizContentDrip: boolean;
   questionTypes: QuizQuestionTypeCapability[];
 }
 
