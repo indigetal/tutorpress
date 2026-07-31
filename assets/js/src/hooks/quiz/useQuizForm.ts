@@ -184,6 +184,7 @@ export const createInitialQuizFormState = ({
 };
 
 const toFormQuizSettings = (effective: QuizEffectiveSettings): QuizSettings => ({
+  enable_time_limit: effective.enable_time_limit,
   time_limit: { ...effective.time_limit },
   hide_quiz_time_display: effective.hide_quiz_time_display,
   feedback_mode: effective.feedback_mode,
@@ -194,6 +195,7 @@ const toFormQuizSettings = (effective: QuizEffectiveSettings): QuizSettings => (
   limit_questions_to_answer: effective.limit_questions_to_answer,
   max_questions_for_answer: effective.max_questions_for_answer,
   quiz_auto_start: effective.quiz_auto_start,
+  auto_start_delay: effective.auto_start_delay,
   question_layout_view: effective.question_layout_view,
   questions_order: effective.questions_order,
   hide_question_number_overview: effective.hide_question_number_overview,
@@ -216,6 +218,7 @@ const getDirtyGroupsForSettings = (
 
   Object.keys(settings).forEach((key) => {
     switch (key as keyof QuizSettings) {
+      case "enable_time_limit":
       case "time_limit":
         groups.add("time_limit");
         break;
@@ -240,6 +243,7 @@ const getDirtyGroupsForSettings = (
         groups.add("question_limit");
         break;
       case "quiz_auto_start":
+      case "auto_start_delay":
         groups.add("auto_start");
         break;
       case "question_layout_view":
@@ -280,9 +284,13 @@ const applySettingsToEffective = (
     content_drip_settings: { ...effectiveSettings.content_drip_settings },
   };
 
+  if (settings.enable_time_limit !== undefined) {
+    next.enable_time_limit = settings.enable_time_limit;
+  }
   if (settings.time_limit) {
+    // Keep the UI toggle independent of companion edits; validation requires
+    // a positive value while enabled, and save folds off → time_value 0.
     next.time_limit = { ...settings.time_limit };
-    next.enable_time_limit = settings.time_limit.time_value > 0;
   }
   if (settings.hide_quiz_time_display !== undefined) {
     next.hide_quiz_time_display = settings.hide_quiz_time_display;
@@ -319,6 +327,9 @@ const applySettingsToEffective = (
   }
   if (settings.quiz_auto_start !== undefined) {
     next.quiz_auto_start = settings.quiz_auto_start;
+  }
+  if (settings.auto_start_delay !== undefined) {
+    next.auto_start_delay = settings.auto_start_delay;
   }
   if (settings.question_layout_view !== undefined) {
     next.question_layout_view =
@@ -409,9 +420,13 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         errors.title = __("Quiz title must be at least 3 characters", "tutorpress");
       }
 
-      // Time limit validation
+      // Time limit: require a positive companion when the limit toggle is on
       const timeValue = state.settings.time_limit?.time_value;
-      if (timeValue !== undefined && timeValue < 0) {
+      if (state.settings.enable_time_limit) {
+        if (timeValue === undefined || timeValue <= 0) {
+          errors.timeLimit = __("Time limit must be greater than 0", "tutorpress");
+        }
+      } else if (timeValue !== undefined && timeValue < 0) {
         errors.timeLimit = __("Time limit cannot be negative", "tutorpress");
       }
 
@@ -549,13 +564,15 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           ...convertedSettings,
         };
 
-        // Keep Quiz scope toggles/companions aligned after derived effective updates
+        // Keep Quiz scope / Timing toggles aligned after derived effective updates
         if (nextEffective) {
           mergedSettings.limit_attempts_allowed = nextEffective.limit_attempts_allowed;
           mergedSettings.limit_questions_to_answer = nextEffective.limit_questions_to_answer;
           mergedSettings.attempts_allowed = nextEffective.attempts_allowed;
           mergedSettings.max_questions_for_answer = nextEffective.max_questions_for_answer;
           mergedSettings.feedback_mode = nextEffective.feedback_mode;
+          mergedSettings.enable_time_limit = nextEffective.enable_time_limit;
+          mergedSettings.auto_start_delay = nextEffective.auto_start_delay;
         }
 
         const newState = {
@@ -708,8 +725,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         : null;
 
       setFormState((prevState) => {
-        // Preserve loaded form fields for non-Quiz-scope groups (layout, drip, timing,
-        // etc.). Overlay only Step 6 Quiz-scope effective values so companions/toggles
+        // Preserve loaded form fields for non-owned groups (layout, drip, etc.).
+        // Overlay only Quiz-scope and Timing effective values so companions/toggles
         // are correct without rewriting out-of-scope presentation.
         const effective = loadedModel?.effectiveSettings;
         const settings: QuizSettings = {
@@ -734,6 +751,18 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           max_questions_for_answer:
             effective?.max_questions_for_answer ??
             convertedSettings.max_questions_for_answer,
+          enable_time_limit:
+            effective?.enable_time_limit ??
+            Number(convertedSettings.time_limit?.time_value) > 0,
+          time_limit: effective?.time_limit
+            ? { ...effective.time_limit }
+            : convertedSettings.time_limit,
+          hide_quiz_time_display:
+            effective?.hide_quiz_time_display ??
+            convertedSettings.hide_quiz_time_display,
+          quiz_auto_start:
+            effective?.quiz_auto_start ?? convertedSettings.quiz_auto_start,
+          auto_start_delay: effective?.auto_start_delay ?? 5,
         };
 
         const newState = {

@@ -326,6 +326,8 @@ export type QuizSettingsSaveResult = QuizSettingsSaveReadyResult | QuizSettingsS
  * Comprehensive quiz settings interface matching Tutor LMS structure
  */
 export interface QuizSettings {
+  /** UI-only enable flag; off serializes time_limit.time_value as 0. */
+  enable_time_limit: boolean;
   time_limit: QuizTimeLimit;
   hide_quiz_time_display: boolean;
   feedback_mode: FeedbackMode;
@@ -338,6 +340,8 @@ export interface QuizSettings {
   limit_questions_to_answer: boolean;
   max_questions_for_answer: number;
   quiz_auto_start: boolean;
+  /** V4-only companion; legacy form keeps the default and does not emit it. */
+  auto_start_delay: number;
   question_layout_view: QuestionLayoutView;
   questions_order: QuestionOrder;
   hide_question_number_overview: boolean;
@@ -691,6 +695,7 @@ export const createQuizError = (
  * Default quiz settings
  */
 export const getDefaultQuizSettings = (): QuizSettings => ({
+  enable_time_limit: false,
   time_limit: {
     time_value: 0,
     time_type: "minutes",
@@ -704,6 +709,7 @@ export const getDefaultQuizSettings = (): QuizSettings => ({
   limit_questions_to_answer: false,
   max_questions_for_answer: 10,
   quiz_auto_start: false,
+  auto_start_delay: 5,
   question_layout_view: "",
   questions_order: "rand",
   hide_question_number_overview: false,

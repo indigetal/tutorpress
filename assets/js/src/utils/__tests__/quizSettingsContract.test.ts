@@ -23,8 +23,11 @@ import {
   createNewQuizSettingsFormModel,
   isRetryCapableQuizAttempts,
   QUIZ_SETTINGS_GROUP_FIELDS,
+  shouldShowAutoStartDelay,
+  shouldShowHideCountdown,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
+  shouldShowTimingTimeLimit,
 } from "../quizSettingsContract";
 
 const createCapabilities = (contract: QuizSettingsContract): QuizCapabilities => {
@@ -1472,5 +1475,149 @@ describe("Quiz scope visibility gates", () => {
     });
     expect(payload).not.toHaveProperty("limit_attempts_allowed");
     expect(payload).not.toHaveProperty("enable_answer_reveal");
+  });
+});
+
+describe("Timing visibility gates and serialization", () => {
+  it("gates Time Limit, Hide countdown, and Auto Start delay by disclosure and contract", () => {
+    expect(shouldShowTimingTimeLimit({ contentType: "tutor_quiz" })).toBe(true);
+    expect(
+      shouldShowTimingTimeLimit({ contentType: "tutor_h5p_quiz", showAllSettings: false })
+    ).toBe(false);
+    expect(
+      shouldShowTimingTimeLimit({ contentType: "tutor_h5p_quiz", showAllSettings: true })
+    ).toBe(true);
+
+    expect(
+      shouldShowHideCountdown({ enableTimeLimit: true, contentType: "tutor_quiz" })
+    ).toBe(true);
+    expect(
+      shouldShowHideCountdown({ enableTimeLimit: false, contentType: "tutor_quiz" })
+    ).toBe(false);
+    expect(
+      shouldShowHideCountdown({
+        enableTimeLimit: true,
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: false,
+      })
+    ).toBe(false);
+
+    expect(shouldShowAutoStartDelay({ contract: "v4", quizAutoStart: true })).toBe(true);
+    expect(shouldShowAutoStartDelay({ contract: "v4", quizAutoStart: false })).toBe(false);
+    expect(shouldShowAutoStartDelay({ contract: "legacy", quizAutoStart: true })).toBe(false);
+  });
+
+  it("folds a disabled Time Limit into time_value 0 without emitting enable_time_limit", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { time_limit: { time_value: 25, time_type: "hours", future_time: "keep" } },
+        {
+          dirtyGroups: ["time_limit"],
+          updateEffective: (settings) => {
+            settings.enable_time_limit = false;
+            settings.time_limit = { time_value: 25, time_type: "hours" };
+          },
+        }
+      )
+    );
+
+    expect(payload.time_limit).toEqual({
+      time_value: 0,
+      time_type: "hours",
+      future_time: "keep",
+    });
+    expect(payload).not.toHaveProperty("enable_time_limit");
+  });
+
+  it("emits V4 auto_start_delay when dirty and preserves opaque legacy delay otherwise", () => {
+    const v4Payload = getReadySettings(
+      saveSettings(
+        {},
+        {
+          dirtyGroups: ["auto_start"],
+          updateEffective: (settings) => {
+            settings.quiz_auto_start = true;
+            settings.auto_start_delay = 7;
+          },
+        }
+      )
+    );
+    expect(v4Payload).toMatchObject({ quiz_auto_start: "1", auto_start_delay: 7 });
+
+    const zeroDelayPayload = getReadySettings(
+      saveSettings(
+        {},
+        {
+          dirtyGroups: ["auto_start"],
+          updateEffective: (settings) => {
+            settings.quiz_auto_start = true;
+            settings.auto_start_delay = 0;
+          },
+        }
+      )
+    );
+    expect(zeroDelayPayload).toMatchObject({ quiz_auto_start: "1", auto_start_delay: 0 });
+
+    const legacyDirty = getReadySettings(
+      saveSettings(
+        { auto_start_delay: 10 },
+        {
+          contract: "legacy",
+          dirtyGroups: ["auto_start"],
+          updateEffective: (settings) => {
+            settings.quiz_auto_start = true;
+            settings.auto_start_delay = 7;
+          },
+        }
+      )
+    );
+    expect(legacyDirty).toMatchObject({ quiz_auto_start: "1", auto_start_delay: 10 });
+
+    const legacyOpaque = getReadySettings(
+      saveSettings(
+        { auto_start_delay: 10, quiz_auto_start: "0" },
+        {
+          contract: "legacy",
+          dirtyGroups: ["passing_grade"],
+          updateEffective: (settings) => {
+            settings.passing_grade = 70;
+          },
+        }
+      )
+    );
+    expect(legacyOpaque).toMatchObject({
+      passing_grade: 70,
+      auto_start_delay: 10,
+      quiz_auto_start: "0",
+    });
+  });
+
+  it("blocks save when Time Limit is enabled with a non-positive companion", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+      initialData: { post_title: "Timing quiz" },
+    });
+
+    try {
+      act(() => {
+        hook.current().updateSettings({
+          enable_time_limit: true,
+          time_limit: { time_value: 0, time_type: "minutes" },
+        });
+      });
+      expect(hook.current().formState.isValid).toBe(false);
+      expect(hook.current().formState.errors.timeLimit).toBe(
+        "Time limit must be greater than 0"
+      );
+
+      act(() => {
+        hook.current().updateSettings({ enable_time_limit: false });
+      });
+      expect(hook.current().formState.errors.timeLimit).toBeUndefined();
+      expect(hook.current().formState.isValid).toBe(true);
+    } finally {
+      hook.unmount();
+    }
   });
 });

@@ -83,8 +83,11 @@ import type {
   TutorLearningMode,
 } from "../../../types/quiz";
 import {
+  shouldShowAutoStartDelay,
+  shouldShowHideCountdown,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
+  shouldShowTimingTimeLimit,
 } from "../../../utils/quizSettingsContract";
 
 interface SettingsTabProps {
@@ -110,9 +113,12 @@ interface SettingsTabProps {
   contentDripType?: string;
 
   // Quiz Modal specific settings (optional for Interactive Quiz)
+  enableTimeLimit?: boolean;
   timeValue?: number;
   timeType?: TimeUnit;
   hideQuizTimeDisplay?: boolean;
+  /** V4 auto-start delay companion; UI wiring remains Step 7D. */
+  autoStartDelay?: number;
   feedbackMode?: FeedbackMode;
   maxQuestionsForAnswer?: number;
   afterXDaysOfEnroll?: number;
@@ -187,9 +193,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   contentDripType = "",
 
   // Quiz Modal specific settings with defaults
+  enableTimeLimit,
   timeValue = 0,
   timeType = "minutes",
   hideQuizTimeDisplay = false,
+  autoStartDelay = 5,
   feedbackMode = "default",
   maxQuestionsForAnswer = 0,
   afterXDaysOfEnroll = 0,
@@ -246,11 +254,36 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     contentType,
     showAllSettings,
   });
+  // Prefer the form toggle when parents pass it; fall back for older callers.
+  const effectiveEnableTimeLimit = enableTimeLimit ?? timeValue > 0;
+  const showTimingTimeLimit = shouldShowTimingTimeLimit({
+    contentType,
+    showAllSettings,
+  });
+  const showHideCountdown = shouldShowHideCountdown({
+    enableTimeLimit: effectiveEnableTimeLimit,
+    contentType,
+    showAllSettings,
+  });
+  const showAutoStartDelay = shouldShowAutoStartDelay({
+    contract: quizSettingsContract,
+    quizAutoStart,
+  });
+  const autoStartDelayPresets = [2, 5, 7, 10];
+  const autoStartDelayOptions = [
+    ...(autoStartDelayPresets.includes(autoStartDelay)
+      ? []
+      : [{ label: String(autoStartDelay), value: String(autoStartDelay) }]),
+    ...autoStartDelayPresets.map((preset) => ({
+      label: String(preset),
+      value: String(preset),
+    })),
+  ];
 
   const timeUnitOptions = [
-    { label: __("Seconds", "tutorpress"), value: "seconds" },
-    { label: __("Minutes", "tutorpress"), value: "minutes" },
-    { label: __("Hours", "tutorpress"), value: "hours" },
+    { label: __("Sec", "tutorpress"), value: "seconds" },
+    { label: __("Min", "tutorpress"), value: "minutes" },
+    { label: __("Hour", "tutorpress"), value: "hours" },
     { label: __("Days", "tutorpress"), value: "days" },
     { label: __("Weeks", "tutorpress"), value: "weeks" },
   ];
@@ -532,61 +565,104 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="quiz-modal-settings-frame">
             <h4>{__("Timing", "tutorpress")}</h4>
 
-            {/* Time Limit - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && onTimeChange && (
+            {/* Set time limit — standard always; Interactive when disclosed */}
+            {showTimingTimeLimit && (
               <div className="quiz-modal-setting-group">
-                <label className="quiz-modal-setting-label">{__("Time Limit", "tutorpress")}</label>
-                <HStack spacing={2} alignment="flex-start">
-                  <NumberControl
-                    value={timeValue}
-                    onChange={(value) => onTimeChange(parseInt(value as string) || 0, timeType)}
-                    min={0}
-                    step={1}
-                    style={{ width: "100px", flexShrink: 0 }}
-                    disabled={isSaving}
-                  />
-                  <SelectControl
-                    value={timeType}
-                    options={timeUnitOptions}
-                    onChange={(value) => onTimeChange(timeValue, value as TimeUnit)}
-                    style={{ width: "100px", flexShrink: 0 }}
-                    __nextHasNoMarginBottom
-                    disabled={isSaving}
-                  />
-                </HStack>
-                <p className="quiz-modal-setting-help">
-                  {__('Set a time limit for this quiz. A time limit of "0" indicates no time limit', "tutorpress")}
-                </p>
-                {errors.timeLimit && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.timeLimit}
-                  </Notice>
+                <CheckboxControl
+                  label={__("Set time limit", "tutorpress")}
+                  checked={effectiveEnableTimeLimit}
+                  onChange={(checked) => onSettingChange({ enable_time_limit: checked })}
+                  disabled={isSaving}
+                />
+                {effectiveEnableTimeLimit && (
+                  <>
+                    <HStack spacing={2} alignment="flex-start">
+                      <NumberControl
+                        label={__("Time limit value", "tutorpress")}
+                        hideLabelFromVision
+                        value={timeValue}
+                        onChange={(value) =>
+                          onSettingChange({
+                            time_limit: {
+                              time_value: parseInt(value as string) || 0,
+                              time_type: timeType,
+                            },
+                          })
+                        }
+                        min={1}
+                        step={1}
+                        style={{ width: "100px", flexShrink: 0 }}
+                        disabled={isSaving}
+                      />
+                      <SelectControl
+                        label={__("Time limit unit", "tutorpress")}
+                        hideLabelFromVision
+                        value={timeType}
+                        options={timeUnitOptions}
+                        onChange={(value) =>
+                          onSettingChange({
+                            time_limit: {
+                              time_value: timeValue,
+                              time_type: value as TimeUnit,
+                            },
+                          })
+                        }
+                        style={{ width: "100px", flexShrink: 0 }}
+                        __nextHasNoMarginBottom
+                        disabled={isSaving}
+                      />
+                    </HStack>
+                    {errors.timeLimit && (
+                      <Notice status="error" isDismissible={false}>
+                        {errors.timeLimit}
+                      </Notice>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
-            {/* Hide Quiz Time Display - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && (
+            {/* Hide countdown — only while time limit is enabled and visible */}
+            {showHideCountdown && (
               <div className="quiz-modal-setting-group">
                 <ToggleControl
-                  label={__("Hide Quiz Time Display", "tutorpress")}
+                  label={__("Hide countdown timer", "tutorpress")}
                   checked={hideQuizTimeDisplay}
                   onChange={(checked) => onSettingChange({ hide_quiz_time_display: checked })}
                   disabled={isSaving}
-                  help={__("Hide the quiz time display on the frontend", "tutorpress")}
                 />
               </div>
             )}
 
-            {/* Quiz Auto Start - Always visible */}
+            {/* Auto start quiz — always visible; V4 delay when enabled */}
             <div className="quiz-modal-setting-group">
-              <ToggleControl
-                label={__("Quiz Auto Start", "tutorpress")}
+              <CheckboxControl
+                label={__("Auto start quiz", "tutorpress")}
                 checked={quizAutoStart}
                 onChange={(checked) => onSettingChange({ quiz_auto_start: checked })}
                 disabled={isSaving}
-                help={__("When enabled, the quiz begins immediately as soon as the page loads", "tutorpress")}
               />
+              {showAutoStartDelay && (
+                <HStack spacing={2} alignment="center">
+                  <span>{__("After", "tutorpress")}</span>
+                  <SelectControl
+                    label={__("Auto start delay", "tutorpress")}
+                    hideLabelFromVision
+                    value={String(autoStartDelay)}
+                    options={autoStartDelayOptions}
+                    onChange={(value) => {
+                      const parsed = parseInt(value, 10);
+                      onSettingChange({
+                        auto_start_delay: Number.isFinite(parsed) ? parsed : 5,
+                      });
+                    }}
+                    style={{ width: "80px", flexShrink: 0 }}
+                    __nextHasNoMarginBottom
+                    disabled={isSaving}
+                  />
+                  <span>{__("secs", "tutorpress")}</span>
+                </HStack>
+              )}
             </div>
           </div>
 

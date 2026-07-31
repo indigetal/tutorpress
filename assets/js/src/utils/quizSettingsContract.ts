@@ -129,6 +129,65 @@ export const shouldShowQuizScopeMaximumQuestions = ({
   return true;
 };
 
+export interface TimingTimeLimitVisibilityInput {
+  contentType: QuizContentType;
+  /** Interactive disclosure; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+}
+
+/**
+ * Time Limit is always available for standard quizzes; valid V4 Interactive
+ * shows it only when Reveal All Quiz Settings is on.
+ */
+export const shouldShowTimingTimeLimit = ({
+  contentType,
+  showAllSettings = false,
+}: TimingTimeLimitVisibilityInput): boolean => {
+  if (contentType === "tutor_h5p_quiz") {
+    return showAllSettings === true;
+  }
+
+  return true;
+};
+
+export interface HideCountdownVisibilityInput {
+  enableTimeLimit: boolean;
+  contentType: QuizContentType;
+  /** Interactive disclosure; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+}
+
+/**
+ * Hide countdown appears only while Time Limit is enabled and the Time Limit
+ * control itself is visible.
+ */
+export const shouldShowHideCountdown = ({
+  enableTimeLimit,
+  contentType,
+  showAllSettings = false,
+}: HideCountdownVisibilityInput): boolean => {
+  if (!enableTimeLimit) {
+    return false;
+  }
+
+  return shouldShowTimingTimeLimit({ contentType, showAllSettings });
+};
+
+export interface AutoStartDelayVisibilityInput {
+  contract: QuizSettingsContract;
+  quizAutoStart: boolean;
+}
+
+/**
+ * Auto-start delay is V4-only and appears only while Auto Start is enabled.
+ * Legacy contracts must not expose or generate the delay control.
+ */
+export const shouldShowAutoStartDelay = ({
+  contract,
+  quizAutoStart,
+}: AutoStartDelayVisibilityInput): boolean =>
+  contract === "v4" && quizAutoStart === true;
+
 type QuizEffectiveFieldPath =
   | keyof QuizEffectiveSettings
   | `content_drip_settings.${keyof QuizContentDripSettings}`;

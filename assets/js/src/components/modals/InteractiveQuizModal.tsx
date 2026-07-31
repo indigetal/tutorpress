@@ -726,9 +726,11 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   limitQuestionsToAnswer={formState.settings.limit_questions_to_answer}
                   passIsRequired={formState.settings.pass_is_required}
                   // All settings with defaults (for Tutor LMS compatibility)
+                  enableTimeLimit={formState.settings.enable_time_limit}
                   timeValue={formState.settings.time_limit.time_value}
                   timeType={formState.settings.time_limit.time_type}
                   hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
+                  autoStartDelay={formState.settings.auto_start_delay}
                   feedbackMode={formState.settings.feedback_mode}
                   maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
                   afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
