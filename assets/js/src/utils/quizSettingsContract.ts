@@ -188,6 +188,89 @@ export const shouldShowAutoStartDelay = ({
 }: AutoStartDelayVisibilityInput): boolean =>
   contract === "v4" && quizAutoStart === true;
 
+export interface NavigationControlsVisibilityInput {
+  contentType: QuizContentType;
+  /** Interactive disclosure; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+}
+
+/** Layout/Navigation dependents: always for standard; Interactive needs Reveal All. */
+export const shouldShowNavigationControls = ({
+  contentType,
+  showAllSettings = false,
+}: NavigationControlsVisibilityInput): boolean =>
+  contentType === "tutor_h5p_quiz" ? showAllSettings === true : true;
+
+export interface NavigationSingleQuestionVisibilityInput extends NavigationControlsVisibilityInput {
+  questionLayoutView: string;
+}
+
+/** Pagination: Single Question + Navigation disclosure. */
+export const shouldShowPaginationControls = ({
+  questionLayoutView,
+  contentType,
+  showAllSettings = false,
+}: NavigationSingleQuestionVisibilityInput): boolean =>
+  questionLayoutView === "single_question" &&
+  shouldShowNavigationControls({ contentType, showAllSettings });
+
+/** Hide question number: Single Question + Navigation disclosure. */
+export const shouldShowHideQuestionNumber = ({
+  questionLayoutView,
+  contentType,
+  showAllSettings = false,
+}: NavigationSingleQuestionVisibilityInput): boolean =>
+  questionLayoutView === "single_question" &&
+  shouldShowNavigationControls({ contentType, showAllSettings });
+
+export interface AnswerRevealVisibilityInput {
+  contract: QuizSettingsContract;
+  questionLayoutView: string;
+  contentType: QuizContentType;
+}
+
+/** V4 Answer Reveal under Single Question; never for Interactive. */
+export const shouldShowAnswerReveal = ({
+  contract,
+  questionLayoutView,
+  contentType,
+}: AnswerRevealVisibilityInput): boolean =>
+  contentType !== "tutor_h5p_quiz" &&
+  contract === "v4" &&
+  questionLayoutView === "single_question";
+
+export interface AnswerRevealDurationVisibilityInput extends AnswerRevealVisibilityInput {
+  enableAnswerReveal: boolean;
+}
+
+/** Reveal duration only while Answer Reveal is visible and enabled. */
+export const shouldShowAnswerRevealDuration = ({
+  enableAnswerReveal,
+  contract,
+  questionLayoutView,
+  contentType,
+}: AnswerRevealDurationVisibilityInput): boolean =>
+  enableAnswerReveal === true &&
+  shouldShowAnswerReveal({ contract, questionLayoutView, contentType });
+
+export interface HidePreviousButtonVisibilityInput extends NavigationSingleQuestionVisibilityInput {
+  contract: QuizSettingsContract;
+  enablePagination: boolean;
+}
+
+/** V4 Hide Previous under Single Question while pagination is off. */
+export const shouldShowHidePreviousButton = ({
+  contract,
+  questionLayoutView,
+  enablePagination,
+  contentType,
+  showAllSettings = false,
+}: HidePreviousButtonVisibilityInput): boolean =>
+  contract === "v4" &&
+  !enablePagination &&
+  questionLayoutView === "single_question" &&
+  shouldShowNavigationControls({ contentType, showAllSettings });
+
 type QuizEffectiveFieldPath =
   | keyof QuizEffectiveSettings
   | `content_drip_settings.${keyof QuizContentDripSettings}`;

@@ -197,6 +197,11 @@ const toFormQuizSettings = (effective: QuizEffectiveSettings): QuizSettings => (
   quiz_auto_start: effective.quiz_auto_start,
   auto_start_delay: effective.auto_start_delay,
   question_layout_view: effective.question_layout_view,
+  enable_pagination: effective.enable_pagination,
+  pagination_type: effective.pagination_type,
+  enable_answer_reveal: effective.enable_answer_reveal,
+  answers_reveal_duration: effective.answers_reveal_duration,
+  hide_previous_button: effective.hide_previous_button,
   questions_order: effective.questions_order,
   hide_question_number_overview: effective.hide_question_number_overview,
   short_answer_characters_limit:
@@ -248,6 +253,17 @@ const getDirtyGroupsForSettings = (
         break;
       case "question_layout_view":
         groups.add("layout");
+        break;
+      case "enable_pagination":
+      case "pagination_type":
+        groups.add("pagination");
+        break;
+      case "enable_answer_reveal":
+      case "answers_reveal_duration":
+        groups.add("answer_reveal");
+        break;
+      case "hide_previous_button":
+        groups.add("hide_previous");
         break;
       case "questions_order":
         groups.add("question_order");
@@ -332,11 +348,36 @@ const applySettingsToEffective = (
     next.auto_start_delay = settings.auto_start_delay;
   }
   if (settings.question_layout_view !== undefined) {
-    next.question_layout_view =
-      settings.question_layout_view === "question_below_each_other"
-        ? "question_below_each_other"
-        : "single_question";
-    next.enable_pagination = settings.question_layout_view === "question_pagination";
+    if (settings.question_layout_view === "question_below_each_other") {
+      next.question_layout_view = "question_below_each_other";
+    } else if (settings.question_layout_view === "question_pagination") {
+      // Legacy three-way layout value → Single Question + pagination on.
+      next.question_layout_view = "single_question";
+      if (settings.enable_pagination === undefined) {
+        next.enable_pagination = true;
+      }
+    } else {
+      // single_question (or empty): do not clear V4 enable_pagination.
+      next.question_layout_view = "single_question";
+    }
+  }
+  if (settings.enable_pagination !== undefined) {
+    next.enable_pagination = settings.enable_pagination;
+  }
+  if (settings.pagination_type !== undefined) {
+    next.pagination_type =
+      settings.pagination_type === "number" || settings.pagination_type === "radio"
+        ? settings.pagination_type
+        : "shape";
+  }
+  if (settings.enable_answer_reveal !== undefined) {
+    next.enable_answer_reveal = settings.enable_answer_reveal;
+  }
+  if (settings.answers_reveal_duration !== undefined) {
+    next.answers_reveal_duration = settings.answers_reveal_duration;
+  }
+  if (settings.hide_previous_button !== undefined) {
+    next.hide_previous_button = settings.hide_previous_button;
   }
   if (settings.questions_order !== undefined) {
     next.questions_order = settings.questions_order;
@@ -528,6 +569,9 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
       "pass_is_required",
       "limit_attempts_allowed",
       "limit_questions_to_answer",
+      "enable_pagination",
+      "enable_answer_reveal",
+      "hide_previous_button",
     ];
 
     const converted = { ...settings };
@@ -564,7 +608,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           ...convertedSettings,
         };
 
-        // Keep Quiz scope / Timing toggles aligned after derived effective updates
+        // Keep Quiz scope / Timing / Navigation toggles aligned after derived updates
         if (nextEffective) {
           mergedSettings.limit_attempts_allowed = nextEffective.limit_attempts_allowed;
           mergedSettings.limit_questions_to_answer = nextEffective.limit_questions_to_answer;
@@ -573,6 +617,12 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           mergedSettings.feedback_mode = nextEffective.feedback_mode;
           mergedSettings.enable_time_limit = nextEffective.enable_time_limit;
           mergedSettings.auto_start_delay = nextEffective.auto_start_delay;
+          mergedSettings.question_layout_view = nextEffective.question_layout_view;
+          mergedSettings.enable_pagination = nextEffective.enable_pagination;
+          mergedSettings.pagination_type = nextEffective.pagination_type;
+          mergedSettings.enable_answer_reveal = nextEffective.enable_answer_reveal;
+          mergedSettings.answers_reveal_duration = nextEffective.answers_reveal_duration;
+          mergedSettings.hide_previous_button = nextEffective.hide_previous_button;
         }
 
         const newState = {
@@ -725,9 +775,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         : null;
 
       setFormState((prevState) => {
-        // Preserve loaded form fields for non-owned groups (layout, drip, etc.).
-        // Overlay only Quiz-scope and Timing effective values so companions/toggles
-        // are correct without rewriting out-of-scope presentation.
+        // Preserve loaded form fields for non-owned groups (drip, character limits, etc.).
+        // Overlay Quiz-scope, Timing, and Navigation effective values only.
         const effective = loadedModel?.effectiveSettings;
         const settings: QuizSettings = {
           ...getDefaultQuizSettings(),
@@ -763,6 +812,21 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           quiz_auto_start:
             effective?.quiz_auto_start ?? convertedSettings.quiz_auto_start,
           auto_start_delay: effective?.auto_start_delay ?? 5,
+          question_layout_view:
+            effective?.question_layout_view ?? convertedSettings.question_layout_view,
+          enable_pagination:
+            effective?.enable_pagination ?? convertedSettings.enable_pagination ?? false,
+          pagination_type: effective?.pagination_type ?? convertedSettings.pagination_type ?? "shape",
+          enable_answer_reveal:
+            effective?.enable_answer_reveal ??
+            convertedSettings.enable_answer_reveal ??
+            convertedSettings.feedback_mode === "reveal",
+          answers_reveal_duration: effective?.answers_reveal_duration ?? 5,
+          hide_previous_button:
+            effective?.hide_previous_button ?? convertedSettings.hide_previous_button ?? false,
+          hide_question_number_overview:
+            effective?.hide_question_number_overview ??
+            convertedSettings.hide_question_number_overview,
         };
 
         const newState = {

@@ -277,6 +277,63 @@
   line-height: 1.4;
 }
 
+.quiz-modal-layout-control {
+  margin-bottom: 0;
+}
+
+.quiz-modal-layout-control .components-radio-control__group-wrapper {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.quiz-modal-layout-control .components-radio-control__option {
+  position: relative;
+}
+
+.quiz-modal-layout-control .components-radio-control__input {
+  position: absolute;
+  opacity: 0;
+}
+
+.quiz-modal-layout-control .components-radio-control__label {
+  display: grid;
+  min-height: 72px;
+  padding: var(--space-md);
+  place-items: center;
+  color: var(--wp-admin-theme-color-darker-10, #1e1e1e);
+  font-weight: 600;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.quiz-modal-layout-control .components-radio-control__label:hover {
+  border-color: var(--wp-admin-theme-color, #3858e9);
+}
+
+.quiz-modal-layout-control
+  .components-radio-control__input:checked
+  + .components-radio-control__label {
+  color: var(--wp-admin-theme-color, #3858e9);
+  border-color: var(--wp-admin-theme-color, #3858e9);
+  box-shadow: inset 0 0 0 1px var(--wp-admin-theme-color, #3858e9);
+}
+
+.quiz-modal-layout-control
+  .components-radio-control__input:focus-visible
+  + .components-radio-control__label {
+  outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+  outline-offset: 2px;
+}
+
+.quiz-modal-layout-control:disabled .components-radio-control__label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Settings Form Controls */
 .quiz-modal-settings .components-base-control {
   margin-bottom: var(--space-md);

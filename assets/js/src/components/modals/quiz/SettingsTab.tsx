@@ -67,6 +67,7 @@ import {
   SelectControl,
   ToggleControl,
   CheckboxControl,
+  RadioControl,
   __experimentalNumberControl as NumberControl,
   __experimentalHStack as HStack,
 } from "@wordpress/components";
@@ -77,14 +78,21 @@ import type {
   QuestionLayoutView,
   QuestionOrder,
   QuizContentType,
+  QuizPaginationType,
   QuizQuestion,
   QuizSettingsContract,
   QuizSettingsUnavailableReason,
   TutorLearningMode,
 } from "../../../types/quiz";
 import {
+  shouldShowAnswerReveal,
+  shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
   shouldShowHideCountdown,
+  shouldShowHidePreviousButton,
+  shouldShowHideQuestionNumber,
+  shouldShowNavigationControls,
+  shouldShowPaginationControls,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
   shouldShowTimingTimeLimit,
@@ -123,6 +131,11 @@ interface SettingsTabProps {
   maxQuestionsForAnswer?: number;
   afterXDaysOfEnroll?: number;
   questionLayoutView?: QuestionLayoutView;
+  enablePagination?: boolean;
+  paginationType?: QuizPaginationType;
+  enableAnswerReveal?: boolean;
+  answersRevealDuration?: number;
+  hidePreviousButton?: boolean;
   hideQuestionNumberOverview?: boolean;
   shortAnswerCharactersLimit?: number;
   openEndedAnswerCharactersLimit?: number;
@@ -174,7 +187,7 @@ const getQuizSettingsUnavailableMessage = (reason: QuizSettingsUnavailableReason
 export const SettingsTab: React.FC<SettingsTabProps> = ({
   quizSettingsContract,
   quizSettingsUnavailableReason = "",
-  learningMode: _learningMode,
+  learningMode,
   contentType,
   questions: _questions,
   h5pRuntimeAvailable,
@@ -202,6 +215,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   maxQuestionsForAnswer = 0,
   afterXDaysOfEnroll = 0,
   questionLayoutView = "single_question",
+  enablePagination = false,
+  paginationType = "shape",
+  enableAnswerReveal = false,
+  answersRevealDuration = 5,
+  hidePreviousButton = false,
   hideQuestionNumberOverview = false,
   shortAnswerCharactersLimit = 200,
   openEndedAnswerCharactersLimit = 500,
@@ -269,12 +287,59 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     contract: quizSettingsContract,
     quizAutoStart,
   });
+  const showNavigationControls = shouldShowNavigationControls({
+    contentType,
+    showAllSettings,
+  });
+  const layoutValue: QuestionLayoutView =
+    questionLayoutView === "question_below_each_other"
+      ? "question_below_each_other"
+      : "single_question";
+  const showPaginationControls = shouldShowPaginationControls({
+    questionLayoutView: layoutValue,
+    contentType,
+    showAllSettings,
+  });
+  const isLegacyLearningMode = learningMode === "legacy";
+  const showAnswerReveal = shouldShowAnswerReveal({
+    contract: quizSettingsContract,
+    questionLayoutView: layoutValue,
+    contentType,
+  });
+  const showAnswerRevealDuration = shouldShowAnswerRevealDuration({
+    contract: quizSettingsContract,
+    questionLayoutView: layoutValue,
+    contentType,
+    enableAnswerReveal,
+  });
+  const showHidePrevious = shouldShowHidePreviousButton({
+    contract: quizSettingsContract,
+    questionLayoutView: layoutValue,
+    enablePagination,
+    contentType,
+    showAllSettings,
+  });
+  const showHideQuestionNumber = shouldShowHideQuestionNumber({
+    questionLayoutView: layoutValue,
+    contentType,
+    showAllSettings,
+  });
   const autoStartDelayPresets = [2, 5, 7, 10];
+  const revealDurationPresets = [2, 5, 7, 10];
   const autoStartDelayOptions = [
     ...(autoStartDelayPresets.includes(autoStartDelay)
       ? []
       : [{ label: String(autoStartDelay), value: String(autoStartDelay) }]),
     ...autoStartDelayPresets.map((preset) => ({
+      label: String(preset),
+      value: String(preset),
+    })),
+  ];
+  const revealDurationOptions = [
+    ...(revealDurationPresets.includes(answersRevealDuration)
+      ? []
+      : [{ label: String(answersRevealDuration), value: String(answersRevealDuration) }]),
+    ...revealDurationPresets.map((preset) => ({
       label: String(preset),
       value: String(preset),
     })),
@@ -666,35 +731,127 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           </div>
 
-          {(!isInteractiveQuizMode || showAllSettings) && (
+          {showNavigationControls && (
             <div className="quiz-modal-settings-frame">
               <h4>{__("Navigation & Display", "tutorpress")}</h4>
 
-              {/* Question Layout - Quiz Modal always, Interactive Quiz when showAllSettings */}
               <div className="quiz-modal-setting-group">
-                <SelectControl
-                  label={__("Question Layout", "tutorpress")}
-                  value={questionLayoutView}
+                <RadioControl
+                  className="quiz-modal-layout-control"
+                  label={__("Layout", "tutorpress")}
+                  help={__("Choose how students will answer the questions.", "tutorpress")}
+                  selected={layoutValue}
                   options={[
-                    { label: __("Select an option", "tutorpress"), value: "" },
-                    { label: __("Single question", "tutorpress"), value: "single_question" },
-                    { label: __("Question pagination", "tutorpress"), value: "question_pagination" },
-                    { label: __("Question below each other", "tutorpress"), value: "question_below_each_other" },
+                    {
+                      label: __("Single Question", "tutorpress"),
+                      value: "single_question",
+                    },
+                    {
+                      label: __("Full Page", "tutorpress"),
+                      value: "question_below_each_other",
+                    },
                   ]}
-                  onChange={(value) => onSettingChange({ question_layout_view: value as QuestionLayoutView })}
+                  onChange={(value) =>
+                    onSettingChange({
+                      question_layout_view: value as QuestionLayoutView,
+                    })
+                  }
                   disabled={isSaving}
                 />
               </div>
 
-              {/* Hide Question Number - Quiz Modal always, Interactive Quiz when showAllSettings */}
-              <div className="quiz-modal-setting-group">
-                <ToggleControl
-                  label={__("Hide Question Number", "tutorpress")}
-                  checked={hideQuestionNumberOverview}
-                  onChange={(checked) => onSettingChange({ hide_question_number_overview: checked })}
-                  disabled={isSaving}
-                />
-              </div>
+              {showPaginationControls && (
+                <div className="quiz-modal-setting-group">
+                  <CheckboxControl
+                    label={__("Show pagination", "tutorpress")}
+                    checked={enablePagination}
+                    onChange={(checked) => onSettingChange({ enable_pagination: checked })}
+                    disabled={isSaving}
+                    help={
+                      isLegacyLearningMode
+                        ? __(
+                            "Pagination style is unavailable while learning mode is set to Legacy.",
+                            "tutorpress"
+                          )
+                        : undefined
+                    }
+                  />
+                  {enablePagination && (
+                    <SelectControl
+                      label={__("Pagination style", "tutorpress")}
+                      value={paginationType}
+                      options={[
+                        { label: __("Shapes", "tutorpress"), value: "shape" },
+                        { label: __("Numbers", "tutorpress"), value: "number" },
+                        { label: __("Radio", "tutorpress"), value: "radio" },
+                      ]}
+                      onChange={(value) =>
+                        onSettingChange({
+                          pagination_type: value as QuizPaginationType,
+                        })
+                      }
+                      disabled={isSaving || isLegacyLearningMode}
+                      __nextHasNoMarginBottom
+                    />
+                  )}
+                </div>
+              )}
+
+              {showAnswerReveal && (
+                <div className="quiz-modal-setting-group">
+                  <CheckboxControl
+                    label={__("Reveal answers after submission", "tutorpress")}
+                    checked={enableAnswerReveal}
+                    onChange={(checked) => onSettingChange({ enable_answer_reveal: checked })}
+                    disabled={isSaving}
+                  />
+                  {showAnswerRevealDuration && (
+                    <HStack spacing={2} alignment="center">
+                      <span>{__("For", "tutorpress")}</span>
+                      <SelectControl
+                        label={__("Reveal duration", "tutorpress")}
+                        hideLabelFromVision
+                        value={String(answersRevealDuration)}
+                        options={revealDurationOptions}
+                        onChange={(value) => {
+                          const parsed = parseInt(value, 10);
+                          onSettingChange({
+                            answers_reveal_duration: Number.isFinite(parsed) ? parsed : 5,
+                          });
+                        }}
+                        style={{ width: "80px", flexShrink: 0 }}
+                        __nextHasNoMarginBottom
+                        disabled={isSaving}
+                      />
+                      <span>{__("secs", "tutorpress")}</span>
+                    </HStack>
+                  )}
+                </div>
+              )}
+
+              {showHidePrevious && (
+                <div className="quiz-modal-setting-group">
+                  <ToggleControl
+                    label={__('Hide "Previous" button', "tutorpress")}
+                    checked={hidePreviousButton}
+                    onChange={(checked) => onSettingChange({ hide_previous_button: checked })}
+                    disabled={isSaving}
+                  />
+                </div>
+              )}
+
+              {showHideQuestionNumber && (
+                <div className="quiz-modal-setting-group">
+                  <ToggleControl
+                    label={__("Hide question number", "tutorpress")}
+                    checked={hideQuestionNumberOverview}
+                    onChange={(checked) =>
+                      onSettingChange({ hide_question_number_overview: checked })
+                    }
+                    disabled={isSaving}
+                  />
+                </div>
+              )}
             </div>
           )}
 

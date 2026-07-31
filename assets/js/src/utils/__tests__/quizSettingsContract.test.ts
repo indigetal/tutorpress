@@ -23,8 +23,14 @@ import {
   createNewQuizSettingsFormModel,
   isRetryCapableQuizAttempts,
   QUIZ_SETTINGS_GROUP_FIELDS,
+  shouldShowAnswerReveal,
+  shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
   shouldShowHideCountdown,
+  shouldShowHidePreviousButton,
+  shouldShowHideQuestionNumber,
+  shouldShowNavigationControls,
+  shouldShowPaginationControls,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
   shouldShowTimingTimeLimit,
@@ -1616,6 +1622,146 @@ describe("Timing visibility gates and serialization", () => {
       });
       expect(hook.current().formState.errors.timeLimit).toBeUndefined();
       expect(hook.current().formState.isValid).toBe(true);
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
+describe("Navigation visibility gates and layout form wiring", () => {
+  it("gates Navigation disclosure, Single Question dependents, and Reveal suppression", () => {
+    expect(shouldShowNavigationControls({ contentType: "tutor_quiz" })).toBe(true);
+    expect(
+      shouldShowNavigationControls({ contentType: "tutor_h5p_quiz", showAllSettings: false })
+    ).toBe(false);
+    expect(
+      shouldShowNavigationControls({ contentType: "tutor_h5p_quiz", showAllSettings: true })
+    ).toBe(true);
+
+    expect(
+      shouldShowPaginationControls({
+        questionLayoutView: "single_question",
+        contentType: "tutor_quiz",
+      })
+    ).toBe(true);
+    expect(
+      shouldShowPaginationControls({
+        questionLayoutView: "question_below_each_other",
+        contentType: "tutor_quiz",
+      })
+    ).toBe(false);
+    expect(
+      shouldShowHideQuestionNumber({
+        questionLayoutView: "single_question",
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: false,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldShowAnswerReveal({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        contentType: "tutor_quiz",
+      })
+    ).toBe(true);
+    expect(
+      shouldShowAnswerReveal({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        contentType: "tutor_h5p_quiz",
+      })
+    ).toBe(false);
+    expect(
+      shouldShowAnswerReveal({
+        contract: "legacy",
+        questionLayoutView: "single_question",
+        contentType: "tutor_quiz",
+      })
+    ).toBe(false);
+    expect(
+      shouldShowAnswerRevealDuration({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        contentType: "tutor_quiz",
+        enableAnswerReveal: true,
+      })
+    ).toBe(true);
+    expect(
+      shouldShowAnswerRevealDuration({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        contentType: "tutor_quiz",
+        enableAnswerReveal: false,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldShowHidePreviousButton({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        enablePagination: false,
+        contentType: "tutor_quiz",
+      })
+    ).toBe(true);
+    expect(
+      shouldShowHidePreviousButton({
+        contract: "v4",
+        questionLayoutView: "single_question",
+        enablePagination: true,
+        contentType: "tutor_quiz",
+      })
+    ).toBe(false);
+    expect(
+      shouldShowHidePreviousButton({
+        contract: "legacy",
+        questionLayoutView: "single_question",
+        enablePagination: false,
+        contentType: "tutor_quiz",
+      })
+    ).toBe(false);
+  });
+
+  it("preserves V4 pagination when layout is edited to Single Question", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+      initialData: {
+        post_title: "Navigation quiz",
+        quiz_option: {
+          question_layout_view: "question_below_each_other",
+          enable_pagination: true,
+          pagination_type: "radio",
+          hide_previous_button: true,
+          hide_question_number_overview: true,
+        } as unknown as QuizSettings,
+      },
+    });
+
+    try {
+      act(() => {
+        hook.current().initializeWithData({
+          post_title: "Navigation quiz",
+          quiz_option: {
+            question_layout_view: "question_below_each_other",
+            enable_pagination: true,
+            pagination_type: "radio",
+            hide_previous_button: true,
+            hide_question_number_overview: true,
+          } as unknown as QuizSettings,
+        });
+      });
+
+      act(() => {
+        hook.current().updateSettings({ question_layout_view: "single_question" });
+      });
+
+      expect(hook.current().formState.settings.enable_pagination).toBe(true);
+      expect(hook.current().formState.settings.pagination_type).toBe("radio");
+      expect(hook.current().formState.settings.hide_previous_button).toBe(true);
+      expect(hook.current().formState.settings.hide_question_number_overview).toBe(true);
+      expect(hook.current().formState.dirtySettingsGroups.has("layout")).toBe(true);
+      expect(hook.current().formState.dirtySettingsGroups.has("pagination")).toBe(false);
     } finally {
       hook.unmount();
     }

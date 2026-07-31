@@ -343,6 +343,14 @@ export interface QuizSettings {
   /** V4-only companion; legacy form keeps the default and does not emit it. */
   auto_start_delay: number;
   question_layout_view: QuestionLayoutView;
+  /** Effective Single Question pagination; legacy UI translates to question_pagination. */
+  enable_pagination: boolean;
+  pagination_type: QuizPaginationType;
+  /** V4 orthogonal reveal; legacy Feedback Mode remains the compatible editor. */
+  enable_answer_reveal: boolean;
+  answers_reveal_duration: number;
+  /** V4-only; hidden while pagination is on. */
+  hide_previous_button: boolean;
   questions_order: QuestionOrder;
   hide_question_number_overview: boolean;
   short_answer_characters_limit: number;
@@ -711,6 +719,11 @@ export const getDefaultQuizSettings = (): QuizSettings => ({
   quiz_auto_start: false,
   auto_start_delay: 5,
   question_layout_view: "",
+  enable_pagination: false,
+  pagination_type: "shape",
+  enable_answer_reveal: false,
+  answers_reveal_duration: 5,
+  hide_previous_button: false,
   questions_order: "rand",
   hide_question_number_overview: false,
   short_answer_characters_limit: 200,
