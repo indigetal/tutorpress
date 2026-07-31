@@ -47,6 +47,7 @@ import type {
 } from "../../types/quiz";
 import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { SettingsTab } from "./quiz/SettingsTab";
+import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -1369,6 +1370,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
             case "settings":
               return (
                 <SettingsTab
+                  quizSettingsContract={quizCapabilities?.quizSettingsContract ?? "unavailable"}
+                  quizSettingsUnavailableReason={
+                    quizCapabilities?.quizSettingsUnavailableReason || "legacy_contract_unavailable"
+                  }
+                  learningMode={quizCapabilities?.learningMode ?? "unknown"}
+                  contentType="tutor_quiz"
+                  questions={questions}
+                  h5pRuntimeAvailable={isH5pEnabled() && isH5pPluginActive()}
                   timeValue={formState.settings.time_limit.time_value}
                   timeType={formState.settings.time_limit.time_type}
                   hideQuizTimeDisplay={formState.settings.hide_quiz_time_display}
