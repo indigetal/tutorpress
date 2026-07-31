@@ -204,14 +204,8 @@ const toFormQuizSettings = (effective: QuizEffectiveSettings): QuizSettings => (
   hide_previous_button: effective.hide_previous_button,
   questions_order: effective.questions_order,
   hide_question_number_overview: effective.hide_question_number_overview,
-  short_answer_characters_limit:
-    typeof effective.short_answer_characters_limit === "number"
-      ? effective.short_answer_characters_limit
-      : 0,
-  open_ended_answer_characters_limit:
-    typeof effective.open_ended_answer_characters_limit === "number"
-      ? effective.open_ended_answer_characters_limit
-      : 0,
+  short_answer_characters_limit: effective.short_answer_characters_limit,
+  open_ended_answer_characters_limit: effective.open_ended_answer_characters_limit,
   content_drip_settings: { ...effective.content_drip_settings },
 });
 
@@ -775,8 +769,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         : null;
 
       setFormState((prevState) => {
-        // Preserve loaded form fields for non-owned groups (drip, character limits, etc.).
-        // Overlay Quiz-scope, Timing, and Navigation effective values only.
+        // Preserve loaded form fields for non-owned groups (drip, etc.).
+        // Overlay Quiz-scope, Timing, Navigation, and Character Limits from effective.
         const effective = loadedModel?.effectiveSettings;
         const settings: QuizSettings = {
           ...getDefaultQuizSettings(),
@@ -827,6 +821,13 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           hide_question_number_overview:
             effective?.hide_question_number_overview ??
             convertedSettings.hide_question_number_overview,
+          // Character Limits only: preserve empty/zero from effective; do not coerce.
+          short_answer_characters_limit:
+            effective?.short_answer_characters_limit ??
+            convertedSettings.short_answer_characters_limit,
+          open_ended_answer_characters_limit:
+            effective?.open_ended_answer_characters_limit ??
+            convertedSettings.open_ended_answer_characters_limit,
         };
 
         const newState = {

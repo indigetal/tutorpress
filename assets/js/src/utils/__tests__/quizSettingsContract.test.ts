@@ -26,14 +26,19 @@ import {
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
+  shouldShowCharacterLimitsFrame,
   shouldShowHideCountdown,
   shouldShowHidePreviousButton,
   shouldShowHideQuestionNumber,
   shouldShowNavigationControls,
+  shouldShowOpenEndedCharacterLimit,
   shouldShowPaginationControls,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
+  shouldShowShortAnswerCharacterLimit,
   shouldShowTimingTimeLimit,
+  quizHasOpenEndedQuestions,
+  quizHasShortAnswerQuestions,
 } from "../quizSettingsContract";
 
 const createCapabilities = (contract: QuizSettingsContract): QuizCapabilities => {
@@ -1765,5 +1770,133 @@ describe("Navigation visibility gates and layout form wiring", () => {
     } finally {
       hook.unmount();
     }
+  });
+});
+
+describe("Character Limits visibility gates and empty/zero preservation", () => {
+  const shortOnly = [{ question_type: "short_answer" as const }];
+  const openOnly = [{ question_type: "open_ended" as const }];
+  const both = [
+    { question_type: "short_answer" as const },
+    { question_type: "open_ended" as const },
+  ];
+
+  it("gates by question type and withholds Interactive entirely", () => {
+    expect(quizHasShortAnswerQuestions(shortOnly)).toBe(true);
+    expect(quizHasOpenEndedQuestions(openOnly)).toBe(true);
+    expect(shouldShowCharacterLimitsFrame({ contentType: "tutor_quiz", questions: shortOnly })).toBe(
+      true
+    );
+    expect(
+      shouldShowCharacterLimitsFrame({
+        contentType: "tutor_quiz",
+        questions: [{ question_type: "true_false" }],
+      })
+    ).toBe(false);
+    expect(
+      shouldShowShortAnswerCharacterLimit({ contentType: "tutor_quiz", questions: openOnly })
+    ).toBe(false);
+    expect(
+      shouldShowOpenEndedCharacterLimit({ contentType: "tutor_quiz", questions: shortOnly })
+    ).toBe(false);
+    [false, true].forEach((showAllSettings) => {
+      expect(
+        shouldShowCharacterLimitsFrame({
+          contentType: "tutor_h5p_quiz",
+          questions: both,
+          showAllSettings,
+        })
+      ).toBe(false);
+      expect(
+        shouldShowShortAnswerCharacterLimit({
+          contentType: "tutor_h5p_quiz",
+          questions: both,
+          showAllSettings,
+        })
+      ).toBe(false);
+      expect(
+        shouldShowOpenEndedCharacterLimit({
+          contentType: "tutor_h5p_quiz",
+          questions: both,
+          showAllSettings,
+        })
+      ).toBe(false);
+    });
+  });
+
+  it("preserves empty/zero on load, form overlay, dirty payload, and unrelated saves", () => {
+    const loaded = loadSettings({
+      short_answer_characters_limit: "",
+      open_ended_answer_characters_limit: 0,
+    });
+    expect(loaded.effectiveSettings?.short_answer_characters_limit).toBe("");
+    expect(loaded.effectiveSettings?.open_ended_answer_characters_limit).toBe(0);
+
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+    });
+    try {
+      act(() => {
+        hook.current().initializeWithData({
+          post_title: "Character limits quiz",
+          quiz_option: {
+            short_answer_characters_limit: "",
+            open_ended_answer_characters_limit: 0,
+          } as unknown as QuizSettings,
+        });
+      });
+      expect(hook.current().formState.settings.short_answer_characters_limit).toBe("");
+      expect(hook.current().formState.settings.open_ended_answer_characters_limit).toBe(0);
+
+      act(() => {
+        hook.current().updateSettings({
+          short_answer_characters_limit: "",
+          open_ended_answer_characters_limit: 0,
+        });
+      });
+      expect(hook.current().formState.dirtySettingsGroups.has("short_answer_character_limit")).toBe(
+        true
+      );
+      expect(hook.current().formState.dirtySettingsGroups.has("open_ended_character_limit")).toBe(
+        true
+      );
+    } finally {
+      hook.unmount();
+    }
+
+    const emptyPayload = getReadySettings(
+      saveSettings(
+        { short_answer_characters_limit: 200, open_ended_answer_characters_limit: 500 },
+        {
+          dirtyGroups: ["short_answer_character_limit", "open_ended_character_limit"],
+          updateEffective: (settings) => {
+            settings.short_answer_characters_limit = "";
+            settings.open_ended_answer_characters_limit = 0;
+          },
+        }
+      )
+    );
+    expect(emptyPayload.short_answer_characters_limit).toBe("");
+    expect(emptyPayload.open_ended_answer_characters_limit).toBe(0);
+
+    const untouched = getReadySettings(
+      saveSettings(
+        {
+          short_answer_characters_limit: "",
+          open_ended_answer_characters_limit: 350,
+          passing_grade: "80",
+        },
+        {
+          dirtyGroups: ["passing_grade"],
+          updateEffective: (settings) => {
+            settings.passing_grade = 90;
+          },
+        }
+      )
+    );
+    expect(untouched.short_answer_characters_limit).toBe("");
+    expect(untouched.open_ended_answer_characters_limit).toBe(350);
+    expect(untouched.passing_grade).toBe(90);
   });
 });

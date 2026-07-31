@@ -353,8 +353,10 @@ export interface QuizSettings {
   hide_previous_button: boolean;
   questions_order: QuestionOrder;
   hide_question_number_overview: boolean;
-  short_answer_characters_limit: number;
-  open_ended_answer_characters_limit: number;
+  /** Empty or 0 disables the learner-side limit. */
+  short_answer_characters_limit: number | "";
+  /** Empty or 0 disables the learner-side limit. */
+  open_ended_answer_characters_limit: number | "";
   content_drip_settings: QuizContentDripSettings;
   /** Tutor quiz variant, e.g. `tutor_h5p_quiz` for Interactive Quizzes. */
   quiz_type?: string;

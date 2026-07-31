@@ -88,13 +88,16 @@ import {
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
+  shouldShowCharacterLimitsFrame,
   shouldShowHideCountdown,
   shouldShowHidePreviousButton,
   shouldShowHideQuestionNumber,
   shouldShowNavigationControls,
+  shouldShowOpenEndedCharacterLimit,
   shouldShowPaginationControls,
   shouldShowPassIsRequired,
   shouldShowQuizScopeMaximumQuestions,
+  shouldShowShortAnswerCharacterLimit,
   shouldShowTimingTimeLimit,
 } from "../../../utils/quizSettingsContract";
 
@@ -137,8 +140,8 @@ interface SettingsTabProps {
   answersRevealDuration?: number;
   hidePreviousButton?: boolean;
   hideQuestionNumberOverview?: boolean;
-  shortAnswerCharactersLimit?: number;
-  openEndedAnswerCharactersLimit?: number;
+  shortAnswerCharactersLimit?: number | "";
+  openEndedAnswerCharactersLimit?: number | "";
 
   // Addon state (optional)
   coursePreviewAddonAvailable?: boolean;
@@ -189,7 +192,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   quizSettingsUnavailableReason = "",
   learningMode,
   contentType,
-  questions: _questions,
+  questions,
   h5pRuntimeAvailable,
 
   // Core settings with defaults
@@ -323,6 +326,18 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     questionLayoutView: layoutValue,
     contentType,
     showAllSettings,
+  });
+  const showCharacterLimitsFrame = shouldShowCharacterLimitsFrame({
+    contentType,
+    questions,
+  });
+  const showShortAnswerCharacterLimit = shouldShowShortAnswerCharacterLimit({
+    contentType,
+    questions,
+  });
+  const showOpenEndedCharacterLimit = shouldShowOpenEndedCharacterLimit({
+    contentType,
+    questions,
   });
   const autoStartDelayPresets = [2, 5, 7, 10];
   const revealDurationPresets = [2, 5, 7, 10];
@@ -855,37 +870,71 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           )}
 
-          {(!isInteractiveQuizMode || showAllSettings) && (
+          {showCharacterLimitsFrame && (
             <div className="quiz-modal-settings-frame">
               <h4>{__("Character Limits", "tutorpress")}</h4>
 
-              <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Short Answer Character Limit", "tutorpress")}
-                  value={shortAnswerCharactersLimit}
-                  onChange={(value) =>
-                    onSettingChange({ short_answer_characters_limit: parseInt(value as string) || 200 })
-                  }
-                  min={1}
-                  max={10000}
-                  step={1}
-                  disabled={isSaving}
-                />
-              </div>
+              {showOpenEndedCharacterLimit && (
+                <div className="quiz-modal-setting-group">
+                  <NumberControl
+                    label={__("Open-Ended/Essay Answer", "tutorpress")}
+                    value={openEndedAnswerCharactersLimit}
+                    onChange={(value) => {
+                      if (value === undefined || value === "") {
+                        onSettingChange({ open_ended_answer_characters_limit: "" });
+                        return;
+                      }
+                      const parsed = parseInt(String(value), 10);
+                      onSettingChange({
+                        open_ended_answer_characters_limit: Number.isFinite(parsed)
+                          ? parsed
+                          : "",
+                      });
+                    }}
+                    min={0}
+                    max={50000}
+                    step={1}
+                    disabled={isSaving}
+                  />
+                  <p className="quiz-modal-setting-help">
+                    {__(
+                      "Set the number of characters allowed for open-ended/essay answers. Leave empty to disable.",
+                      "tutorpress"
+                    )}
+                  </p>
+                </div>
+              )}
 
-              <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Essay Answer Character Limit", "tutorpress")}
-                  value={openEndedAnswerCharactersLimit}
-                  onChange={(value) =>
-                    onSettingChange({ open_ended_answer_characters_limit: parseInt(value as string) || 500 })
-                  }
-                  min={1}
-                  max={50000}
-                  step={1}
-                  disabled={isSaving}
-                />
-              </div>
+              {showShortAnswerCharacterLimit && (
+                <div className="quiz-modal-setting-group">
+                  <NumberControl
+                    label={__("Short Answer", "tutorpress")}
+                    value={shortAnswerCharactersLimit}
+                    onChange={(value) => {
+                      if (value === undefined || value === "") {
+                        onSettingChange({ short_answer_characters_limit: "" });
+                        return;
+                      }
+                      const parsed = parseInt(String(value), 10);
+                      onSettingChange({
+                        short_answer_characters_limit: Number.isFinite(parsed)
+                          ? parsed
+                          : "",
+                      });
+                    }}
+                    min={0}
+                    max={10000}
+                    step={1}
+                    disabled={isSaving}
+                  />
+                  <p className="quiz-modal-setting-help">
+                    {__(
+                      "Set the number of characters allowed for short answers. Leave empty to disable.",
+                      "tutorpress"
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

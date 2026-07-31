@@ -9,6 +9,7 @@ import type {
   QuizContentDripSettings,
   QuizContentType,
   QuizEffectiveSettings,
+  QuizQuestion,
   QuizSettingsLoadInput,
   QuizSettingsLoadResult,
   QuizSettingsSaveInput,
@@ -270,6 +271,50 @@ export const shouldShowHidePreviousButton = ({
   !enablePagination &&
   questionLayoutView === "single_question" &&
   shouldShowNavigationControls({ contentType, showAllSettings });
+
+/** True when the quiz has at least one short-answer question. */
+export const quizHasShortAnswerQuestions = (
+  questions: ReadonlyArray<Pick<QuizQuestion, "question_type">>
+): boolean => questions.some((question) => question.question_type === "short_answer");
+
+/** True when the quiz has at least one open-ended/essay question. */
+export const quizHasOpenEndedQuestions = (
+  questions: ReadonlyArray<Pick<QuizQuestion, "question_type">>
+): boolean => questions.some((question) => question.question_type === "open_ended");
+
+export interface CharacterLimitsVisibilityInput {
+  contentType: QuizContentType;
+  questions: ReadonlyArray<Pick<QuizQuestion, "question_type">>;
+  /** Accepted for disclosure-matrix callers; Character Limits ignores it. */
+  showAllSettings?: boolean;
+}
+
+/**
+ * Character Limits frame: matching short/open questions only.
+ * Never for Interactive, including when showAllSettings is true.
+ */
+export const shouldShowCharacterLimitsFrame = ({
+  contentType,
+  questions,
+}: CharacterLimitsVisibilityInput): boolean =>
+  contentType !== "tutor_h5p_quiz" &&
+  (quizHasShortAnswerQuestions(questions) || quizHasOpenEndedQuestions(questions));
+
+/** Short Answer limit: frame visible and a short_answer question exists. */
+export const shouldShowShortAnswerCharacterLimit = ({
+  contentType,
+  questions,
+}: CharacterLimitsVisibilityInput): boolean =>
+  shouldShowCharacterLimitsFrame({ contentType, questions }) &&
+  quizHasShortAnswerQuestions(questions);
+
+/** Open-Ended/Essay limit: frame visible and an open_ended question exists. */
+export const shouldShowOpenEndedCharacterLimit = ({
+  contentType,
+  questions,
+}: CharacterLimitsVisibilityInput): boolean =>
+  shouldShowCharacterLimitsFrame({ contentType, questions }) &&
+  quizHasOpenEndedQuestions(questions);
 
 type QuizEffectiveFieldPath =
   | keyof QuizEffectiveSettings
