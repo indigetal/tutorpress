@@ -329,9 +329,13 @@ export interface QuizSettings {
   time_limit: QuizTimeLimit;
   hide_quiz_time_display: boolean;
   feedback_mode: FeedbackMode;
+  /** V4 attempts enable flag; legacy derives this from feedback_mode === "retry". */
+  limit_attempts_allowed: boolean;
   attempts_allowed: number;
   pass_is_required: boolean;
   passing_grade: number;
+  /** UI-only enable flag; off serializes max_questions_for_answer as 0. */
+  limit_questions_to_answer: boolean;
   max_questions_for_answer: number;
   quiz_auto_start: boolean;
   question_layout_view: QuestionLayoutView;
@@ -693,9 +697,11 @@ export const getDefaultQuizSettings = (): QuizSettings => ({
   },
   hide_quiz_time_display: false,
   feedback_mode: "default",
+  limit_attempts_allowed: false,
   attempts_allowed: 0,
   pass_is_required: false,
   passing_grade: 80,
+  limit_questions_to_answer: false,
   max_questions_for_answer: 10,
   quiz_auto_start: false,
   question_layout_view: "",

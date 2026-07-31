@@ -21,7 +21,10 @@ import {
   convertQuizSettingsFormModelToPayload,
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
+  isRetryCapableQuizAttempts,
   QUIZ_SETTINGS_GROUP_FIELDS,
+  shouldShowPassIsRequired,
+  shouldShowQuizScopeMaximumQuestions,
 } from "../quizSettingsContract";
 
 const createCapabilities = (contract: QuizSettingsContract): QuizCapabilities => {
@@ -1366,5 +1369,108 @@ describe("Quiz form contract context", () => {
     expect(state.settingsContract).toBe("unavailable");
     expect(state.rawSettings).toEqual({});
     expect(state.effectiveSettings).toBeNull();
+  });
+});
+
+describe("Quiz scope visibility gates", () => {
+  it("treats unlimited or multi-attempt limits as retry-capable", () => {
+    expect(isRetryCapableQuizAttempts(false, 0)).toBe(false);
+    expect(isRetryCapableQuizAttempts(true, 1)).toBe(false);
+    expect(isRetryCapableQuizAttempts(true, 0)).toBe(true);
+    expect(isRetryCapableQuizAttempts(true, 2)).toBe(true);
+  });
+
+  it("shows Pass is required only for V4 sequential drip with retry-capable attempts", () => {
+    const base = {
+      contract: "v4" as const,
+      contentDripAvailable: true,
+      contentDripType: "unlock_sequentially",
+      limitAttemptsAllowed: true,
+      attemptsAllowed: 0,
+      contentType: "tutor_quiz" as const,
+    };
+
+    expect(shouldShowPassIsRequired(base)).toBe(true);
+    expect(shouldShowPassIsRequired({ ...base, contract: "legacy" })).toBe(false);
+    expect(shouldShowPassIsRequired({ ...base, contentDripAvailable: false })).toBe(false);
+    expect(shouldShowPassIsRequired({ ...base, contentDripType: "unlock_by_date" })).toBe(false);
+    expect(shouldShowPassIsRequired({ ...base, attemptsAllowed: 1 })).toBe(false);
+    expect(
+      shouldShowPassIsRequired({
+        ...base,
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldShowPassIsRequired({
+        ...base,
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: true,
+      })
+    ).toBe(true);
+  });
+
+  it("discloses Maximum Questions for Interactive only when showAllSettings is on", () => {
+    expect(
+      shouldShowQuizScopeMaximumQuestions({ contentType: "tutor_quiz", showAllSettings: false })
+    ).toBe(true);
+    expect(
+      shouldShowQuizScopeMaximumQuestions({
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldShowQuizScopeMaximumQuestions({
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: true,
+      })
+    ).toBe(true);
+  });
+
+  it("writes V4 attempts without emitting legacy feedback_mode", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { feedback_mode: "retry", attempts_allowed: 4 },
+        {
+          dirtyGroups: ["attempts"],
+          updateEffective: (settings) => {
+            settings.limit_attempts_allowed = true;
+            settings.attempts_allowed = 3;
+          },
+        }
+      )
+    );
+
+    expect(payload).toMatchObject({
+      limit_attempts_allowed: "1",
+      attempts_allowed: 3,
+    });
+    expect(payload).not.toHaveProperty("feedback_mode");
+  });
+
+  it("does not emit V4 attempts keys when legacy Feedback is edited", () => {
+    const payload = getReadySettings(
+      saveSettings(
+        { feedback_mode: "default", attempts_allowed: 0 },
+        {
+          contract: "legacy",
+          dirtyGroups: ["legacy_feedback"],
+          updateEffective: (settings) => {
+            settings.feedback_mode = "retry";
+            settings.attempts_allowed = 2;
+            settings.limit_attempts_allowed = true;
+          },
+        }
+      )
+    );
+
+    expect(payload).toEqual({
+      feedback_mode: "retry",
+      attempts_allowed: 2,
+    });
+    expect(payload).not.toHaveProperty("limit_attempts_allowed");
+    expect(payload).not.toHaveProperty("enable_answer_reveal");
   });
 });

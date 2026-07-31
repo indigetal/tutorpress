@@ -54,6 +54,81 @@ export const supportsLegacyQuizFeedbackLayout = (capabilities?: QuizCapabilities
 export const supportsV4QuizContentDrip = (capabilities?: QuizCapabilities): boolean =>
   getQuizSettingsContract(capabilities) === "v4" && capabilities?.supportsV4QuizContentDrip === true;
 
+/**
+ * Pro sequential Content Drip treats attempts as retry-capable when the limit
+ * flag is on and allowed attempts are unlimited (`0`) or greater than one.
+ * Exact `1` is not retry-capable (ContentDrip.php:389-391).
+ */
+export const isRetryCapableQuizAttempts = (
+  limitAttemptsAllowed: boolean,
+  attemptsAllowed: number
+): boolean => limitAttemptsAllowed === true && (attemptsAllowed === 0 || attemptsAllowed > 1);
+
+export interface PassIsRequiredVisibilityInput {
+  contract: QuizSettingsContract;
+  contentDripAvailable: boolean;
+  contentDripType: string;
+  limitAttemptsAllowed: boolean;
+  attemptsAllowed: number;
+  contentType: QuizContentType;
+  /** Required for Interactive; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+}
+
+/**
+ * Pure Pass-is-required visibility gate.
+ * Live course drip-state wiring remains Steps 11/13; callers may pass
+ * unavailable drip props so the control stays hidden until then.
+ */
+export const shouldShowPassIsRequired = ({
+  contract,
+  contentDripAvailable,
+  contentDripType,
+  limitAttemptsAllowed,
+  attemptsAllowed,
+  contentType,
+  showAllSettings = false,
+}: PassIsRequiredVisibilityInput): boolean => {
+  if (contract !== "v4") {
+    return false;
+  }
+
+  if (!contentDripAvailable || contentDripType !== "unlock_sequentially") {
+    return false;
+  }
+
+  if (!isRetryCapableQuizAttempts(limitAttemptsAllowed, attemptsAllowed)) {
+    return false;
+  }
+
+  if (contentType === "tutor_h5p_quiz" && !showAllSettings) {
+    return false;
+  }
+
+  return true;
+};
+
+export interface QuizScopeMaximumQuestionsVisibilityInput {
+  contentType: QuizContentType;
+  /** Interactive disclosure; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+}
+
+/**
+ * Maximum Questions is always available for standard quizzes; valid V4
+ * Interactive shows it only when Reveal All Quiz Settings is on.
+ */
+export const shouldShowQuizScopeMaximumQuestions = ({
+  contentType,
+  showAllSettings = false,
+}: QuizScopeMaximumQuestionsVisibilityInput): boolean => {
+  if (contentType === "tutor_h5p_quiz") {
+    return showAllSettings === true;
+  }
+
+  return true;
+};
+
 type QuizEffectiveFieldPath =
   | keyof QuizEffectiveSettings
   | `content_drip_settings.${keyof QuizContentDripSettings}`;

@@ -66,6 +66,7 @@ import {
   Notice,
   SelectControl,
   ToggleControl,
+  CheckboxControl,
   __experimentalNumberControl as NumberControl,
   __experimentalHStack as HStack,
 } from "@wordpress/components";
@@ -81,6 +82,10 @@ import type {
   QuizSettingsUnavailableReason,
   TutorLearningMode,
 } from "../../../types/quiz";
+import {
+  shouldShowPassIsRequired,
+  shouldShowQuizScopeMaximumQuestions,
+} from "../../../utils/quizSettingsContract";
 
 interface SettingsTabProps {
   // Explicit settings context (Step 5A)
@@ -92,11 +97,17 @@ interface SettingsTabProps {
   h5pRuntimeAvailable: boolean;
 
   // Core settings (required for both Quiz and Interactive Quiz)
-  // Note: attemptsAllowed is core for Quiz Modal but only shown in Interactive Quiz when showAllSettings = true
   attemptsAllowed: number;
   passingGrade: number;
   quizAutoStart: boolean;
   questionsOrder: QuestionOrder;
+
+  // Quiz scope toggles (Step 6); defaults keep Pass-required hidden until drip props arrive
+  limitAttemptsAllowed?: boolean;
+  limitQuestionsToAnswer?: boolean;
+  passIsRequired?: boolean;
+  contentDripAvailable?: boolean;
+  contentDripType?: string;
 
   // Quiz Modal specific settings (optional for Interactive Quiz)
   timeValue?: number;
@@ -168,6 +179,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   quizAutoStart,
   questionsOrder,
 
+  // Quiz scope toggles (Step 6) — drip props stay closed until Steps 11/13
+  limitAttemptsAllowed = false,
+  limitQuestionsToAnswer = false,
+  passIsRequired = false,
+  contentDripAvailable = false,
+  contentDripType = "",
+
   // Quiz Modal specific settings with defaults
   timeValue = 0,
   timeType = "minutes",
@@ -203,6 +221,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 }) => {
   // Explicit modal content type selects Interactive presentation — never raw quiz_type.
   const isInteractiveQuizMode = contentType === "tutor_h5p_quiz";
+  const isV4Contract = quizSettingsContract === "v4";
+  const isLegacyContract = quizSettingsContract === "legacy";
   const contractUnavailable = quizSettingsContract === "unavailable";
   // Valid Interactive editing requires the V4 contract plus H5P runtime; legacy/missing fail closed.
   const interactiveEditingAvailable =
@@ -213,6 +233,19 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const settingsEditingBlocked = isInteractiveQuizMode
     ? !interactiveEditingAvailable
     : contractUnavailable;
+  const showMaximumQuestions = shouldShowQuizScopeMaximumQuestions({
+    contentType,
+    showAllSettings,
+  });
+  const showPassRequired = shouldShowPassIsRequired({
+    contract: quizSettingsContract,
+    contentDripAvailable,
+    contentDripType,
+    limitAttemptsAllowed,
+    attemptsAllowed,
+    contentType,
+    showAllSettings,
+  });
 
   const timeUnitOptions = [
     { label: __("Seconds", "tutorpress"), value: "seconds" },
@@ -368,71 +401,130 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            {/* Feedback Mode - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && (
+            {/* V4: Allow multiple attempts (always visible for standard and valid Interactive) */}
+            {isV4Contract && (
               <div className="quiz-modal-setting-group">
-                <SelectControl
-                  label={__("Feedback Mode", "tutorpress")}
-                  value={feedbackMode}
-                  options={feedbackModeOptions.map((option) => ({
-                    label: option.label,
-                    value: option.value,
-                  }))}
-                  onChange={(value) => onSettingChange({ feedback_mode: value as FeedbackMode })}
+                <CheckboxControl
+                  label={__("Allow multiple attempts", "tutorpress")}
+                  checked={limitAttemptsAllowed}
+                  onChange={(checked) => onSettingChange({ limit_attempts_allowed: checked })}
                   disabled={isSaving}
-                />
-                {selectedFeedbackMode && <p className="quiz-modal-setting-help">{selectedFeedbackMode.help}</p>}
-              </div>
-            )}
-
-            {/* Attempts: always visible for Interactive; standard keeps legacy retry gate until Step 6 */}
-            {(isInteractiveQuizMode || feedbackMode === "retry") && (
-              <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Attempts Allowed", "tutorpress")}
-                  value={attemptsAllowed}
-                  onChange={(value) => onSettingChange({ attempts_allowed: parseInt(value as string) || 0 })}
-                  min={0}
-                  max={20}
-                  step={1}
-                  disabled={isSaving}
-                />
-                <p className="quiz-modal-setting-help">
-                  {__(
-                    'Define how many times a student can retake this quiz. Setting it to "0" allows unlimited attempts.',
+                  help={__(
+                    "Set the number of attempts allowed for this quiz. 0 means unlimited.",
                     "tutorpress"
                   )}
-                </p>
-                {errors.attemptsAllowed && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.attemptsAllowed}
-                  </Notice>
+                />
+                {limitAttemptsAllowed && (
+                  <>
+                    <NumberControl
+                      label={__("Attempts Allowed", "tutorpress")}
+                      hideLabelFromVision
+                      value={attemptsAllowed}
+                      onChange={(value) =>
+                        onSettingChange({ attempts_allowed: parseInt(value as string) || 0 })
+                      }
+                      min={0}
+                      step={1}
+                      disabled={isSaving}
+                    />
+                    {errors.attemptsAllowed && (
+                      <Notice status="error" isDismissible={false}>
+                        {errors.attemptsAllowed}
+                      </Notice>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
-            {/* Max Questions Allowed to Answer - Quiz Modal always, Interactive Quiz when showAllSettings */}
-            {(!isInteractiveQuizMode || showAllSettings) && (
+            {/* Legacy: Feedback Mode + Attempts Allowed only for Retry */}
+            {isLegacyContract && (
+              <>
+                <div className="quiz-modal-setting-group">
+                  <SelectControl
+                    label={__("Feedback Mode", "tutorpress")}
+                    value={feedbackMode}
+                    options={feedbackModeOptions.map((option) => ({
+                      label: option.label,
+                      value: option.value,
+                    }))}
+                    onChange={(value) => onSettingChange({ feedback_mode: value as FeedbackMode })}
+                    disabled={isSaving}
+                  />
+                  {selectedFeedbackMode && (
+                    <p className="quiz-modal-setting-help">{selectedFeedbackMode.help}</p>
+                  )}
+                </div>
+                {feedbackMode === "retry" && (
+                  <div className="quiz-modal-setting-group">
+                    <NumberControl
+                      label={__("Attempts Allowed", "tutorpress")}
+                      value={attemptsAllowed}
+                      onChange={(value) =>
+                        onSettingChange({ attempts_allowed: parseInt(value as string) || 0 })
+                      }
+                      min={0}
+                      max={20}
+                      step={1}
+                      disabled={isSaving}
+                    />
+                    {errors.attemptsAllowed && (
+                      <Notice status="error" isDismissible={false}>
+                        {errors.attemptsAllowed}
+                      </Notice>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Maximum questions: always for standard; Interactive when disclosed */}
+            {showMaximumQuestions && (
               <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Max Questions Allowed to Answer", "tutorpress")}
-                  value={maxQuestionsForAnswer}
-                  onChange={(value) => onSettingChange({ max_questions_for_answer: parseInt(value as string) || 0 })}
-                  min={0}
-                  step={1}
+                <CheckboxControl
+                  label={__("Set maximum questions per quiz", "tutorpress")}
+                  checked={limitQuestionsToAnswer}
+                  onChange={(checked) => onSettingChange({ limit_questions_to_answer: checked })}
                   disabled={isSaving}
-                />
-                <p className="quiz-modal-setting-help">
-                  {__(
+                  help={__(
                     "Set the number of quiz questions randomly from your question pool. If the set number exceeds available questions, all questions will be included",
                     "tutorpress"
                   )}
-                </p>
-                {errors.maxQuestions && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.maxQuestions}
-                  </Notice>
+                />
+                {limitQuestionsToAnswer && (
+                  <>
+                    <NumberControl
+                      label={__("Maximum questions", "tutorpress")}
+                      hideLabelFromVision
+                      value={maxQuestionsForAnswer}
+                      onChange={(value) =>
+                        onSettingChange({
+                          max_questions_for_answer: parseInt(value as string) || 0,
+                        })
+                      }
+                      min={1}
+                      step={1}
+                      disabled={isSaving}
+                    />
+                    {errors.maxQuestions && (
+                      <Notice status="error" isDismissible={false}>
+                        {errors.maxQuestions}
+                      </Notice>
+                    )}
+                  </>
                 )}
+              </div>
+            )}
+
+            {/* Pass is required — pure gate; live drip wiring remains Steps 11/13 */}
+            {showPassRequired && (
+              <div className="quiz-modal-setting-group">
+                <ToggleControl
+                  label={__("Pass is required", "tutorpress")}
+                  checked={passIsRequired}
+                  onChange={(checked) => onSettingChange({ pass_is_required: checked })}
+                  disabled={isSaving}
+                />
               </div>
             )}
           </div>

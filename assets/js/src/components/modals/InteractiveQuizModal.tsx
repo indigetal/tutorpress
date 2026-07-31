@@ -722,6 +722,9 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   passingGrade={formState.settings.passing_grade}
                   quizAutoStart={formState.settings.quiz_auto_start}
                   questionsOrder={formState.settings.questions_order}
+                  limitAttemptsAllowed={formState.settings.limit_attempts_allowed}
+                  limitQuestionsToAnswer={formState.settings.limit_questions_to_answer}
+                  passIsRequired={formState.settings.pass_is_required}
                   // All settings with defaults (for Tutor LMS compatibility)
                   timeValue={formState.settings.time_limit.time_value}
                   timeType={formState.settings.time_limit.time_type}

@@ -165,28 +165,7 @@ export const createInitialQuizFormState = ({
   const model = createNewQuizSettingsFormModel(capabilities, contentType);
   const effective = model?.effectiveSettings;
   const settings: QuizSettings = effective
-    ? {
-        time_limit: { ...effective.time_limit },
-        hide_quiz_time_display: effective.hide_quiz_time_display,
-        feedback_mode: effective.feedback_mode,
-        attempts_allowed: effective.attempts_allowed,
-        pass_is_required: effective.pass_is_required,
-        passing_grade: effective.passing_grade,
-        max_questions_for_answer: effective.max_questions_for_answer,
-        quiz_auto_start: effective.quiz_auto_start,
-        question_layout_view: effective.question_layout_view,
-        questions_order: effective.questions_order,
-        hide_question_number_overview: effective.hide_question_number_overview,
-        short_answer_characters_limit:
-          typeof effective.short_answer_characters_limit === "number"
-            ? effective.short_answer_characters_limit
-            : 0,
-        open_ended_answer_characters_limit:
-          typeof effective.open_ended_answer_characters_limit === "number"
-            ? effective.open_ended_answer_characters_limit
-            : 0,
-        content_drip_settings: { ...effective.content_drip_settings },
-      }
+    ? toFormQuizSettings(effective)
     : getDefaultQuizSettings();
 
   return {
@@ -204,7 +183,35 @@ export const createInitialQuizFormState = ({
   };
 };
 
-const getDirtyGroupsForSettings = (settings: Partial<QuizSettings>): QuizSettingsDirtyGroup[] => {
+const toFormQuizSettings = (effective: QuizEffectiveSettings): QuizSettings => ({
+  time_limit: { ...effective.time_limit },
+  hide_quiz_time_display: effective.hide_quiz_time_display,
+  feedback_mode: effective.feedback_mode,
+  limit_attempts_allowed: effective.limit_attempts_allowed,
+  attempts_allowed: effective.attempts_allowed,
+  pass_is_required: effective.pass_is_required,
+  passing_grade: effective.passing_grade,
+  limit_questions_to_answer: effective.limit_questions_to_answer,
+  max_questions_for_answer: effective.max_questions_for_answer,
+  quiz_auto_start: effective.quiz_auto_start,
+  question_layout_view: effective.question_layout_view,
+  questions_order: effective.questions_order,
+  hide_question_number_overview: effective.hide_question_number_overview,
+  short_answer_characters_limit:
+    typeof effective.short_answer_characters_limit === "number"
+      ? effective.short_answer_characters_limit
+      : 0,
+  open_ended_answer_characters_limit:
+    typeof effective.open_ended_answer_characters_limit === "number"
+      ? effective.open_ended_answer_characters_limit
+      : 0,
+  content_drip_settings: { ...effective.content_drip_settings },
+});
+
+const getDirtyGroupsForSettings = (
+  settings: Partial<QuizSettings>,
+  contract: QuizSettingsContract
+): QuizSettingsDirtyGroup[] => {
   const groups = new Set<QuizSettingsDirtyGroup>();
 
   Object.keys(settings).forEach((key) => {
@@ -216,8 +223,11 @@ const getDirtyGroupsForSettings = (settings: Partial<QuizSettings>): QuizSetting
         groups.add("hide_countdown");
         break;
       case "feedback_mode":
-      case "attempts_allowed":
         groups.add("legacy_feedback");
+        break;
+      case "limit_attempts_allowed":
+      case "attempts_allowed":
+        groups.add(contract === "v4" ? "attempts" : "legacy_feedback");
         break;
       case "pass_is_required":
         groups.add("pass_required");
@@ -225,6 +235,7 @@ const getDirtyGroupsForSettings = (settings: Partial<QuizSettings>): QuizSetting
       case "passing_grade":
         groups.add("passing_grade");
         break;
+      case "limit_questions_to_answer":
       case "max_questions_for_answer":
         groups.add("question_limit");
         break;
@@ -281,6 +292,9 @@ const applySettingsToEffective = (
     next.limit_attempts_allowed = settings.feedback_mode === "retry";
     next.enable_answer_reveal = settings.feedback_mode === "reveal";
   }
+  if (settings.limit_attempts_allowed !== undefined) {
+    next.limit_attempts_allowed = settings.limit_attempts_allowed;
+  }
   if (settings.attempts_allowed !== undefined) {
     next.attempts_allowed = settings.attempts_allowed;
   }
@@ -290,10 +304,18 @@ const applySettingsToEffective = (
   if (settings.passing_grade !== undefined) {
     next.passing_grade = settings.passing_grade;
   }
+  if (settings.limit_questions_to_answer !== undefined) {
+    next.limit_questions_to_answer = settings.limit_questions_to_answer;
+    if (settings.limit_questions_to_answer && next.max_questions_for_answer <= 0) {
+      next.max_questions_for_answer = 10;
+    }
+  }
   if (settings.max_questions_for_answer !== undefined) {
-    next.limit_questions_to_answer = settings.max_questions_for_answer > 0;
     next.max_questions_for_answer =
       settings.max_questions_for_answer > 0 ? settings.max_questions_for_answer : 10;
+    if (settings.limit_questions_to_answer === undefined) {
+      next.limit_questions_to_answer = settings.max_questions_for_answer > 0;
+    }
   }
   if (settings.quiz_auto_start !== undefined) {
     next.quiz_auto_start = settings.quiz_auto_start;
@@ -398,8 +420,12 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         errors.passingGrade = __("Passing grade must be between 0 and 100", "tutorpress");
       }
 
-      // Max questions validation
-      if (state.settings.max_questions_for_answer < 0) {
+      // Max questions: require a positive companion when the limit toggle is on
+      if (state.settings.limit_questions_to_answer) {
+        if (state.settings.max_questions_for_answer <= 0) {
+          errors.maxQuestions = __("Maximum questions must be greater than 0", "tutorpress");
+        }
+      } else if (state.settings.max_questions_for_answer < 0) {
         errors.maxQuestions = __("Max questions cannot be negative", "tutorpress");
       }
 
@@ -413,9 +439,17 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         errors.availableAfterDays = __("Available after days cannot be negative", "tutorpress");
       }
 
-      // Attempts allowed validation (only validate when feedback mode is "retry")
-      if (state.settings.feedback_mode === "retry") {
-        if (state.settings.attempts_allowed < 0 || state.settings.attempts_allowed > 20) {
+      // Attempts: V4 validates when limit is on; legacy validates only for Retry
+      const attemptsLimited =
+        state.settingsContract === "v4"
+          ? state.settings.limit_attempts_allowed
+          : state.settings.feedback_mode === "retry";
+      if (attemptsLimited) {
+        if (state.settingsContract === "v4") {
+          if (state.settings.attempts_allowed < 0) {
+            errors.attemptsAllowed = __("Allowed attempts cannot be negative", "tutorpress");
+          }
+        } else if (state.settings.attempts_allowed < 0 || state.settings.attempts_allowed > 20) {
           errors.attemptsAllowed = __("Allowed attempts must be between 0 and 20", "tutorpress");
         }
       }
@@ -477,6 +511,8 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
       "quiz_auto_start",
       "hide_question_number_overview",
       "pass_is_required",
+      "limit_attempts_allowed",
+      "limit_questions_to_answer",
     ];
 
     const converted = { ...settings };
@@ -498,19 +534,34 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
     (settings: Partial<QuizSettings>) => {
       // Convert Tutor LMS integer booleans to actual booleans
       const convertedSettings = convertTutorBooleans(settings);
-      const dirtyGroups = getDirtyGroupsForSettings(convertedSettings);
 
       setFormState((prevState) => {
+        const nextEffective = applySettingsToEffective(
+          prevState.effectiveSettings,
+          convertedSettings
+        );
+        const dirtyGroups = getDirtyGroupsForSettings(
+          convertedSettings,
+          prevState.settingsContract
+        );
+        const mergedSettings: QuizSettings = {
+          ...prevState.settings,
+          ...convertedSettings,
+        };
+
+        // Keep Quiz scope toggles/companions aligned after derived effective updates
+        if (nextEffective) {
+          mergedSettings.limit_attempts_allowed = nextEffective.limit_attempts_allowed;
+          mergedSettings.limit_questions_to_answer = nextEffective.limit_questions_to_answer;
+          mergedSettings.attempts_allowed = nextEffective.attempts_allowed;
+          mergedSettings.max_questions_for_answer = nextEffective.max_questions_for_answer;
+          mergedSettings.feedback_mode = nextEffective.feedback_mode;
+        }
+
         const newState = {
           ...prevState,
-          settings: {
-            ...prevState.settings,
-            ...convertedSettings,
-          },
-          effectiveSettings: applySettingsToEffective(
-            prevState.effectiveSettings,
-            convertedSettings
-          ),
+          settings: mergedSettings,
+          effectiveSettings: nextEffective,
           dirtySettingsGroups: new Set([
             ...prevState.dirtySettingsGroups,
             ...dirtyGroups,
@@ -657,11 +708,39 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         : null;
 
       setFormState((prevState) => {
+        // Preserve loaded form fields for non-Quiz-scope groups (layout, drip, timing,
+        // etc.). Overlay only Step 6 Quiz-scope effective values so companions/toggles
+        // are correct without rewriting out-of-scope presentation.
+        const effective = loadedModel?.effectiveSettings;
+        const settings: QuizSettings = {
+          ...getDefaultQuizSettings(),
+          ...convertedSettings,
+          limit_attempts_allowed:
+            effective?.limit_attempts_allowed ??
+            convertedSettings.limit_attempts_allowed ??
+            convertedSettings.feedback_mode === "retry",
+          attempts_allowed:
+            effective?.attempts_allowed ?? convertedSettings.attempts_allowed,
+          feedback_mode: effective?.feedback_mode ?? convertedSettings.feedback_mode,
+          pass_is_required:
+            effective?.pass_is_required ?? convertedSettings.pass_is_required,
+          passing_grade: effective?.passing_grade ?? convertedSettings.passing_grade,
+          questions_order:
+            effective?.questions_order ?? convertedSettings.questions_order,
+          limit_questions_to_answer:
+            effective?.limit_questions_to_answer ??
+            convertedSettings.limit_questions_to_answer ??
+            Number(convertedSettings.max_questions_for_answer) > 0,
+          max_questions_for_answer:
+            effective?.max_questions_for_answer ??
+            convertedSettings.max_questions_for_answer,
+        };
+
         const newState = {
           ...prevState,
           title: data.post_title || "",
           description: data.post_content || "",
-          settings: convertedSettings,
+          settings,
           rawSettings: loadedModel?.rawSettings ?? {},
           effectiveSettings: loadedModel?.effectiveSettings ?? null,
           dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
