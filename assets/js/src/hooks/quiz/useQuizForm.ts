@@ -21,7 +21,7 @@
  * @since 1.0.0
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { __ } from "@wordpress/i18n";
 import type {
   QuizCapabilities,
@@ -71,10 +71,23 @@ export interface QuizFormState {
   dirtySettingsGroups: ReadonlySet<QuizSettingsDirtyGroup>;
   settingsContract: QuizSettingsContract;
   contentType: QuizContentType;
+  /** Stashed from quiz details for drip re-apply without re-fetch. */
+  hasProContentDripSettings: boolean;
+  proContentDripSettings?: QuizSettingsLoadInput["proContentDripSettings"];
+  /** True once editable drip was applied under contentDripAvailable. */
+  dripAuthorityApplied: boolean;
   errors: QuizFormErrors;
   isValid: boolean;
   isDirty: boolean;
 }
+
+/**
+ * QuizForm fields plus optional Pro drip response members from quiz details.
+ */
+export type QuizFormInitializeData = Partial<QuizForm> & {
+  has_pro_content_drip_settings?: boolean;
+  pro_content_drip_settings?: QuizSettingsLoadInput["proContentDripSettings"];
+};
 
 export interface UseQuizFormOptions {
   capabilities?: QuizCapabilities;
@@ -103,7 +116,7 @@ export interface UseQuizFormReturn {
   isDirty: boolean;
   errors: QuizFormErrors;
   // Initialization functions (no dirty state marking)
-  initializeWithData: (data: Partial<QuizForm>) => void;
+  initializeWithData: (data: QuizFormInitializeData) => void;
 }
 
 export type QuizFormDataResult =
@@ -145,6 +158,9 @@ export const createInitialQuizFormState = ({
       dirtySettingsGroups: loadedModel.dirtyGroups,
       settingsContract,
       contentType,
+      hasProContentDripSettings,
+      proContentDripSettings,
+      dripAuthorityApplied: contentDripAvailable,
       errors: {},
       isValid: true,
       isDirty: false,
@@ -166,6 +182,9 @@ export const createInitialQuizFormState = ({
     dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
     settingsContract,
     contentType,
+    hasProContentDripSettings: false,
+    proContentDripSettings: undefined,
+    dripAuthorityApplied: contentDripAvailable,
     errors: {},
     isValid: true,
     isDirty: false,
@@ -706,7 +725,16 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
    * Use this for loading existing quiz data - prevents "unsaved changes" warning
    */
   const initializeWithData = useCallback(
-    (data: Partial<QuizForm>) => {
+    (data: QuizFormInitializeData) => {
+      const loadedHasProContentDripSettings =
+        typeof data.has_pro_content_drip_settings === "boolean"
+          ? data.has_pro_content_drip_settings
+          : hasProContentDripSettings;
+      const loadedProContentDripSettings =
+        "has_pro_content_drip_settings" in data
+          ? data.pro_content_drip_settings
+          : proContentDripSettings;
+
       const convertedSettings = data.quiz_option ? convertTutorBooleans(data.quiz_option) : getDefaultQuizSettings();
       const loadedModel = data.quiz_option
         ? convertRawQuizSettingsToFormModel({
@@ -714,14 +742,15 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
             contentType,
             rawSettings: data.quiz_option as unknown as RawQuizSettings,
             contentDripAvailable,
-            hasProContentDripSettings,
-            proContentDripSettings,
+            hasProContentDripSettings: loadedHasProContentDripSettings,
+            proContentDripSettings: loadedProContentDripSettings,
           })
         : null;
 
       setFormState((prevState) => {
         // Preserve loaded form fields for non-owned groups (drip, etc.).
         // Overlay Quiz-scope, Timing, Navigation, and Character Limits from effective.
+        // When Content Drip is available, overlay drip from Pro-first/nested-fallback effective.
         const effective = loadedModel?.effectiveSettings;
         const settings: QuizSettings = {
           ...getDefaultQuizSettings(),
@@ -779,6 +808,10 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           open_ended_answer_characters_limit:
             effective?.open_ended_answer_characters_limit ??
             convertedSettings.open_ended_answer_characters_limit,
+          content_drip_settings:
+            contentDripAvailable && effective?.content_drip_settings
+              ? { ...effective.content_drip_settings }
+              : convertedSettings.content_drip_settings,
         };
 
         const newState = {
@@ -789,6 +822,9 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           rawSettings: loadedModel?.rawSettings ?? {},
           effectiveSettings: loadedModel?.effectiveSettings ?? null,
           dirtySettingsGroups: new Set<QuizSettingsDirtyGroup>(),
+          hasProContentDripSettings: loadedHasProContentDripSettings,
+          proContentDripSettings: loadedProContentDripSettings,
+          dripAuthorityApplied: contentDripAvailable,
           isDirty: false, // Key: Keep isDirty as false for initialization
         };
 
@@ -810,6 +846,63 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
       proContentDripSettings,
     ]
   );
+
+  // When course drip becomes available after quiz load, re-apply Pro-first drip only.
+  useEffect(() => {
+    if (!contentDripAvailable) {
+      return;
+    }
+
+    setFormState((prevState) => {
+      if (prevState.dripAuthorityApplied) {
+        return prevState;
+      }
+
+      // Empty quiz_option is still a loaded quiz when Pro meta was stashed; only
+      // skip before any load when neither raw nor Pro drip authority exists.
+      if (
+        Object.keys(prevState.rawSettings).length === 0 &&
+        !prevState.hasProContentDripSettings
+      ) {
+        return prevState;
+      }
+
+      const loadedModel = convertRawQuizSettingsToFormModel({
+        contract: prevState.settingsContract,
+        contentType: prevState.contentType,
+        rawSettings: prevState.rawSettings,
+        contentDripAvailable: true,
+        hasProContentDripSettings: prevState.hasProContentDripSettings,
+        proContentDripSettings: prevState.proContentDripSettings,
+      });
+
+      const effectiveDrip = loadedModel.effectiveSettings?.content_drip_settings;
+      if (!effectiveDrip) {
+        return prevState;
+      }
+
+      return {
+        ...prevState,
+        settings: {
+          ...prevState.settings,
+          content_drip_settings: { ...effectiveDrip },
+        },
+        effectiveSettings: prevState.effectiveSettings
+          ? {
+              ...prevState.effectiveSettings,
+              content_drip_settings: { ...effectiveDrip },
+            }
+          : loadedModel.effectiveSettings,
+        dripAuthorityApplied: true,
+      };
+    });
+  }, [
+    contentDripAvailable,
+    formState.dripAuthorityApplied,
+    formState.rawSettings,
+    formState.hasProContentDripSettings,
+    formState.proContentDripSettings,
+  ]);
 
   return {
     // State

@@ -213,6 +213,14 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
             $quiz_option = get_post_meta($quiz_id, 'tutor_quiz_option', true);
             $questions = $this->get_quiz_questions($quiz_id);
 
+            // Pro Content Drip meta is a separate storage surface from nested quiz_option.
+            $has_pro_content_drip_settings = metadata_exists('post', $quiz_id, '_content_drip_settings');
+            $pro_content_drip_settings = [];
+            if ($has_pro_content_drip_settings) {
+                $stored_pro_drip = get_post_meta($quiz_id, '_content_drip_settings', true);
+                $pro_content_drip_settings = is_array($stored_pro_drip) ? $stored_pro_drip : [];
+            }
+
             $quiz_details = [
                 'ID' => $quiz->ID,
                 'post_title' => $quiz->post_title,
@@ -223,6 +231,8 @@ class TutorPress_REST_Quizzes_Controller extends TutorPress_REST_Controller {
                 'menu_order' => (int) $quiz->menu_order,
                 'quiz_option' => $quiz_option ?: [],
                 'questions' => $questions,
+                'has_pro_content_drip_settings' => (bool) $has_pro_content_drip_settings,
+                'pro_content_drip_settings' => $pro_content_drip_settings,
             ];
 
             return rest_ensure_response(

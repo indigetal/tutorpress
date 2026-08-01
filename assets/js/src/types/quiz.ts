@@ -482,6 +482,10 @@ export interface QuizDetails {
   menu_order: number;
   quiz_option: QuizSettings;
   questions: QuizQuestion[];
+  /** Explicit Pro `_content_drip_settings` presence from `metadata_exists()`. */
+  has_pro_content_drip_settings: boolean;
+  /** Guarded Pro drip array/object; separate from nested `quiz_option`. */
+  pro_content_drip_settings: RawQuizContentDripSettings | unknown[];
 }
 
 // ============================================================================

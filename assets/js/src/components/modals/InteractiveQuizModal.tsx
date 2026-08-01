@@ -48,6 +48,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const [quizData, setQuizData] = useState<QuizDetails | null>(null);
   const quizCapabilities = window.tutorPressCurriculum?.quizCapabilities;
 
+  // Course drip availability for form load authority (full drip select remains below).
+  const isContentDripEnabledForForm = useSelect(
+    (select: any) => select("tutorpress/additional-content").isContentDripEnabled(),
+    []
+  );
+
   // Use the same quiz form hook as QuizModal for consistency
   const {
     formState,
@@ -66,6 +72,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   } = useQuizForm({
     capabilities: quizCapabilities,
     contentType: "tutor_h5p_quiz",
+    contentDripAvailable: isContentDripEnabledForForm,
   });
 
   // Question management state (identical to QuizModal)

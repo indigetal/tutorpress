@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type {
   QuizCapabilities,
@@ -164,6 +164,46 @@ const renderQuizFormHook = (options: UseQuizFormOptions) => {
         throw new Error("Quiz form hook did not render");
       }
       return current;
+    },
+    unmount: () => {
+      act(() => root.unmount());
+    },
+  };
+};
+
+/** Same as renderQuizFormHook, but options can flip without remounting the hook instance. */
+const renderQuizFormHookWithMutableOptions = (initialOptions: UseQuizFormOptions) => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  let current: UseQuizFormReturn | undefined;
+  let setOptions: ((next: UseQuizFormOptions) => void) | undefined;
+  const container = document.createElement("div");
+  const root = createRoot(container);
+
+  const Harness = () => {
+    const [options, updateOptions] = useState(initialOptions);
+    setOptions = updateOptions;
+    current = useQuizForm(options);
+    return null;
+  };
+
+  act(() => {
+    root.render(createElement(Harness));
+  });
+
+  return {
+    current: (): UseQuizFormReturn => {
+      if (!current) {
+        throw new Error("Quiz form hook did not render");
+      }
+      return current;
+    },
+    updateOptions: (next: UseQuizFormOptions) => {
+      if (!setOptions) {
+        throw new Error("Quiz form options updater is unavailable");
+      }
+      act(() => {
+        setOptions?.(next);
+      });
     },
     unmount: () => {
       act(() => root.unmount());
@@ -1375,6 +1415,53 @@ describe("Quiz form contract context", () => {
       prerequisites: [],
     });
     expect(state.rawSettings.content_drip_settings).toEqual(loadedSettings.content_drip_settings);
+  });
+
+  it("re-applies Pro drip when course drip becomes available after empty quiz_option load", () => {
+    const capabilities = createCapabilities("v4");
+    const hook = renderQuizFormHookWithMutableOptions({
+      capabilities,
+      contentType: "tutor_quiz",
+      contentDripAvailable: false,
+    });
+
+    try {
+      act(() => {
+        hook.current().initializeWithData({
+          post_title: "Empty option quiz",
+          quiz_option: {} as QuizSettings,
+          has_pro_content_drip_settings: true,
+          pro_content_drip_settings: { unlock_date: "pro-date", future_pro: "keep" },
+        });
+      });
+
+      expect(hook.current().formState.dripAuthorityApplied).toBe(false);
+      expect(hook.current().formState.hasProContentDripSettings).toBe(true);
+      expect(hook.current().formState.rawSettings).toEqual({});
+      expect(hook.current().formState.settings.content_drip_settings?.unlock_date).not.toBe("pro-date");
+
+      hook.updateOptions({
+        capabilities,
+        contentType: "tutor_quiz",
+        contentDripAvailable: true,
+      });
+
+      expect(hook.current().formState.dripAuthorityApplied).toBe(true);
+      expect(hook.current().formState.isDirty).toBe(false);
+      expect(hook.current().formState.settings.content_drip_settings).toEqual({
+        unlock_date: "pro-date",
+        after_xdays_of_enroll: 0,
+        prerequisites: [],
+      });
+      expect(hook.current().formState.effectiveSettings?.content_drip_settings).toEqual({
+        unlock_date: "pro-date",
+        after_xdays_of_enroll: 0,
+        prerequisites: [],
+      });
+      expect(hook.current().formState.rawSettings).toEqual({});
+    } finally {
+      hook.unmount();
+    }
   });
 
   it("retains unavailable as a distinct state without raw payload defaults", () => {

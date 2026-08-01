@@ -390,6 +390,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   // Validation state - Step 3.6.8
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
+  // Course drip availability for form load authority (full drip select remains below).
+  const isContentDripEnabledForForm = useSelect(
+    (select: any) => select("tutorpress/additional-content").isContentDripEnabled(),
+    []
+  );
+
   // Initialize quiz form hook with loaded data
   const {
     formState,
@@ -409,6 +415,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   } = useQuizForm({
     capabilities: quizCapabilities,
     contentType: "tutor_quiz",
+    contentDripAvailable: isContentDripEnabledForForm,
   });
 
   // Get quiz duplication state from curriculum store
