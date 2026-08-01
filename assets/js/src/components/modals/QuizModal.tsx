@@ -393,7 +393,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   // Initialize quiz form hook with loaded data
   const {
     formState,
-    coursePreviewAddon,
     updateTitle,
     updateDescription,
     updateSettings,
@@ -403,7 +402,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     resetToDefaults,
     initializeWithData,
     validateEntireForm,
-    checkCoursePreviewAddon,
     getFormData,
     isValid,
     isDirty,
@@ -432,6 +430,29 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }),
     []
   );
+
+  // Course Content Drip state from additional-content store (Step 11B)
+  const {
+    isContentDripEnabled,
+    contentDripType,
+    prerequisiteOptions,
+    contentDripLoading,
+    contentDripError,
+  } = useSelect(
+    (select: any) => {
+      const store = select("tutorpress/additional-content");
+      const courseKey = courseId ?? 0;
+      return {
+        isContentDripEnabled: store.isContentDripEnabled(),
+        contentDripType: store.getContentDripType() || "",
+        prerequisiteOptions: store.getPrerequisitesForCourse(courseKey) || [],
+        contentDripLoading: store.isLoading() || store.isPrerequisitesLoadingForCourse(courseKey),
+        contentDripError: store.getError() || store.getPrerequisitesErrorForCourse(courseKey) || null,
+      };
+    },
+    [courseId]
+  );
+  const { fetchAdditionalContent, getPrerequisites } = useDispatch("tutorpress/additional-content") as any;
 
   // Use centralized validation hook
   const { validateAllQuestions: validateAllQuestionsHook } = useQuestionValidation();
@@ -537,10 +558,28 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     }
   }, [isOpen, quizId, resetToDefaults]);
 
-  // Check Course Preview addon availability on mount
+  // Fetch course-level Content Drip state when the modal opens
+  useEffect(() => {
+    if (isOpen && courseId) {
+      fetchAdditionalContent(courseId);
+    }
+  }, [isOpen, courseId, fetchAdditionalContent]);
+
+  // Prerequisites only when that drip mode is active
+  useEffect(() => {
+    if (
+      isOpen &&
+      courseId &&
+      isContentDripEnabled &&
+      contentDripType === "after_finishing_prerequisites"
+    ) {
+      getPrerequisites(courseId);
+    }
+  }, [isOpen, courseId, isContentDripEnabled, contentDripType, getPrerequisites]);
+
+  // Reset save/question UI state when the modal opens
   useEffect(() => {
     if (isOpen) {
-      checkCoursePreviewAddon();
       setSaveError(null);
       setSaveSuccess(false);
       // Reset question state when modal opens
@@ -554,7 +593,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         setDeletedTempMaskValues([]);
       }
     }
-  }, [isOpen, checkCoursePreviewAddon, quizId]);
+  }, [isOpen, quizId]);
 
   const handleClose = () => {
     // Reset any quiz state if needed
@@ -1402,7 +1441,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
                   openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
                   attemptsAllowed={formState.settings.attempts_allowed}
-                  coursePreviewAddonAvailable={coursePreviewAddon.available}
+                  contentDripAvailable={isContentDripEnabled}
+                  contentDripType={contentDripType}
+                  prerequisiteOptions={prerequisiteOptions}
+                  currentQuizId={quizId}
+                  contentDripLoading={contentDripLoading}
+                  contentDripError={contentDripError}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   saveError={saveError}

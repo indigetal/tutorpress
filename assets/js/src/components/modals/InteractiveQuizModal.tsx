@@ -93,6 +93,29 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Course Content Drip state from additional-content store (Step 11C)
+  const {
+    isContentDripEnabled,
+    contentDripType,
+    prerequisiteOptions,
+    contentDripLoading,
+    contentDripError,
+  } = useSelect(
+    (select: any) => {
+      const store = select("tutorpress/additional-content");
+      const courseKey = courseId ?? 0;
+      return {
+        isContentDripEnabled: store.isContentDripEnabled(),
+        contentDripType: store.getContentDripType() || "",
+        prerequisiteOptions: store.getPrerequisitesForCourse(courseKey) || [],
+        contentDripLoading: store.isLoading() || store.isPrerequisitesLoadingForCourse(courseKey),
+        contentDripError: store.getError() || store.getPrerequisitesErrorForCourse(courseKey) || null,
+      };
+    },
+    [courseId]
+  );
+  const { fetchAdditionalContent, getPrerequisites } = useDispatch("tutorpress/additional-content") as any;
+
   // Add state for "All Settings" toggle
   const [showAllSettings, setShowAllSettings] = useState(false);
   const h5pRuntimeAvailable = isH5pEnabled() && isH5pPluginActive();
@@ -248,6 +271,25 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       setDeletedAnswerIds([]);
     }
   }, [isOpen, quizId, resetToDefaults]);
+
+  // Fetch course-level Content Drip state when the modal opens
+  useEffect(() => {
+    if (isOpen && courseId) {
+      fetchAdditionalContent(courseId);
+    }
+  }, [isOpen, courseId, fetchAdditionalContent]);
+
+  // Prerequisites only when that drip mode is active
+  useEffect(() => {
+    if (
+      isOpen &&
+      courseId &&
+      isContentDripEnabled &&
+      contentDripType === "after_finishing_prerequisites"
+    ) {
+      getPrerequisites(courseId);
+    }
+  }, [isOpen, courseId, isContentDripEnabled, contentDripType, getPrerequisites]);
 
   // Tab configuration (identical to QuizModal)
   const tabs = [
@@ -747,8 +789,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   hideQuestionNumberOverview={formState.settings.hide_question_number_overview}
                   shortAnswerCharactersLimit={formState.settings.short_answer_characters_limit}
                   openEndedAnswerCharactersLimit={formState.settings.open_ended_answer_characters_limit}
-                  // Addon state
-                  coursePreviewAddonAvailable={false} // TODO: Implement if needed
+                  contentDripAvailable={isContentDripEnabled}
+                  contentDripType={contentDripType}
+                  prerequisiteOptions={prerequisiteOptions}
+                  currentQuizId={quizId}
+                  contentDripLoading={contentDripLoading}
+                  contentDripError={contentDripError}
                   // UI state
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}

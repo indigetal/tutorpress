@@ -2071,3 +2071,55 @@ describe("Interactive editing availability and fail-closed gates (Step 10F)", ()
     }
   );
 });
+
+describe("Course drip addon and mode gates (Step 11E)", () => {
+  const COURSE_DRIP_MODES = [
+    "unlock_by_date",
+    "specific_days",
+    "unlock_sequentially",
+    "after_finishing_prerequisites",
+  ] as const;
+
+  const frame = (
+    contentType: "tutor_quiz" | "tutor_h5p_quiz",
+    contentDripUiAvailable: boolean,
+    showAllSettings = false
+  ) =>
+    shouldShowContentDripSettingsFrame({ contentType, showAllSettings, contentDripUiAvailable });
+
+  const passRequired = (
+    contentType: "tutor_quiz" | "tutor_h5p_quiz",
+    contentDripAvailable: boolean,
+    contentDripType: string,
+    showAllSettings = false
+  ) =>
+    shouldShowPassIsRequired({
+      contract: "v4",
+      limitAttemptsAllowed: true,
+      attemptsAllowed: 0,
+      contentType,
+      contentDripAvailable,
+      contentDripType,
+      showAllSettings,
+    });
+
+  it("gates the drip frame by addon availability and Interactive disclosure", () => {
+    expect(frame("tutor_quiz", false, true)).toBe(false);
+    expect(frame("tutor_h5p_quiz", false, true)).toBe(false);
+    // Mode does not gate the shared frame; Step 13 owns mode-specific controls.
+    expect(frame("tutor_quiz", true, false)).toBe(true);
+    expect(frame("tutor_h5p_quiz", true, false)).toBe(false);
+    expect(frame("tutor_h5p_quiz", true, true)).toBe(true);
+  });
+
+  it("shows Pass is required only for sequential mode when drip is available", () => {
+    COURSE_DRIP_MODES.forEach((contentDripType) => {
+      const expected = contentDripType === "unlock_sequentially";
+      expect(passRequired("tutor_quiz", true, contentDripType)).toBe(expected);
+      expect(passRequired("tutor_h5p_quiz", true, contentDripType, true)).toBe(expected);
+      expect(passRequired("tutor_quiz", false, contentDripType)).toBe(false);
+    });
+
+    expect(passRequired("tutor_h5p_quiz", true, "unlock_sequentially", false)).toBe(false);
+  });
+});

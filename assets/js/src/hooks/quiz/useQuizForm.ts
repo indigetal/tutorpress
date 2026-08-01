@@ -8,7 +8,6 @@
  *
  * @features
  * - Form state management with validation
- * - WordPress Course Preview addon integration
  * - Time limit configuration with multiple units
  * - Passing grade and question limit settings
  * - Content drip functionality
@@ -87,19 +86,10 @@ export interface UseQuizFormOptions {
 }
 
 /**
- * Course Preview addon availability
- */
-export interface CoursePreviewAddon {
-  available: boolean;
-  checked: boolean;
-}
-
-/**
  * Return type for useQuizForm hook
  */
 export interface UseQuizFormReturn {
   formState: QuizFormState;
-  coursePreviewAddon: CoursePreviewAddon;
   updateTitle: (title: string) => void;
   updateDescription: (description: string) => void;
   updateSettings: (settings: Partial<QuizSettings>) => void;
@@ -108,7 +98,6 @@ export interface UseQuizFormReturn {
   resetForm: () => void;
   resetToDefaults: () => void;
   validateEntireForm: () => boolean;
-  checkCoursePreviewAddon: () => Promise<boolean>;
   getFormData: (questions: QuizQuestion[], isNewQuiz: boolean) => QuizFormDataResult;
   isValid: boolean;
   isDirty: boolean;
@@ -407,40 +396,6 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   // Initialize form state
   const [formState, setFormState] = useState<QuizFormState>(() => createInitialQuizFormState(options));
 
-  // Course Preview addon state
-  const [coursePreviewAddon, setCoursePreviewAddon] = useState<CoursePreviewAddon>({
-    available: false,
-    checked: false,
-  });
-
-  /**
-   * Check if Course Preview addon is available
-   */
-  const checkCoursePreviewAddon = useCallback(async () => {
-    if (coursePreviewAddon.checked) {
-      return coursePreviewAddon.available;
-    }
-
-    try {
-      // Check via REST API or global variable
-      const tutorObject = (window as any).tutorObject || (window as any)._tutorobject;
-      const isAvailable = tutorObject?.coursePreviewAddon || false;
-
-      setCoursePreviewAddon({
-        available: isAvailable,
-        checked: true,
-      });
-
-      return isAvailable;
-    } catch (error) {
-      setCoursePreviewAddon({
-        available: false,
-        checked: true,
-      });
-      return false;
-    }
-  }, [coursePreviewAddon]);
-
   /**
    * Validate form fields
    */
@@ -479,13 +434,9 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         errors.maxQuestions = __("Max questions cannot be negative", "tutorpress");
       }
 
-      // Available after days validation (if Course Preview addon is available)
+      // Available after days: reject negatives whenever the nested value is present
       const availableAfterDays = state.settings.content_drip_settings?.after_xdays_of_enroll;
-      if (
-        coursePreviewAddon.available &&
-        availableAfterDays !== undefined &&
-        availableAfterDays < 0
-      ) {
+      if (availableAfterDays !== undefined && availableAfterDays < 0) {
         errors.availableAfterDays = __("Available after days cannot be negative", "tutorpress");
       }
 
@@ -506,7 +457,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
 
       return errors;
     },
-    [coursePreviewAddon.available]
+    []
   );
 
   /**
@@ -863,7 +814,6 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   return {
     // State
     formState,
-    coursePreviewAddon,
 
     // Actions
     updateTitle,
@@ -874,7 +824,6 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
     resetForm,
     resetToDefaults,
     validateEntireForm,
-    checkCoursePreviewAddon,
     getFormData,
 
     // Initialization (no dirty state)

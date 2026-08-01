@@ -114,6 +114,14 @@ export class AddonChecker {
   }
 
   /**
+   * Normalize wp_localize_script flag values to real booleans.
+   * Accepts only true / 1 / "1"; rejects "0", "", false, and other truthy strings.
+   */
+  private static normalizeFlag(value: unknown): boolean {
+    return value === true || value === 1 || value === "1";
+  }
+
+  /**
    * Check if a specific addon is available and enabled
    *
    * @param addonKey The addon key to check
@@ -126,7 +134,7 @@ export class AddonChecker {
     }
 
     const addonData = this.getAddonData();
-    const result = addonData[addonKey] || false;
+    const result = this.normalizeFlag(addonData[addonKey]);
 
     // Cache the result
     this.cache[addonKey] = result;
@@ -168,7 +176,7 @@ export class AddonChecker {
   public static isH5pPluginActive(): boolean {
     // This will be populated by the server-side data
     // The server will check if H5P plugin is active directly
-    return this.getAddonData().h5p_plugin_active || false;
+    return this.normalizeFlag(this.getAddonData().h5p_plugin_active);
   }
 
   /**
@@ -231,7 +239,7 @@ export class AddonChecker {
    * Check if Certificate Builder plugin is enabled
    */
   public static isCertificateBuilderEnabled(): boolean {
-    return !!this.getAddonData().certificate_builder;
+    return this.normalizeFlag(this.getAddonData().certificate_builder);
   }
 
   /**
@@ -301,48 +309,42 @@ export class AddonChecker {
    * Check if Tutor Pro is enabled (for non-payment features)
    */
   public static isTutorProEnabled(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.tutor_pro || false;
+    return this.normalizeFlag(this.getAddonData().tutor_pro);
   }
 
   /**
    * Check if Paid Memberships Pro is enabled
    */
   public static isPMPEnabled(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.paid_memberships_pro || false;
+    return this.normalizeFlag(this.getAddonData().paid_memberships_pro);
   }
 
   /**
    * Check if SureCart is enabled
    */
   public static isSureCartEnabled(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.surecart || false;
+    return this.normalizeFlag(this.getAddonData().surecart);
   }
 
   /**
    * Check if WooCommerce is enabled
    */
   public static isWooCommerceEnabled(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.woocommerce || false;
+    return this.normalizeFlag(this.getAddonData().woocommerce);
   }
 
   /**
    * Check if WooCommerce is selected as the monetization engine
    */
   public static isWooCommerceMonetization(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.woocommerce_monetization || false;
+    return this.normalizeFlag(this.getAddonData().woocommerce_monetization);
   }
 
   /**
    * Check if EDD is selected as the monetization engine
    */
   public static isEddMonetization(): boolean {
-    const addonData = this.getAddonData();
-    return addonData.edd_monetization || false;
+    return this.normalizeFlag(this.getAddonData().edd_monetization);
   }
 
   /**
@@ -365,8 +367,7 @@ export class AddonChecker {
    * Check if monetization is enabled for the current payment engine
    */
   public static isMonetizationEnabled(): boolean {
-    const addonData = this.getAddonData();
-    return !!addonData.monetization_enabled;
+    return this.normalizeFlag(this.getAddonData().monetization_enabled);
   }
 }
 

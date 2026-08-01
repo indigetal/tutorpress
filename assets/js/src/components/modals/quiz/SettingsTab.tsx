@@ -84,6 +84,7 @@ import type {
   QuizSettingsUnavailableReason,
   TutorLearningMode,
 } from "../../../types/quiz";
+import type { PrerequisitesByTopic } from "../../../types/content-drip";
 import {
   shouldBlockQuizSettingsEditing,
   shouldShowAnswerReveal,
@@ -118,12 +119,18 @@ interface SettingsTabProps {
   quizAutoStart: boolean;
   questionsOrder: QuestionOrder;
 
-  // Quiz scope toggles (Step 6); defaults keep Pass-required hidden until drip props arrive
+  // Quiz scope toggles (Step 6); course drip state is wired in Step 11
   limitAttemptsAllowed?: boolean;
   limitQuestionsToAnswer?: boolean;
   passIsRequired?: boolean;
   contentDripAvailable?: boolean;
   contentDripType?: string;
+  /** Prerequisite options from additional-content store; consumed by Step 13. */
+  prerequisiteOptions?: PrerequisitesByTopic[];
+  /** Current quiz ID for prerequisite self-exclusion; consumed by Step 13. */
+  currentQuizId?: number;
+  contentDripLoading?: boolean;
+  contentDripError?: string | null;
 
   // Quiz Modal specific settings (optional for Interactive Quiz)
   enableTimeLimit?: boolean;
@@ -144,9 +151,6 @@ interface SettingsTabProps {
   hideQuestionNumberOverview?: boolean;
   shortAnswerCharactersLimit?: number | "";
   openEndedAnswerCharactersLimit?: number | "";
-
-  // Addon state (optional)
-  coursePreviewAddonAvailable?: boolean;
 
   // All Settings toggle (for Interactive Quiz)
   showAllSettings?: boolean;
@@ -203,7 +207,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   quizAutoStart,
   questionsOrder,
 
-  // Quiz scope toggles (Step 6) — drip props stay closed until Steps 11/13
+  // Quiz scope toggles (Step 6); course drip state is wired in Step 11
   limitAttemptsAllowed = false,
   limitQuestionsToAnswer = false,
   passIsRequired = false,
@@ -228,9 +232,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   hideQuestionNumberOverview = false,
   shortAnswerCharactersLimit = 200,
   openEndedAnswerCharactersLimit = 500,
-
-  // Addon state
-  coursePreviewAddonAvailable = false,
 
   // All Settings toggle (for Interactive Quiz)
   showAllSettings = false,
@@ -263,10 +264,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     contract: quizSettingsContract,
     h5pRuntimeAvailable,
   });
+  // Course Preview gate retired; parents pass store-backed contentDripAvailable (11B/11C).
   const showContentDripSettingsFrame = shouldShowContentDripSettingsFrame({
     contentType,
     showAllSettings,
-    contentDripUiAvailable: !!coursePreviewAddonAvailable && !!onContentDripChange,
+    contentDripUiAvailable: !!contentDripAvailable && !!onContentDripChange,
   });
   const showMaximumQuestions = shouldShowQuizScopeMaximumQuestions({
     contentType,
