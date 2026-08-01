@@ -27,6 +27,7 @@ import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
 import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption, DataStatus } from "../../types/quiz";
 import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
+import { isInteractiveQuizEditingAvailable } from "../../utils/quizSettingsContract";
 
 interface InteractiveQuizModalProps {
   isOpen: boolean;
@@ -95,9 +96,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   // Add state for "All Settings" toggle
   const [showAllSettings, setShowAllSettings] = useState(false);
   const h5pRuntimeAvailable = isH5pEnabled() && isH5pPluginActive();
-  // Interactive editing is valid only for the V4 settings contract plus H5P runtime.
-  const quizSettingsEditable =
-    quizCapabilities?.quizSettingsContract === "v4" && h5pRuntimeAvailable;
+  // Explicit Interactive content type + V4 contract + H5P runtime; never infer from raw quiz_type.
+  const quizSettingsEditable = isInteractiveQuizEditingAvailable({
+    contentType: "tutor_h5p_quiz",
+    contract: quizCapabilities?.quizSettingsContract ?? "unavailable",
+    h5pRuntimeAvailable,
+  });
 
   // Custom validity check that includes H5P question validation
   const isInteractiveQuizValid = useMemo(() => {

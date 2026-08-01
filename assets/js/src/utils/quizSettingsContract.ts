@@ -55,6 +55,67 @@ export const supportsLegacyQuizFeedbackLayout = (capabilities?: QuizCapabilities
 export const supportsV4QuizContentDrip = (capabilities?: QuizCapabilities): boolean =>
   getQuizSettingsContract(capabilities) === "v4" && capabilities?.supportsV4QuizContentDrip === true;
 
+export interface InteractiveQuizEditingAvailabilityInput {
+  contentType: QuizContentType;
+  contract: QuizSettingsContract;
+  h5pRuntimeAvailable: boolean;
+}
+
+/**
+ * Valid Interactive editing requires explicit H5P content type, the V4 settings
+ * contract, and both H5P runtime prerequisites. Never infer from raw quiz_type.
+ */
+export const isInteractiveQuizEditingAvailable = ({
+  contentType,
+  contract,
+  h5pRuntimeAvailable,
+}: InteractiveQuizEditingAvailabilityInput): boolean =>
+  contentType === "tutor_h5p_quiz" && contract === "v4" && h5pRuntimeAvailable === true;
+
+/**
+ * Fail-closed editing gate. Interactive blocks unless editing is available;
+ * standard blocks only when the settings contract is unavailable.
+ */
+export const shouldBlockQuizSettingsEditing = ({
+  contentType,
+  contract,
+  h5pRuntimeAvailable,
+}: InteractiveQuizEditingAvailabilityInput): boolean =>
+  contentType === "tutor_h5p_quiz"
+    ? !isInteractiveQuizEditingAvailable({ contentType, contract, h5pRuntimeAvailable })
+    : contract === "unavailable";
+
+export interface ContentDripSettingsFrameVisibilityInput {
+  contentType: QuizContentType;
+  /** Interactive disclosure; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+  /**
+   * Caller-owned drip UI readiness (addon/handler). Do not pass live course
+   * drip mode here — that remains Step 11.
+   */
+  contentDripUiAvailable: boolean;
+}
+
+/**
+ * Presentation-only Content Drip frame gate: ready drip UI, plus Interactive
+ * Reveal All disclosure. Does not encode course drip state.
+ */
+export const shouldShowContentDripSettingsFrame = ({
+  contentType,
+  showAllSettings = false,
+  contentDripUiAvailable,
+}: ContentDripSettingsFrameVisibilityInput): boolean => {
+  if (!contentDripUiAvailable) {
+    return false;
+  }
+
+  if (contentType === "tutor_h5p_quiz") {
+    return showAllSettings === true;
+  }
+
+  return true;
+};
+
 /**
  * Pro sequential Content Drip treats attempts as retry-capable when the limit
  * flag is on and allowed attempts are unlimited (`0`) or greater than one.

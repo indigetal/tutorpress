@@ -21,12 +21,15 @@ import {
   convertQuizSettingsFormModelToPayload,
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
+  isInteractiveQuizEditingAvailable,
   isRetryCapableQuizAttempts,
   QUIZ_SETTINGS_GROUP_FIELDS,
+  shouldBlockQuizSettingsEditing,
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
   shouldShowCharacterLimitsFrame,
+  shouldShowContentDripSettingsFrame,
   shouldShowHideCountdown,
   shouldShowHidePreviousButton,
   shouldShowHideQuestionNumber,
@@ -1899,4 +1902,172 @@ describe("Character Limits visibility gates and empty/zero preservation", () => 
     expect(untouched.open_ended_answer_characters_limit).toBe(350);
     expect(untouched.passing_grade).toBe(90);
   });
+});
+
+describe("Interactive disclosure and Auto Start delay (Step 10E)", () => {
+  const sequentialPassRequired = {
+    contract: "v4" as const,
+    contentDripAvailable: true,
+    contentDripType: "unlock_sequentially",
+    limitAttemptsAllowed: true,
+    attemptsAllowed: 0,
+  };
+
+  const disclosureGates = (showAllSettings: boolean) => [
+    shouldShowQuizScopeMaximumQuestions({ contentType: "tutor_h5p_quiz", showAllSettings }),
+    shouldShowTimingTimeLimit({ contentType: "tutor_h5p_quiz", showAllSettings }),
+    shouldShowHideCountdown({
+      enableTimeLimit: true,
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+    }),
+    shouldShowNavigationControls({ contentType: "tutor_h5p_quiz", showAllSettings }),
+    shouldShowPaginationControls({
+      questionLayoutView: "single_question",
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+    }),
+    shouldShowHideQuestionNumber({
+      questionLayoutView: "single_question",
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+    }),
+    shouldShowHidePreviousButton({
+      contract: "v4",
+      questionLayoutView: "single_question",
+      enablePagination: false,
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+    }),
+    shouldShowPassIsRequired({
+      ...sequentialPassRequired,
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+    }),
+    shouldShowContentDripSettingsFrame({
+      contentType: "tutor_h5p_quiz",
+      showAllSettings,
+      contentDripUiAvailable: true,
+    }),
+  ];
+
+  it("gates Interactive disclosure-controlled groups with showAllSettings", () => {
+    expect(disclosureGates(false).every((visible) => visible === false)).toBe(true);
+    expect(disclosureGates(true).every((visible) => visible === true)).toBe(true);
+
+    // Standard ignores Interactive disclosure for supported groups.
+    expect(shouldShowTimingTimeLimit({ contentType: "tutor_quiz", showAllSettings: false })).toBe(true);
+    expect(
+      shouldShowContentDripSettingsFrame({
+        contentType: "tutor_quiz",
+        showAllSettings: false,
+        contentDripUiAvailable: true,
+      })
+    ).toBe(true);
+  });
+
+  it("keeps Auto Start delay independent of Interactive disclosure", () => {
+    // Always-visible companion when Auto Start is on — not gated by showAllSettings.
+    expect(shouldShowAutoStartDelay({ contract: "v4", quizAutoStart: true })).toBe(true);
+    expect(shouldShowAutoStartDelay({ contract: "v4", quizAutoStart: false })).toBe(false);
+    expect(shouldShowAutoStartDelay({ contract: "legacy", quizAutoStart: true })).toBe(false);
+  });
+});
+
+describe("Interactive never-display and drip-unavailable (Step 10E2)", () => {
+  const mixedLimitQuestions = [
+    { question_type: "short_answer" as const },
+    { question_type: "open_ended" as const },
+  ];
+
+  it("never displays Reveal or Character Limits for Interactive under either disclosure state", () => {
+    [false, true].forEach((showAllSettings) => {
+      expect(
+        shouldShowAnswerReveal({
+          contract: "v4",
+          questionLayoutView: "single_question",
+          contentType: "tutor_h5p_quiz",
+        })
+      ).toBe(false);
+      expect(
+        shouldShowAnswerRevealDuration({
+          contract: "v4",
+          questionLayoutView: "single_question",
+          contentType: "tutor_h5p_quiz",
+          enableAnswerReveal: true,
+        })
+      ).toBe(false);
+      expect(
+        shouldShowCharacterLimitsFrame({
+          contentType: "tutor_h5p_quiz",
+          questions: mixedLimitQuestions,
+          showAllSettings,
+        })
+      ).toBe(false);
+      expect(
+        shouldShowShortAnswerCharacterLimit({
+          contentType: "tutor_h5p_quiz",
+          questions: mixedLimitQuestions,
+          showAllSettings,
+        })
+      ).toBe(false);
+      expect(
+        shouldShowOpenEndedCharacterLimit({
+          contentType: "tutor_h5p_quiz",
+          questions: mixedLimitQuestions,
+          showAllSettings,
+        })
+      ).toBe(false);
+    });
+  });
+
+  it("hides the Content Drip frame when drip UI is unavailable", () => {
+    expect(
+      shouldShowContentDripSettingsFrame({
+        contentType: "tutor_quiz",
+        showAllSettings: true,
+        contentDripUiAvailable: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldShowContentDripSettingsFrame({
+        contentType: "tutor_h5p_quiz",
+        showAllSettings: true,
+        contentDripUiAvailable: false,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("Interactive editing availability and fail-closed gates (Step 10F)", () => {
+  it.each([
+    ["valid V4 Interactive", "tutor_h5p_quiz", "v4", true, true],
+    ["Interactive missing runtime", "tutor_h5p_quiz", "v4", false, false],
+    ["Interactive legacy contract", "tutor_h5p_quiz", "legacy", true, false],
+    ["Interactive unavailable contract", "tutor_h5p_quiz", "unavailable", true, false],
+    ["standard V4 with runtime", "tutor_quiz", "v4", true, false],
+  ] as Array<[string, "tutor_quiz" | "tutor_h5p_quiz", QuizSettingsContract, boolean, boolean]>)(
+    "isInteractiveQuizEditingAvailable for %s",
+    (_label, contentType, contract, h5pRuntimeAvailable, expected) => {
+      expect(
+        isInteractiveQuizEditingAvailable({ contentType, contract, h5pRuntimeAvailable })
+      ).toBe(expected);
+    }
+  );
+
+  it.each([
+    ["blocks Interactive without runtime", "tutor_h5p_quiz", "v4", false, true],
+    ["blocks Interactive on legacy", "tutor_h5p_quiz", "legacy", true, true],
+    ["allows valid Interactive", "tutor_h5p_quiz", "v4", true, false],
+    ["blocks standard unavailable", "tutor_quiz", "unavailable", true, true],
+    ["allows standard V4 without H5P runtime", "tutor_quiz", "v4", false, false],
+    ["allows standard legacy", "tutor_quiz", "legacy", true, false],
+  ] as Array<[string, "tutor_quiz" | "tutor_h5p_quiz", QuizSettingsContract, boolean, boolean]>)(
+    "shouldBlockQuizSettingsEditing %s",
+    (_label, contentType, contract, h5pRuntimeAvailable, expected) => {
+      expect(
+        shouldBlockQuizSettingsEditing({ contentType, contract, h5pRuntimeAvailable })
+      ).toBe(expected);
+    }
+  );
 });

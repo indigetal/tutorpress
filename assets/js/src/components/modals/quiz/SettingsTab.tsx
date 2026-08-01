@@ -85,10 +85,12 @@ import type {
   TutorLearningMode,
 } from "../../../types/quiz";
 import {
+  shouldBlockQuizSettingsEditing,
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
   shouldShowCharacterLimitsFrame,
+  shouldShowContentDripSettingsFrame,
   shouldShowHideCountdown,
   shouldShowHidePreviousButton,
   shouldShowHideQuestionNumber,
@@ -252,16 +254,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const isInteractiveQuizMode = contentType === "tutor_h5p_quiz";
   const isV4Contract = quizSettingsContract === "v4";
   const isLegacyContract = quizSettingsContract === "legacy";
-  const contractUnavailable = quizSettingsContract === "unavailable";
-  // Valid Interactive editing requires the V4 contract plus H5P runtime; legacy/missing fail closed.
-  const interactiveEditingAvailable =
-    isInteractiveQuizMode && quizSettingsContract === "v4" && h5pRuntimeAvailable;
+  // Notice branching stays here; shared predicates own availability/blocking only.
   const interactiveRuntimeUnavailable = isInteractiveQuizMode && !h5pRuntimeAvailable;
   const interactiveContractUnsupported =
     isInteractiveQuizMode && quizSettingsContract !== "v4";
-  const settingsEditingBlocked = isInteractiveQuizMode
-    ? !interactiveEditingAvailable
-    : contractUnavailable;
+  const settingsEditingBlocked = shouldBlockQuizSettingsEditing({
+    contentType,
+    contract: quizSettingsContract,
+    h5pRuntimeAvailable,
+  });
+  const showContentDripSettingsFrame = shouldShowContentDripSettingsFrame({
+    contentType,
+    showAllSettings,
+    contentDripUiAvailable: !!coursePreviewAddonAvailable && !!onContentDripChange,
+  });
   const showMaximumQuestions = shouldShowQuizScopeMaximumQuestions({
     contentType,
     showAllSettings,
@@ -938,7 +944,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           )}
 
-          {(!isInteractiveQuizMode || showAllSettings) && coursePreviewAddonAvailable && onContentDripChange && (
+          {showContentDripSettingsFrame && (
             <div className="quiz-modal-settings-frame">
               <h4>{__("Available after days", "tutorpress")}</h4>
 
@@ -946,7 +952,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <NumberControl
                   label={__("Available after days", "tutorpress")}
                   value={afterXDaysOfEnroll}
-                  onChange={(value) => onContentDripChange(parseInt(value as string) || 0)}
+                  onChange={(value) => onContentDripChange?.(parseInt(value as string) || 0)}
                   min={0}
                   step={1}
                   disabled={isSaving}
