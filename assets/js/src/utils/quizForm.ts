@@ -17,6 +17,18 @@
  * const timeLimit = createTimeLimit(30, 'minutes');
  */
 
+import type {
+  QuizContentDripPostFields,
+  QuizContentDripSettings,
+  QuizSettingsContract,
+  QuizSettingsDirtyGroup,
+} from "../types/quiz";
+import {
+  getQuizContentDripActiveControl,
+  normalizeQuizContentDripUnlockDate,
+  sanitizeQuizPrerequisiteIds,
+} from "./quizSettingsContract";
+
 /**
  * Fields that Tutor LMS stores as integers (0/1) but we want to work with as booleans
  */
@@ -128,6 +140,93 @@ export const createContentDripSettings = (
   ...existingSettings,
   after_xdays_of_enroll: afterDays,
 });
+
+export interface BuildTopLevelContentDripFormFieldsInput {
+  contentDripAvailable: boolean;
+  /** V4-only Pro drip POST companions; legacy/unavailable must emit nothing. */
+  settingsContract: QuizSettingsContract;
+  contentDripType: string;
+  dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
+  dripSettings: Partial<QuizContentDripSettings>;
+}
+
+/** Non-negative integer days for top-level Pro POST. */
+const normalizeTopLevelAfterDays = (value: unknown): number => {
+  const days = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(days)) {
+    return 0;
+  }
+  return Math.max(0, Math.trunc(days));
+};
+
+/**
+ * Build Tutor-native top-level `content_drip_settings[...]` FormData fields for
+ * the active drip mode only. Returns `{}` when Content Drip is unavailable,
+ * settings contract is not V4, sequential/unknown, or no matching drip dirty
+ * group is set. Does not belong inside JSON `payload` / `quiz_option`.
+ */
+export const buildTopLevelContentDripFormFields = ({
+  contentDripAvailable,
+  settingsContract,
+  contentDripType,
+  dirtyGroups,
+  dripSettings,
+}: BuildTopLevelContentDripFormFieldsInput): QuizContentDripPostFields => {
+  if (!contentDripAvailable || settingsContract !== "v4") {
+    return {};
+  }
+
+  const activeControl = getQuizContentDripActiveControl(contentDripType);
+
+  if (activeControl === "unlock_date" && dirtyGroups.has("drip_unlock_date")) {
+    return {
+      "content_drip_settings[unlock_date]": normalizeQuizContentDripUnlockDate(dripSettings.unlock_date),
+    };
+  }
+
+  if (activeControl === "available_after_days" && dirtyGroups.has("drip_available_after_days")) {
+    return {
+      "content_drip_settings[after_xdays_of_enroll]": normalizeTopLevelAfterDays(
+        dripSettings.after_xdays_of_enroll
+      ),
+    };
+  }
+
+  if (activeControl === "prerequisites" && dirtyGroups.has("drip_prerequisites")) {
+    const prerequisites = sanitizeQuizPrerequisiteIds(dripSettings.prerequisites);
+    return {
+      "content_drip_settings[prerequisites]": prerequisites.length > 0 ? prerequisites : "",
+    };
+  }
+
+  return {};
+};
+
+/**
+ * Append Tutor-native top-level Pro drip companions to FormData.
+ * Never call this with fields that belong inside JSON `payload`.
+ */
+export const appendContentDripPostFieldsToFormData = (
+  formData: FormData,
+  contentDripPostFields?: QuizContentDripPostFields
+): void => {
+  if (!contentDripPostFields) {
+    return;
+  }
+
+  Object.entries(contentDripPostFields).forEach(([key, value]) => {
+    if (value === undefined) {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        formData.append(`${key}[${index}]`, String(item));
+      });
+      return;
+    }
+    formData.append(key, String(value));
+  });
+};
 
 /**
  * Utility to safely trim string values in form data

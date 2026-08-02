@@ -48,9 +48,15 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
   const [quizData, setQuizData] = useState<QuizDetails | null>(null);
   const quizCapabilities = window.tutorPressCurriculum?.quizCapabilities;
 
-  // Course drip availability for form load authority (full drip select remains below).
-  const isContentDripEnabledForForm = useSelect(
-    (select: any) => select("tutorpress/additional-content").isContentDripEnabled(),
+  // Course drip availability/mode for form load + top-level Pro FormData companions.
+  const { isContentDripEnabledForForm, contentDripTypeForForm } = useSelect(
+    (select: any) => {
+      const store = select("tutorpress/additional-content");
+      return {
+        isContentDripEnabledForForm: store.isContentDripEnabled(),
+        contentDripTypeForForm: store.getContentDripType() || "",
+      };
+    },
     []
   );
 
@@ -74,6 +80,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     capabilities: quizCapabilities,
     contentType: "tutor_h5p_quiz",
     contentDripAvailable: isContentDripEnabledForForm,
+    contentDripType: contentDripTypeForForm,
   });
 
   // Question management state (identical to QuizModal)
@@ -557,7 +564,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       }
 
       // Use the curriculum store saveQuiz action (same as QuizModal)
-      await saveQuiz(formData, courseId, topicId);
+      await saveQuiz(formData, courseId, topicId, formDataResult.contentDripPostFields);
 
       setSaveSuccess(true);
 

@@ -227,6 +227,15 @@ export const sanitizeQuizPrerequisiteIds = (value: unknown): number[] =>
         .filter((id) => Number.isInteger(id) && id > 0)
     : [];
 
+/** Tutor-accepted unlock date: trim and drop any time portion. */
+export const normalizeQuizContentDripUnlockDate = (value: unknown): string => {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  return trimmed.includes("T") ? trimmed.split("T")[0] : trimmed;
+};
+
 export const normalizeQuizPrerequisiteToken = (token: string | { value?: string }): string =>
   typeof token === "string" ? token : token.value || "";
 
@@ -1057,10 +1066,9 @@ export const convertQuizSettingsFormModelToPayload = ({
 
     const dripSettings = getRawDripSettings(payload);
     if (isDirty("drip_unlock_date")) {
-      dripSettings.unlock_date =
-        typeof effectiveSettings.content_drip_settings.unlock_date === "string"
-          ? effectiveSettings.content_drip_settings.unlock_date
-          : "";
+      dripSettings.unlock_date = normalizeQuizContentDripUnlockDate(
+        effectiveSettings.content_drip_settings.unlock_date
+      );
     }
     if (isDirty("drip_available_after_days")) {
       dripSettings.after_xdays_of_enroll = Math.max(
@@ -1071,9 +1079,11 @@ export const convertQuizSettingsFormModelToPayload = ({
       );
     }
     if (isDirty("drip_prerequisites")) {
-      dripSettings.prerequisites = toPrerequisites(
+      // Native Tutor emits '' when the active prerequisite selection is cleared.
+      const prerequisites = toPrerequisites(
         effectiveSettings.content_drip_settings.prerequisites
       );
+      dripSettings.prerequisites = prerequisites.length > 0 ? prerequisites : "";
     }
     if (isDirty("drip_unlock_date", "drip_available_after_days", "drip_prerequisites")) {
       payload.content_drip_settings = dripSettings;

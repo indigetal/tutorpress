@@ -390,9 +390,15 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   // Validation state - Step 3.6.8
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
-  // Course drip availability for form load authority (full drip select remains below).
-  const isContentDripEnabledForForm = useSelect(
-    (select: any) => select("tutorpress/additional-content").isContentDripEnabled(),
+  // Course drip availability/mode for form load + top-level Pro FormData companions.
+  const { isContentDripEnabledForForm, contentDripTypeForForm } = useSelect(
+    (select: any) => {
+      const store = select("tutorpress/additional-content");
+      return {
+        isContentDripEnabledForForm: store.isContentDripEnabled(),
+        contentDripTypeForForm: store.getContentDripType() || "",
+      };
+    },
     []
   );
 
@@ -417,6 +423,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     capabilities: quizCapabilities,
     contentType: "tutor_quiz",
     contentDripAvailable: isContentDripEnabledForForm,
+    contentDripType: contentDripTypeForForm,
   });
 
   // Get quiz duplication state from curriculum store
@@ -713,7 +720,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       }
 
       // Use the curriculum store instead of direct quiz service
-      await saveQuiz(formData, courseId, topicId);
+      await saveQuiz(formData, courseId, topicId, formDataResult.contentDripPostFields);
 
       // The success/error handling is now done by the store state
       // Show success message briefly

@@ -25,6 +25,7 @@ import { useState, useCallback, useEffect } from "react";
 import { __ } from "@wordpress/i18n";
 import type {
   QuizCapabilities,
+  QuizContentDripPostFields,
   QuizContentDripSettings,
   QuizContentType,
   QuizEffectiveSettings,
@@ -46,6 +47,7 @@ import {
   getQuizSettingsContract,
   sanitizeQuizPrerequisiteIds,
 } from "../../utils/quizSettingsContract";
+import { buildTopLevelContentDripFormFields } from "../../utils/quizForm";
 import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
 
 /**
@@ -96,6 +98,8 @@ export interface UseQuizFormOptions {
   contentType: QuizContentType;
   initialData?: Partial<QuizForm>;
   contentDripAvailable?: boolean;
+  /** Course Content Drip mode; used only for top-level Pro FormData companions. */
+  contentDripType?: string;
   hasProContentDripSettings?: boolean;
   proContentDripSettings?: QuizSettingsLoadInput["proContentDripSettings"];
 }
@@ -128,6 +132,8 @@ export type QuizFormDataResult =
   | {
       status: "ready";
       formData: QuizForm;
+      /** Tutor-native top-level Pro drip fields; never inside JSON payload. */
+      contentDripPostFields: QuizContentDripPostFields;
     }
   | QuizSettingsSaveBlockedResult;
 
@@ -426,6 +432,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
     contentType,
     initialData,
     contentDripAvailable = false,
+    contentDripType = "",
     hasProContentDripSettings = false,
     proContentDripSettings,
   } = options;
@@ -743,6 +750,11 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         return settingsResult;
       }
 
+      const dripSettings =
+        formState.effectiveSettings?.content_drip_settings ??
+        formState.settings.content_drip_settings ??
+        {};
+
       return {
         status: "ready",
         formData: {
@@ -755,9 +767,16 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           deleted_answer_ids: initialData?.deleted_answer_ids || [],
           menu_order: initialData?.menu_order || 0,
         },
+        contentDripPostFields: buildTopLevelContentDripFormFields({
+          contentDripAvailable,
+          settingsContract: formState.settingsContract,
+          contentDripType,
+          dirtyGroups: formState.dirtySettingsGroups,
+          dripSettings,
+        }),
       };
     },
-    [formState, initialData]
+    [formState, initialData, contentDripAvailable, contentDripType]
   );
 
   /**

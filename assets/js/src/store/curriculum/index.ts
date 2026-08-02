@@ -20,7 +20,8 @@ import {
 } from "../../types/curriculum";
 import type { Lesson } from "../../types/lessons";
 import type { Assignment } from "../../types/assignments";
-import { QuizForm } from "../../types/quiz";
+import { QuizForm, QuizContentDripPostFields } from "../../types/quiz";
+import { appendContentDripPostFieldsToFormData } from "../../utils/quizForm";
 
 import { TopicRequest, APIResponse, TopicResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
@@ -420,10 +421,15 @@ export const actions = {
       payload: state,
     };
   },
-  saveQuiz(quizData: QuizForm, courseId: number, topicId: number) {
+  saveQuiz(
+    quizData: QuizForm,
+    courseId: number,
+    topicId: number,
+    contentDripPostFields?: QuizContentDripPostFields
+  ) {
     return {
       type: "SAVE_QUIZ",
-      payload: { quizData, courseId, topicId },
+      payload: { quizData, courseId, topicId, contentDripPostFields },
     };
   },
   getQuizDetails(quizId: number) {
@@ -2075,7 +2081,12 @@ const resolvers = {
     return duplicatedAssignment;
   },
 
-  *saveQuiz(quizData: QuizForm, courseId: number, topicId: number): Generator<unknown, void, unknown> {
+  *saveQuiz(
+    quizData: QuizForm,
+    courseId: number,
+    topicId: number,
+    contentDripPostFields?: QuizContentDripPostFields
+  ): Generator<unknown, void, unknown> {
     try {
       yield {
         type: "SAVE_QUIZ_START",
@@ -2146,6 +2157,9 @@ const resolvers = {
           formData.append(`deleted_temp_mask_values[${index}]`, value);
         });
       }
+
+      // Tutor-native top-level Pro drip fields — never inside JSON payload / quiz_option.
+      appendContentDripPostFieldsToFormData(formData, contentDripPostFields);
 
       // Use API_FETCH control to call Tutor LMS AJAX endpoint
       const response = yield {
@@ -2355,6 +2369,8 @@ const resolvers = {
 
   reorderTopicContent,
 };
+
+export const saveQuizResolver = resolvers.saveQuiz;
 
 // Create and register the store
 const curriculumStore = createReduxStore("tutorpress/curriculum", {

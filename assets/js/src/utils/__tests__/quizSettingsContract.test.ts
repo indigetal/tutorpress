@@ -3,7 +3,9 @@ import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type {
   QuizCapabilities,
+  QuizContentType,
   QuizEffectiveSettings,
+  QuizForm,
   QuizSettingsLoadInput,
   QuizSettings,
   QuizSettingsContract,
@@ -53,6 +55,8 @@ import {
   quizHasOpenEndedQuestions,
   quizHasShortAnswerQuestions,
 } from "../quizSettingsContract";
+import { appendContentDripPostFieldsToFormData, buildTopLevelContentDripFormFields } from "../quizForm";
+import { saveQuizResolver } from "../../store/curriculum";
 
 const createCapabilities = (contract: QuizSettingsContract): QuizCapabilities => {
   const isV4 = contract === "v4";
@@ -757,7 +761,7 @@ describe("Quiz Settings dirty-aware payload conversion", () => {
       "unlock date",
       "drip_unlock_date",
       (settings: QuizEffectiveSettings) =>
-        (settings.content_drip_settings.unlock_date = "2026-09-01"),
+        (settings.content_drip_settings.unlock_date = "2026-09-01T00:00:00"),
       { content_drip_settings: { unlock_date: "2026-09-01", future_nested: "keep" } },
     ],
     [
@@ -2404,6 +2408,423 @@ describe("Content Drip form updates and validation (Step 13H)", () => {
       expect(hook.current().formState.isValid).toBe(true);
     } finally {
       hook.unmount();
+    }
+  });
+});
+
+describe("Top-level Content Drip FormData builder (Step 14F.1)", () => {
+  const dripSettings = {
+    unlock_date: " 2026-03-15T12:00:00 ",
+    after_xdays_of_enroll: 3.7,
+    prerequisites: [10, 0, -2, 20] as number[],
+  };
+
+  it.each([
+    ["unlock_by_date", "drip_unlock_date", { "content_drip_settings[unlock_date]": "2026-03-15" }],
+    [
+      "specific_days",
+      "drip_available_after_days",
+      { "content_drip_settings[after_xdays_of_enroll]": 3 },
+    ],
+    [
+      "after_finishing_prerequisites",
+      "drip_prerequisites",
+      { "content_drip_settings[prerequisites]": [10, 20] },
+    ],
+  ] as Array<[string, QuizSettingsDirtyGroup, Record<string, string | number | number[]>]>)(
+    "emits one native field for %s when matching dirty",
+    (contentDripType, dirtyGroup, expected) => {
+      expect(
+        buildTopLevelContentDripFormFields({
+          contentDripAvailable: true,
+          settingsContract: "v4",
+          contentDripType,
+          dirtyGroups: new Set<QuizSettingsDirtyGroup>([dirtyGroup]),
+          dripSettings,
+        })
+      ).toEqual(expected);
+    }
+  );
+
+  it("clears prerequisites with an empty string", () => {
+    expect(
+      buildTopLevelContentDripFormFields({
+        contentDripAvailable: true,
+        settingsContract: "v4",
+        contentDripType: "after_finishing_prerequisites",
+        dirtyGroups: new Set<QuizSettingsDirtyGroup>(["drip_prerequisites"]),
+        dripSettings: { prerequisites: [] },
+      })
+    ).toEqual({ "content_drip_settings[prerequisites]": "" });
+  });
+
+  it.each([
+    ["addon unavailable", false, "v4" as QuizSettingsContract, "unlock_by_date", "drip_unlock_date"],
+    ["legacy contract", true, "legacy", "unlock_by_date", "drip_unlock_date"],
+    ["sequential", true, "v4", "unlock_sequentially", "drip_unlock_date"],
+    ["unknown mode", true, "v4", "", "drip_unlock_date"],
+    ["no dirty group", true, "v4", "unlock_by_date", null],
+    ["mismatched dirty", true, "v4", "unlock_by_date", "drip_prerequisites"],
+  ] as Array<[string, boolean, QuizSettingsContract, string, QuizSettingsDirtyGroup | null]>)(
+    "returns {} for %s",
+    (_label, contentDripAvailable, settingsContract, contentDripType, dirty) => {
+      expect(
+        buildTopLevelContentDripFormFields({
+          contentDripAvailable,
+          settingsContract,
+          contentDripType,
+          dirtyGroups: new Set<QuizSettingsDirtyGroup>(dirty ? [dirty] : []),
+          dripSettings,
+        })
+      ).toEqual({});
+    }
+  );
+});
+
+describe("Content Drip FormData append separation (Step 14C)", () => {
+  it("appends companions outside JSON payload and leaves payload drip nested alone", () => {
+    const formData = new FormData();
+    const payload = {
+      quiz_option: {
+        content_drip_settings: { unlock_date: "2026-04-01", after_xdays_of_enroll: 7, prerequisites: [10] },
+      },
+    };
+    formData.append("payload", JSON.stringify(payload));
+
+    appendContentDripPostFieldsToFormData(formData, {
+      "content_drip_settings[unlock_date]": "2026-04-01",
+    });
+
+    expect(formData.get("content_drip_settings[unlock_date]")).toBe("2026-04-01");
+    const payloadRaw = String(formData.get("payload"));
+    expect(payloadRaw).not.toContain("content_drip_settings[unlock_date]");
+    expect(JSON.parse(payloadRaw)).toEqual(payload);
+  });
+
+  it("appends empty-string and indexed prerequisite clears without mutating payload", () => {
+    const formData = new FormData();
+    formData.append("payload", JSON.stringify({ quiz_option: { content_drip_settings: { prerequisites: "" } } }));
+
+    appendContentDripPostFieldsToFormData(formData, {
+      "content_drip_settings[prerequisites]": "",
+    });
+    expect(formData.get("content_drip_settings[prerequisites]")).toBe("");
+
+    const withIds = new FormData();
+    appendContentDripPostFieldsToFormData(withIds, {
+      "content_drip_settings[prerequisites]": [10, 20],
+    });
+    expect(withIds.get("content_drip_settings[prerequisites][0]")).toBe("10");
+    expect(withIds.get("content_drip_settings[prerequisites][1]")).toBe("20");
+
+    const noop = new FormData();
+    noop.append("payload", "{}");
+    appendContentDripPostFieldsToFormData(noop, undefined);
+    appendContentDripPostFieldsToFormData(noop, {});
+    expect([...noop.keys()]).toEqual(["payload"]);
+  });
+});
+
+describe("saveQuiz FormData separation (Step 14C)", () => {
+  it("appends Pro companions outside the resolver's JSON payload", () => {
+    const quizData = {
+      post_title: "Resolver drip quiz",
+      post_content: "",
+      quiz_option: {
+        content_drip_settings: {
+          unlock_date: "2026-04-01",
+          after_xdays_of_enroll: 7,
+          prerequisites: [10],
+        },
+      },
+      questions: [],
+    } as unknown as QuizForm;
+    const windowWithTutor = window as Window & {
+      _tutorobject?: { ajaxurl?: string; _tutor_nonce?: string };
+    };
+    const previousTutorObject = windowWithTutor._tutorobject;
+    windowWithTutor._tutorobject = { ajaxurl: "/admin-ajax.php", _tutor_nonce: "nonce" };
+
+    try {
+      const resolver = saveQuizResolver(quizData, 3, 4, {
+        "content_drip_settings[unlock_date]": "2026-04-01",
+      });
+      resolver.next();
+      const yielded = resolver.next().value as { request: { body: FormData } };
+      const body = yielded.request.body;
+      const payload = JSON.parse(String(body.get("payload")));
+
+      expect(body.get("content_drip_settings[unlock_date]")).toBe("2026-04-01");
+      expect(payload.quiz_option.content_drip_settings.unlock_date).toBe("2026-04-01");
+      expect(String(body.get("payload"))).not.toContain("content_drip_settings[unlock_date]");
+    } finally {
+      if (previousTutorObject === undefined) {
+        delete windowWithTutor._tutorobject;
+      } else {
+        windowWithTutor._tutorobject = previousTutorObject;
+      }
+    }
+  });
+});
+
+describe("Content Drip getFormData envelope active modes (Step 14F.2)", () => {
+  const nestedBase = {
+    unlock_date: "2026-01-15T00:00:00",
+    after_xdays_of_enroll: 7,
+    prerequisites: [10, 20],
+    future_nested: "keep",
+  };
+
+  const modeCases = [
+    [
+      "unlock_by_date",
+      { unlock_date: "2026-04-01T00:00:00" },
+      { "content_drip_settings[unlock_date]": "2026-04-01" },
+      { ...nestedBase, unlock_date: "2026-04-01" },
+    ],
+    [
+      "specific_days",
+      { after_xdays_of_enroll: 9 },
+      { "content_drip_settings[after_xdays_of_enroll]": 9 },
+      { ...nestedBase, after_xdays_of_enroll: 9 },
+    ],
+    [
+      "after_finishing_prerequisites",
+      { prerequisites: [30] },
+      { "content_drip_settings[prerequisites]": [30] },
+      { ...nestedBase, prerequisites: [30] },
+    ],
+  ] as Array<
+    [
+      string,
+      Partial<{ unlock_date: string; after_xdays_of_enroll: number; prerequisites: number[] }>,
+      Record<string, string | number | number[]>,
+      Record<string, unknown>,
+    ]
+  >;
+
+  (["tutor_quiz", "tutor_h5p_quiz"] as QuizContentType[]).forEach((contentType) => {
+    it.each(modeCases)(
+      `${contentType} × %s posts envelope outside quiz_option and preserves inactive nested`,
+      (contentDripType, patch, expectedEnvelope, expectedNested) => {
+        const previousAddons = window.tutorpressAddons;
+        window.tutorpressAddons = {
+          h5p: true,
+          h5p_plugin_active: true,
+        } as typeof window.tutorpressAddons;
+
+        const hook = renderQuizFormHook({
+          capabilities: createCapabilities("v4"),
+          contentType,
+          contentDripAvailable: true,
+          contentDripType,
+          initialData: {
+            post_title: "Drip envelope quiz",
+            quiz_option: {
+              ...(contentType === "tutor_h5p_quiz" ? { quiz_type: "tutor_h5p_quiz" } : {}),
+              content_drip_settings: { ...nestedBase },
+            } as unknown as QuizSettings,
+          },
+        });
+
+        try {
+          act(() => {
+            hook.current().updateContentDripSettings(patch);
+          });
+
+          const result = hook.current().getFormData([], false);
+          expect(result.status).toBe("ready");
+          if (result.status !== "ready") {
+            throw new Error(`Expected ready result, received ${result.reason}`);
+          }
+
+          expect(result.contentDripPostFields).toEqual(expectedEnvelope);
+          expect(result.formData).not.toHaveProperty("contentDripPostFields");
+          expect("content_drip_settings[unlock_date]" in result.formData.quiz_option).toBe(false);
+          expect("content_drip_settings[after_xdays_of_enroll]" in result.formData.quiz_option).toBe(false);
+          expect("content_drip_settings[prerequisites]" in result.formData.quiz_option).toBe(false);
+          expect(result.formData.quiz_option.content_drip_settings).toEqual(expectedNested);
+        } finally {
+          hook.unmount();
+          window.tutorpressAddons = previousAddons;
+        }
+      }
+    );
+  });
+});
+
+describe("Content Drip getFormData omission and identity (Step 14F.3)", () => {
+  const enableH5p = () => {
+    window.tutorpressAddons = { h5p: true, h5p_plugin_active: true } as typeof window.tutorpressAddons;
+  };
+
+  const readyAfter = (options: UseQuizFormOptions, edit: (hook: UseQuizFormReturn) => void) => {
+    enableH5p();
+    const hook = renderQuizFormHook(options);
+    act(() => edit(hook.current()));
+    const result = hook.current().getFormData([], false);
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      hook.unmount();
+      throw new Error(`Expected ready result, received ${result.reason}`);
+    }
+    return { result, unmount: hook.unmount };
+  };
+
+  it("clears prerequisites as nested '' and top-level ''", () => {
+    const { result, unmount } = readyAfter(
+      {
+        capabilities: createCapabilities("v4"),
+        contentType: "tutor_quiz",
+        contentDripAvailable: true,
+        contentDripType: "after_finishing_prerequisites",
+        initialData: {
+          post_title: "Clear prereqs",
+          quiz_option: {
+            content_drip_settings: {
+              unlock_date: "2026-01-15",
+              after_xdays_of_enroll: 7,
+              prerequisites: [10, 20],
+              future_nested: "keep",
+            },
+          } as unknown as QuizSettings,
+        },
+      },
+      (form) => form.updateContentDripSettings({ prerequisites: [] })
+    );
+    try {
+      expect(result.contentDripPostFields).toEqual({ "content_drip_settings[prerequisites]": "" });
+      expect(result.formData.quiz_option.content_drip_settings).toEqual({
+        unlock_date: "2026-01-15",
+        after_xdays_of_enroll: 7,
+        prerequisites: "",
+        future_nested: "keep",
+      });
+    } finally {
+      unmount();
+    }
+  });
+
+  it.each([
+    [
+      "sequential mode",
+      "v4" as QuizSettingsContract,
+      true,
+      "unlock_sequentially",
+      (form: UseQuizFormReturn) => form.updateContentDripSettings({ unlock_date: "2026-05-01" }),
+      {},
+      undefined,
+    ],
+    [
+      "drip unavailable",
+      "v4" as QuizSettingsContract,
+      false,
+      "unlock_by_date",
+      (form: UseQuizFormReturn) => form.updateContentDripSettings({ unlock_date: "2026-05-01" }),
+      {},
+      undefined,
+    ],
+    [
+      "legacy contract",
+      "legacy" as QuizSettingsContract,
+      true,
+      "unlock_by_date",
+      (form: UseQuizFormReturn) => form.updateContentDripSettings({ unlock_date: "2026-05-01" }),
+      {},
+      undefined,
+    ],
+    [
+      "unrelated passing-grade edit",
+      "v4" as QuizSettingsContract,
+      true,
+      "unlock_by_date",
+      (form: UseQuizFormReturn) => form.updateSettings({ passing_grade: 88 }),
+      {},
+      { unlock_date: "2026-01-15", after_xdays_of_enroll: 7, prerequisites: [] },
+    ],
+  ] as Array<
+    [
+      string,
+      QuizSettingsContract,
+      boolean,
+      string,
+      (form: UseQuizFormReturn) => void,
+      Record<string, unknown>,
+      Record<string, unknown> | undefined,
+    ]
+  >)(
+    "omits envelope for %s",
+    (_label, contract, contentDripAvailable, contentDripType, edit, envelope, nested) => {
+      const drip = { unlock_date: "2026-01-15", after_xdays_of_enroll: 7, prerequisites: [] as number[] };
+      const { result, unmount } = readyAfter(
+        {
+          capabilities: createCapabilities(contract),
+          contentType: "tutor_quiz",
+          contentDripAvailable,
+          contentDripType,
+          initialData: {
+            post_title: "Omission quiz",
+            quiz_option: { content_drip_settings: drip } as unknown as QuizSettings,
+          },
+        },
+        edit
+      );
+      try {
+        expect(result.contentDripPostFields).toEqual(envelope);
+        if (nested) {
+          expect(result.formData.quiz_option.passing_grade).toBe(88);
+          expect(result.formData.quiz_option.content_drip_settings).toEqual(nested);
+        }
+      } finally {
+        unmount();
+      }
+    }
+  );
+  it.each([
+    [
+      "Interactive enforces identity with drip envelope",
+      "tutor_h5p_quiz" as QuizContentType,
+      "specific_days",
+      { quiz_type: "future_identity", content_drip_settings: { unlock_date: "", after_xdays_of_enroll: 2, prerequisites: [] } },
+      (form: UseQuizFormReturn) => form.updateContentDripSettings({ after_xdays_of_enroll: 5 }),
+      "tutor_h5p_quiz",
+      { "content_drip_settings[after_xdays_of_enroll]": 5 },
+    ],
+    [
+      "standard removes exact stale H5P identity",
+      "tutor_quiz" as QuizContentType,
+      "unlock_by_date",
+      {
+        quiz_type: "tutor_h5p_quiz",
+        content_drip_settings: { unlock_date: "2026-01-15", after_xdays_of_enroll: 0, prerequisites: [] },
+      },
+      (form: UseQuizFormReturn) => form.updateContentDripSettings({ unlock_date: "2026-06-01" }),
+      undefined,
+      { "content_drip_settings[unlock_date]": "2026-06-01" },
+    ],
+  ])("%s", (_label, contentType, contentDripType, quizOption, edit, identity, envelope) => {
+    const { result, unmount } = readyAfter(
+      {
+        capabilities: createCapabilities("v4"),
+        contentType,
+        contentDripAvailable: true,
+        contentDripType,
+        initialData: {
+          post_title: "Identity drip",
+          quiz_option: quizOption as unknown as QuizSettings,
+        },
+      },
+      edit
+    );
+    try {
+      if (identity === undefined) {
+        expect(result.formData.quiz_option).not.toHaveProperty("quiz_type");
+      } else {
+        expect(result.formData.quiz_option.quiz_type).toBe(identity);
+      }
+      expect(result.contentDripPostFields).toEqual(envelope);
+    } finally {
+      unmount();
     }
   });
 });
