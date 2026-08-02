@@ -286,6 +286,35 @@ try {
         );
     }
 
+    // Live installed Tutor must agree with the version-aware settings contract.
+    if ($capabilities['tutorActive'] && defined('TUTOR_VERSION')) {
+        $live_version = (string) TUTOR_VERSION;
+        if (version_compare($live_version, '4.0.0', '>=')) {
+            $assert(
+                'v4' === $capabilities['quizSettingsContract']
+                    && '' === $capabilities['quizSettingsUnavailableReason']
+                    && true === $capabilities['supportsV4QuizContentDrip'],
+                'Installed Tutor 4+ did not localize the V4 Quiz Settings contract.'
+            );
+        } elseif (version_compare($live_version, '3.9.15', '>=')) {
+            $assert(
+                in_array($capabilities['quizSettingsContract'], ['legacy', 'unavailable'], true),
+                'Installed pre-4 Tutor did not localize legacy or fail-closed Quiz Settings.'
+            );
+            if ('unavailable' === $capabilities['quizSettingsContract']) {
+                $assert(
+                    'legacy_contract_unavailable' === $capabilities['quizSettingsUnavailableReason'],
+                    'Pre-4 fail-closed contract missing legacy_contract_unavailable reason.'
+                );
+            }
+        } else {
+            $assert(
+                'unavailable' === $capabilities['quizSettingsContract'],
+                'Tutor below the supported floor must fail closed.'
+            );
+        }
+    }
+
     $assert(
         function_exists('tutor') === $capabilities['tutorActive'],
         'tutorActive does not match Tutor availability.'
@@ -545,7 +574,7 @@ try {
             'The five native types no longer follow the established pre-4.0 picker order.'
         );
 
-        // Step 1's temporary inline fallback map must be gone, with no native label left
+        // Temporary inline fallback map must be gone, with no native label left
         // behind in QuizModal.
         $assert(
             false === strpos($quiz_modal, 'Partial<Record<QuizQuestionType, string>>'),
@@ -1816,8 +1845,9 @@ if ('' !== $failure_message) {
 }
 
 $summary = sprintf(
-    'Tutor %s | mode %s | pro %s | native %s | pro-native %s | temp-mask %s | %d types | client wiring %s',
+    'Tutor %s | settings %s | mode %s | pro %s | native %s | pro-native %s | temp-mask %s | %d types | client wiring %s',
     '' !== $capabilities['tutorVersion'] ? $capabilities['tutorVersion'] : 'unknown',
+    $capabilities['quizSettingsContract'],
     $capabilities['learningMode'],
     $capabilities['proActive'] ? 'yes' : 'no',
     $capabilities['hasNativeQuizTypes'] ? 'yes' : 'no',

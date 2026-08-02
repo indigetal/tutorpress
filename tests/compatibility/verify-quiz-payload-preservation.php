@@ -8,9 +8,10 @@
  *   raw DB row -> TutorPress REST loader -> client serializer -> Tutor save_quiz -> DB row
  *
  * Coverage: a pre-4.0 question, every known Tutor 4.0 native settings key, an unknown
- * future settings key, an unknown question slug, a content_id-linked row, H5P
- * description/content-ID preservation, filtered mask responses, untrusted settings
- * payloads, and both the no_change and genuinely edited save paths.
+ * future question_settings key, unknown top-level and nested quiz_option keys, an unknown
+ * question slug, a content_id-linked row, H5P description/content-ID preservation, filtered
+ * mask responses, untrusted settings payloads, and both the no_change and genuinely edited
+ * save paths.
  *
  * All fixtures are created and removed by this script. Real course and quiz data is
  * never touched.
@@ -271,8 +272,52 @@ try {
         [
             'time_limit' => ['time_value' => 0, 'time_type' => 'minutes'],
             'passing_grade' => 80,
+            'tp_future_quiz_option' => 'preserve-quiz-option',
+            'tp_future_quiz_nested' => ['deep' => ['keep' => 'quiz-yes']],
+            'content_drip_settings' => [
+                'unlock_date' => 'nested-date',
+                'tp_future_drip' => 'preserve-drip',
+            ],
         ]
     );
+
+    $assert_quiz_option_future_keys = static function ($quiz_option, $label) use ($assert) {
+        $assert(is_array($quiz_option), "{$label}: quiz_option is not an array.");
+        $assert(
+            'preserve-quiz-option' === ($quiz_option['tp_future_quiz_option'] ?? null),
+            "{$label}: unknown top-level quiz_option key lost."
+        );
+        $assert(
+            is_array($quiz_option['tp_future_quiz_nested'] ?? null)
+                && 'quiz-yes' === ($quiz_option['tp_future_quiz_nested']['deep']['keep'] ?? null),
+            "{$label}: unknown nested quiz_option key lost."
+        );
+        $assert(
+            is_array($quiz_option['content_drip_settings'] ?? null)
+                && 'preserve-drip' === ($quiz_option['content_drip_settings']['tp_future_drip'] ?? null),
+            "{$label}: unknown nested content_drip_settings key lost."
+        );
+    };
+
+    $load_quiz_option_via_rest = static function ($quiz_id) use ($assert) {
+        $request  = new WP_REST_Request('GET', '/tutorpress/v1/quizzes/' . (int) $quiz_id);
+        $response = rest_do_request($request);
+        $assert(!$response->is_error(), 'REST quiz_option load failed with status ' . $response->get_status() . '.');
+        $body = $response->get_data();
+        $assert(is_array($body['data']['quiz_option'] ?? null), 'REST quiz load returned no quiz_option.');
+        return $body['data']['quiz_option'];
+    };
+
+    $preserved_quiz_option = [
+        'time_limit' => ['time_value' => 0, 'time_type' => 'minutes'],
+        'passing_grade' => 80,
+        'tp_future_quiz_option' => 'preserve-quiz-option',
+        'tp_future_quiz_nested' => ['deep' => ['keep' => 'quiz-yes']],
+        'content_drip_settings' => [
+            'unlock_date' => 'nested-date',
+            'tp_future_drip' => 'preserve-drip',
+        ],
+    ];
 
     // Known booleans are stored as Tutor stores them: '1'/'0' strings.
     $base_settings = [
@@ -470,6 +515,8 @@ try {
         && 'yes' === $graph_settings['tp_future_nested']['deep']['keep'],
         'Nested unknown settings structure was flattened on load.'
     );
+    $assert_quiz_option_future_keys($load_quiz_option_via_rest($quiz_id), 'REST load');
+    $assert_quiz_option_future_keys(get_post_meta($quiz_id, 'tutor_quiz_option', true), 'Raw meta after seed');
 
     $draw_settings = (array) $loaded[$question_ids['draw_image']]['question_settings'];
     $assert(85 === (int) $draw_settings['draw_image_threshold_percent'], 'draw_image_threshold_percent changed on load.');
@@ -585,7 +632,8 @@ try {
         'ID' => $quiz_id,
         'post_title' => $prefix . '_quiz',
         'post_content' => $prefix . '_desc',
-        'quiz_option' => ['passing_grade' => 80],
+        // Whole-meta replace: client must return every loaded quiz_option key.
+        'quiz_option' => $preserved_quiz_option,
     ];
 
     // ------------------------------------------------------------------
@@ -605,6 +653,7 @@ try {
 
     $result = $builder->save_quiz($topic_id, wp_slash(array_merge($base_payload, ['questions' => $no_change_questions])));
     $assert(is_object($result) && !empty($result->success), 'no_change save_quiz failed.');
+    $assert_quiz_option_future_keys(get_post_meta($quiz_id, 'tutor_quiz_option', true), 'After no_change save');
 
     foreach ($question_ids as $key => $qid) {
         $after = $read_row($qid);
@@ -624,10 +673,10 @@ try {
     $assert_raw_mask_storage('after no_change save');
 
     // ------------------------------------------------------------------
-    // Hop 2b: edited save. This is the destructive path before Step 3.
+    // Hop 2b: edited save. This is the destructive question-settings path.
     // ------------------------------------------------------------------
     // Tutor 4.0 throws for draw_image/pin_image/scale/puzzle in Legacy mode, so those
-    // rows stay no_change there. That guard is Tutor-owned and Step 12 covers it.
+    // rows stay no_change there. That guard is Tutor-owned and covered by native fixtures.
     $legacy_blocked = ['draw_image', 'puzzle'];
     $edited_keys    = ['pre40', 'coordinates', 'draw_image', 'puzzle', 'unknown_slug', 'linked', 'h5p'];
 
@@ -654,6 +703,7 @@ try {
 
     $result = $builder->save_quiz($topic_id, wp_slash(array_merge($base_payload, ['questions' => $edited_questions])));
     $assert(is_object($result) && !empty($result->success), 'Edited save_quiz failed.');
+    $assert_quiz_option_future_keys(get_post_meta($quiz_id, 'tutor_quiz_option', true), 'After edited save');
 
     foreach ($actually_edited as $key) {
         $qid = $question_ids[$key];
@@ -732,6 +782,7 @@ try {
         'answer_view_format did not survive the save.'
     );
     $assert_raw_mask_storage('after edited save');
+    $assert_quiz_option_future_keys($load_quiz_option_via_rest($quiz_id), 'REST reload after edited save');
 
     // ------------------------------------------------------------------
     // Hop 3: reload and confirm the client sees everything it started with.
@@ -843,8 +894,8 @@ try {
 
         $notes[] = 'temp-mask deletion contract exercised';
     } elseif (!$supports_temp_mask_deletion) {
-        // Tutor 3.9.x has the two-argument handle_delete() contract. Step 13 owns the
-        // version-boundary runtime check; this preservation script must remain runnable
+        // Tutor 3.9.x has the two-argument handle_delete() contract. The version-boundary
+        // runtime check lives elsewhere; this preservation script must remain runnable
         // there without passing a field that version does not accept.
         $notes[] = 'temp-mask deletion contract skipped (unsupported Tutor version)';
     } else {

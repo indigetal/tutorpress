@@ -2005,7 +2005,7 @@ describe("Character Limits visibility gates and empty/zero preservation", () => 
   });
 });
 
-describe("Interactive disclosure and Auto Start delay (Step 10E)", () => {
+describe("Interactive disclosure and Auto Start delay", () => {
   const sequentialPassRequired = {
     contract: "v4" as const,
     contentDripAvailable: true,
@@ -2075,7 +2075,7 @@ describe("Interactive disclosure and Auto Start delay (Step 10E)", () => {
   });
 });
 
-describe("Interactive never-display and drip-unavailable (Step 10E2)", () => {
+describe("Interactive never-display and drip-unavailable", () => {
   const mixedLimitQuestions = [
     { question_type: "short_answer" as const },
     { question_type: "open_ended" as const },
@@ -2140,7 +2140,7 @@ describe("Interactive never-display and drip-unavailable (Step 10E2)", () => {
   });
 });
 
-describe("Interactive editing availability and fail-closed gates (Step 10F)", () => {
+describe("Interactive editing availability and fail-closed gates", () => {
   it.each([
     ["valid V4 Interactive", "tutor_h5p_quiz", "v4", true, true],
     ["Interactive missing runtime", "tutor_h5p_quiz", "v4", false, false],
@@ -2173,7 +2173,7 @@ describe("Interactive editing availability and fail-closed gates (Step 10F)", ()
   );
 });
 
-describe("Course drip addon and mode gates (Step 11E)", () => {
+describe("Course drip addon and mode gates", () => {
   const COURSE_DRIP_MODES = [
     "unlock_by_date",
     "specific_days",
@@ -2207,7 +2207,7 @@ describe("Course drip addon and mode gates (Step 11E)", () => {
   it("gates the drip frame by addon availability and Interactive disclosure", () => {
     expect(frame("tutor_quiz", false, true)).toBe(false);
     expect(frame("tutor_h5p_quiz", false, true)).toBe(false);
-    // Mode does not gate the shared frame; Step 13 owns mode-specific controls.
+    // Mode does not gate the shared frame; mode-specific controls are covered separately.
     expect(frame("tutor_quiz", true, false)).toBe(true);
     expect(frame("tutor_h5p_quiz", true, false)).toBe(false);
     expect(frame("tutor_h5p_quiz", true, true)).toBe(true);
@@ -2225,7 +2225,7 @@ describe("Course drip addon and mode gates (Step 11E)", () => {
   });
 });
 
-describe("Content Drip mode controls and prerequisite helpers (Step 13G)", () => {
+describe("Content Drip mode controls and prerequisite helpers", () => {
   const dripBase = {
     contract: "v4" as const,
     contentDripAvailable: true,
@@ -2335,7 +2335,7 @@ describe("Content Drip mode controls and prerequisite helpers (Step 13G)", () =>
   });
 });
 
-describe("Content Drip form updates and validation (Step 13H)", () => {
+describe("Content Drip form updates and validation", () => {
   it("preserves inactive drip fields and dirties only the patched group", () => {
     const hook = renderQuizFormHook({
       capabilities: createCapabilities("v4"),
@@ -2412,7 +2412,7 @@ describe("Content Drip form updates and validation (Step 13H)", () => {
   });
 });
 
-describe("Top-level Content Drip FormData builder (Step 14F.1)", () => {
+describe("Top-level Content Drip FormData builder", () => {
   const dripSettings = {
     unlock_date: " 2026-03-15T12:00:00 ",
     after_xdays_of_enroll: 3.7,
@@ -2481,7 +2481,7 @@ describe("Top-level Content Drip FormData builder (Step 14F.1)", () => {
   );
 });
 
-describe("Content Drip FormData append separation (Step 14C)", () => {
+describe("Content Drip FormData append separation", () => {
   it("appends companions outside JSON payload and leaves payload drip nested alone", () => {
     const formData = new FormData();
     const payload = {
@@ -2525,7 +2525,7 @@ describe("Content Drip FormData append separation (Step 14C)", () => {
   });
 });
 
-describe("saveQuiz FormData separation (Step 14C)", () => {
+describe("saveQuiz FormData separation", () => {
   it("appends Pro companions outside the resolver's JSON payload", () => {
     const quizData = {
       post_title: "Resolver drip quiz",
@@ -2567,7 +2567,7 @@ describe("saveQuiz FormData separation (Step 14C)", () => {
   });
 });
 
-describe("Content Drip getFormData envelope active modes (Step 14F.2)", () => {
+describe("Content Drip getFormData envelope active modes", () => {
   const nestedBase = {
     unlock_date: "2026-01-15T00:00:00",
     after_xdays_of_enroll: 7,
@@ -2653,7 +2653,7 @@ describe("Content Drip getFormData envelope active modes (Step 14F.2)", () => {
   });
 });
 
-describe("Content Drip getFormData omission and identity (Step 14F.3)", () => {
+describe("Content Drip getFormData omission and identity", () => {
   const enableH5p = () => {
     window.tutorpressAddons = { h5p: true, h5p_plugin_active: true } as typeof window.tutorpressAddons;
   };
