@@ -25,6 +25,7 @@ import { useState, useCallback, useEffect } from "react";
 import { __ } from "@wordpress/i18n";
 import type {
   QuizCapabilities,
+  QuizContentDripSettings,
   QuizContentType,
   QuizEffectiveSettings,
   QuizForm,
@@ -43,6 +44,7 @@ import {
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
   getQuizSettingsContract,
+  sanitizeQuizPrerequisiteIds,
 } from "../../utils/quizSettingsContract";
 import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
 
@@ -107,7 +109,10 @@ export interface UseQuizFormReturn {
   updateDescription: (description: string) => void;
   updateSettings: (settings: Partial<QuizSettings>) => void;
   updateTimeLimit: (value: number, type: TimeUnit) => void;
+  /** Days-only helper; prefer updateContentDripSettings for multi-field edits. */
   updateContentDrip: (days: number) => void;
+  /** Patch active drip fields only; inactive nested values are preserved. */
+  updateContentDripSettings: (patch: Partial<QuizContentDripSettings>) => void;
   resetForm: () => void;
   resetToDefaults: () => void;
   validateEntireForm: () => boolean;
@@ -279,9 +284,21 @@ const getDirtyGroupsForSettings = (
       case "open_ended_answer_characters_limit":
         groups.add("open_ended_character_limit");
         break;
-      case "content_drip_settings":
-        groups.add("drip_available_after_days");
+      case "content_drip_settings": {
+        const drip = settings.content_drip_settings;
+        if (drip && typeof drip === "object") {
+          if (Object.prototype.hasOwnProperty.call(drip, "unlock_date")) {
+            groups.add("drip_unlock_date");
+          }
+          if (Object.prototype.hasOwnProperty.call(drip, "after_xdays_of_enroll")) {
+            groups.add("drip_available_after_days");
+          }
+          if (Object.prototype.hasOwnProperty.call(drip, "prerequisites")) {
+            groups.add("drip_prerequisites");
+          }
+        }
         break;
+      }
     }
   });
 
@@ -572,6 +589,14 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           ...convertedSettings,
         };
 
+        // Nested drip must merge; a patch must not wipe inactive mode fields.
+        if (convertedSettings.content_drip_settings) {
+          mergedSettings.content_drip_settings = {
+            ...prevState.settings.content_drip_settings,
+            ...convertedSettings.content_drip_settings,
+          };
+        }
+
         // Keep Quiz scope / Timing / Navigation toggles aligned after derived updates
         if (nextEffective) {
           mergedSettings.limit_attempts_allowed = nextEffective.limit_attempts_allowed;
@@ -587,6 +612,9 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
           mergedSettings.enable_answer_reveal = nextEffective.enable_answer_reveal;
           mergedSettings.answers_reveal_duration = nextEffective.answers_reveal_duration;
           mergedSettings.hide_previous_button = nextEffective.hide_previous_button;
+          mergedSettings.content_drip_settings = {
+            ...nextEffective.content_drip_settings,
+          };
         }
 
         const newState = {
@@ -627,18 +655,43 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
   );
 
   /**
-   * Update content drip settings
+   * Patch active Content Drip fields only. Inactive nested values are preserved.
+   * Does not persist through the lesson/assignment drip REST writer (Step 14).
+   */
+  const updateContentDripSettings = useCallback(
+    (patch: Partial<QuizContentDripSettings>) => {
+      const sanitized: Partial<QuizContentDripSettings> = {};
+
+      if (patch.unlock_date !== undefined) {
+        sanitized.unlock_date = typeof patch.unlock_date === "string" ? patch.unlock_date : "";
+      }
+      if (patch.after_xdays_of_enroll !== undefined) {
+        const days = Number(patch.after_xdays_of_enroll);
+        sanitized.after_xdays_of_enroll = Number.isFinite(days) ? Math.trunc(days) : 0;
+      }
+      if (patch.prerequisites !== undefined) {
+        sanitized.prerequisites = sanitizeQuizPrerequisiteIds(patch.prerequisites);
+      }
+
+      if (Object.keys(sanitized).length === 0) {
+        return;
+      }
+
+      updateSettings({
+        content_drip_settings: sanitized as QuizContentDripSettings,
+      });
+    },
+    [updateSettings]
+  );
+
+  /**
+   * Days-only Content Drip helper (specific_days mode).
    */
   const updateContentDrip = useCallback(
     (afterDays: number) => {
-      updateSettings({
-        content_drip_settings: {
-          ...formState.settings.content_drip_settings,
-          after_xdays_of_enroll: afterDays,
-        },
-      });
+      updateContentDripSettings({ after_xdays_of_enroll: afterDays });
     },
-    [updateSettings, formState.settings.content_drip_settings]
+    [updateContentDripSettings]
   );
 
   /**
@@ -914,6 +967,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
     updateSettings,
     updateTimeLimit,
     updateContentDrip,
+    updateContentDripSettings,
     resetForm,
     resetToDefaults,
     validateEntireForm,

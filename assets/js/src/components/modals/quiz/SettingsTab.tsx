@@ -77,6 +77,7 @@ import type {
   FeedbackMode,
   QuestionLayoutView,
   QuestionOrder,
+  QuizContentDripSettings,
   QuizContentType,
   QuizPaginationType,
   QuizQuestion,
@@ -85,13 +86,14 @@ import type {
   TutorLearningMode,
 } from "../../../types/quiz";
 import type { PrerequisitesByTopic } from "../../../types/content-drip";
+import { QuizContentDripFields } from "./QuizContentDripFields";
 import {
+  getQuizContentDripActiveControl,
   shouldBlockQuizSettingsEditing,
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
   shouldShowAutoStartDelay,
   shouldShowCharacterLimitsFrame,
-  shouldShowContentDripSettingsFrame,
   shouldShowHideCountdown,
   shouldShowHidePreviousButton,
   shouldShowHideQuestionNumber,
@@ -99,6 +101,7 @@ import {
   shouldShowOpenEndedCharacterLimit,
   shouldShowPaginationControls,
   shouldShowPassIsRequired,
+  shouldShowQuizContentDripModeFrame,
   shouldShowQuizScopeMaximumQuestions,
   shouldShowShortAnswerCharacterLimit,
   shouldShowTimingTimeLimit,
@@ -142,6 +145,8 @@ interface SettingsTabProps {
   feedbackMode?: FeedbackMode;
   maxQuestionsForAnswer?: number;
   afterXDaysOfEnroll?: number;
+  unlockDate?: string;
+  prerequisites?: number[];
   questionLayoutView?: QuestionLayoutView;
   enablePagination?: boolean;
   paginationType?: QuizPaginationType;
@@ -168,6 +173,7 @@ interface SettingsTabProps {
   // Optional handlers (Quiz Modal specific)
   onTimeChange?: (value: number, type: TimeUnit) => void;
   onContentDripChange?: (days: number) => void;
+  onContentDripSettingsChange?: (patch: Partial<QuizContentDripSettings>) => void;
 
   // Validation errors (flexible)
   errors: {
@@ -213,6 +219,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   passIsRequired = false,
   contentDripAvailable = false,
   contentDripType = "",
+  prerequisiteOptions,
+  currentQuizId,
+  contentDripLoading = false,
+  contentDripError = null,
 
   // Quiz Modal specific settings with defaults
   enableTimeLimit,
@@ -223,6 +233,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   feedbackMode = "default",
   maxQuestionsForAnswer = 0,
   afterXDaysOfEnroll = 0,
+  unlockDate = "",
+  prerequisites = [],
   questionLayoutView = "single_question",
   enablePagination = false,
   paginationType = "shape",
@@ -247,6 +259,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onSaveErrorDismiss,
   onTimeChange,
   onContentDripChange,
+  onContentDripSettingsChange,
 
   // Validation errors
   errors,
@@ -264,12 +277,27 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     contract: quizSettingsContract,
     h5pRuntimeAvailable,
   });
-  // Course Preview gate retired; parents pass store-backed contentDripAvailable (11B/11C).
-  const showContentDripSettingsFrame = shouldShowContentDripSettingsFrame({
+  // Mode-specific drip frame: V4 + course drip + Interactive disclosure/runtime.
+  const showContentDripModeFrame = shouldShowQuizContentDripModeFrame({
+    contract: quizSettingsContract,
+    contentDripAvailable,
+    contentDripType,
     contentType,
     showAllSettings,
-    contentDripUiAvailable: !!contentDripAvailable && !!onContentDripChange,
+    h5pRuntimeAvailable,
   });
+  const contentDripActiveControl = getQuizContentDripActiveControl(contentDripType);
+  const patchContentDrip = (patch: Partial<QuizContentDripSettings>) => {
+    if (onContentDripSettingsChange) {
+      onContentDripSettingsChange(patch);
+      return;
+    }
+    if (patch.after_xdays_of_enroll !== undefined && onContentDripChange) {
+      onContentDripChange(patch.after_xdays_of_enroll);
+      return;
+    }
+    onSettingChange({ content_drip_settings: patch });
+  };
   const showMaximumQuestions = shouldShowQuizScopeMaximumQuestions({
     contentType,
     showAllSettings,
@@ -946,29 +974,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           )}
 
-          {showContentDripSettingsFrame && (
-            <div className="quiz-modal-settings-frame">
-              <h4>{__("Available after days", "tutorpress")}</h4>
-
-              <div className="quiz-modal-setting-group">
-                <NumberControl
-                  label={__("Available after days", "tutorpress")}
-                  value={afterXDaysOfEnroll}
-                  onChange={(value) => onContentDripChange?.(parseInt(value as string) || 0)}
-                  min={0}
-                  step={1}
-                  disabled={isSaving}
-                />
-                <p className="quiz-modal-setting-help">
-                  {__("This quiz will be available after the given number of days.", "tutorpress")}
-                </p>
-                {errors.availableAfterDays && (
-                  <Notice status="error" isDismissible={false}>
-                    {errors.availableAfterDays}
-                  </Notice>
-                )}
-              </div>
-            </div>
+          {showContentDripModeFrame && contentDripActiveControl !== "none" && (
+            <QuizContentDripFields
+              mode={contentDripActiveControl}
+              unlockDate={unlockDate}
+              afterXDaysOfEnroll={afterXDaysOfEnroll}
+              prerequisites={prerequisites}
+              prerequisiteOptions={prerequisiteOptions}
+              currentQuizId={currentQuizId}
+              onUnlockDateChange={(value) => patchContentDrip({ unlock_date: value })}
+              onAfterXDaysChange={(days) => patchContentDrip({ after_xdays_of_enroll: days })}
+              onPrerequisitesChange={(ids) => patchContentDrip({ prerequisites: ids })}
+              disabled={isSaving}
+              contentDripLoading={contentDripLoading}
+              contentDripError={contentDripError}
+              availableAfterDaysError={errors.availableAfterDays}
+            />
           )}
         </div>
       </div>

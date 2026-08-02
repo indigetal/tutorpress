@@ -21,9 +21,14 @@ import {
   convertQuizSettingsFormModelToPayload,
   convertRawQuizSettingsToFormModel,
   createNewQuizSettingsFormModel,
+  getQuizContentDripActiveControl,
+  getQuizPrerequisiteSuggestions,
   isInteractiveQuizEditingAvailable,
   isRetryCapableQuizAttempts,
   QUIZ_SETTINGS_GROUP_FIELDS,
+  quizPrerequisiteIdsToTokens,
+  quizPrerequisiteTokensToIds,
+  sanitizeQuizPrerequisiteIds,
   shouldBlockQuizSettingsEditing,
   shouldShowAnswerReveal,
   shouldShowAnswerRevealDuration,
@@ -37,6 +42,11 @@ import {
   shouldShowOpenEndedCharacterLimit,
   shouldShowPaginationControls,
   shouldShowPassIsRequired,
+  shouldShowQuizContentDripAvailableAfterDays,
+  shouldShowQuizContentDripEditor,
+  shouldShowQuizContentDripModeFrame,
+  shouldShowQuizContentDripPrerequisites,
+  shouldShowQuizContentDripUnlockDate,
   shouldShowQuizScopeMaximumQuestions,
   shouldShowShortAnswerCharacterLimit,
   shouldShowTimingTimeLimit,
@@ -2208,5 +2218,192 @@ describe("Course drip addon and mode gates (Step 11E)", () => {
     });
 
     expect(passRequired("tutor_h5p_quiz", true, "unlock_sequentially", false)).toBe(false);
+  });
+});
+
+describe("Content Drip mode controls and prerequisite helpers (Step 13G)", () => {
+  const dripBase = {
+    contract: "v4" as const,
+    contentDripAvailable: true,
+    contentType: "tutor_quiz" as const,
+    h5pRuntimeAvailable: true,
+    showAllSettings: false,
+  };
+
+  const prerequisiteOptions = [
+    {
+      topic_id: 1,
+      topic_title: "Topic",
+      items: [
+        { id: 10, title: "Lesson A", type: "lesson", topic_id: 1, topic_title: "Topic", type_label: "Lesson" },
+        { id: 20, title: "This Quiz", type: "tutor_quiz", topic_id: 1, topic_title: "Topic", type_label: "Quiz" },
+      ],
+    },
+  ];
+
+  it("maps course drip modes to active controls", () => {
+    expect(getQuizContentDripActiveControl("unlock_by_date")).toBe("unlock_date");
+    expect(getQuizContentDripActiveControl("specific_days")).toBe("available_after_days");
+    expect(getQuizContentDripActiveControl("after_finishing_prerequisites")).toBe("prerequisites");
+    expect(getQuizContentDripActiveControl("unlock_sequentially")).toBe("none");
+    expect(getQuizContentDripActiveControl("")).toBe("none");
+  });
+
+  it("gates the mode editor by V4, drip availability, and Interactive runtime/disclosure", () => {
+    expect(shouldShowQuizContentDripEditor(dripBase)).toBe(true);
+    expect(shouldShowQuizContentDripEditor({ ...dripBase, contract: "legacy" })).toBe(false);
+    expect(shouldShowQuizContentDripEditor({ ...dripBase, contentDripAvailable: false })).toBe(false);
+
+    const interactive = { ...dripBase, contentType: "tutor_h5p_quiz" as const, showAllSettings: true };
+    expect(shouldShowQuizContentDripEditor(interactive)).toBe(true);
+    expect(shouldShowQuizContentDripEditor({ ...interactive, showAllSettings: false })).toBe(false);
+    expect(shouldShowQuizContentDripEditor({ ...interactive, h5pRuntimeAvailable: false })).toBe(false);
+  });
+
+  it("shows only the matching mode control and never a sequential drip frame", () => {
+    const dateInput = { ...dripBase, contentDripType: "unlock_by_date" };
+    expect(shouldShowQuizContentDripModeFrame(dateInput)).toBe(true);
+    expect(shouldShowQuizContentDripUnlockDate(dateInput)).toBe(true);
+    expect(shouldShowQuizContentDripAvailableAfterDays(dateInput)).toBe(false);
+    expect(shouldShowQuizContentDripPrerequisites(dateInput)).toBe(false);
+
+    expect(shouldShowQuizContentDripAvailableAfterDays({ ...dripBase, contentDripType: "specific_days" })).toBe(true);
+    expect(
+      shouldShowQuizContentDripPrerequisites({ ...dripBase, contentDripType: "after_finishing_prerequisites" })
+    ).toBe(true);
+
+    const sequential = { ...dripBase, contentDripType: "unlock_sequentially" };
+    expect(shouldShowQuizContentDripModeFrame(sequential)).toBe(false);
+    expect(shouldShowQuizContentDripUnlockDate(sequential)).toBe(false);
+  });
+
+  it("covers Interactive per-mode controls across runtime and disclosure", () => {
+    const modes = [
+      ["unlock_by_date", shouldShowQuizContentDripUnlockDate],
+      ["specific_days", shouldShowQuizContentDripAvailableAfterDays],
+      ["after_finishing_prerequisites", shouldShowQuizContentDripPrerequisites],
+    ] as const;
+
+    modes.forEach(([contentDripType, showControl]) => {
+      const open = {
+        ...dripBase,
+        contentType: "tutor_h5p_quiz" as const,
+        contentDripType,
+        showAllSettings: true,
+        h5pRuntimeAvailable: true,
+      };
+      expect(showControl(open)).toBe(true);
+      expect(showControl({ ...open, showAllSettings: false })).toBe(false);
+      expect(showControl({ ...open, h5pRuntimeAvailable: false })).toBe(false);
+      expect(showControl({ ...open, contentDripAvailable: false })).toBe(false);
+    });
+
+    expect(
+      shouldShowQuizContentDripModeFrame({
+        ...dripBase,
+        contentType: "tutor_h5p_quiz",
+        contentDripType: "unlock_sequentially",
+        showAllSettings: true,
+        h5pRuntimeAvailable: true,
+      })
+    ).toBe(false);
+  });
+
+  it("excludes the current quiz and sanitizes prerequisite ID/token round-trips", () => {
+    expect(getQuizPrerequisiteSuggestions(prerequisiteOptions, 20)).toEqual(["Lesson A (Lesson)"]);
+    expect(getQuizPrerequisiteSuggestions(prerequisiteOptions)).toEqual([
+      "Lesson A (Lesson)",
+      "This Quiz (Quiz)",
+    ]);
+    expect(sanitizeQuizPrerequisiteIds([10, "20", 0, -3, 1.5, "x"])).toEqual([10, 20]);
+    expect(quizPrerequisiteIdsToTokens([10, 20], prerequisiteOptions)).toEqual([
+      "Lesson A (Lesson)",
+      "This Quiz (Quiz)",
+    ]);
+    expect(quizPrerequisiteIdsToTokens([10, 20], prerequisiteOptions, 20)).toEqual(["Lesson A (Lesson)"]);
+    expect(
+      quizPrerequisiteTokensToIds(["Lesson A (Lesson)", { value: "This Quiz (Quiz)" }], prerequisiteOptions)
+    ).toEqual([10, 20]);
+    expect(
+      quizPrerequisiteTokensToIds(["Lesson A (Lesson)", "This Quiz (Quiz)"], prerequisiteOptions, 20)
+    ).toEqual([10]);
+    expect(quizPrerequisiteTokensToIds(["Unknown"], prerequisiteOptions)).toEqual([]);
+  });
+});
+
+describe("Content Drip form updates and validation (Step 13H)", () => {
+  it("preserves inactive drip fields and dirties only the patched group", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+      contentDripAvailable: true,
+      initialData: {
+        post_title: "Drip quiz",
+        quiz_option: {
+          content_drip_settings: {
+            unlock_date: "2026-01-15T00:00:00",
+            after_xdays_of_enroll: 7,
+            prerequisites: [10, 20],
+          },
+        } as QuizSettings,
+      },
+    });
+
+    try {
+      act(() => {
+        hook.current().updateContentDripSettings({ unlock_date: "2026-02-01T00:00:00" });
+      });
+
+      expect(hook.current().formState.settings.content_drip_settings).toEqual({
+        unlock_date: "2026-02-01T00:00:00",
+        after_xdays_of_enroll: 7,
+        prerequisites: [10, 20],
+      });
+      expect(hook.current().formState.dirtySettingsGroups.has("drip_unlock_date")).toBe(true);
+      expect(hook.current().formState.dirtySettingsGroups.has("drip_available_after_days")).toBe(false);
+      expect(hook.current().formState.dirtySettingsGroups.has("drip_prerequisites")).toBe(false);
+
+      act(() => {
+        hook.current().updateContentDripSettings({
+          prerequisites: [10, 0, -1, 30] as unknown as number[],
+        });
+      });
+
+      expect(hook.current().formState.settings.content_drip_settings).toEqual({
+        unlock_date: "2026-02-01T00:00:00",
+        after_xdays_of_enroll: 7,
+        prerequisites: [10, 30],
+      });
+      expect(hook.current().formState.dirtySettingsGroups.has("drip_prerequisites")).toBe(true);
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it("rejects negative available-after-days values", () => {
+    const hook = renderQuizFormHook({
+      capabilities: createCapabilities("v4"),
+      contentType: "tutor_quiz",
+      contentDripAvailable: true,
+      initialData: { post_title: "Days quiz" },
+    });
+
+    try {
+      act(() => {
+        hook.current().updateContentDripSettings({ after_xdays_of_enroll: -2 });
+      });
+      expect(hook.current().formState.isValid).toBe(false);
+      expect(hook.current().formState.errors.availableAfterDays).toBe(
+        "Available after days cannot be negative"
+      );
+
+      act(() => {
+        hook.current().updateContentDrip(0);
+      });
+      expect(hook.current().formState.errors.availableAfterDays).toBeUndefined();
+      expect(hook.current().formState.isValid).toBe(true);
+    } finally {
+      hook.unmount();
+    }
   });
 });

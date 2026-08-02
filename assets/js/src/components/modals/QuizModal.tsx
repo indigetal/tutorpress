@@ -404,6 +404,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     updateSettings,
     updateTimeLimit,
     updateContentDrip,
+    updateContentDripSettings,
     resetForm,
     resetToDefaults,
     initializeWithData,
@@ -1435,6 +1436,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   passIsRequired={formState.settings.pass_is_required}
                   maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
                   afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
+                  unlockDate={formState.settings.content_drip_settings.unlock_date}
+                  prerequisites={formState.settings.content_drip_settings.prerequisites}
                   quizAutoStart={formState.settings.quiz_auto_start}
                   autoStartDelay={formState.settings.auto_start_delay}
                   questionLayoutView={formState.settings.question_layout_view}
@@ -1460,6 +1463,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   onTimeChange={updateTimeLimit}
                   onSettingChange={updateSettings}
                   onContentDripChange={updateContentDrip}
+                  onContentDripSettingsChange={updateContentDripSettings}
                   onSaveErrorDismiss={() => setSaveError(null)}
                   errors={errors}
                 />

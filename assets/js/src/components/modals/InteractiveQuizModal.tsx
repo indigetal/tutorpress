@@ -62,6 +62,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
     updateSettings,
     updateTimeLimit,
     updateContentDrip,
+    updateContentDripSettings,
     getFormData,
     resetForm,
     resetToDefaults,
@@ -787,6 +788,8 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   feedbackMode={formState.settings.feedback_mode}
                   maxQuestionsForAnswer={formState.settings.max_questions_for_answer}
                   afterXDaysOfEnroll={formState.settings.content_drip_settings.after_xdays_of_enroll}
+                  unlockDate={formState.settings.content_drip_settings.unlock_date}
+                  prerequisites={formState.settings.content_drip_settings.prerequisites}
                   questionLayoutView={formState.settings.question_layout_view}
                   enablePagination={formState.settings.enable_pagination}
                   paginationType={formState.settings.pagination_type}
@@ -813,6 +816,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   onSettingChange={updateSettings}
                   onTimeChange={updateTimeLimit}
                   onContentDripChange={updateContentDrip}
+                  onContentDripSettingsChange={updateContentDripSettings}
                   onSaveErrorDismiss={() => setSaveError(null)}
                   // Validation errors
                   errors={errors}

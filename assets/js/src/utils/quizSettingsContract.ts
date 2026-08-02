@@ -23,6 +23,7 @@ import type {
   RawQuizScalar,
   TimeUnit,
 } from "../types/quiz";
+import type { PrerequisiteItem, PrerequisitesByTopic } from "../types/content-drip";
 
 export const getQuizSettingsContract = (capabilities?: QuizCapabilities): QuizSettingsContract =>
   capabilities?.quizSettingsContract ?? "unavailable";
@@ -114,6 +115,195 @@ export const shouldShowContentDripSettingsFrame = ({
   }
 
   return true;
+};
+
+/**
+ * Which mode-specific drip control the course Content Drip type selects.
+ * `unlock_sequentially` and unknown/empty types map to `none` (no drip frame;
+ * sequential uses Pass is required under Quiz scope).
+ */
+export type QuizContentDripActiveControl =
+  | "unlock_date"
+  | "available_after_days"
+  | "prerequisites"
+  | "none";
+
+export const getQuizContentDripActiveControl = (
+  contentDripType: string
+): QuizContentDripActiveControl => {
+  switch (contentDripType) {
+    case "unlock_by_date":
+      return "unlock_date";
+    case "specific_days":
+      return "available_after_days";
+    case "after_finishing_prerequisites":
+      return "prerequisites";
+    case "unlock_sequentially":
+    default:
+      return "none";
+  }
+};
+
+export interface QuizContentDripEditorVisibilityInput {
+  contract: QuizSettingsContract;
+  contentDripAvailable: boolean;
+  contentType: QuizContentType;
+  /** Required for Interactive; ignored for standard quizzes. */
+  showAllSettings?: boolean;
+  /**
+   * Interactive also requires H5P runtime. Standard ignores this flag.
+   * Do not infer from Pro licensing alone.
+   */
+  h5pRuntimeAvailable?: boolean;
+}
+
+/**
+ * Shared outer gate for Tutor 4 mode-specific drip editor controls.
+ * Requires V4 + Content Drip enabled. Interactive additionally requires H5P
+ * runtime and Reveal All. No content-type suppression. Pre-4: no new editor.
+ */
+export const shouldShowQuizContentDripEditor = ({
+  contract,
+  contentDripAvailable,
+  contentType,
+  showAllSettings = false,
+  h5pRuntimeAvailable = false,
+}: QuizContentDripEditorVisibilityInput): boolean => {
+  if (contract !== "v4" || !contentDripAvailable) {
+    return false;
+  }
+
+  if (contentType === "tutor_h5p_quiz") {
+    return h5pRuntimeAvailable === true && showAllSettings === true;
+  }
+
+  return true;
+};
+
+export interface QuizContentDripControlVisibilityInput extends QuizContentDripEditorVisibilityInput {
+  contentDripType: string;
+}
+
+/**
+ * True when the outer drip editor gate is open and the course mode selects a
+ * mode-specific drip frame (not sequential / none).
+ */
+export const shouldShowQuizContentDripModeFrame = (
+  input: QuizContentDripControlVisibilityInput
+): boolean =>
+  shouldShowQuizContentDripEditor(input) &&
+  getQuizContentDripActiveControl(input.contentDripType) !== "none";
+
+export const shouldShowQuizContentDripUnlockDate = (
+  input: QuizContentDripControlVisibilityInput
+): boolean =>
+  shouldShowQuizContentDripEditor(input) &&
+  getQuizContentDripActiveControl(input.contentDripType) === "unlock_date";
+
+export const shouldShowQuizContentDripAvailableAfterDays = (
+  input: QuizContentDripControlVisibilityInput
+): boolean =>
+  shouldShowQuizContentDripEditor(input) &&
+  getQuizContentDripActiveControl(input.contentDripType) === "available_after_days";
+
+export const shouldShowQuizContentDripPrerequisites = (
+  input: QuizContentDripControlVisibilityInput
+): boolean =>
+  shouldShowQuizContentDripEditor(input) &&
+  getQuizContentDripActiveControl(input.contentDripType) === "prerequisites";
+
+/** FormTokenField label matching ContentDripPanel: `Title (Type)`. */
+export const getQuizPrerequisiteItemLabel = (item: PrerequisiteItem): string =>
+  `${item.title} (${item.type_label})`;
+
+/** Keep absint-equivalent positive integers only. */
+export const sanitizeQuizPrerequisiteIds = (value: unknown): number[] =>
+  Array.isArray(value)
+    ? value
+        .map((id) => {
+          const parsed = typeof id === "number" ? id : Number(id);
+          return Number.isFinite(parsed) ? parsed : 0;
+        })
+        .filter((id) => Number.isInteger(id) && id > 0)
+    : [];
+
+export const normalizeQuizPrerequisiteToken = (token: string | { value?: string }): string =>
+  typeof token === "string" ? token : token.value || "";
+
+/** Suggestion labels excluding the current quiz when a positive ID is provided. */
+export const getQuizPrerequisiteSuggestions = (
+  options: PrerequisitesByTopic[] | undefined,
+  currentQuizId?: number
+): string[] => {
+  if (!options?.length) {
+    return [];
+  }
+
+  const suggestions: string[] = [];
+  for (const topic of options) {
+    for (const item of topic.items) {
+      if (typeof currentQuizId === "number" && currentQuizId > 0 && item.id === currentQuizId) {
+        continue;
+      }
+      suggestions.push(getQuizPrerequisiteItemLabel(item));
+    }
+  }
+  return suggestions;
+};
+
+export const quizPrerequisiteIdsToTokens = (
+  ids: unknown,
+  options: PrerequisitesByTopic[] | undefined,
+  currentQuizId?: number
+): string[] => {
+  if (!options?.length) {
+    return [];
+  }
+
+  const tokens: string[] = [];
+  for (const id of sanitizeQuizPrerequisiteIds(ids)) {
+    if (typeof currentQuizId === "number" && currentQuizId > 0 && id === currentQuizId) {
+      continue;
+    }
+    for (const topic of options) {
+      const item = topic.items.find((candidate) => candidate.id === id);
+      if (item) {
+        tokens.push(getQuizPrerequisiteItemLabel(item));
+        break;
+      }
+    }
+  }
+  return tokens;
+};
+
+export const quizPrerequisiteTokensToIds = (
+  tokens: Array<string | { value?: string }>,
+  options: PrerequisitesByTopic[] | undefined,
+  currentQuizId?: number
+): number[] => {
+  if (!options?.length || !tokens.length) {
+    return [];
+  }
+
+  const ids: number[] = [];
+  for (const raw of tokens) {
+    const token = normalizeQuizPrerequisiteToken(raw);
+    if (!token) {
+      continue;
+    }
+    for (const topic of options) {
+      const item = topic.items.find(
+        (candidate) => getQuizPrerequisiteItemLabel(candidate) === token
+      );
+      if (item) {
+        if (!(typeof currentQuizId === "number" && currentQuizId > 0 && item.id === currentQuizId)) {
+          ids.push(item.id);
+        }
+        break;
+      }
+    }
+  }
+  return sanitizeQuizPrerequisiteIds(ids);
 };
 
 /**
@@ -489,12 +679,7 @@ const cloneRawSettings = (settings: RawQuizSettings): RawQuizSettings => {
 const toCharacterLimit = (value: RawQuizScalar | undefined, fallback: number): number | "" =>
   value === "" ? "" : toFiniteNumber(value, fallback);
 
-const toPrerequisites = (value: unknown): number[] =>
-  Array.isArray(value)
-    ? value
-        .map((id) => toFiniteNumber(id, 0))
-        .filter((id) => Number.isInteger(id) && id > 0)
-    : [];
+const toPrerequisites = (value: unknown): number[] => sanitizeQuizPrerequisiteIds(value);
 
 const toEffectiveDripSettings = (
   source: RawQuizContentDripSettings | unknown[] | undefined
