@@ -48,7 +48,7 @@ import {
   sanitizeQuizPrerequisiteIds,
 } from "../../utils/quizSettingsContract";
 import { buildTopLevelContentDripFormFields } from "../../utils/quizForm";
-import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
+import { isH5pPluginActive } from "../../utils/addonChecker";
 
 /**
  * Quiz form validation errors
@@ -743,7 +743,7 @@ export const useQuizForm = (options: UseQuizFormOptions): UseQuizFormReturn => {
         effectiveSettings: formState.effectiveSettings,
         dirtyGroups: formState.dirtySettingsGroups,
         isNewQuiz,
-        h5pRuntimeAvailable: isH5pEnabled() && isH5pPluginActive(),
+        h5pPluginAvailable: isH5pPluginActive(),
       });
 
       if (settingsResult.status === "blocked") {

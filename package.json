@@ -16,7 +16,7 @@
     "start": "wp-scripts start --config webpack.config.js",
     "build": "wp-scripts build --config webpack.config.js",
     "check-types": "tsc --noEmit",
-    "test:quiz-settings": "wp-scripts test-unit-js assets/js/src/utils/__tests__/quizSettingsContract.test.ts --runInBand",
+    "test:quiz-settings": "wp-scripts test-unit-js assets/js/src/utils/__tests__/quizSettingsContract.test.ts assets/js/src/utils/__tests__/addonChecker.test.ts --runInBand",
     "clean": "rm -rf build tutorpress-build tutorpress.zip",
     "make-build": "npm run clean && npm run build && mkdir tutorpress-build && rsync -av --exclude-from=.distignore . tutorpress-build/",
     "package": "npm run check-types && npm run make-build && cd tutorpress-build && zip -r ../tutorpress.zip . && cd .. && rm -rf tutorpress-build"

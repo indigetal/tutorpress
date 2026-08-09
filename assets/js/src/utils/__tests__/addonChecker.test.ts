@@ -63,28 +63,55 @@ describe("AddonChecker localize flag normalization", () => {
     expect(isH5pPluginActive()).toBe(false);
   });
 
-  it("satisfies the Step 10 Interactive editing gate when localize sends string flags", () => {
+  it("allows Interactive editing when WP H5P plugin localize flag is on and Pro H5P is off", () => {
     window.tutorpressAddons = {
       ...(previousAddons || ({} as any)),
-      h5p: "1" as unknown as boolean,
+      h5p: "0" as unknown as boolean,
       h5p_plugin_active: "1" as unknown as boolean,
     };
 
-    const h5pRuntimeAvailable = isH5pEnabled() && isH5pPluginActive();
-    expect(h5pRuntimeAvailable).toBe(true);
+    expect(isH5pEnabled()).toBe(false);
+    expect(isH5pPluginActive()).toBe(true);
+    const h5pPluginAvailable = isH5pPluginActive();
     expect(
       isInteractiveQuizEditingAvailable({
         contentType: "tutor_h5p_quiz",
         contract: "v4",
-        h5pRuntimeAvailable,
+        h5pPluginAvailable,
       })
     ).toBe(true);
     expect(
       shouldBlockQuizSettingsEditing({
         contentType: "tutor_h5p_quiz",
         contract: "v4",
-        h5pRuntimeAvailable,
+        h5pPluginAvailable,
       })
     ).toBe(false);
+  });
+
+  it("blocks Interactive editing when WP H5P plugin localize flag is off", () => {
+    window.tutorpressAddons = {
+      ...(previousAddons || ({} as any)),
+      h5p: "1" as unknown as boolean,
+      h5p_plugin_active: "0" as unknown as boolean,
+    };
+
+    expect(isH5pEnabled()).toBe(true);
+    expect(isH5pPluginActive()).toBe(false);
+    const h5pPluginAvailable = isH5pPluginActive();
+    expect(
+      isInteractiveQuizEditingAvailable({
+        contentType: "tutor_h5p_quiz",
+        contract: "v4",
+        h5pPluginAvailable,
+      })
+    ).toBe(false);
+    expect(
+      shouldBlockQuizSettingsEditing({
+        contentType: "tutor_h5p_quiz",
+        contract: "v4",
+        h5pPluginAvailable,
+      })
+    ).toBe(true);
   });
 });

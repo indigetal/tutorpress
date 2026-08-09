@@ -59,19 +59,19 @@ export const supportsV4QuizContentDrip = (capabilities?: QuizCapabilities): bool
 export interface InteractiveQuizEditingAvailabilityInput {
   contentType: QuizContentType;
   contract: QuizSettingsContract;
-  h5pRuntimeAvailable: boolean;
+  h5pPluginAvailable: boolean;
 }
 
 /**
  * Valid Interactive editing requires explicit H5P content type, the V4 settings
- * contract, and both H5P runtime prerequisites. Never infer from raw quiz_type.
+ * contract, and an active WordPress H5P plugin. Never infer from raw quiz_type.
  */
 export const isInteractiveQuizEditingAvailable = ({
   contentType,
   contract,
-  h5pRuntimeAvailable,
+  h5pPluginAvailable,
 }: InteractiveQuizEditingAvailabilityInput): boolean =>
-  contentType === "tutor_h5p_quiz" && contract === "v4" && h5pRuntimeAvailable === true;
+  contentType === "tutor_h5p_quiz" && contract === "v4" && h5pPluginAvailable === true;
 
 /**
  * Fail-closed editing gate. Interactive blocks unless editing is available;
@@ -80,10 +80,10 @@ export const isInteractiveQuizEditingAvailable = ({
 export const shouldBlockQuizSettingsEditing = ({
   contentType,
   contract,
-  h5pRuntimeAvailable,
+  h5pPluginAvailable,
 }: InteractiveQuizEditingAvailabilityInput): boolean =>
   contentType === "tutor_h5p_quiz"
-    ? !isInteractiveQuizEditingAvailable({ contentType, contract, h5pRuntimeAvailable })
+    ? !isInteractiveQuizEditingAvailable({ contentType, contract, h5pPluginAvailable })
     : contract === "unavailable";
 
 export interface ContentDripSettingsFrameVisibilityInput {
@@ -151,30 +151,30 @@ export interface QuizContentDripEditorVisibilityInput {
   /** Required for Interactive; ignored for standard quizzes. */
   showAllSettings?: boolean;
   /**
-   * Interactive also requires H5P runtime. Standard ignores this flag.
+   * Interactive also requires the WordPress H5P plugin. Standard ignores this flag.
    * Do not infer from Pro licensing alone.
    */
-  h5pRuntimeAvailable?: boolean;
+  h5pPluginAvailable?: boolean;
 }
 
 /**
  * Shared outer gate for Tutor 4 mode-specific drip editor controls.
- * Requires V4 + Content Drip enabled. Interactive additionally requires H5P
- * runtime and Reveal All. No content-type suppression. Pre-4: no new editor.
+ * Requires V4 + Content Drip enabled. Interactive additionally requires the
+ * WordPress H5P plugin and Reveal All. No content-type suppression. Pre-4: no new editor.
  */
 export const shouldShowQuizContentDripEditor = ({
   contract,
   contentDripAvailable,
   contentType,
   showAllSettings = false,
-  h5pRuntimeAvailable = false,
+  h5pPluginAvailable = false,
 }: QuizContentDripEditorVisibilityInput): boolean => {
   if (contract !== "v4" || !contentDripAvailable) {
     return false;
   }
 
   if (contentType === "tutor_h5p_quiz") {
-    return h5pRuntimeAvailable === true && showAllSettings === true;
+    return h5pPluginAvailable === true && showAllSettings === true;
   }
 
   return true;
@@ -924,7 +924,7 @@ export const convertQuizSettingsFormModelToPayload = ({
   effectiveSettings,
   dirtyGroups,
   isNewQuiz,
-  h5pRuntimeAvailable,
+  h5pPluginAvailable,
 }: QuizSettingsSaveInput): QuizSettingsSaveResult => {
   const preservedRawSettings = clonePayloadSettings(rawSettings);
 
@@ -953,10 +953,10 @@ export const convertQuizSettingsFormModelToPayload = ({
       };
     }
 
-    if (!h5pRuntimeAvailable) {
+    if (!h5pPluginAvailable) {
       return {
         status: "blocked",
-        reason: "h5p_runtime_unavailable",
+        reason: "h5p_plugin_unavailable",
         rawSettings: preservedRawSettings,
       };
     }

@@ -166,7 +166,7 @@ class TutorPress_Main {
         $container->register('assignment', $assignment);
         $container->register('bundle', $bundle);
 
-        // Initialize Scripts first (for H5P filtering)
+        // Initialize Scripts (localize/enqueue); H5P listing filters boot via overrides below.
         TutorPress_Assets::init();
         
         // Initialize core classes using their static init methods
@@ -174,6 +174,9 @@ class TutorPress_Main {
         TutorPress_Admin_Customizations::init();
         TutorPress_Dashboard_Overrides::init();
         TutorPress_Sidebar_Tabs::init();
+        TutorPress_H5P_Listing_Overrides::init();
+        TutorPress_H5P_Runtime_Overrides::init();
+        TutorPress_H5P_Learner_Bridge::init();
         
         // Initialize template overrides (self-initializing class)
         TutorPress_Template_Overrides::init();

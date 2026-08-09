@@ -100,7 +100,7 @@ interface SaveSettingsOptions {
   contentType?: QuizSettingsLoadInput["contentType"];
   dirtyGroups?: QuizSettingsDirtyGroup[];
   isNewQuiz?: boolean;
-  h5pRuntimeAvailable?: boolean;
+  h5pPluginAvailable?: boolean;
   updateEffective?: (settings: QuizEffectiveSettings) => void;
 }
 
@@ -111,7 +111,7 @@ const saveSettings = (
     contentType = "tutor_quiz",
     dirtyGroups = [],
     isNewQuiz = false,
-    h5pRuntimeAvailable = true,
+    h5pPluginAvailable = true,
     updateEffective,
   }: SaveSettingsOptions = {}
 ): QuizSettingsSaveResult => {
@@ -135,7 +135,7 @@ const saveSettings = (
     effectiveSettings,
     dirtyGroups: new Set(dirtyGroups),
     isNewQuiz,
-    h5pRuntimeAvailable,
+    h5pPluginAvailable,
   });
 };
 
@@ -1008,10 +1008,10 @@ describe("Quiz Settings dirty-aware payload conversion", () => {
   it.each([
     ["unavailable contract", "unavailable", true, "settings_contract_unavailable"],
     ["legacy contract", "legacy", true, "interactive_v4_required"],
-    ["missing H5P runtime", "v4", false, "h5p_runtime_unavailable"],
+    ["missing H5P plugin", "v4", false, "h5p_plugin_unavailable"],
   ] as Array<[string, QuizSettingsContract, boolean, string]>)(
     "blocks Interactive conversion for %s without changing raw identity",
-    (_label, contract, h5pRuntimeAvailable, reason) => {
+    (_label, contract, h5pPluginAvailable, reason) => {
       const rawSettings: RawQuizSettings = {
         quiz_type: "future_identity",
         future_top_level: "keep",
@@ -1019,7 +1019,7 @@ describe("Quiz Settings dirty-aware payload conversion", () => {
       const result = saveSettings(rawSettings, {
         contract,
         contentType: "tutor_h5p_quiz",
-        h5pRuntimeAvailable,
+        h5pPluginAvailable,
       });
 
       expect(result).toEqual({
@@ -1222,9 +1222,9 @@ describe("Quiz Settings runtime save integration", () => {
     }
   });
 
-  it("returns blocked then ready Interactive results from localized H5P runtime state", () => {
+  it("returns blocked then ready Interactive results from localized WP H5P plugin state", () => {
     window.tutorpressAddons = {
-      h5p: true,
+      h5p: false,
       h5p_plugin_active: false,
     } as typeof window.tutorpressAddons;
     const hook = renderQuizFormHook({
@@ -1244,7 +1244,7 @@ describe("Quiz Settings runtime save integration", () => {
       const blocked = hook.current().getFormData([], false);
       expect(blocked).toMatchObject({
         status: "blocked",
-        reason: "h5p_runtime_unavailable",
+        reason: "h5p_plugin_unavailable",
         rawSettings: {
           quiz_type: "future_identity",
           future_top_level: "keep",
@@ -1252,8 +1252,9 @@ describe("Quiz Settings runtime save integration", () => {
       });
       expect(blocked).not.toHaveProperty("formData");
 
+      // Pro H5P off + WP H5P on is enough for Interactive save (B1 identity still enforced).
       window.tutorpressAddons = {
-        h5p: true,
+        h5p: false,
         h5p_plugin_active: true,
       } as typeof window.tutorpressAddons;
       const ready = hook.current().getFormData([], false);
@@ -2143,31 +2144,31 @@ describe("Interactive never-display and drip-unavailable", () => {
 describe("Interactive editing availability and fail-closed gates", () => {
   it.each([
     ["valid V4 Interactive", "tutor_h5p_quiz", "v4", true, true],
-    ["Interactive missing runtime", "tutor_h5p_quiz", "v4", false, false],
+    ["Interactive missing plugin", "tutor_h5p_quiz", "v4", false, false],
     ["Interactive legacy contract", "tutor_h5p_quiz", "legacy", true, false],
     ["Interactive unavailable contract", "tutor_h5p_quiz", "unavailable", true, false],
-    ["standard V4 with runtime", "tutor_quiz", "v4", true, false],
+    ["standard V4 with plugin flag", "tutor_quiz", "v4", true, false],
   ] as Array<[string, "tutor_quiz" | "tutor_h5p_quiz", QuizSettingsContract, boolean, boolean]>)(
     "isInteractiveQuizEditingAvailable for %s",
-    (_label, contentType, contract, h5pRuntimeAvailable, expected) => {
+    (_label, contentType, contract, h5pPluginAvailable, expected) => {
       expect(
-        isInteractiveQuizEditingAvailable({ contentType, contract, h5pRuntimeAvailable })
+        isInteractiveQuizEditingAvailable({ contentType, contract, h5pPluginAvailable })
       ).toBe(expected);
     }
   );
 
   it.each([
-    ["blocks Interactive without runtime", "tutor_h5p_quiz", "v4", false, true],
+    ["blocks Interactive without plugin", "tutor_h5p_quiz", "v4", false, true],
     ["blocks Interactive on legacy", "tutor_h5p_quiz", "legacy", true, true],
     ["allows valid Interactive", "tutor_h5p_quiz", "v4", true, false],
     ["blocks standard unavailable", "tutor_quiz", "unavailable", true, true],
-    ["allows standard V4 without H5P runtime", "tutor_quiz", "v4", false, false],
+    ["allows standard V4 without H5P plugin", "tutor_quiz", "v4", false, false],
     ["allows standard legacy", "tutor_quiz", "legacy", true, false],
   ] as Array<[string, "tutor_quiz" | "tutor_h5p_quiz", QuizSettingsContract, boolean, boolean]>)(
     "shouldBlockQuizSettingsEditing %s",
-    (_label, contentType, contract, h5pRuntimeAvailable, expected) => {
+    (_label, contentType, contract, h5pPluginAvailable, expected) => {
       expect(
-        shouldBlockQuizSettingsEditing({ contentType, contract, h5pRuntimeAvailable })
+        shouldBlockQuizSettingsEditing({ contentType, contract, h5pPluginAvailable })
       ).toBe(expected);
     }
   );
@@ -2230,7 +2231,7 @@ describe("Content Drip mode controls and prerequisite helpers", () => {
     contract: "v4" as const,
     contentDripAvailable: true,
     contentType: "tutor_quiz" as const,
-    h5pRuntimeAvailable: true,
+    h5pPluginAvailable: true,
     showAllSettings: false,
   };
 
@@ -2261,7 +2262,7 @@ describe("Content Drip mode controls and prerequisite helpers", () => {
     const interactive = { ...dripBase, contentType: "tutor_h5p_quiz" as const, showAllSettings: true };
     expect(shouldShowQuizContentDripEditor(interactive)).toBe(true);
     expect(shouldShowQuizContentDripEditor({ ...interactive, showAllSettings: false })).toBe(false);
-    expect(shouldShowQuizContentDripEditor({ ...interactive, h5pRuntimeAvailable: false })).toBe(false);
+    expect(shouldShowQuizContentDripEditor({ ...interactive, h5pPluginAvailable: false })).toBe(false);
   });
 
   it("shows only the matching mode control and never a sequential drip frame", () => {
@@ -2294,11 +2295,11 @@ describe("Content Drip mode controls and prerequisite helpers", () => {
         contentType: "tutor_h5p_quiz" as const,
         contentDripType,
         showAllSettings: true,
-        h5pRuntimeAvailable: true,
+        h5pPluginAvailable: true,
       };
       expect(showControl(open)).toBe(true);
       expect(showControl({ ...open, showAllSettings: false })).toBe(false);
-      expect(showControl({ ...open, h5pRuntimeAvailable: false })).toBe(false);
+      expect(showControl({ ...open, h5pPluginAvailable: false })).toBe(false);
       expect(showControl({ ...open, contentDripAvailable: false })).toBe(false);
     });
 
@@ -2308,7 +2309,7 @@ describe("Content Drip mode controls and prerequisite helpers", () => {
         contentType: "tutor_h5p_quiz",
         contentDripType: "unlock_sequentially",
         showAllSettings: true,
-        h5pRuntimeAvailable: true,
+        h5pPluginAvailable: true,
       })
     ).toBe(false);
   });

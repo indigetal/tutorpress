@@ -26,7 +26,7 @@ import { H5PContentSelectionModal } from "./interactive-quiz/H5PContentSelection
 import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
 import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption, DataStatus } from "../../types/quiz";
-import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
+import { isH5pPluginActive } from "../../utils/addonChecker";
 import { isInteractiveQuizEditingAvailable } from "../../utils/quizSettingsContract";
 
 interface InteractiveQuizModalProps {
@@ -133,12 +133,12 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
 
   // Add state for "All Settings" toggle
   const [showAllSettings, setShowAllSettings] = useState(false);
-  const h5pRuntimeAvailable = isH5pEnabled() && isH5pPluginActive();
-  // Explicit Interactive content type + V4 contract + H5P runtime; never infer from raw quiz_type.
+  const h5pPluginAvailable = isH5pPluginActive();
+  // Explicit Interactive content type + V4 contract + WP H5P plugin; never infer from raw quiz_type.
   const quizSettingsEditable = isInteractiveQuizEditingAvailable({
     contentType: "tutor_h5p_quiz",
     contract: quizCapabilities?.quizSettingsContract ?? "unavailable",
-    h5pRuntimeAvailable,
+    h5pPluginAvailable,
   });
 
   // Custom validity check that includes H5P question validation
@@ -777,7 +777,7 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
                   learningMode={quizCapabilities?.learningMode ?? "unknown"}
                   contentType="tutor_h5p_quiz"
                   questions={questions}
-                  h5pRuntimeAvailable={h5pRuntimeAvailable}
+                  h5pPluginAvailable={h5pPluginAvailable}
                   // Core settings (always passed)
                   attemptsAllowed={formState.settings.attempts_allowed}
                   passingGrade={formState.settings.passing_grade}

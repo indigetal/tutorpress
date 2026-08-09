@@ -47,7 +47,7 @@ import type {
 } from "../../types/quiz";
 import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { SettingsTab } from "./quiz/SettingsTab";
-import { isH5pEnabled, isH5pPluginActive } from "../../utils/addonChecker";
+import { isH5pPluginActive } from "../../utils/addonChecker";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -1431,7 +1431,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   learningMode={quizCapabilities?.learningMode ?? "unknown"}
                   contentType="tutor_quiz"
                   questions={questions}
-                  h5pRuntimeAvailable={isH5pEnabled() && isH5pPluginActive()}
+                  h5pPluginAvailable={isH5pPluginActive()}
                   enableTimeLimit={formState.settings.enable_time_limit}
                   timeValue={formState.settings.time_limit.time_value}
                   timeType={formState.settings.time_limit.time_type}

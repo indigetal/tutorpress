@@ -300,14 +300,14 @@ export interface QuizSettingsSaveInput {
   effectiveSettings: QuizEffectiveSettings | null;
   dirtyGroups: ReadonlySet<QuizSettingsDirtyGroup>;
   isNewQuiz: boolean;
-  h5pRuntimeAvailable: boolean;
+  h5pPluginAvailable: boolean;
 }
 
 export type QuizSettingsSaveBlockedReason =
   | "settings_contract_unavailable"
   | "effective_settings_unavailable"
   | "interactive_v4_required"
-  | "h5p_runtime_unavailable";
+  | "h5p_plugin_unavailable";
 
 export interface QuizSettingsSaveReadyResult {
   status: "ready";

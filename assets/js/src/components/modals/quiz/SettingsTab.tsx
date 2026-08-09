@@ -114,7 +114,7 @@ interface SettingsTabProps {
   learningMode: TutorLearningMode;
   contentType: QuizContentType;
   questions: QuizQuestion[];
-  h5pRuntimeAvailable: boolean;
+  h5pPluginAvailable: boolean;
 
   // Core settings (required for both Quiz and Interactive Quiz)
   attemptsAllowed: number;
@@ -205,7 +205,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   learningMode,
   contentType,
   questions,
-  h5pRuntimeAvailable,
+  h5pPluginAvailable,
 
   // Core settings with defaults
   attemptsAllowed,
@@ -269,22 +269,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const isV4Contract = quizSettingsContract === "v4";
   const isLegacyContract = quizSettingsContract === "legacy";
   // Notice branching stays here; shared predicates own availability/blocking only.
-  const interactiveRuntimeUnavailable = isInteractiveQuizMode && !h5pRuntimeAvailable;
+  const interactivePluginUnavailable = isInteractiveQuizMode && !h5pPluginAvailable;
   const interactiveContractUnsupported =
     isInteractiveQuizMode && quizSettingsContract !== "v4";
   const settingsEditingBlocked = shouldBlockQuizSettingsEditing({
     contentType,
     contract: quizSettingsContract,
-    h5pRuntimeAvailable,
+    h5pPluginAvailable,
   });
-  // Mode-specific drip frame: V4 + course drip + Interactive disclosure/runtime.
+  // Mode-specific drip frame: V4 + course drip + Interactive disclosure/plugin gate.
   const showContentDripModeFrame = shouldShowQuizContentDripModeFrame({
     contract: quizSettingsContract,
     contentDripAvailable,
     contentDripType,
     contentType,
     showAllSettings,
-    h5pRuntimeAvailable,
+    h5pPluginAvailable,
   });
   const contentDripActiveControl = getQuizContentDripActiveControl(contentDripType);
   const patchContentDrip = (patch: Partial<QuizContentDripSettings>) => {
@@ -444,9 +444,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   if (settingsEditingBlocked) {
     let blockedMessage = getQuizSettingsUnavailableMessage(quizSettingsUnavailableReason);
-    if (interactiveRuntimeUnavailable) {
+    if (interactivePluginUnavailable) {
       blockedMessage = __(
-        "Interactive Quiz settings require the Tutor Pro H5P addon and an active WordPress H5P plugin.",
+        "Interactive Quiz settings require an active WordPress H5P plugin.",
         "tutorpress"
       );
     } else if (interactiveContractUnsupported) {
