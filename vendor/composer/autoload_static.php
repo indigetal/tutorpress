@@ -36,6 +36,7 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Freemius' => __DIR__ . '/../..' . '/includes/shared/class-tutorpress-freemius.php',
         'TutorPress_H5P_Learner_Bridge' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-h5p-learner-bridge.php',
         'TutorPress_H5P_Listing_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-h5p-listing-overrides.php',
+        'TutorPress_H5P_Review_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-h5p-review-overrides.php',
         'TutorPress_H5P_Runtime_Overrides' => __DIR__ . '/../..' . '/includes/tutorlms/overrides/class-tutorpress-h5p-runtime-overrides.php',
         'TutorPress_Lesson' => __DIR__ . '/../..' . '/includes/post-types/class-tutorpress-lesson.php',
         'TutorPress_Lesson_Sync_Context' => __DIR__ . '/../..' . '/includes/tutorlms/compatibility/lesson/class-tutorpress-lesson-sync-context.php',

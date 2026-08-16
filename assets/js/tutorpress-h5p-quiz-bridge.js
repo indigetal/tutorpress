@@ -80,6 +80,201 @@
   }
 
   /**
+   * D6: wrapper hidden when computed display is none (Alpine x-show + jQuery .hide()).
+   *
+   * @param {Element} el Question wrapper element.
+   * @return {boolean}
+   */
+  function isWrapperHidden(el) {
+    if (!el || el.nodeType !== 1) {
+      return true;
+    }
+    return window.getComputedStyle(el).display === "none";
+  }
+
+  /** Prior hidden state per wrapper (D6). WeakMap avoids leaking detached nodes. */
+  var wrapperWasHidden = new WeakMap();
+
+  /**
+   * Invoke cb only on hidden→visible. First observation seeds state without firing.
+   *
+   * @param {Element} el Question wrapper element.
+   * @param {Function} cb Called with el when it became visible.
+   */
+  function onWrapperBecameVisible(el, cb) {
+    if (!el || el.nodeType !== 1 || typeof cb !== "function") {
+      return;
+    }
+    var nowHidden = isWrapperHidden(el);
+    if (!wrapperWasHidden.has(el)) {
+      wrapperWasHidden.set(el, nowHidden);
+      return;
+    }
+    var wasHidden = wrapperWasHidden.get(el);
+    wrapperWasHidden.set(el, nowHidden);
+    if (wasHidden && !nowHidden) {
+      cb(el);
+    }
+  }
+
+  /** Modern + legacy linear question wrappers (D1). */
+  var QUESTION_WRAPPER_SELECTOR =
+    ".tutor-quiz-question-wrapper, .quiz-attempt-single-question";
+
+  /**
+   * Observe wrapper style/class mutations; invoke onVisible only on hidden→visible (D6).
+   * Does not start at boot — Step 5 wires this. Callback may be a no-op until resize lands.
+   *
+   * @param {Function} [onVisible] Called with wrapper el on hidden→visible.
+   * @return {MutationObserver|null}
+   */
+  function startWrapperVisibilityObserver(onVisible) {
+    var cb = typeof onVisible === "function" ? onVisible : function () {};
+    var nodes = document.querySelectorAll(QUESTION_WRAPPER_SELECTOR);
+    if (!nodes.length) {
+      return null;
+    }
+
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+      onWrapperBecameVisible(nodes[i], cb);
+    }
+
+    var observer = new MutationObserver(function (mutations) {
+      var m;
+      var el;
+      for (m = 0; m < mutations.length; m++) {
+        el = mutations[m].target;
+        if (!el || el.nodeType !== 1 || typeof el.matches !== "function") {
+          continue;
+        }
+        if (!el.matches(QUESTION_WRAPPER_SELECTOR)) {
+          continue;
+        }
+        onWrapperBecameVisible(el, cb);
+      }
+    });
+
+    for (i = 0; i < nodes.length; i++) {
+      observer.observe(nodes[i], {
+        attributes: true,
+        attributeFilter: ["style", "class"],
+      });
+    }
+
+    return observer;
+  }
+
+  /**
+   * Collect H5P.instances arrays reachable for an iframe (D5).
+   * Quiz shortcode iframes keep instances on contentWindow; parent may be empty.
+   *
+   * @param {HTMLIFrameElement} iframeEl
+   * @return {Array}
+   */
+  function getH5pInstanceListsForIframe(iframeEl) {
+    var lists = [];
+    if (typeof H5P !== "undefined" && Array.isArray(H5P.instances)) {
+      lists.push(H5P.instances);
+    }
+    try {
+      var win = iframeEl.contentWindow;
+      if (
+        win &&
+        win.H5P &&
+        Array.isArray(win.H5P.instances) &&
+        win.H5P.instances !== H5P.instances
+      ) {
+        lists.push(win.H5P.instances);
+      }
+    } catch (e) {
+      // Cross-origin: fail-closed for this iframe.
+    }
+    return lists;
+  }
+
+  /**
+   * Prefer H5P.trigger(instance, 'resize') for iframe(s) under wrapper (D1/D5).
+   * Fail-soft: same-origin scrollHeight → style.height when no instance matched.
+   * One-shot rAF/timeout for layout settle. No-op while wrapper still hidden.
+   *
+   * @param {Element} wrapperEl Question wrapper element.
+   */
+  function resizeH5pUnderWrapper(wrapperEl) {
+    if (!wrapperEl || wrapperEl.nodeType !== 1) {
+      return;
+    }
+    if (isWrapperHidden(wrapperEl)) {
+      return;
+    }
+
+    function run() {
+      if (isWrapperHidden(wrapperEl)) {
+        return;
+      }
+
+      var iframes = wrapperEl.querySelectorAll("iframe.h5p-iframe");
+      var i;
+      for (i = 0; i < iframes.length; i++) {
+        var iframe = iframes[i];
+        var contentId = iframe.getAttribute("data-content-id");
+        var triggered = false;
+
+        if (
+          contentId &&
+          typeof H5P !== "undefined" &&
+          typeof H5P.trigger === "function"
+        ) {
+          var lists = getH5pInstanceListsForIframe(iframe);
+          var li;
+          var ji;
+          for (li = 0; li < lists.length; li++) {
+            var instances = lists[li];
+            for (ji = 0; ji < instances.length; ji++) {
+              var instance = instances[ji];
+              if (!instance || String(instance.contentId) !== String(contentId)) {
+                continue;
+              }
+              H5P.trigger(instance, "resize");
+              triggered = true;
+            }
+          }
+        }
+
+        if (!triggered) {
+          applyFailSoftIframeHeight(iframe);
+        }
+      }
+    }
+
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(run);
+    } else {
+      window.setTimeout(run, 0);
+    }
+  }
+
+  /**
+   * Fail-soft height when instance resize unavailable (D1/D5).
+   *
+   * @param {HTMLIFrameElement} iframe
+   */
+  function applyFailSoftIframeHeight(iframe) {
+    try {
+      var doc = iframe.contentDocument;
+      if (!doc || !doc.body) {
+        return;
+      }
+      var height = doc.body.scrollHeight;
+      if (height > 0) {
+        iframe.style.height = height + "px";
+      }
+    } catch (e) {
+      // Cross-origin or not ready: fail-closed.
+    }
+  }
+
+  /**
    * Pro-parity parent setObject patch for one question_id (D16 extensions).
    *
    * @param {number} questionId Tutor question id.
@@ -497,6 +692,7 @@
     bindModernLinearSubmit();
     bindModernNonLinearSubmit();
     bindLegacyNonLinearSubmit();
+    startWrapperVisibilityObserver(resizeH5pUnderWrapper);
   });
 
   window.tutorpressH5PQuizBridge = {
@@ -504,5 +700,8 @@
     getAttemptAndQuizIds: getAttemptAndQuizIds,
     getQuestionIdFromEl: getQuestionIdFromEl,
     getContentIdForIframe: getContentIdForIframe,
+    isWrapperHidden: isWrapperHidden,
+    resizeH5pUnderWrapper: resizeH5pUnderWrapper,
+    startWrapperVisibilityObserver: startWrapperVisibilityObserver,
   };
 })(window.jQuery);

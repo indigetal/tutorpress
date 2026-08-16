@@ -177,6 +177,7 @@ class TutorPress_Main {
         TutorPress_H5P_Listing_Overrides::init();
         TutorPress_H5P_Runtime_Overrides::init();
         TutorPress_H5P_Learner_Bridge::init();
+        TutorPress_H5P_Review_Overrides::init();
         
         // Initialize template overrides (self-initializing class)
         TutorPress_Template_Overrides::init();
