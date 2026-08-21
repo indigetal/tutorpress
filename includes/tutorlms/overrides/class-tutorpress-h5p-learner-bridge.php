@@ -57,6 +57,9 @@ class TutorPress_H5P_Learner_Bridge {
 		add_action( 'wp_ajax_save_h5p_question_xAPI_statement', array( __CLASS__, 'save_h5p_question_xAPI_statement' ) );
 		add_action( 'wp_ajax_check_h5p_question_answered', array( __CLASS__, 'check_h5p_question_answered' ) );
 		add_action( 'tutor_quiz/attempt_deleted', array( __CLASS__, 'delete_h5p_quiz_result_by_attempt_id' ), 10, 1 );
+		add_action( 'tutor_delete_quiz_after', array( __CLASS__, 'delete_h5p_quiz_info_all' ), 10, 1 );
+		add_action( 'tutor_deleted_quiz_question_ids', array( __CLASS__, 'delete_h5p_question_info_all' ), 10, 1 );
+		add_action( 'tutor_before_delete_quiz_content', array( __CLASS__, 'delete_h5p_quiz_statements_by_id' ), 10, 2 );
 		add_filter( 'tutor_filter_update_before_question_mark', array( __CLASS__, 'filter_total_marks' ), 10, 4 );
 		add_filter( 'tutor_filter_quiz_total_marks', array( __CLASS__, 'filter_total_quiz_marks' ), 10, 5 );
 		add_filter( 'tutor_filter_quiz_answer_data', array( __CLASS__, 'filter_quiz_answer_data' ), 10, 5 );
@@ -333,6 +336,66 @@ class TutorPress_H5P_Learner_Bridge {
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- placeholders from absint id count.
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}tutor_h5p_quiz_result WHERE attempt_id IN ({$placeholders})", ...$ids ) );
+	}
+
+	/**
+	 * Delete H5P quiz statement then result rows by quiz_id or question_id.
+	 *
+	 * Empty / 0 / non-array question list with quiz_id 0 returns with no query.
+	 *
+	 * @since 2.2.0
+	 * @param int        $quiz_id      Quiz id. Default 0.
+	 * @param array|null $question_ids Question ids. Non-array treated as empty.
+	 * @return void
+	 */
+	public static function delete_h5p_quiz_statements_by_id( $quiz_id = 0, $question_ids = null ) {
+		global $wpdb;
+
+		$quiz_id = absint( $quiz_id );
+
+		if ( is_array( $question_ids ) ) {
+			$question_ids = array_values( array_filter( array_map( 'absint', $question_ids ) ) );
+		} else {
+			$question_ids = array();
+		}
+
+		if ( $question_ids ) {
+			$column = 'question_id';
+			$ids    = $question_ids;
+		} elseif ( $quiz_id ) {
+			$column = 'quiz_id';
+			$ids    = array( $quiz_id );
+		} else {
+			return;
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- placeholders from absint id count.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}tutor_h5p_quiz_statement WHERE {$column} IN ({$placeholders})", ...$ids ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- placeholders from absint id count.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}tutor_h5p_quiz_result WHERE {$column} IN ({$placeholders})", ...$ids ) );
+	}
+
+	/**
+	 * Forward quiz delete to H5P statement-then-result cleanup.
+	 *
+	 * @since 2.2.0
+	 * @param int $quiz_id Quiz id from tutor_delete_quiz_after.
+	 * @return void
+	 */
+	public static function delete_h5p_quiz_info_all( $quiz_id ) {
+		self::delete_h5p_quiz_statements_by_id( $quiz_id );
+	}
+
+	/**
+	 * Forward question delete to H5P statement-then-result cleanup.
+	 *
+	 * @since 2.2.0
+	 * @param array $question_ids Question ids from tutor_deleted_quiz_question_ids.
+	 * @return void
+	 */
+	public static function delete_h5p_question_info_all( $question_ids ) {
+		self::delete_h5p_quiz_statements_by_id( 0, $question_ids );
 	}
 
 	/**
