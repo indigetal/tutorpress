@@ -179,8 +179,11 @@ class TutorPress_Collaborative_Editing {
      * @return array Modified primitive capabilities.
      */
     public function map_collaborative_meta_caps( $caps, $cap, $user_id, $args ) {
-        // Only handle edit/delete/read post capabilities
-        if ( ! in_array( $cap, array( 'edit_post', 'delete_post', 'read_post' ), true ) ) {
+        // WordPress rewrites edit_post/delete_post to the CPT primitive when map_meta_cap is false.
+        $child_edit_caps   = array( 'edit_post', 'edit_tutor_lesson', 'edit_tutor_assignment' );
+        $child_delete_caps = array( 'delete_post', 'delete_tutor_lesson', 'delete_tutor_assignment' );
+
+        if ( ! in_array( $cap, array_merge( array( 'read_post' ), $child_edit_caps, $child_delete_caps ), true ) ) {
             return $caps;
         }
 
@@ -212,18 +215,36 @@ class TutorPress_Collaborative_Editing {
             return $caps;
         }
 
-        // Check if user can access this content
         $permissions = new TutorPress_Permissions();
-        
-        if ( 'courses' === $post->post_type || ( function_exists( 'tutor' ) && $post->post_type === tutor()->course_post_type ) ) {
-            $can_access = $permissions->can_user_access_course( $post_id, $user_id );
-        } else {
-            $can_access = $permissions->can_user_edit_course_content( $post_id, $user_id );
+        $is_course   = ( 'courses' === $post->post_type )
+            || ( function_exists( 'tutor' ) && is_object( tutor() ) && $post->post_type === tutor()->course_post_type );
+
+        if ( $is_course ) {
+            if ( $permissions->can_user_access_course( $post_id, $user_id ) ) {
+                return array( 'exist' );
+            }
+
+            return $caps;
         }
 
-        if ( $can_access ) {
-            // Grant the capability by returning 'exist' which every user has
+        $can_edit_content = $permissions->can_user_edit_course_content( $post_id, $user_id );
+        if ( $can_edit_content ) {
             return array( 'exist' );
+        }
+
+        $child_types = array( 'lesson', 'tutor_assignments' );
+        if ( function_exists( 'tutor' ) && is_object( tutor() ) ) {
+            if ( property_exists( tutor(), 'lesson_post_type' ) ) {
+                $child_types[] = tutor()->lesson_post_type;
+            }
+            if ( property_exists( tutor(), 'assignment_post_type' ) ) {
+                $child_types[] = tutor()->assignment_post_type;
+            }
+        }
+
+        if ( in_array( $post->post_type, array_unique( $child_types ), true )
+            && in_array( $cap, array_merge( $child_edit_caps, $child_delete_caps ), true ) ) {
+            return array( 'do_not_allow' );
         }
 
         return $caps;

@@ -209,7 +209,7 @@ class TutorPress_Admin_Customizations {
             return;
         }
 
-        $post_id = (int) $_GET['post'];
+        $post_id = absint( wp_unslash( $_GET['post'] ) );
         $post = get_post($post_id);
         
         if (!$post) {
@@ -223,32 +223,27 @@ class TutorPress_Admin_Customizations {
         );
         $current_user = get_current_user_id();
         
-        // Only check if user is not the post author
-        if (!in_array($post->post_type, $tutor_post_types) || $post->post_author == $current_user) {
+        if (!in_array($post->post_type, $tutor_post_types, true)) {
             return;
         }
 
-        // For lessons and assignments, check if user is co-instructor of the PARENT COURSE
-        if (in_array($post->post_type, array(tutor()->lesson_post_type, tutor()->assignment_post_type))) {
-            $course_id = get_post_meta($post_id, '_tutor_course_id_for_lesson', true);
-            if (!$course_id && function_exists('tutor_utils')) {
-                $course_id = tutor_utils()->get_course_id_by('lesson', $post_id);
+        $child_types = array(tutor()->lesson_post_type, tutor()->assignment_post_type);
+        if (in_array($post->post_type, $child_types, true)) {
+            if (tutorpress_permissions()->can_user_edit_course_content($post_id, $current_user)) {
+                return;
             }
-            
-            if ($course_id && function_exists('tutor_utils')) {
-                if (tutor_utils()->can_user_edit_course($current_user, $course_id)) {
-                    return; // Allow access
-                }
-            }
+
+            wp_die(esc_html__('Permission Denied', 'tutor'));
         }
-        // For courses, check if user is co-instructor of the course itself
-        elseif ($post->post_type === tutor()->course_post_type) {
-            if (function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $post_id)) {
-                return; // Allow access
-            }
+
+        if ($post->post_author == $current_user) {
+            return;
+        }
+
+        if (function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $post_id)) {
+            return;
         }
         
-        // If we get here, user is not authorized
         wp_die(esc_html__('Permission Denied', 'tutor'));
     }
 }

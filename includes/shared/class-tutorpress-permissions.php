@@ -33,7 +33,7 @@ class TutorPress_Permissions {
         }
 
         // Fallback to WordPress core permissions
-        return current_user_can('edit_post', $course_id);
+        return user_can($user_id, 'edit_post', $course_id);
     }
 
     /**
@@ -58,7 +58,7 @@ class TutorPress_Permissions {
         }
 
         // Fallback to WordPress core permissions
-        $can_edit = current_user_can('manage_options') || current_user_can('edit_post', $course_id);
+        $can_edit = user_can($user_id, 'manage_options') || user_can($user_id, 'edit_post', $course_id);
         return apply_filters('tutorpress_can_edit_course_settings', $can_edit, $course_id, $user_id);
     }
 
@@ -76,12 +76,12 @@ class TutorPress_Permissions {
         }
 
         // Admin can access everything
-        if (current_user_can('manage_options')) {
+        if (user_can($user_id, 'manage_options')) {
             return true;
         }
 
         // Lesson author can access
-        if (current_user_can('edit_post', $lesson_id)) {
+        if (user_can($user_id, 'edit_post', $lesson_id)) {
             return true;
         }
 
@@ -108,17 +108,17 @@ class TutorPress_Permissions {
         }
 
         // Admin can manage all enrollments
-        if (current_user_can('manage_options')) {
+        if (user_can($user_id, 'manage_options')) {
             return true;
         }
 
         // Instructor can manage enrollments for their courses
-        if ($course_id && current_user_can('tutor_instructor')) {
-            return current_user_can('edit_post', $course_id);
+        if ($course_id && user_can($user_id, 'tutor_instructor')) {
+            return user_can($user_id, 'edit_post', $course_id);
         }
 
         // General instructor capability for enrollment management
-        if (current_user_can('tutor_instructor')) {
+        if (user_can($user_id, 'tutor_instructor')) {
             return true;
         }
 
@@ -151,7 +151,7 @@ class TutorPress_Permissions {
         }
 
         // Admin can always edit
-        if (current_user_can('manage_options')) {
+        if (user_can($user_id, 'manage_options')) {
             return true;
         }
 
@@ -166,13 +166,39 @@ class TutorPress_Permissions {
     }
 
     /**
+     * Check if user can edit a course bundle.
+     * Administrators may edit any bundle. Instructors may edit only bundles they authored.
+     * Ownership of an included course does not grant bundle access.
+     *
+     * @param int $bundle_id Bundle post ID
+     * @param int|null $user_id User ID (defaults to current user)
+     * @return bool Whether user can edit this bundle
+     */
+    public function can_user_edit_bundle(int $bundle_id, ?int $user_id = null): bool {
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
+
+        if (user_can($user_id, 'manage_options')) {
+            return true;
+        }
+
+        $bundle = get_post($bundle_id);
+        if (!$bundle || $bundle->post_type !== 'course-bundle') {
+            return false;
+        }
+
+        return user_can($user_id, 'tutor_instructor') && (int) $bundle->post_author === $user_id;
+    }
+
+    /**
      * Get course ID for a piece of content (lesson, assignment, quiz)
      * Supports multiple resolution methods for reliability
      *
      * @param int $post_id Post ID
-     * @return int|0 Course ID or 0 if not found
+     * @return int Course ID or 0 if not found
      */
-    private function get_course_id_for_content(int $post_id): int {
+    public function get_course_id_for_content(int $post_id): int {
         // Method 1: Use Tutor LMS utility if available
         if (function_exists('tutor_utils')) {
             $course_id = tutor_utils()->get_course_id_by('lesson', $post_id);
