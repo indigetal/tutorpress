@@ -114,8 +114,7 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_bundle_selection'],
                     'permission_callback' => function($request) {
-                        $bundle_id = (int) $request->get_param('bundle_id');
-                        return $this->check_bundle_edit_permission_by_id($bundle_id);
+                        return $this->authorize_bundle_object($this->get_request_object_id($request, 'bundle_id'));
                     },
                     'args'               => [
                         'bundle_id' => [
@@ -525,25 +524,7 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
      * @return bool|WP_Error Whether user has permission.
      */
     public function check_bundle_edit_permission($request) {
-        // Must be logged in
-        if (!is_user_logged_in()) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You must be logged in to access bundle certificate settings.', 'tutorpress'),
-                ['status' => 401]
-            );
-        }
-
-        // Must have admin or instructor capabilities
-        if (!current_user_can('edit_posts')) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to access bundle certificate settings.', 'tutorpress'),
-                ['status' => 403]
-            );
-        }
-
-        return true;
+        return $this->authorize_bundle_object($this->get_request_object_id($request, 'bundle_id'));
     }
 
     /**
@@ -554,24 +535,7 @@ class TutorPress_Certificate_Controller extends TutorPress_REST_Controller {
      * @return bool|WP_Error Whether user has permission.
      */
     private function check_bundle_edit_permission_by_id($bundle_id) {
-        if (!$bundle_id) {
-            return new WP_Error(
-                'invalid_bundle_id',
-                __('Invalid bundle ID.', 'tutorpress'),
-                ['status' => 400]
-            );
-        }
-
-        // Check if user can edit this specific bundle (TutorPress pattern)
-        if (!current_user_can('edit_post', $bundle_id)) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to edit this bundle\'s certificate settings.', 'tutorpress'),
-                ['status' => 403]
-            );
-        }
-
-        return true;
+        return $this->authorize_bundle_object($bundle_id);
     }
 
     /**

@@ -46,6 +46,7 @@ import {
   ContentReorderOperationState,
   ContentOrder,
 } from "./utils";
+import { reconcileFetchedTopics } from "./utils/topicRefresh";
 import { createCurriculumError } from "../../utils/errors";
 
 // Define the store's state interface
@@ -1464,7 +1465,8 @@ const resolvers = {
           })) || [],
       }));
 
-      yield actions.setTopics(topics);
+      const currentTopics = select("tutorpress/curriculum").getTopics() as Topic[];
+      yield actions.setTopics(reconcileFetchedTopics(currentTopics, topics));
       yield actions.setOperationState({ status: "idle" });
     } catch (error) {
       console.error("Error fetching topics:", error);

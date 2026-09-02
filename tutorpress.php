@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TutorPress
  * Description: Restores backend Gutenberg editing for Tutor LMS courses and lessons, modernizing the backend UI and streamlining the course creation workflow. Enables dynamic template overrides, custom metadata storage, and other enhancements for a seamless integration with Gutenberg, WordPress core, and third-party plugins.
- * Version: 2.2.0
+ * Version: 2.3.0
  * Author: Indigetal WebCraft
  * Author URI: https://indigetal.com/tutorpress
  */
@@ -81,16 +81,17 @@ require_once TUTORPRESS_PATH . 'includes/class-tutorpress.php';
 // Initialize TutorPress
 TutorPress_Main::instance( array( 'main_file' => __FILE__ ) );
 
-// Capability migration: runs once per version (handles fresh installs + upgrades)
+// Capability migration: runs once per capability-schema version (fresh installs + upgrades).
 // WordPress does NOT fire register_activation_hook on plugin updates, only fresh activation.
-// This migration ensures capabilities are granted for both scenarios.
+// Schema version is independent of TUTORPRESS_VERSION so plugin bumps do not re-run grants.
 add_action('init', function() {
+    $cap_schema_version = '2.2.1';
     $cap_version = get_option('tutorpress_capability_version', '0');
-    if (version_compare($cap_version, TUTORPRESS_VERSION, '<')) {
+    if (version_compare($cap_version, $cap_schema_version, '<')) {
         // Ensure Tutor LMS is available before granting capabilities
         if (function_exists('tutor') && class_exists('TutorPress_Capability_Fixes')) {
             TutorPress_Capability_Fixes::grant_missing_capabilities();
-            update_option('tutorpress_capability_version', TUTORPRESS_VERSION);
+            update_option('tutorpress_capability_version', $cap_schema_version);
         }
     }
 }, 20); // Priority 20: after Tutor LMS is available

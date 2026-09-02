@@ -68,12 +68,12 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_bundle'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                 ],
                 [
                     'methods'             => 'PATCH',
                     'callback'            => [$this, 'update_bundle'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                 ],
             ]
         );
@@ -86,7 +86,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_bundle_courses'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                     'args'               => [
                         'id' => [
                             'required'          => true,
@@ -99,7 +99,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => 'PATCH',
                     'callback'            => [$this, 'update_bundle_courses'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                     'args'               => [
                         'id' => [
                             'required'          => true,
@@ -129,7 +129,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_bundle_benefits'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                     'args'               => [
                         'id' => [
                             'required'          => true,
@@ -150,7 +150,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_bundle_instructors'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                     'args'               => [
                         'id' => [
                             'required'          => true,
@@ -171,7 +171,7 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'save_bundle_benefits'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => [$this, 'authorize_bundle_from_request'],
                     'args'               => [
                         'bundle_id' => [
                             'required'          => true,
@@ -200,37 +200,42 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
      * @return bool|WP_Error Whether user has permission.
      */
     public function check_permission($request) {
-        // Ensure Tutor LMS is active
         $tutor_check = $this->ensure_tutor_lms();
         if (is_wp_error($tutor_check)) {
             return $tutor_check;
         }
 
-        // Check if user can edit posts (basic requirement)
-        if (!current_user_can('edit_posts')) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to access this endpoint.', 'tutorpress'),
-                ['status' => 403]
-            );
-        }
+        return parent::check_permission($request);
+    }
 
-        // For bundle-specific operations, check if user can edit the specific bundle
-        $bundle_id = $request->get_param('id');
-        if ($bundle_id) {
-            $bundle = get_post($bundle_id);
-            if ($bundle && $bundle->post_type === 'course-bundle') {
-                if (!current_user_can('edit_post', $bundle_id)) {
-                    return new WP_Error(
-                        'rest_forbidden',
-                        __('You do not have permission to edit this bundle.', 'tutorpress'),
-                        ['status' => 403]
-                    );
-                }
+    /**
+     * Authorize a Bundle from request `id` and/or `bundle_id`.
+     *
+     * @since 2.3.0
+     * @param WP_REST_Request $request The request object.
+     * @return true|WP_Error
+     */
+    public function authorize_bundle_from_request($request) {
+        $id        = $this->get_request_object_id($request, 'id');
+        $bundle_id = $this->get_request_object_id($request, 'bundle_id');
+
+        if ($id && $bundle_id) {
+            $from_id = $this->authorize_bundle_object($id);
+            if (is_wp_error($from_id)) {
+                return $from_id;
             }
+            return $this->authorize_bundle_object($bundle_id);
         }
 
-        return true;
+        if ($id) {
+            return $this->authorize_bundle_object($id);
+        }
+
+        if ($bundle_id) {
+            return $this->authorize_bundle_object($bundle_id);
+        }
+
+        return $this->authorize_bundle_object(0);
     }
 
     /**
@@ -251,6 +256,10 @@ class TutorPress_REST_Course_Bundles_Controller extends TutorPress_REST_Controll
             'paged'          => $page,
             'post_status'    => 'publish',
         ];
+
+        if (!current_user_can('manage_options')) {
+            $args['author'] = get_current_user_id();
+        }
 
         if ($search) {
             $args['s'] = $search;

@@ -550,16 +550,7 @@ class TutorPress_Course_Settings_Controller extends TutorPress_REST_Controller {
      * @return bool|WP_Error True if user has permission, error otherwise
      */
     public function check_instructor_permission($request) {
-        // Allow any user who can edit posts to manage instructors (same as prerequisites)
-        if (!current_user_can('edit_posts')) {
-            return new WP_Error(
-                'rest_forbidden',
-                __('You do not have permission to manage course instructors.', 'tutorpress'),
-                array('status' => 403)
-            );
-        }
-
-        return true;
+        return $this->authorize_course_object($this->get_request_object_id($request, 'course_id'));
     }
 
     /**

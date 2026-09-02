@@ -200,7 +200,7 @@ class TutorPress_Collaborative_Editing {
         }
 
         // Only handle Tutor LMS post types
-        $tutor_post_types = array( 'courses', 'lesson', 'tutor_assignments', 'tutor_quiz' );
+        $tutor_post_types = array( 'courses', 'course-bundle', 'lesson', 'tutor_assignments', 'tutor_quiz' );
         if ( function_exists( 'tutor' ) && is_object( tutor() ) ) {
             if ( property_exists( tutor(), 'course_post_type' ) ) {
                 $tutor_post_types[] = tutor()->course_post_type;
@@ -222,6 +222,18 @@ class TutorPress_Collaborative_Editing {
         if ( $is_course ) {
             if ( $permissions->can_user_access_course( $post_id, $user_id ) ) {
                 return array( 'exist' );
+            }
+
+            return $caps;
+        }
+
+        if ( 'course-bundle' === $post->post_type ) {
+            if ( $permissions->can_user_edit_bundle( $post_id, $user_id ) ) {
+                return array( 'exist' );
+            }
+
+            if ( in_array( $cap, array( 'edit_post', 'delete_post' ), true ) ) {
+                return array( 'do_not_allow' );
             }
 
             return $caps;

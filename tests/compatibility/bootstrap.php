@@ -6,9 +6,19 @@
 
 if ( ! function_exists( 'tutorpress_wp71_compat_assert' ) ) {
 
+	class TutorPress_WP71_Compat_Assertion_Failure extends RuntimeException {}
+
 	function tutorpress_wp71_compat_fail( $message ) {
-		fwrite( STDERR, 'FAIL: ' . $message . PHP_EOL );
-		exit( 1 );
+		throw new TutorPress_WP71_Compat_Assertion_Failure( $message );
+	}
+
+	function tutorpress_wp71_compat_run( $callback ) {
+		try {
+			$callback();
+		} catch ( TutorPress_WP71_Compat_Assertion_Failure $e ) {
+			fwrite( STDERR, 'FAIL: ' . $e->getMessage() . PHP_EOL );
+			exit( 1 );
+		}
 	}
 
 	function tutorpress_wp71_compat_pass( $message ) {

@@ -36,7 +36,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_items'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_course_object($this->get_request_object_id($request, 'course_id'));
+                    },
                     'args'               => [
                         'course_id' => [
                             'required'          => true,
@@ -49,7 +51,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'create_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_course_object($this->get_request_object_id($request, 'course_id'));
+                    },
                     'args'               => [
                         'course_id' => [
                             'required'          => true,
@@ -88,22 +92,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'methods'             => 'PATCH',
                     'callback'            => [$this, 'update_item'],
                     'permission_callback' => function($request) {
-                        $topic_id = (int) $request->get_param('id');
-                        
-                        // Get the topic to find its parent course
-                        $topic = get_post($topic_id);
-                        if (!$topic || $topic->post_type !== 'topics') {
-                            return false;
-                        }
-                        
-                        // Check if user can edit the parent course (not the topic itself)
-                        $course_id = $topic->post_parent;
-                        if ($course_id && current_user_can('edit_post', $course_id)) {
-                            return true;
-                        }
-                        
-                        // Fallback to general permission check
-                        return $this->check_permission($request);
+                        return $this->authorize_topic_object($this->get_request_object_id($request));
                     },
                     'args'               => [
                         'title' => [
@@ -127,22 +116,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => [$this, 'delete_item'],
                     'permission_callback' => function($request) {
-                        $topic_id = (int) $request->get_param('id');
-                        
-                        // Get the topic to find its parent course
-                        $topic = get_post($topic_id);
-                        if (!$topic || $topic->post_type !== 'topics') {
-                            return false;
-                        }
-                        
-                        // Check if user can edit the parent course (not the topic itself)
-                        $course_id = $topic->post_parent;
-                        if ($course_id && current_user_can('edit_post', $course_id)) {
-                            return true;
-                        }
-                        
-                        // Fallback to general permission check
-                        return $this->check_permission($request);
+                        return $this->authorize_topic_object($this->get_request_object_id($request));
                     },
                 ],
             ]
@@ -156,7 +130,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'reorder_items'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_course_object($this->get_request_object_id($request, 'course_id'));
+                    },
                     'args'               => [
                         'course_id' => [
                             'required'          => true,
@@ -197,22 +173,11 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'duplicate_item'],
                     'permission_callback' => function($request) {
-                        $topic_id = (int) $request->get_param('id');
-                        $course_id = (int) $request->get_param('course_id');
-                        
-                        // Get the topic to find its parent course
-                        $topic = get_post($topic_id);
-                        if (!$topic || $topic->post_type !== 'topics') {
-                            return false;
+                        $source = $this->authorize_topic_object($this->get_request_object_id($request));
+                        if (is_wp_error($source)) {
+                            return $source;
                         }
-                        
-                        // Check if user can edit the parent course (not the topic itself)
-                        if ($course_id && current_user_can('edit_post', $course_id)) {
-                            return true;
-                        }
-                        
-                        // Fallback to general permission check
-                        return $this->check_permission($request);
+                        return $this->authorize_course_object($this->get_request_object_id($request, 'course_id'));
                     },
                     'args'               => [
                         'course_id' => [
@@ -235,22 +200,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'reorder_topic_content'],
                     'permission_callback' => function($request) {
-                        $topic_id = (int) $request->get_param('id');
-                        
-                        // Get the topic to find its parent course
-                        $topic = get_post($topic_id);
-                        if (!$topic || $topic->post_type !== 'topics') {
-                            return false;
-                        }
-                        
-                        // Check if user can edit the parent course (not the topic itself)
-                        $course_id = $topic->post_parent;
-                        if ($course_id && current_user_can('edit_post', $course_id)) {
-                            return true;
-                        }
-                        
-                        // Fallback to general permission check
-                        return $this->check_permission($request);
+                        return $this->authorize_topic_object($this->get_request_object_id($request));
                     },
                     'args'               => [
                         'content_orders' => [
@@ -286,22 +236,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_parent_info'],
                     'permission_callback' => function($request) {
-                        $topic_id = (int) $request->get_param('id');
-                        
-                        // Get the topic to find its parent course
-                        $topic = get_post($topic_id);
-                        if (!$topic || $topic->post_type !== 'topics') {
-                            return false;
-                        }
-                        
-                        // Check if user can edit the parent course (not the topic itself)
-                        $course_id = $topic->post_parent;
-                        if ($course_id && current_user_can('edit_post', $course_id)) {
-                            return true;
-                        }
-                        
-                        // Fallback to general permission check
-                        return $this->check_permission($request);
+                        return $this->authorize_topic_object($this->get_request_object_id($request));
                     },
                     'args'               => [
                         'id' => [

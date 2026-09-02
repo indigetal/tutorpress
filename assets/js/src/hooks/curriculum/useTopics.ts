@@ -29,12 +29,10 @@ import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
-import { store as editorStore } from "@wordpress/editor";
 import { useCurriculumError } from "./useCurriculumError";
 import { store as noticesStore } from "@wordpress/notices";
 import { useStatePersistence } from "./useStatePersistence";
-import { addFilter, removeFilter } from "@wordpress/hooks";
-import { CoreEditorSelectors, isCoreEditorSelectors } from "../../types/wordpress";
+import { addAction, removeAction } from "@wordpress/hooks";
 
 // ============================================================================
 // Error Handling Types
@@ -60,31 +58,6 @@ const isDbError = (data: unknown): data is DbError => {
  */
 const isErrorState = (state: TopicOperationState): state is { status: "error"; error: CurriculumError } => {
   return state.status === "error";
-};
-
-// Editor store types
-interface EditorSelectors {
-  isAutosavingPost: () => boolean;
-  isPublishingPost: () => boolean;
-  isSavingPost: () => boolean;
-  getCurrentPostId: () => number;
-  getCurrentPost: () => { status: string } | null;
-  getEditedPostAttribute: (attr: string) => any;
-}
-
-// Type guard for editor store
-const isEditorStore = (editor: unknown): editor is EditorSelectors => {
-  if (!editor || typeof editor !== "object") return false;
-
-  const e = editor as Record<string, unknown>;
-  return (
-    typeof e.isAutosavingPost === "function" &&
-    typeof e.isPublishingPost === "function" &&
-    typeof e.isSavingPost === "function" &&
-    typeof e.getCurrentPostId === "function" &&
-    typeof e.getCurrentPost === "function" &&
-    typeof e.getEditedPostAttribute === "function"
-  );
 };
 
 export interface UseTopicsOptions {
@@ -189,47 +162,6 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
   // Track previous courseId to prevent unnecessary fetches
   const prevCourseId = useRef<number | undefined>(courseId);
 
-  // Add refs for tracking post status changes
-  const prevPostIdRef = useRef(0);
-  const prevPostStatusRef = useRef<string | null>(null);
-
-  // Add editor store selectors
-  const { currentPostStatus, currentPostId } = useSelect(
-    (select) => {
-      if (!isLesson && !isAssignment) {
-        return {
-          currentPostStatus: null,
-          currentPostId: 0,
-        };
-      }
-
-      try {
-        // Explicitly type the editor store selection
-        const editor = select(editorStore) as unknown;
-
-        if (!isEditorStore(editor)) {
-          return {
-            currentPostStatus: null,
-            currentPostId: 0,
-          };
-        }
-
-        // Get editor state
-        const post = editor.getCurrentPost();
-        return {
-          currentPostStatus: post?.status || null,
-          currentPostId: editor.getCurrentPostId(),
-        };
-      } catch (err) {
-        return {
-          currentPostStatus: null,
-          currentPostId: 0,
-        };
-      }
-    },
-    [isLesson, isAssignment]
-  );
-
   // Fetch topics when courseId changes
   useEffect(() => {
     if (courseId && courseId !== prevCourseId.current) {
@@ -299,54 +231,27 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
     };
   }, [clearSnapshot, setActiveOperation]);
 
-  // Monitor post status changes for automatic refresh
+  // Refresh curriculum after a successful Lesson or Assignment entity save.
   useEffect(() => {
     if (!isLesson && !isAssignment) {
       return;
     }
 
-    const prevStatus = prevPostStatusRef.current;
-    const isInitialPublish = prevStatus === "auto-draft" && currentPostStatus === "publish";
-
-    if (isInitialPublish && courseId) {
-      // Trigger curriculum refresh
-      fetchTopics(courseId);
-    }
-
-    // Update refs for next check
-    prevPostIdRef.current = currentPostId;
-    prevPostStatusRef.current = currentPostStatus;
-  }, [isLesson, isAssignment, currentPostId, currentPostStatus, courseId, fetchTopics]);
-
-  // Add editor.didPostSaving filter for existing lesson and assignment updates
-  useEffect(() => {
-    if (!isLesson && !isAssignment) {
-      return;
-    }
-
-    const handlePostSaving = (isComplete: boolean, options: { isAutosave?: boolean } = {}) => {
-      if (!isComplete || options.isAutosave) {
+    const handleSavePost = (
+      _post: { id: number; type: string },
+      options: { isAutosave?: boolean } = {}
+    ) => {
+      if (options.isAutosave || !courseId) {
         return;
       }
 
-      // Get current course ID from URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const currentCourseId = urlParams.get("course_id");
-
-      if (!currentCourseId) {
-        return;
-      }
-
-      // Refresh topics
-      fetchTopics(parseInt(currentCourseId, 10));
+      void fetchTopics(courseId);
     };
 
-    // Add filter
-    addFilter("editor.didPostSaving", "tutorpress/curriculum-refresh", handlePostSaving);
+    addAction("editor.savePost", "tutorpress/curriculum-refresh", handleSavePost);
 
-    // Cleanup
     return () => {
-      removeFilter("editor.didPostSaving", "tutorpress/curriculum-refresh");
+      removeAction("editor.savePost", "tutorpress/curriculum-refresh");
     };
   }, [isLesson, isAssignment, courseId, fetchTopics]);
 

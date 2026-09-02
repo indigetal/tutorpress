@@ -47,7 +47,9 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_items'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_topic_object($this->get_request_object_id($request, 'topic_id'));
+                    },
                     'args'               => [
                         'topic_id' => [
                             'required'          => true,
@@ -60,7 +62,9 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'create_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_topic_object($this->get_request_object_id($request, 'topic_id'));
+                    },
                     'args'               => [
                         'topic_id' => [
                             'required'          => true,
@@ -92,7 +96,9 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => 'PATCH',
                     'callback'            => [$this, 'update_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_course_content_object($this->get_request_object_id($request));
+                    },
                     'args'               => [
                         'title' => [
                             'type'              => 'string',
@@ -114,7 +120,9 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => [$this, 'delete_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_course_content_object($this->get_request_object_id($request));
+                    },
                 ],
             ]
         );
@@ -127,7 +135,9 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'reorder_items'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        return $this->authorize_topic_object($this->get_request_object_id($request, 'topic_id'));
+                    },
                     'args'               => [
                         'topic_id' => [
                             'required'          => true,
@@ -167,7 +177,13 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => [$this, 'duplicate_item'],
-                    'permission_callback' => [$this, 'check_permission'],
+                    'permission_callback' => function($request) {
+                        $source = $this->authorize_course_content_object($this->get_request_object_id($request));
+                        if (is_wp_error($source)) {
+                            return $source;
+                        }
+                        return $this->authorize_topic_object($this->get_request_object_id($request, 'topic_id'));
+                    },
                     'args'               => [
                         'topic_id' => [
                             'required'          => true,
@@ -189,8 +205,7 @@ class TutorPress_REST_Assignments_Controller extends TutorPress_REST_Controller 
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_parent_info'],
                     'permission_callback' => function($request) {
-                        $assignment_id = (int) $request->get_param('id');
-                        return current_user_can('edit_post', $assignment_id);
+                        return $this->authorize_course_content_object($this->get_request_object_id($request));
                     },
                     'args'               => [
                         'id' => [

@@ -49,6 +49,8 @@ class TutorPress_Capability_Fixes {
      *
      * Tutor LMS grants capabilities for courses, lessons, quizzes in Tutor.php
      * but assignments are completely missing from their capability setup.
+     * Administrators keep both *_others_* primitives. Instructors do not;
+     * cross-author access is supplied dynamically through parent-Course policy.
      *
      * @since 2.0.11
      */
@@ -60,33 +62,40 @@ class TutorPress_Capability_Fixes {
             'delete_tutor_assignment',
             // Plural caps (primitive capabilities)
             'edit_tutor_assignments',
-            'edit_others_tutor_assignments',
             'edit_published_tutor_assignments',
             'edit_private_tutor_assignments',
             'publish_tutor_assignments',
             'read_private_tutor_assignments',
             'delete_tutor_assignments',
-            'delete_others_tutor_assignments',
             'delete_published_tutor_assignments',
             'delete_private_tutor_assignments',
         );
 
-        // Grant to administrator
+        $others_assignment_caps = array(
+            'edit_others_tutor_assignments',
+            'delete_others_tutor_assignments',
+        );
+
         $admin = get_role('administrator');
         if ($admin) {
-            foreach ($assignment_caps as $cap) {
+            foreach (array_merge($assignment_caps, $others_assignment_caps) as $cap) {
                 if (!$admin->has_cap($cap)) {
                     $admin->add_cap($cap);
                 }
             }
         }
 
-        // Grant to instructor
         $instructor = get_role(tutor()->instructor_role);
         if ($instructor) {
             foreach ($assignment_caps as $cap) {
                 if (!$instructor->has_cap($cap)) {
                     $instructor->add_cap($cap);
+                }
+            }
+
+            foreach ($others_assignment_caps as $cap) {
+                if ($instructor->has_cap($cap)) {
+                    $instructor->remove_cap($cap);
                 }
             }
         }
