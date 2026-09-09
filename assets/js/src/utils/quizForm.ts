@@ -20,6 +20,7 @@
 import type {
   QuizContentDripPostFields,
   QuizContentDripSettings,
+  QuizQuestion,
   QuizSettingsContract,
   QuizSettingsDirtyGroup,
 } from "../types/quiz";
@@ -317,3 +318,33 @@ export const isRequiredString = (value: string | null | undefined, minLength: nu
   const trimmed = safeStringTrim(value);
   return trimmed.length >= minLength;
 };
+
+/** Outbound Tutor update copy only; domain `QuizQuestion.question_id` stays numeric. */
+export type InteractiveQuizTutorTransportQuestion = Omit<
+  QuizQuestion,
+  "question_id"
+> & {
+  question_id: number | string;
+};
+
+/**
+ * Convert negative IDs on new H5P questions to nonnumeric Tutor hash IDs.
+ * Returns new objects for rewritten questions and does not mutate the input.
+ */
+export const prepareInteractiveQuizUpdateQuestionsForTutor = (
+  questions: readonly QuizQuestion[],
+): InteractiveQuizTutorTransportQuestion[] =>
+  questions.map((question) => {
+    if (
+      question.question_type === "h5p" &&
+      question._data_status === "new" &&
+      question.question_id < 0
+    ) {
+      return {
+        ...question,
+        question_id: `tutorpress-h5p-${Math.abs(question.question_id)}`,
+      };
+    }
+
+    return question;
+  });

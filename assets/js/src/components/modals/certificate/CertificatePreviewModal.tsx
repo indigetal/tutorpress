@@ -3,13 +3,14 @@ import { Modal } from "@wordpress/components";
 import { Icon, close, arrowLeft, arrowRight, check } from "@wordpress/icons";
 import { Button } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
-import { useSelect, useDispatch } from "@wordpress/data";
 import { CertificateTemplate } from "../../../types/certificate";
 
 interface CertificatePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   template: CertificateTemplate | null;
+  selectedTemplate: string | null;
+  isSelectionSaving: boolean;
   onSelect?: (template: CertificateTemplate) => void;
   onNavigate?: (direction: "prev" | "next") => void;
   canNavigate?: boolean;
@@ -19,18 +20,12 @@ const CertificatePreviewModal: React.FC<CertificatePreviewModalProps> = ({
   isOpen,
   onClose,
   template,
+  selectedTemplate,
+  isSelectionSaving,
   onSelect,
   onNavigate,
   canNavigate = false,
 }) => {
-  const { selectedTemplate, isSelectionSaving } = useSelect((select: any) => {
-    const store = select("tutorpress/certificate");
-    return {
-      selectedTemplate: store.getCertificateSelection().selectedTemplate,
-      isSelectionSaving: store.isCertificateSelectionSaving(),
-    };
-  }, []);
-
   const isCurrentlySelected = template && selectedTemplate === template.key;
 
   const handleSelect = () => {

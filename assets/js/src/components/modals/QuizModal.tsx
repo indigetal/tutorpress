@@ -29,6 +29,11 @@ import {
   isHiddenFromPicker,
 } from "../../utils/quizQuestionTypes";
 import { useQuestionValidation } from "../../hooks/quiz";
+import {
+  createQuizEditorMediaFinalizer,
+  createQuizEditorMediaRequestSession,
+  type QuizEditorMediaFrame,
+} from "../../utils/quizEditorMediaLifecycle";
 import { BaseModalLayout, BaseModalHeader } from "../common";
 import type {
   TimeUnit,
@@ -142,14 +147,130 @@ interface TinyMCEEditorProps {
   editorId: string;
   onCancel: () => void;
   onOk: () => void;
+  onPendingStateChange?: (isPending: boolean) => void;
+  onInsertionFailure?: () => void;
+  isInsertionPending?: boolean;
 }
 
-const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placeholder, editorId, onCancel, onOk }) => {
+const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({
+  value,
+  onChange,
+  placeholder,
+  editorId,
+  onCancel,
+  onOk,
+  onPendingStateChange,
+  onInsertionFailure,
+  isInsertionPending = false,
+}) => {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const timeoutIdsRef = useRef<Set<number>>(new Set());
+  const tabAbortRef = useRef<AbortController | null>(null);
+  const mediaFrameRef = useRef<QuizEditorMediaFrame | null>(null);
+  const insertionPendingRef = useRef(false);
+  const preInsertionContentRef = useRef("");
+  const closeCleanupTimeoutIdRef = useRef<number | null>(null);
+  const waitWarningTimeoutIdRef = useRef<number | null>(null);
+  const finalizeMediaRef = useRef<(() => void) | null>(null);
+  const requestSessionRef = useRef<ReturnType<
+    typeof createQuizEditorMediaRequestSession
+  > | null>(null);
+  const ajaxUnbindRef = useRef<(() => void) | null>(null);
+  const onChangeRef = useRef(onChange);
+  const isInitializedRef = useRef(false);
+  const tinymceHandlersRef = useRef<{
+    onInit: () => void;
+    onContentChange: () => void;
+    onSetContent: () => void;
+    onUndoRedo: () => void;
+    onFocus: () => void;
+  } | null>(null);
+  onChangeRef.current = onChange;
+
+  const scheduleEditorTimeout = (callback: () => void, delay: number) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  };
+
+  /**
+   * Remove the temporary jQuery ajaxComplete and ajaxError observers.
+   *
+   * Safe when none are attached. Called on success, failure, and TinyMCEEditor unmount.
+   *
+   * @return {void}
+   */
+  const removeAjaxObservers = () => {
+    ajaxUnbindRef.current?.();
+    ajaxUnbindRef.current = null;
+  };
+
+  /**
+   * Finalize a settled editor-scoped insertion and clear the pending guard last.
+   *
+   * Unbinds ajax observers, then runs the idempotent frame finalizer.
+   * Does not re-add the workflow.
+   *
+   * @return {void}
+   */
+  const settleSuccessfulInsertion = () => {
+    window.clearTimeout(closeCleanupTimeoutIdRef.current as number);
+    timeoutIdsRef.current.delete(closeCleanupTimeoutIdRef.current as number);
+    closeCleanupTimeoutIdRef.current = null;
+    window.clearTimeout(waitWarningTimeoutIdRef.current as number);
+    timeoutIdsRef.current.delete(waitWarningTimeoutIdRef.current as number);
+    waitWarningTimeoutIdRef.current = null;
+    removeAjaxObservers();
+    finalizeMediaRef.current?.();
+    insertionPendingRef.current = false;
+    onPendingStateChange?.(false);
+  };
+
+  /**
+   * Finalize a failed insertion after matching Core requests settle without SetContent.
+   *
+   * Reports one failure notice and restores pre-insertion HTML through onChange only
+   * (no editor.setContent, which would re-enter the pending SetContent handler).
+   *
+   * @return {void}
+   */
+  const settleFailedInsertion = () => {
+    if (
+      !insertionPendingRef.current ||
+      requestSessionRef.current?.hasSetContent()
+    ) {
+      return;
+    }
+    onInsertionFailure?.();
+    onChange(preInsertionContentRef.current);
+    settleSuccessfulInsertion();
+  };
+
+  const clearEditorTimeouts = () => {
+    timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    timeoutIdsRef.current.clear();
+  };
+
+  const removeTabHandlers = () => {
+    tabAbortRef.current?.abort();
+    tabAbortRef.current = null;
+  };
+
+  // Unmount/editorId only: the isInitialized flip must not cancel setup timeouts.
+  useEffect(() => {
+    return () => {
+      clearEditorTimeouts();
+      removeTabHandlers();
+      removeAjaxObservers();
+    };
+  }, [editorId]);
 
   useEffect(() => {
-    if (!editorRef.current || isInitialized) return;
+    if (!editorRef.current) return;
 
     // Initialize TinyMCE editor using WordPress wp.editor
     const wpEditor = (window as any).wp?.editor;
@@ -205,34 +326,53 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placehol
             strikethrough: { inline: "del" },
           },
           setup: (editor: any) => {
-            // Set initial content when editor is ready
-            editor.on("init", () => {
+            const onInit = () => {
               editor.setContent(value || "");
 
               // Force Visual mode after initialization with a longer delay
-              setTimeout(() => {
+              scheduleEditorTimeout(() => {
                 forceVisualMode(editorId);
               }, 200);
-            });
+            };
 
-            // Handle content changes
-            editor.on("change keyup paste input SetContent", () => {
-              const content = editor.getContent();
-              onChange(content);
-            });
+            const onContentChange = () => {
+              onChangeRef.current(editor.getContent());
+            };
 
-            // Handle undo/redo events
-            editor.on("Undo Redo", () => {
-              const content = editor.getContent();
-              onChange(content);
-            });
+            const onSetContent = () => {
+              if (!insertionPendingRef.current) return;
+              requestSessionRef.current?.markSetContent();
+              onChangeRef.current(editor.getContent());
+              window.clearTimeout(waitWarningTimeoutIdRef.current as number);
+              timeoutIdsRef.current.delete(
+                waitWarningTimeoutIdRef.current as number,
+              );
+              waitWarningTimeoutIdRef.current = null;
+              scheduleEditorTimeout(settleSuccessfulInsertion, 0);
+            };
 
-            // Handle editor focus to ensure Visual mode
-            editor.on("focus", () => {
-              setTimeout(() => {
+            const onUndoRedo = () => {
+              onChangeRef.current(editor.getContent());
+            };
+
+            const onFocus = () => {
+              scheduleEditorTimeout(() => {
                 forceVisualMode(editorId);
               }, 50);
-            });
+            };
+
+            editor.on("init", onInit);
+            editor.on("change keyup paste input SetContent", onContentChange);
+            editor.on("SetContent", onSetContent);
+            editor.on("Undo Redo", onUndoRedo);
+            editor.on("focus", onFocus);
+            tinymceHandlersRef.current = {
+              onInit,
+              onContentChange,
+              onSetContent,
+              onUndoRedo,
+              onFocus,
+            };
           },
         },
         quicktags: {
@@ -241,26 +381,207 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placehol
         mediaButtons: true,
       });
 
+      const wpMedia = (window as any).wp?.media;
+      if (wpMedia?.editor) {
+        const staleFrame = wpMedia.editor.get(editorId);
+        if (staleFrame) {
+          createQuizEditorMediaFinalizer({
+            frame: staleFrame,
+            editorId,
+            media: wpMedia,
+            cleanupListeners: [],
+          })();
+        }
+        const frame = wpMedia.editor.add(editorId, {
+          frame: "post",
+          state: "insert",
+          multiple: true,
+        });
+        mediaFrameRef.current = frame;
+
+        const onEscapeKeydown = (event: KeyboardEvent) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          frame.escape();
+        };
+        const removeEscapeListener = () => {
+          document.removeEventListener("keydown", onEscapeKeydown, true);
+        };
+        const onOpen = () => {
+          removeEscapeListener();
+          document.addEventListener("keydown", onEscapeKeydown, true);
+        };
+        const onClose = () => {
+          removeEscapeListener();
+          closeCleanupTimeoutIdRef.current = scheduleEditorTimeout(() => {
+            if (!insertionPendingRef.current) {
+              finalizeMediaRef.current?.();
+            }
+          }, 0);
+        };
+        const onInsert = (selection: any) => {
+          const attachmentIds = (selection?.toArray?.() ?? []).map(
+            (item: { id: number }) => item.id,
+          );
+          if (!attachmentIds.length) return;
+          window.clearTimeout(closeCleanupTimeoutIdRef.current as number);
+          timeoutIdsRef.current.delete(
+            closeCleanupTimeoutIdRef.current as number,
+          );
+          closeCleanupTimeoutIdRef.current = null;
+          preInsertionContentRef.current =
+            (window as any).tinymce?.get(editorId)?.getContent() ?? "";
+          insertionPendingRef.current = true;
+          onPendingStateChange?.(true);
+          const session = createQuizEditorMediaRequestSession({
+            attachmentIds,
+            postId: wpMedia.view?.settings?.post?.id ?? "",
+          });
+          requestSessionRef.current = session;
+          const jquery = (window as any).jQuery;
+          /**
+           * Schedule deferred failure settle after matching requests finish.
+           *
+           * Compares getSettledCount() to the snapshot attachment ID count.
+           * Successful ajax settle is not failure: Core inserts only after every
+           * send-attachment-to-editor promise succeeds, so the last ajaxComplete
+           * can beat SetContent. A zero-delay check runs after Core's callbacks;
+           * failure proceeds only if SetContent is still absent. Sticky ajaxError
+           * with all requests settled uses the same deferred settle.
+           *
+           * @return {void}
+           */
+          const maybeScheduleFailureSettle = () => {
+            if (session.getSettledCount() < attachmentIds.length) {
+              return;
+            }
+            if (session.hasFailed() || !session.hasSetContent()) {
+              scheduleEditorTimeout(settleFailedInsertion, 0);
+            }
+          };
+          /**
+           * Forward a jQuery ajaxComplete to the request session.
+           *
+           * @param {*}      _event   Unused jQuery event.
+           * @param {Object} request  Exact jqXHR object (one-count identity).
+           * @param {Object} settings jQuery ajax settings; only data is forwarded.
+           * @return {void}
+           */
+          const onAjaxComplete = (
+            _event: unknown,
+            request: object,
+            settings: { data?: unknown },
+          ) => {
+            session.observeAjaxComplete(request, settings?.data);
+            maybeScheduleFailureSettle();
+          };
+          /**
+           * Forward a jQuery ajaxError to the request session.
+           *
+           * Sticky failure is recorded by the session; the paired ajaxComplete is ignored.
+           *
+           * @param {*}      _event   Unused jQuery event.
+           * @param {Object} request  Exact jqXHR object (one-count identity).
+           * @param {Object} settings jQuery ajax settings; only data is forwarded.
+           * @return {void}
+           */
+          const onAjaxError = (
+            _event: unknown,
+            request: object,
+            settings: { data?: unknown },
+          ) => {
+            session.observeAjaxError(request, settings?.data);
+            maybeScheduleFailureSettle();
+          };
+          jquery(document).on("ajaxComplete", onAjaxComplete);
+          jquery(document).on("ajaxError", onAjaxError);
+          ajaxUnbindRef.current = () => {
+            jquery(document).off("ajaxComplete", onAjaxComplete);
+            jquery(document).off("ajaxError", onAjaxError);
+          };
+          waitWarningTimeoutIdRef.current = scheduleEditorTimeout(() => {
+            if (!insertionPendingRef.current) return;
+            (window as any).wp?.data
+              ?.dispatch("core/notices")
+              ?.createNotice(
+                "warning",
+                __(
+                  "Please wait for the media to finish inserting.",
+                  "tutorpress",
+                ),
+                {
+                  type: "snackbar",
+                  id: "tutorpress-quiz-media-insertion-pending",
+                },
+              );
+          }, 15000);
+        };
+        frame.on("open", onOpen);
+        frame.on("close", onClose);
+        frame.on("insert", onInsert);
+        finalizeMediaRef.current = createQuizEditorMediaFinalizer({
+          frame,
+          editorId,
+          media: wpMedia,
+          cleanupListeners: [
+            removeEscapeListener,
+            () => frame.off("open", onOpen),
+            () => frame.off("close", onClose),
+            () => frame.off("insert", onInsert),
+          ],
+        });
+      }
+
       // Set up tab click handlers after initialization
-      setTimeout(() => {
+      scheduleEditorTimeout(() => {
         setupTabHandlers(editorId);
       }, 300);
 
+      isInitializedRef.current = true;
       setIsInitialized(true);
     }
 
     return () => {
-      // Cleanup editor on unmount
-      const wpEditor = (window as any).wp?.editor;
-      if (wpEditor && isInitialized) {
+      const handlers = tinymceHandlersRef.current;
+      const editor = (window as any).tinymce?.get(editorId);
+      if (editor) {
+        onChangeRef.current(editor.getContent());
+        if (handlers) {
+          editor.off("init", handlers.onInit);
+          editor.off(
+            "change keyup paste input SetContent",
+            handlers.onContentChange,
+          );
+          editor.off("SetContent", handlers.onSetContent);
+          editor.off("Undo Redo", handlers.onUndoRedo);
+          editor.off("focus", handlers.onFocus);
+        }
+      }
+      tinymceHandlersRef.current = null;
+
+      if (insertionPendingRef.current) {
+        clearEditorTimeouts();
+        removeAjaxObservers();
+        insertionPendingRef.current = false;
+        onPendingStateChange?.(false);
+      }
+
+      finalizeMediaRef.current?.();
+
+      const wpEditorCleanup = (window as any).wp?.editor;
+      if (wpEditorCleanup && isInitializedRef.current) {
         try {
-          wpEditor.remove(editorId);
+          wpEditorCleanup.remove(editorId);
         } catch (e) {
           // Ignore cleanup errors
         }
       }
+      isInitializedRef.current = false;
     };
-  }, [editorId, isInitialized]);
+  }, [editorId]);
 
   // Function to force Visual mode
   const forceVisualMode = (editorId: string) => {
@@ -296,23 +617,28 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placehol
     const visualTab = document.querySelector(`#${editorId}-tmce`) as HTMLElement;
 
     if (textTab && visualTab) {
+      removeTabHandlers();
+      tabAbortRef.current = new AbortController();
+      const { signal } = tabAbortRef.current;
+
       // Allow Visual tab to be clicked but ensure it stays in Visual mode
-      visualTab.onclick = (e) => {
-        // Don't prevent default - allow normal tab switching behavior
-        setTimeout(() => {
+      const onVisual = () => {
+        scheduleEditorTimeout(() => {
           forceVisualMode(editorId);
         }, 10);
       };
 
       // Prevent Text/Code tab from working - redirect to Visual mode
-      textTab.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setTimeout(() => {
+      const onText = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        scheduleEditorTimeout(() => {
           forceVisualMode(editorId);
         }, 10);
-        return false;
       };
+
+      visualTab.addEventListener("click", onVisual, { signal });
+      textTab.addEventListener("click", onText, { signal });
     }
   };
 
@@ -325,7 +651,7 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placehol
         if (editor && editor.getContent() !== value) {
           editor.setContent(value || "");
           // Force Visual mode after content update
-          setTimeout(() => {
+          scheduleEditorTimeout(() => {
             forceVisualMode(editorId);
           }, 50);
         }
@@ -346,10 +672,10 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({ value, onChange, placehol
         />
       </div>
       <div className="quiz-modal-editor-actions">
-        <Button variant="secondary" isSmall onClick={onCancel}>
+        <Button variant="secondary" isSmall onClick={onCancel} disabled={isInsertionPending}>
           {__("Cancel", "tutorpress")}
         </Button>
-        <Button variant="primary" isSmall onClick={onOk}>
+        <Button variant="primary" isSmall onClick={onOk} disabled={isInsertionPending}>
           {__("OK", "tutorpress")}
         </Button>
       </div>
@@ -386,21 +712,20 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   // Editor visibility state
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
   const [showExplanationEditor, setShowExplanationEditor] = useState(false);
+  const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
+  const [isMediaInsertionPending, setIsMediaInsertionPending] = useState(false);
 
   // Validation state - Step 3.6.8
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   // Course drip availability/mode for form load + top-level Pro FormData companions.
-  const { isContentDripEnabledForForm, contentDripTypeForForm } = useSelect(
-    (select: any) => {
-      const store = select("tutorpress/additional-content");
-      return {
-        isContentDripEnabledForForm: store.isContentDripEnabled(),
-        contentDripTypeForForm: store.getContentDripType() || "",
-      };
-    },
-    []
-  );
+  const { isContentDripEnabledForForm, contentDripTypeForForm } = useSelect((select: any) => {
+    const store = select("tutorpress/additional-content");
+    return {
+      isContentDripEnabledForForm: store.isContentDripEnabled(),
+      contentDripTypeForForm: store.getContentDripType() || "",
+    };
+  }, []);
 
   // Initialize quiz form hook with loaded data
   const {
@@ -434,6 +759,29 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   const { setQuizDuplicationState, setTopics } = useDispatch(curriculumStore) as any;
   const { createNotice } = useDispatch(noticesStore);
 
+  const handleEditorPendingStateChange = (editorId: string, isPending: boolean) => {
+    setActiveEditorId(isPending ? editorId : null);
+    setIsMediaInsertionPending(isPending);
+  };
+
+  const handleEditorInsertionFailure = () => {
+    createNotice("error", __("Media could not be inserted.", "tutorpress"), {
+      type: "snackbar",
+      id: "tutorpress-quiz-media-insertion-failure",
+    });
+  };
+
+  const guardPendingInsertionTransition = (): boolean => {
+    if (!isMediaInsertionPending) {
+      return false;
+    }
+    createNotice("warning", __("Please wait for the media to finish inserting.", "tutorpress"), {
+      type: "snackbar",
+      id: "tutorpress-quiz-media-insertion-pending",
+    });
+    return true;
+  };
+
   // Store state and dispatch
   const { saveQuiz, getQuizDetails, setQuizState } = useDispatch(curriculumStore) as any;
   const { isQuizSaving, hasQuizError, getQuizError, getLastSavedQuizId } = useSelect(
@@ -443,30 +791,25 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
       getQuizError: select(curriculumStore).getQuizError(),
       getLastSavedQuizId: select(curriculumStore).getLastSavedQuizId(),
     }),
-    []
+    [],
   );
 
   // Course Content Drip state from additional-content store (Step 11B)
-  const {
-    isContentDripEnabled,
-    contentDripType,
-    prerequisiteOptions,
-    contentDripLoading,
-    contentDripError,
-  } = useSelect(
-    (select: any) => {
-      const store = select("tutorpress/additional-content");
-      const courseKey = courseId ?? 0;
-      return {
-        isContentDripEnabled: store.isContentDripEnabled(),
-        contentDripType: store.getContentDripType() || "",
-        prerequisiteOptions: store.getPrerequisitesForCourse(courseKey) || [],
-        contentDripLoading: store.isLoading() || store.isPrerequisitesLoadingForCourse(courseKey),
-        contentDripError: store.getError() || store.getPrerequisitesErrorForCourse(courseKey) || null,
-      };
-    },
-    [courseId]
-  );
+  const { isContentDripEnabled, contentDripType, prerequisiteOptions, contentDripLoading, contentDripError } =
+    useSelect(
+      (select: any) => {
+        const store = select("tutorpress/additional-content");
+        const courseKey = courseId ?? 0;
+        return {
+          isContentDripEnabled: store.isContentDripEnabled(),
+          contentDripType: store.getContentDripType() || "",
+          prerequisiteOptions: store.getPrerequisitesForCourse(courseKey) || [],
+          contentDripLoading: store.isLoading() || store.isPrerequisitesLoadingForCourse(courseKey),
+          contentDripError: store.getError() || store.getPrerequisitesErrorForCourse(courseKey) || null,
+        };
+      },
+      [courseId],
+    );
   const { fetchAdditionalContent, getPrerequisites } = useDispatch("tutorpress/additional-content") as any;
 
   // Use centralized validation hook
@@ -509,7 +852,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         // Load questions data - Step 3.2
         if (quizData.questions && Array.isArray(quizData.questions)) {
           const sortedQuestions = quizData.questions.sort(
-            (a: QuizQuestion, b: QuizQuestion) => a.question_order - b.question_order
+            (a: QuizQuestion, b: QuizQuestion) => a.question_order - b.question_order,
           );
 
           // Ensure all loaded questions have _data_status set
@@ -582,12 +925,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
   // Prerequisites only when that drip mode is active
   useEffect(() => {
-    if (
-      isOpen &&
-      courseId &&
-      isContentDripEnabled &&
-      contentDripType === "after_finishing_prerequisites"
-    ) {
+    if (isOpen && courseId && isContentDripEnabled && contentDripType === "after_finishing_prerequisites") {
       getPrerequisites(courseId);
     }
   }, [isOpen, courseId, isContentDripEnabled, contentDripType, getPrerequisites]);
@@ -611,6 +949,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   }, [isOpen, quizId]);
 
   const handleClose = () => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
     // Reset any quiz state if needed
     setQuizDuplicationState({ status: "idle" });
     resetForm();
@@ -633,6 +974,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
   };
 
   const handleSave = async () => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
+
     const saveBlock = getQuestionSaveBlock(questions, quizCapabilities, isLocallyAuthorable);
     if (saveBlock) {
       const typeLabel =
@@ -644,16 +989,19 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
           sprintf(
             /* translators: %s: question type label. */
             __('The "%s" question type cannot be saved in Legacy learning mode.', "tutorpress"),
-            typeLabel
-          )
+            typeLabel,
+          ),
         );
       } else {
         setSaveError(
           sprintf(
             /* translators: %s: question type label. */
-            __('The "%s" question changed while its editing contract was unavailable. Reload before saving.', "tutorpress"),
-            typeLabel
-          )
+            __(
+              'The "%s" question changed while its editing contract was unavailable. Reload before saving.',
+              "tutorpress",
+            ),
+            typeLabel,
+          ),
         );
       }
 
@@ -677,11 +1025,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
 
     // Verify Tutor LMS compatibility - Step 3.6.8
     const editableQuestions = questions.filter((question) =>
-      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
+      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable),
     );
     if (!verifyTutorLMSCompatibility(editableQuestions)) {
       setSaveError(
-        __("Data format is not compatible with Tutor LMS. Please check your question configuration.", "tutorpress")
+        __("Data format is not compatible with Tutor LMS. Please check your question configuration.", "tutorpress"),
       );
       setShowValidationErrors(true); // Show validation errors in UI
       return;
@@ -819,6 +1167,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   editorId="question_description"
                   onCancel={() => setShowDescriptionEditor(false)}
                   onOk={() => setShowDescriptionEditor(false)}
+                  onPendingStateChange={(isPending) =>
+                    handleEditorPendingStateChange("question_description", isPending)
+                  }
+                  onInsertionFailure={handleEditorInsertionFailure}
+                  isInsertionPending={isMediaInsertionPending && activeEditorId === "question_description"}
                 />
               )}
             </div>
@@ -858,6 +1211,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
                   editorId="answer_explanation"
                   onCancel={() => setShowExplanationEditor(false)}
                   onOk={() => setShowExplanationEditor(false)}
+                  onPendingStateChange={(isPending) => handleEditorPendingStateChange("answer_explanation", isPending)}
+                  onInsertionFailure={handleEditorInsertionFailure}
+                  isInsertionPending={isMediaInsertionPending && activeEditorId === "answer_explanation"}
                 />
               </div>
             )}
@@ -937,6 +1293,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle add question button click - Step 3.2 - Toggle dropdown
    */
   const handleAddQuestion = () => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
     setIsAddingQuestion(!isAddingQuestion);
     if (isAddingQuestion) {
       // Closing dropdown - reset state
@@ -949,14 +1308,15 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle question type selection
    */
   const handleQuestionTypeSelect = (questionType: QuizQuestionType) => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
     const typeOption = questionTypes.find((type) => type.value === questionType);
 
     // Reject before any local state exists so an unavailable type can never
     // reach the question factory.
     if (!typeOption || typeOption.disabled) {
-      setSaveError(
-        typeOption?.unavailableReason || __("This question type is not available here.", "tutorpress")
-      );
+      setSaveError(typeOption?.unavailableReason || __("This question type is not available here.", "tutorpress"));
       return;
     }
 
@@ -970,6 +1330,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle question selection from list - Step 3.2
    */
   const handleQuestionSelect = (questionIndex: number) => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
     setSelectedQuestionIndex(questionIndex);
     setEditingQuestionId(questions[questionIndex]?.question_id || null);
     setIsAddingQuestion(false); // Exit add mode when selecting existing question
@@ -1013,6 +1376,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    * Handle deleting a question - Step 3.2
    */
   const handleDeleteQuestion = (questionIndex: number) => {
+    if (guardPendingInsertionTransition()) {
+      return;
+    }
     if (questionIndex < 0 || questionIndex >= questions.length) {
       return;
     }
@@ -1141,7 +1507,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
    */
   const renderPreservedQuestionNotice = (
     question: QuizQuestion,
-    capability?: QuizQuestionTypeCapability
+    capability?: QuizQuestionTypeCapability,
   ): JSX.Element => {
     let reason: string;
     if (!capability) {
@@ -1159,7 +1525,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
             {sprintf(
               /* translators: %s: stored question type slug. */
               __('This question is stored as "%s" and cannot be edited here.', "tutorpress"),
-              question.question_type
+              question.question_type,
             )}
           </p>
           {reason && <p>{reason}</p>}
@@ -1180,10 +1546,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     const QuestionComponent = getQuestionComponent(question.question_type);
 
     // Keep rendering and save/validation decisions on the same fail-closed contract.
-    if (
-      QuestionComponent &&
-      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
-    ) {
+    if (QuestionComponent && canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)) {
       return (
         <QuestionComponent
           question={question}
@@ -1262,7 +1625,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
     // Read-only preservation rows have no repair UI. Validate only rows whose active
     // server contract and local registry positively allow editing.
     const editableQuestions = questions.filter((question) =>
-      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable)
+      canEditLoadedQuestion(question.question_type, quizCapabilities, isLocallyAuthorable),
     );
     const result = validateAllQuestionsHook(editableQuestions);
     return {
@@ -1389,7 +1752,12 @@ export const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, topicId, 
         className="quiz-modal-tabs"
         activeClass="is-active"
         tabs={tabs}
-        onSelect={(tabName) => setActiveTab(tabName)}
+        onSelect={(tabName) => {
+          if (guardPendingInsertionTransition()) {
+            return;
+          }
+          setActiveTab(tabName);
+        }}
       >
         {(tab) => {
           switch (tab.name) {

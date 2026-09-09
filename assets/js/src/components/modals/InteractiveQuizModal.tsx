@@ -25,9 +25,17 @@ import { QuestionDetailsTab } from "./quiz/QuestionDetailsTab";
 import { H5PContentSelectionModal } from "./interactive-quiz/H5PContentSelectionModal";
 import { H5PContentPreview } from "../h5p/H5PContentPreview";
 import type { H5PContent } from "../../types/h5p";
-import type { QuizQuestion, QuizQuestionType, QuizDetails, QuizQuestionOption, DataStatus } from "../../types/quiz";
+import type {
+  QuizQuestion,
+  QuizQuestionType,
+  QuizDetails,
+  QuizQuestionOption,
+  QuizForm,
+  DataStatus,
+} from "../../types/quiz";
 import { isH5pPluginActive } from "../../utils/addonChecker";
 import { isInteractiveQuizEditingAvailable } from "../../utils/quizSettingsContract";
+import { prepareInteractiveQuizUpdateQuestionsForTutor } from "../../utils/quizForm";
 
 interface InteractiveQuizModalProps {
   isOpen: boolean;
@@ -564,7 +572,19 @@ export const InteractiveQuizModal: React.FC<InteractiveQuizModalProps> = ({
       }
 
       // Use the curriculum store saveQuiz action (same as QuizModal)
-      await saveQuiz(formData, courseId, topicId, formDataResult.contentDripPostFields);
+      await saveQuiz(
+        quizId
+          ? ({
+              ...formData,
+              questions: prepareInteractiveQuizUpdateQuestionsForTutor(
+                formData.questions,
+              ),
+            } as QuizForm)
+          : formData,
+        courseId,
+        topicId,
+        formDataResult.contentDripPostFields,
+      );
 
       setSaveSuccess(true);
 

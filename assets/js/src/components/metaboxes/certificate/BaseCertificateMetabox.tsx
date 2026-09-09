@@ -320,6 +320,8 @@ export const BaseCertificateMetabox: React.FC<BaseCertificateMetaboxProps> = ({
       <CertificatePreviewModal
         isOpen={previewModal.isOpen}
         template={previewModal.template}
+        selectedTemplate={selectedTemplate}
+        isSelectionSaving={isSelectionSaving}
         onClose={onPreviewClose}
         onSelect={onTemplateSelect}
         onNavigate={onPreviewNavigate}
