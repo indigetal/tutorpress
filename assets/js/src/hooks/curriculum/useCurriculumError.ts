@@ -20,6 +20,7 @@ export interface UseCurriculumErrorOptions {
   handleReorderTopics: (topics: Topic[]) => Promise<OperationResult<void>>;
   handleTopicDelete: (topicId: number) => Promise<void>;
   handleTopicDuplicate: (topicId: number) => Promise<void>;
+  requestTopicDelete?: (topicId: number) => void;
 }
 
 export interface UseCurriculumErrorReturn {
@@ -39,6 +40,7 @@ export function useCurriculumError({
   handleReorderTopics,
   handleTopicDelete,
   handleTopicDuplicate,
+  requestTopicDelete,
 }: UseCurriculumErrorOptions): UseCurriculumErrorReturn {
   const { showError, handleDismissError } = useError({
     states: [reorderState, deletionState, duplicationState],
@@ -90,6 +92,10 @@ export function useCurriculumError({
     if (reorderState.status === "error") {
       await handleReorderTopics(topics);
     } else if (deletionState.status === "error" && deletionState.topicId) {
+      if (requestTopicDelete) {
+        requestTopicDelete(deletionState.topicId);
+        return;
+      }
       await handleTopicDelete(deletionState.topicId);
     } else if (duplicationState.status === "error" && duplicationState.sourceTopicId) {
       await handleTopicDuplicate(duplicationState.sourceTopicId);
@@ -102,6 +108,7 @@ export function useCurriculumError({
     handleReorderTopics,
     handleTopicDelete,
     handleTopicDuplicate,
+    requestTopicDelete,
   ]);
 
   return {

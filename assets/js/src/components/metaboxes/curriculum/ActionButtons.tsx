@@ -9,16 +9,35 @@ export interface ActionButtonsProps {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  isDeleteBusy?: boolean;
+  isDeleteDisabled?: boolean;
 }
 
 /**
  * Action buttons for items and topics
  */
-export const ActionButtons: React.FC<ActionButtonsProps> = ({ onEdit, onDuplicate, onDelete }): JSX.Element => (
+export const ActionButtons: React.FC<ActionButtonsProps> = ({
+  onEdit,
+  onDuplicate,
+  onDelete,
+  isDeleteBusy,
+  isDeleteDisabled,
+}): JSX.Element => (
   <Flex gap={1} justify="flex-end" style={{ width: "auto" }}>
     {onEdit && <Button icon={pencil} label="Edit" isSmall onClick={onEdit} />}
-    {onDuplicate && <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />}
-    {onDelete && <Button icon={trash} label="Delete" isSmall onClick={onDelete} />}
+    {onDuplicate && (
+      <Button icon={copy} label="Duplicate" isSmall onClick={onDuplicate} />
+    )}
+    {onDelete && (
+      <Button
+        icon={trash}
+        label="Delete"
+        isSmall
+        onClick={onDelete}
+        isBusy={isDeleteBusy}
+        disabled={isDeleteDisabled}
+      />
+    )}
   </Flex>
 );
 

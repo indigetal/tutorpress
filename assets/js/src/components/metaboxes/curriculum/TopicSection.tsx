@@ -258,6 +258,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
 
   const isContentReordering = useSelect((select) => (select(CURRICULUM_STORE) as any).isContentReordering(), []);
 
+  const deletionState = useSelect((select) => (select(CURRICULUM_STORE) as any).getDeletionState(), []);
+  const isTopicDeleteBusy = deletionState.status === "deleting" && deletionState.topicId === topic.id;
+
   // Error handling for content reordering
   const { showError: showContentReorderError, handleDismissError: handleDismissContentReorderError } = useError({
     states: [contentReorderState],
@@ -486,21 +489,9 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
             <ActionButtons
               onEdit={onEdit}
               onDuplicate={onDuplicate}
-              onDelete={() => {
-                if (
-                  topic.contents &&
-                  topic.contents.length > 0 &&
-                  !window.confirm(
-                    __(
-                      "Deleting the topic will permanently delete all its associated content (Lessons, Assignments, etc.). Are you sure you want to continue?",
-                      "tutorpress"
-                    )
-                  )
-                ) {
-                  return;
-                }
-                onDelete?.();
-              }}
+              onDelete={onDelete}
+              isDeleteBusy={isTopicDeleteBusy}
+              isDeleteDisabled={isTopicDeleteBusy}
             />
             <Button
               icon={topic.isCollapsed ? chevronRight : chevronDown}

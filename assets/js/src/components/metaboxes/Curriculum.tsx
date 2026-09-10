@@ -23,8 +23,10 @@ import { useDispatch, useSelect } from "@wordpress/data";
 import { curriculumStore } from "../../store/curriculum";
 import { TopicSection } from "./curriculum/TopicSection";
 import TopicForm from "./curriculum/TopicForm";
+import { TopicDeleteConfirmationDialog } from "./curriculum/TopicDeleteConfirmationDialog";
 import { useTopics, useCourseId, useDragDrop } from "../../hooks/curriculum";
 import { useCurriculumError } from "../../hooks/curriculum/useCurriculumError";
+import { useTopicDeleteConfirmation } from "../../hooks/curriculum/useTopicDeleteConfirmation";
 
 // ============================================================================
 // Components
@@ -169,12 +171,22 @@ const Curriculum: React.FC = (): JSX.Element => {
     setReorderState,
   });
 
+  const {
+    requestedTopicId,
+    isOpen,
+    isBusy,
+    requestTopicDelete,
+    cancelTopicDelete,
+    confirmTopicDelete,
+  } = useTopicDeleteConfirmation(handleTopicDelete);
+
   const { showError, handleDismissError, handleRetry, getErrorMessage } = useCurriculumError({
     reorderState,
     deletionState,
     duplicationState,
     topics,
     handleTopicDelete,
+    requestTopicDelete,
     handleTopicDuplicate,
     handleReorderTopics: async (topics: Topic[]): Promise<OperationResult<void>> => {
       setReorderState({ status: "reordering" });
@@ -198,6 +210,18 @@ const Curriculum: React.FC = (): JSX.Element => {
 
   const { createNotice } = useDispatch(noticesStore);
 
+  const topicDeleteDialog = isOpen ? (
+    <TopicDeleteConfirmationDialog
+      isOpen={isOpen}
+      isBusy={
+        isBusy ||
+        (deletionState.status === "deleting" && deletionState.topicId === requestedTopicId)
+      }
+      onCancel={cancelTopicDelete}
+      onConfirm={confirmTopicDelete}
+    />
+  ) : null;
+
   // =============================
   // Render Methods
   // =============================
@@ -206,6 +230,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   if (error) {
     return (
       <div className="tutorpress-curriculum">
+        {topicDeleteDialog}
         <Flex direction="column" align="center" gap={2} style={{ padding: "20px" }}>
           <div className="tutorpress-error" style={{ color: "red", marginBottom: "10px" }}>
             {getErrorMessage(error)}
@@ -233,6 +258,7 @@ const Curriculum: React.FC = (): JSX.Element => {
   // Main render
   return (
     <div className="tutorpress-curriculum">
+      {topicDeleteDialog}
       <div style={{ textAlign: "left" }}>
         <DndContext
           sensors={sensors}
@@ -257,7 +283,7 @@ const Curriculum: React.FC = (): JSX.Element => {
                       onEditCancel={handleTopicEditCancel}
                       onEditSave={handleTopicEditSave}
                       onDuplicate={() => handleTopicDuplicate(topic.id)}
-                      onDelete={() => handleTopicDelete(topic.id)}
+                      onDelete={() => requestTopicDelete(topic.id)}
                       onToggle={() => handleTopicToggle(topic.id)}
                       isEditing={editState.isEditing && editState.topicId === topic.id}
                       getItemClasses={getItemClasses}
