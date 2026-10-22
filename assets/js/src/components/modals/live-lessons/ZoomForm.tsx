@@ -27,12 +27,22 @@ import { calendar, seen, unseen } from "@wordpress/icons";
 import { useSelect } from "@wordpress/data";
 import type { ZoomFormData } from "../../../types/liveLessons";
 import { generateTimezoneOptions } from "./index";
+import {
+  normalizeZoomUsersBody,
+  normalizeZoomUsersError,
+  selectedZoomHost,
+  zoomUsersRequest,
+  type ZoomHostRow,
+} from "../../../utils/liveLessonZoomUsers";
 
-interface ZoomUser {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
+const dayPrefix = /^(\d{4}-\d{2}-\d{2})/;
+
+function calendarDay(value: string | null): string | null {
+  return dayPrefix.exec(value ?? "")?.[1] ?? null;
+}
+
+function dateToken(day: string): string | undefined {
+  return calendarDay(day) === day ? `${day}T00:00:00.000Z` : undefined;
 }
 
 interface ZoomFormProps {
@@ -49,7 +59,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   // Zoom users state
-  const [zoomUsers, setZoomUsers] = useState<ZoomUser[]>([]);
+  const [zoomUsers, setZoomUsers] = useState<ZoomHostRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
 
@@ -62,61 +72,34 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
    * Fetch Zoom users on component mount
    */
   useEffect(() => {
-    const fetchZoomUsers = async () => {
-      try {
-        setLoadingUsers(true);
-        setUsersError(null);
+    const request = zoomUsersRequest(courseId, window.tutorPressCurriculum?.liveLessonSyncEnabled);
+    if (request === null) {
+      setZoomUsers([]);
+      setUsersError(null);
+      setLoadingUsers(false);
+      return;
+    }
 
-        // Call TutorPress REST API endpoint that integrates with Tutor LMS Zoom
-        // Include course_id for collaborative instructor access
-        const apiPath = courseId
-          ? `/tutorpress/v1/live-lessons/zoom/users?course_id=${courseId}`
-          : `/tutorpress/v1/live-lessons/zoom/users`;
+    const host = formData.host;
+    const fetchZoomUsers = async () => {
+      setLoadingUsers(true);
+      setUsersError(null);
+      try {
         const response = await (window as any).wp.apiFetch({
-          path: apiPath,
+          path: request.path,
           method: "GET",
         });
-
-        if (!response.success) {
-          throw new Error(response.message || __("Failed to load Zoom users", "tutorpress"));
-        }
-
-        const zoomUsers = response.data?.users || [];
-        setZoomUsers(zoomUsers);
-
-        // Set default host to first user if no host selected and users available
-        if (!formData.host && zoomUsers.length > 0) {
-          updateField("host", zoomUsers[0].id);
-        }
-
-        // Show helpful message if no users found
-        if (zoomUsers.length === 0) {
-          setUsersError(
-            __("No Zoom users found. Please configure your Zoom API credentials in Tutor LMS settings.", "tutorpress")
-          );
+        const result = normalizeZoomUsersBody(response);
+        setZoomUsers(result.hosts);
+        setUsersError(result.message);
+        if (result.message === null) {
+          const nextHost = selectedZoomHost(host, result.hosts);
+          if (nextHost !== host) {
+            updateField("host", nextHost);
+          }
         }
       } catch (error) {
-        console.error("Error fetching Zoom users:", error);
-
-        // Handle different error types with specific messages
-        if (error instanceof Error) {
-          if (error.message.includes("zoom_api_not_configured")) {
-            setUsersError(
-              __(
-                "Zoom API credentials not configured. Please set up your Zoom API in Tutor LMS settings.",
-                "tutorpress"
-              )
-            );
-          } else if (error.message.includes("zoom_addon_not_available")) {
-            setUsersError(
-              __("Tutor LMS Zoom addon not available. Please ensure Tutor LMS Pro is installed.", "tutorpress")
-            );
-          } else {
-            setUsersError(error.message);
-          }
-        } else {
-          setUsersError(__("Failed to load Zoom users. Please check your Zoom API configuration.", "tutorpress"));
-        }
+        setUsersError(normalizeZoomUsersError(error).message);
       } finally {
         setLoadingUsers(false);
       }
@@ -185,16 +168,10 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
       return [{ label: __("No Zoom users available", "tutorpress"), value: "" }];
     }
 
-    // Format exactly like Tutor LMS: "FirstName LastName (email@example.com)"
-    return zoomUsers.map((user) => {
-      const fullName = `${user.first_name} ${user.last_name}`.trim();
-      const label = `${fullName} (${user.email})`;
-
-      return {
-        label: label,
-        value: user.id, // Zoom user ID (not WordPress user ID)
-      };
-    });
+    return zoomUsers.map((user) => ({
+      label: `${user.label} (${user.email})`,
+      value: user.id,
+    }));
   };
 
   const timeOptions = generateTimeOptions();
@@ -238,15 +215,20 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
             onClick={() => setDatePickerOpen(!datePickerOpen)}
             disabled={disabled}
           >
-            {formData.date.toLocaleDateString()}
+            {formData.date}
           </Button>
 
           {datePickerOpen && (
             <Popover position="bottom left" onClose={() => setDatePickerOpen(false)}>
               <DatePicker
-                currentDate={formData.date.toISOString()}
+                currentDate={dateToken(formData.date)}
                 onChange={(date) => {
-                  updateField("date", new Date(date));
+                  const day = calendarDay(typeof date === "string" ? date : null);
+                  if (!day) {
+                    setDatePickerOpen(false);
+                    return;
+                  }
+                  updateField("date", day);
                   setDatePickerOpen(false);
                 }}
               />
@@ -275,7 +257,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
               value={formData.duration}
               onChange={(value: string | undefined) => updateField("duration", parseInt(value || "40") || 40)}
               min={1}
-              max={480} // 8 hours max
+              max={formData.durationUnit === "hours" ? 8 : 480}
               disabled={disabled}
             />
           </FlexItem>

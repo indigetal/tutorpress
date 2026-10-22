@@ -457,12 +457,12 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         createNotice("error", errorMessage, {
           type: "snackbar",
         });
-        return;
+        throw new Error(errorMessage);
       }
 
       if (activeOperation.type !== "none") {
         createNotice("error", "Another operation is in progress. Please wait.");
-        return;
+        throw new Error("Another operation is in progress. Please wait.");
       }
 
       try {
@@ -475,7 +475,10 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         });
 
         // Use the store resolver for topic deletion (uses API_FETCH control type)
-        await deleteTopic(topicId, courseId);
+        const outcome: unknown = await deleteTopic(topicId, courseId);
+        if (outcome !== null && typeof outcome !== "string") {
+          throw new Error(__("Failed to delete topic", "tutorpress"));
+        }
 
         // Reset deletion state to idle (the resolver handles topics refresh)
         setDeletionState({ status: "idle" });
@@ -485,12 +488,18 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
         createNotice("success", __("Topic deleted successfully", "tutorpress"), {
           type: "snackbar",
         });
+        if (typeof outcome === "string" && outcome !== "") {
+          createNotice("error", outcome, {
+            type: "snackbar",
+          });
+        }
       } catch (err) {
         console.error("Error deleting topic:", err);
 
+        const message = err instanceof Error ? err.message : __("Failed to delete topic", "tutorpress");
         const error: CurriculumError = {
           code: CurriculumErrorCode.SERVER_ERROR,
-          message: err instanceof Error ? err.message : __("Failed to delete topic", "tutorpress"),
+          message,
           context: {
             action: "delete_topic",
             topicId,
@@ -503,11 +512,25 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
           topicId,
         });
 
-        // Handle error and cleanup
-        handleOperationError(new Error(error.message));
-        createNotice("error", error.message, {
+        clearSnapshot();
+        setActiveOperation({ type: "none" });
+
+        createNotice("error", message, {
           type: "snackbar",
         });
+        const refreshWarning =
+          typeof err === "object" &&
+          err !== null &&
+          "refreshWarning" in err &&
+          typeof err.refreshWarning === "string"
+            ? err.refreshWarning
+            : "";
+        if (refreshWarning !== "") {
+          createNotice("error", refreshWarning, {
+            type: "snackbar",
+          });
+        }
+        throw err;
       }
     },
     [
@@ -515,7 +538,8 @@ export function useTopics({ courseId, isLesson = false, isAssignment = false }: 
       activeOperation,
       createNotice,
       handleOperationSuccess,
-      handleOperationError,
+      clearSnapshot,
+      setActiveOperation,
       createSnapshot,
       setDeletionState,
       deleteTopic,

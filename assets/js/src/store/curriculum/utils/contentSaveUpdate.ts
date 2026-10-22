@@ -2,6 +2,9 @@ import { __ } from "@wordpress/i18n";
 import { CurriculumErrorCode, ContentItem } from "../../../types/curriculum";
 import { LiveLesson, LiveLessonFormData, LiveLessonApiResponse } from "../../../types/liveLessons";
 import { createSaveContentPayload, createUpdateContentPayload, resolveContentType } from "./topicsUpdate";
+import { zoomDuration } from "../../../utils/liveLessonDateTime";
+import { normalizeLiveLessonError, preserveLiveLessonMutation } from "../../../utils/liveLessonErrors";
+import { refreshTopicsAfterSettledMutation } from "./topicRefresh";
 
 /**
  * Configuration for standard save operations (live lessons, future content types)
@@ -28,6 +31,7 @@ export interface StandardUpdateConfig {
   responseDataExtractor: (response: any) => { id: number; title: string; [key: string]: any };
   successPayloadCreator: (entity: any) => any;
   topicUpdatePayloadCreator: (entityId: number, entity: any) => any;
+  dataTransformer?: (data: any) => any;
 }
 
 /**
@@ -41,11 +45,19 @@ export interface LegacySaveConfig {
 
 export type SaveUpdateConfig = StandardSaveConfig | StandardUpdateConfig | LegacySaveConfig;
 
+type SaveResolverResult = {
+  outcome: ReturnType<StandardSaveConfig["responseDataExtractor"]>;
+  refreshWarning: string | null;
+};
+
+const refreshFailure = (warning: string | null): { message: string } | undefined =>
+  warning === null ? undefined : { message: warning };
+
 /**
  * Creates a save resolver for standard content types (live lessons)
  */
 export function createStandardSaveResolver(config: StandardSaveConfig) {
-  return function* (data: any, courseId: number, topicId: number): Generator<unknown, void, unknown> {
+  return function* (data: any, courseId: number, topicId: number): Generator<unknown, SaveResolverResult, unknown> {
     try {
       yield {
         type: `SAVE_${config.entityName.toUpperCase()}_START`,
@@ -80,18 +92,24 @@ export function createStandardSaveResolver(config: StandardSaveConfig) {
         payload: config.successPayloadCreator(entityData, courseId),
       };
 
-      // Update topics directly to add the new content (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: config.topicUpdatePayloadCreator(topicId, entityData),
-      };
+      const refreshWarning = yield* refreshTopicsAfterSettledMutation(courseId);
+      return preserveLiveLessonMutation(entityData, refreshFailure(refreshWarning));
     } catch (error) {
+      const normalized = normalizeLiveLessonError(error);
+      const data = normalized.data;
+      const settled =
+        data?.persisted === true || data?.refetch_required === true || data?.projected_record !== undefined;
+      const refreshWarning = settled ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+      const message =
+        normalized.message !== "" ? normalized.message : __(`Failed to save ${config.entityName}`, "tutorpress");
+      const preserved = preserveLiveLessonMutation({ ...normalized, message }, refreshFailure(refreshWarning));
       yield {
         type: `SAVE_${config.entityName.toUpperCase()}_ERROR`,
         payload: {
           error: {
             code: CurriculumErrorCode.SAVE_FAILED,
-            message: error instanceof Error ? error.message : __(`Failed to save ${config.entityName}`, "tutorpress"),
+            message,
+            ...(preserved.outcome.data ? { data: preserved.outcome.data } : {}),
             context: {
               action: `save${config.entityName.charAt(0).toUpperCase() + config.entityName.slice(1)}`,
               details: `Failed to save ${config.entityName} for topic ${topicId}`,
@@ -99,6 +117,9 @@ export function createStandardSaveResolver(config: StandardSaveConfig) {
           },
         },
       };
+      const rejection = new Error(message);
+      Object.assign(rejection, preserved);
+      throw rejection;
     }
   };
 }
@@ -107,19 +128,20 @@ export function createStandardSaveResolver(config: StandardSaveConfig) {
  * Creates an update resolver for standard content types (live lessons)
  */
 export function createStandardUpdateResolver(config: StandardUpdateConfig) {
-  return function* (entityId: number, data: any): Generator<unknown, void, unknown> {
+  return function* (entityId: number, data: any): Generator<unknown, SaveResolverResult, unknown> {
     try {
       yield {
         type: `UPDATE_${config.entityName.toUpperCase()}_START`,
         payload: { [config.idField]: entityId, data },
       };
 
+      const requestData = config.dataTransformer ? config.dataTransformer(data) : data;
       const response = yield {
         type: "API_FETCH",
         request: {
           path: `${config.apiPath}/${entityId}`,
           method: "PATCH",
-          data,
+          data: requestData,
         },
       };
 
@@ -134,18 +156,32 @@ export function createStandardUpdateResolver(config: StandardUpdateConfig) {
         payload: config.successPayloadCreator(entityData),
       };
 
-      // Update topics directly to reflect the updated content (preserves toggle states)
-      yield {
-        type: "SET_TOPICS",
-        payload: config.topicUpdatePayloadCreator(entityId, entityData),
-      };
+      const courseId = entityData.courseId;
+      const refreshWarning =
+        typeof courseId === "number" && courseId > 0 ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+      return preserveLiveLessonMutation(entityData, refreshFailure(refreshWarning));
     } catch (error) {
+      const normalized = normalizeLiveLessonError(error);
+      const errorData = normalized.data;
+      const courseId = errorData?.course_id;
+      const settled =
+        errorData?.persisted === true ||
+        errorData?.refetch_required === true ||
+        errorData?.projected_record !== undefined;
+      const refreshWarning =
+        settled && typeof courseId === "number" && courseId > 0
+          ? yield* refreshTopicsAfterSettledMutation(courseId)
+          : null;
+      const message =
+        normalized.message !== "" ? normalized.message : __(`Failed to update ${config.entityName}`, "tutorpress");
+      const preserved = preserveLiveLessonMutation({ ...normalized, message }, refreshFailure(refreshWarning));
       yield {
         type: `UPDATE_${config.entityName.toUpperCase()}_ERROR`,
         payload: {
           error: {
             code: CurriculumErrorCode.UPDATE_FAILED,
-            message: error instanceof Error ? error.message : __(`Failed to update ${config.entityName}`, "tutorpress"),
+            message,
+            ...(preserved.outcome.data ? { data: preserved.outcome.data } : {}),
             context: {
               action: `update${config.entityName.charAt(0).toUpperCase() + config.entityName.slice(1)}`,
               details: `Failed to update ${config.entityName} ${entityId}`,
@@ -153,6 +189,9 @@ export function createStandardUpdateResolver(config: StandardUpdateConfig) {
           },
         },
       };
+      const rejection = new Error(message);
+      Object.assign(rejection, preserved);
+      throw rejection;
     }
   };
 }
@@ -160,26 +199,70 @@ export function createStandardUpdateResolver(config: StandardUpdateConfig) {
 /**
  * Data transformers for different content types
  */
-export const dataTransformers = {
-  liveLesson: (liveLessonData: LiveLessonFormData, courseId: number, topicId: number) => ({
-    title: liveLessonData.title,
-    description: liveLessonData.description,
-    type: liveLessonData.type,
-    start_date_time: liveLessonData.startDateTime,
-    end_date_time: liveLessonData.endDateTime,
-    settings: {
-      timezone: liveLessonData.settings.timezone,
-      duration: liveLessonData.settings.duration,
-      allow_early_join: liveLessonData.settings.allowEarlyJoin,
-      auto_record: liveLessonData.settings.autoRecord,
-      require_password: liveLessonData.settings.requirePassword,
-      waiting_room: liveLessonData.settings.waitingRoom,
-      add_enrolled_students: liveLessonData.settings.add_enrolled_students,
-    },
-    provider_config: liveLessonData.providerConfig || {},
+const providerIdentityKeys = ["provider_id", "event_id", "meeting_id", "eventId", "meetingId"];
+
+function liveLessonProviderConfig(config: LiveLessonFormData["providerConfig"]) {
+  const next: Record<string, unknown> = {};
+  Object.entries(config ?? {}).forEach(([key, value]) => {
+    if (!providerIdentityKeys.includes(key)) {
+      next[key] = value;
+    }
+  });
+  return next;
+}
+
+function liveLessonMutationBody(data: LiveLessonFormData) {
+  const settings = data.settings;
+  const meetingSettings = {
+    allow_early_join: settings.allowEarlyJoin,
+    auto_record: settings.autoRecord,
+    require_password: settings.requirePassword,
+    waiting_room: settings.waitingRoom,
+    add_enrolled_students: settings.add_enrolled_students,
+  };
+  const body: Record<string, unknown> = {
+    title: data.title,
+    description: data.description,
+    type: data.type,
+    start_date_time: data.startDateTime,
+    end_date_time: data.endDateTime,
+    provider_config: liveLessonProviderConfig(data.providerConfig),
+  };
+  if (window.tutorPressCurriculum?.liveLessonSyncEnabled !== true) {
+    body.settings = {
+      timezone: settings.timezone,
+      duration: settings.duration,
+      ...meetingSettings,
+    };
+    return body;
+  }
+  const duration =
+    data.type === "zoom" && typeof settings.duration === "number" ? zoomDuration(settings.duration, "minutes") : null;
+  if (duration) {
+    body.duration = duration;
+  }
+  body.timezone = settings.timezone;
+  body.settings = {
+    timezone: settings.timezone,
+    ...meetingSettings,
+  };
+  return body;
+}
+
+export function liveLessonCreateBody(data: LiveLessonFormData, courseId: number, topicId: number): Record<string, unknown> {
+  return {
+    ...liveLessonMutationBody(data),
     topic_id: topicId,
     course_id: courseId,
-  }),
+  };
+}
+
+export function liveLessonPatchBody(data: LiveLessonFormData) {
+  return liveLessonMutationBody(data);
+}
+
+export const dataTransformers = {
+  liveLesson: liveLessonCreateBody,
 };
 
 /**
@@ -242,6 +325,7 @@ export const saveUpdateResolvers = {
     apiPath: "/tutorpress/v1/live-lessons",
     entityName: "live_lesson",
     idField: "liveLessonId",
+    dataTransformer: liveLessonPatchBody,
     responseDataExtractor: saveUpdateResponseDataExtractors.liveLesson,
     successPayloadCreator: (liveLesson: LiveLesson) => successPayloadCreators.liveLesson.update(liveLesson),
     topicUpdatePayloadCreator: (liveLessonId: number, liveLesson: LiveLesson) =>

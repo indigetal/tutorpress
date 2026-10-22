@@ -248,6 +248,8 @@ declare global {
       nonce?: string;
       tutorNonce?: string;
       youtubeApiKeyExists?: boolean;
+      liveLessonSyncEnabled?: boolean;
+      liveLessonTimezoneOptions?: Array<{ value: string; label: string }>;
       quizCapabilities?: QuizCapabilities;
       courseId?: number;
     };

@@ -59,7 +59,7 @@ class TutorPress_Main {
      * @param array  $args                  Arguments to pass to the constructor.
      */
     private function __construct( $main_plugin_file_name, $args = array() ) {
-        $this->version = isset( $args['version'] ) ? $args['version'] : '1.13.17';
+        $this->version = isset( $args['version'] ) ? $args['version'] : TUTORPRESS_VERSION;
         
         // Use the main file from args if provided, otherwise use the passed file
         $main_file = isset( $args['main_file'] ) ? $args['main_file'] : $main_plugin_file_name;

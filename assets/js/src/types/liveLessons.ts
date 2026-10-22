@@ -36,8 +36,8 @@ export interface LiveLesson {
   type: LiveLessonType;
   topicId: number;
   courseId: number;
-  startDateTime: string; // ISO 8601 format
-  endDateTime: string; // ISO 8601 format
+  startDateTime: string; // Wall clock YYYY-MM-DD HH:mm:00
+  endDateTime: string; // Wall clock YYYY-MM-DD HH:mm:00
   meetingUrl?: string;
   meetingId?: string;
   password?: string;
@@ -45,6 +45,100 @@ export interface LiveLesson {
   status: "scheduled" | "live" | "ended" | "cancelled";
   createdAt: string;
   updatedAt: string;
+  sync_state?: LiveLessonSyncState;
+  sync_version?: number;
+  operation?: LiveLessonProjectedOperation | null;
+  record?: Record<string, unknown> | null;
+  warning?: LiveLessonSyncNotice | null;
+  error?: LiveLessonSyncNotice | null;
+}
+
+/**
+ * Envelope sync state. Separate from LiveLesson.status and from WordPress post status.
+ */
+export type LiveLessonSyncState = "pending" | "error" | "unlinked" | "synced";
+
+/**
+ * Sanitized envelope notice: a string, a JSON list, or a string-keyed object.
+ */
+export type LiveLessonSyncNotice = string | unknown[] | Record<string, unknown>;
+
+/**
+ * Item-projection operation. The three fields project_item() emits, not the stored snapshot.
+ */
+export interface LiveLessonProjectedOperation {
+  operation_id: string;
+  kind: "create" | "update" | "delete";
+  dispatch_state: "not_dispatched" | "dispatch_possible" | "confirmed";
+}
+
+/**
+ * Item projection. status is the compatibility literal scheduled.
+ */
+export interface LiveLessonFullProjection {
+  status: "scheduled";
+  sync_state: LiveLessonSyncState;
+  sync_version: number;
+  operation: LiveLessonProjectedOperation | null;
+  record: Record<string, unknown> | null;
+  warning: LiveLessonSyncNotice | null;
+  error: LiveLessonSyncNotice | null;
+}
+
+/**
+ * Descriptors from actions(). None include provider_id.
+ * Known-provider inspect omits operation_id. Abandon is advertised as abandon.
+ */
+export type LiveLessonAdvertisedAction =
+  | { action: "resolve_owner"; version: 0 }
+  | { action: "attach"; kind: "legacy_identity"; version: 0 }
+  | { action: "inspect"; version: number; operation_id: string }
+  | { action: "inspect"; version: number }
+  | { action: "attach"; kind: "uncertain_create"; version: number; operation_id: string }
+  | { action: "abandon"; version: number; operation_id: string }
+  | { action: "retry"; version: number; operation_id: string };
+
+/**
+ * Uncertain-create attach body. version is an integer >= 1. provider_id and operation_id are non-empty.
+ */
+export interface LiveLessonUncertainCreateAttachRequest {
+  provider_id: string;
+  version: number;
+  operation_id: string;
+}
+
+/**
+ * Legacy attach body. version is 0. provider_id is non-empty.
+ * A present selected_owner_id is an integer greater than 0. operation_id is absent.
+ */
+export interface LiveLessonLegacyAttachRequest {
+  provider_id: string;
+  version: 0;
+  selected_owner_id?: number;
+}
+
+/**
+ * Wall clock YYYY-MM-DD HH:mm:00. Not an ISO instant.
+ */
+export type LiveLessonWallClock = string;
+
+/**
+ * Zoom duration accepted by zoom_duration(). minutes is an integer 1..480. hours is an integer 1..8.
+ */
+export interface LiveLessonZoomDuration {
+  value: number;
+  unit: "minutes" | "hours";
+}
+
+/**
+ * True-gate schedule request. timezone is required.
+ * Zoom sends duration. Google omits it and derives the span from the wall clocks.
+ */
+export interface LiveLessonScheduleRequest {
+  start_date_time: LiveLessonWallClock;
+  end_date_time: LiveLessonWallClock;
+  timezone: string;
+  duration?: LiveLessonZoomDuration;
 }
 
 /**
@@ -198,6 +292,9 @@ export interface LiveLessonContentItem {
   startDateTime: string;
   status: LiveLesson["status"];
   meetingUrl?: string;
+  sync_state?: LiveLessonSyncState;
+  sync_version?: number;
+  menuOrder?: number;
 }
 
 /**
@@ -207,9 +304,9 @@ export interface LiveLessonContentItem {
 export interface GoogleMeetFormData {
   title: string;
   summary: string;
-  startDate: Date;
+  startDate: string; // YYYY-MM-DD
   startTime: string; // 12-hour format like "09:00 AM"
-  endDate: Date;
+  endDate: string; // YYYY-MM-DD
   endTime: string; // 12-hour format like "10:00 AM"
   timezone: string;
   addEnrolledStudents: boolean;
@@ -222,7 +319,7 @@ export interface GoogleMeetFormData {
 export interface ZoomFormData {
   title: string;
   summary: string;
-  date: Date;
+  date: string; // YYYY-MM-DD
   time: string; // 12-hour format like "09:00 AM"
   duration: number;
   durationUnit: "minutes" | "hours";

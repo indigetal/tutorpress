@@ -47,7 +47,6 @@ memory-bank
 
 # Build artifacts
 /build
-/dist
 /tutorpress-build
 *.zip
 *.tar.gz
@@ -56,9 +55,6 @@ memory-bank
 # Documentation
 docs
 *.md
-!README.md
-!CHANGELOG.md
-!LICENSE.md
 
 # Development plugins/themes used for testing
 references/

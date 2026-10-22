@@ -1,6 +1,28 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
+import { select } from "@wordpress/data";
 import { Topic } from "../../../../types/curriculum";
-import { reconcileFetchedTopics } from "../topicRefresh";
+import { reconcileFetchedTopics, refreshTopicsAfterSettledMutation } from "../topicRefresh";
+
+jest.mock("@wordpress/data", () => ({
+  select: jest.fn(),
+}));
+
+const mockedSelect = select as unknown as {
+  mockReturnValue: (value: { getTopics: () => Topic[] }) => void;
+};
+
+const courseId = 9;
+
+const topicsFetch = {
+  type: "API_FETCH",
+  request: { path: `/tutorpress/v1/topics?course_id=${courseId}` },
+};
+
+const openRefresh = () => {
+  const generator = refreshTopicsAfterSettledMutation(courseId);
+  expect(generator.next().value).toEqual(topicsFetch);
+  return generator;
+};
 
 const topic = (id: number, overrides: Partial<Topic> = {}): Topic => ({
   id,
@@ -73,5 +95,106 @@ describe("reconcileFetchedTopics", () => {
     expect(result.isCollapsed).toBe(false);
     expect(result.title).toBe("Fresh");
     expect(result.contents).toEqual(fetched[0].contents);
+  });
+});
+
+describe("refreshTopicsAfterSettledMutation", () => {
+  it("reconciles a successful fetch and returns null", () => {
+    mockedSelect.mockReturnValue({
+      getTopics: () => [topic(1, { isCollapsed: false, title: "Stale" })],
+    });
+    const generator = openRefresh();
+    const listed = generator.next({
+      success: true,
+      message: "Topics retrieved successfully.",
+      data: [
+        {
+          id: 1,
+          title: "Fresh",
+          content: "body",
+          menu_order: 1,
+          status: "publish",
+          isCollapsed: true,
+          contents: [
+            {
+              id: 20,
+              title: "Meet",
+              type: "meet_lesson",
+              status: "publish",
+              menu_order: 4,
+              order: 7,
+              topic_id: 99,
+              sync_state: "pending",
+            },
+          ],
+        },
+        {
+          id: 2,
+          title: "Added",
+          content: "",
+          menu_order: 2,
+          status: "draft",
+          isCollapsed: false,
+          contents: [],
+        },
+      ],
+    });
+
+    expect(listed.value).toEqual({
+      type: "SET_TOPICS",
+      payload: [
+        {
+          id: 1,
+          title: "Fresh",
+          content: "body",
+          menu_order: 1,
+          status: "publish",
+          isCollapsed: false,
+          contents: [
+            {
+              id: 20,
+              title: "Meet",
+              type: "meet_lesson",
+              status: "publish",
+              menu_order: 4,
+              order: 0,
+              topic_id: 1,
+              sync_state: "pending",
+            },
+          ],
+        },
+        {
+          id: 2,
+          title: "Added",
+          content: "",
+          menu_order: 2,
+          status: "draft",
+          isCollapsed: true,
+          contents: [],
+        },
+      ],
+    });
+    expect(generator.next()).toEqual({ value: null, done: true });
+    expect(select).toHaveBeenCalledWith("tutorpress/curriculum");
+  });
+
+  it("returns the unsuccessful message and yields no SET_TOPICS", () => {
+    const settled = openRefresh().next({ success: false, message: "Could not load", data: [] });
+    expect(settled).toEqual({ value: "Could not load", done: true });
+  });
+
+  it("keeps a thrown object message and yields no SET_TOPICS", () => {
+    const settled = openRefresh().throw({ code: "fetch_error", message: "Network down", data: { token: "secret" } });
+    expect(settled).toEqual({ value: "Network down", done: true });
+  });
+
+  it("replaces a secret-shaped thrown message and yields no SET_TOPICS", () => {
+    const settled = openRefresh().throw({ message: "bad token value" });
+    expect(settled).toEqual({ value: "refresh_failed", done: true });
+  });
+
+  it("returns null for an empty or missing thrown message and yields no SET_TOPICS", () => {
+    expect(openRefresh().throw({ message: "" })).toEqual({ value: null, done: true });
+    expect(openRefresh().throw({ code: "fetch_error", data: { status: 500 } })).toEqual({ value: null, done: true });
   });
 });

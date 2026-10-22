@@ -1,4 +1,4 @@
-# TutorPress v2.0 — Premium Gutenberg Course Builder for Tutor LMS
+# TutorPress 2.3.1 — Premium Gutenberg Course Builder for Tutor LMS
 
 **TutorPress** is a premium WordPress plugin that modernizes Tutor LMS by replacing the legacy frontend course builder with a comprehensive Gutenberg-native editing experience. Built with modern WordPress architecture, REST API endpoints, and TypeScript, TutorPress restores WordPress best practices while extending Tutor LMS functionality.
 
@@ -268,7 +268,7 @@ TutorPress v2.0 is premium-only with a **14-day free trial** via Freemius:
 
 ### **Tested With**
 
-- **WordPress**: 5.8 - 6.4+
+- **WordPress**: 5.8 - 7.1
 - **Tutor LMS**: Latest stable versions
 - **PHP**: 7.4 - 8.2
 - **Popular Themes**: Blocksy, Astra, GeneratePress, and more

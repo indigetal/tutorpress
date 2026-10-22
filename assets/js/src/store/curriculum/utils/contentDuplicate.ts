@@ -3,7 +3,12 @@ import { CurriculumErrorCode, ContentItem } from "../../../types/curriculum";
 import { LiveLesson, LiveLessonCreateResponse } from "../../../types/liveLessons";
 import { Lesson } from "../../../types/lessons";
 import { Assignment } from "../../../types/assignments";
+import { normalizeLiveLessonError, preserveLiveLessonMutation } from "../../../utils/liveLessonErrors";
 import { createDuplicateContentPayload, resolveContentType } from "./topicsUpdate";
+import { refreshTopicsAfterSettledMutation } from "./topicRefresh";
+
+const refreshFailure = (warning: string | null): { message: string } | undefined =>
+  warning === null ? undefined : { message: warning };
 
 /**
  * Configuration for standard duplicate operations (lessons, quizzes, live lessons)
@@ -86,6 +91,12 @@ export function createStandardDuplicateResolver(config: StandardDuplicateConfig)
         payload: successPayload,
       };
 
+      if (config.entityName === "live_lesson") {
+        const refreshWarning =
+          typeof courseId === "number" && courseId > 0 ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+        return preserveLiveLessonMutation(response.data, refreshFailure(refreshWarning));
+      }
+
       // Determine correct content type - special handling for quizzes that might be Interactive Quizzes
       let finalContentType = config.contentType;
       if (config.entityName === "quiz" && (response.data as any)?.quiz_option?.quiz_type === "tutor_h5p_quiz") {
@@ -101,6 +112,38 @@ export function createStandardDuplicateResolver(config: StandardDuplicateConfig)
       // Return the duplicated entity data for immediate use (e.g., redirects)
       return response.data;
     } catch (error) {
+      if (config.entityName === "live_lesson") {
+        const normalized = normalizeLiveLessonError(error);
+        const data = normalized.data;
+        const settled =
+          data?.persisted === true || data?.refetch_required === true || data?.projected_record !== undefined;
+        const refreshWarning =
+          settled && typeof courseId === "number" && courseId > 0
+            ? yield* refreshTopicsAfterSettledMutation(courseId)
+            : null;
+        const message =
+          normalized.message !== "" ? normalized.message : __(`Failed to duplicate ${config.entityName}`, "tutorpress");
+        const preserved = preserveLiveLessonMutation({ ...normalized, message }, refreshFailure(refreshWarning));
+        yield {
+          type: `DUPLICATE_${config.entityName.toUpperCase()}_ERROR`,
+          payload: {
+            error: {
+              code: CurriculumErrorCode.DUPLICATE_FAILED,
+              message,
+              ...(preserved.outcome.data ? { data: preserved.outcome.data } : {}),
+              context: {
+                action: `duplicate${config.entityName.charAt(0).toUpperCase() + config.entityName.slice(1)}`,
+                details: `Failed to duplicate ${config.entityName} ${sourceId}`,
+              },
+            },
+            [config.sourceIdField]: sourceId,
+          },
+        };
+        const rejection = new Error(message);
+        Object.assign(rejection, preserved);
+        throw rejection;
+      }
+
       const errorPayload: any = {
         error: {
           code: CurriculumErrorCode.DUPLICATE_FAILED,

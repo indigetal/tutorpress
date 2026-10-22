@@ -167,6 +167,63 @@ class TutorPress_Assets {
     }
 
     /**
+     * Whether the curriculum may present live-lesson sync controls.
+     *
+     * Presentation only. This fails closed and does not authorize a server operation.
+     *
+     * @since 0.1.0
+     * @return bool
+     */
+    public static function live_lesson_sync_enabled() {
+        if (!class_exists('TutorPress_Live_Lesson_Cutover')) {
+            return false;
+        }
+
+        return true === TutorPress_Live_Lesson_Cutover::ENABLED;
+    }
+
+    /**
+     * Approved live-lesson timezone options for the curriculum.
+     *
+     * Values and labels are server identifiers. This does not authorize a server operation.
+     *
+     * @since 0.1.0
+     * @return array<int,array{value:string,label:string}>
+     */
+    public static function live_lesson_timezone_options() {
+        if (!class_exists('TutorPress_Live_Lesson_Datetime')) {
+            return [];
+        }
+
+        $identifiers = timezone_identifiers_list(DateTimeZone::ALL_WITH_BC);
+        if (!is_array($identifiers)) {
+            return [];
+        }
+
+        $seen = [];
+        $options = [];
+        foreach ($identifiers as $identifier) {
+            if (!is_string($identifier) || isset($seen[$identifier])) {
+                continue;
+            }
+            $seen[$identifier] = true;
+            $options[] = [
+                'value' => $identifier,
+                'label' => $identifier,
+            ];
+        }
+
+        if (!isset($seen['UTC']) && TutorPress_Live_Lesson_Datetime::is_approved_timezone('UTC')) {
+            array_unshift($options, [
+                'value' => 'UTC',
+                'label' => 'UTC',
+            ]);
+        }
+
+        return $options;
+    }
+
+    /**
      * Enqueue admin-specific assets.
      *
      * @since 0.1.0
@@ -247,6 +304,16 @@ class TutorPress_Assets {
         wp_add_inline_script(
             'tutorpress-curriculum-metabox',
             'tutorPressCurriculum.youtubeApiKeyExists = ' . wp_json_encode($youtube_api_key_exists) . ';',
+            'before'
+        );
+        wp_add_inline_script(
+            'tutorpress-curriculum-metabox',
+            'tutorPressCurriculum.liveLessonSyncEnabled = ' . wp_json_encode(self::live_lesson_sync_enabled()) . ';',
+            'before'
+        );
+        wp_add_inline_script(
+            'tutorpress-curriculum-metabox',
+            'tutorPressCurriculum.liveLessonTimezoneOptions = ' . wp_json_encode(self::live_lesson_timezone_options()) . ';',
             'before'
         );
 

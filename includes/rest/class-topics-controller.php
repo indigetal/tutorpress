@@ -313,13 +313,23 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
     }
 
     /**
+     * Whether live-lesson replacement projection is enabled.
+     *
+     * @since 1.0.0
+     * @return bool
+     */
+    protected function replacement_enabled() {
+        return TutorPress_Live_Lesson_Cutover::enabled();
+    }
+
+    /**
      * Get content items (lessons, quizzes, etc.) for a topic.
      *
      * @since 0.1.0
      * @param int $topic_id The topic ID.
      * @return array Array of content items.
      */
-    private function get_topic_contents($topic_id) {
+    protected function get_topic_contents($topic_id) {
         $content_items = get_posts([
             'post_type'      => ['lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting'],
             'post_parent'    => $topic_id,
@@ -329,7 +339,7 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             'post_status'    => ['publish', 'draft', 'private', 'pending', 'future'],
         ]);
 
-        return array_map(function($item) {
+        $rows = array_map(function($item) {
             $content_type = $item->post_type;
             
             // Check if this is an Interactive Quiz (H5P Quiz)
@@ -361,6 +371,49 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
 
             return $content_data;
         }, $content_items);
+
+        if (!$this->replacement_enabled()) {
+            return $rows;
+        }
+
+        $topic_post = get_post($topic_id);
+        $topic = is_object($topic_post) ? ['ID' => (int) $topic_post->ID, 'post_type' => $topic_post->post_type, 'post_parent' => (int) $topic_post->post_parent] : null;
+        $course_post = is_array($topic) ? get_post($topic['post_parent']) : null;
+        $course = is_object($course_post) ? ['ID' => (int) $course_post->ID, 'post_type' => $course_post->post_type, 'post_parent' => (int) $course_post->post_parent] : null;
+        $can = static function ($capability, $object_id = 0) {
+            return 'edit_post' === $capability && current_user_can('edit_post', $object_id);
+        };
+        if (!is_array($topic) || !is_array($course) || null === TutorPress_Live_Lesson_Authorization::authorize_projection($topic, $course, $can)) {
+            return $rows;
+        }
+
+        $live = ['tutor-google-meet' => true, 'tutor_zoom_meeting' => true];
+        $envelopes = [];
+        $projected = [];
+        foreach ($content_items as $index => $item) {
+            $projected[] = array_merge($rows[$index], [
+                'ID'          => (int) $item->ID,
+                'post_type'   => $item->post_type,
+                'post_status' => $item->post_status,
+                'post_parent' => (int) $item->post_parent,
+            ]);
+            if (!isset($live[$item->post_type])) {
+                continue;
+            }
+            $accepted = TutorPress_Live_Lesson_Sync_Envelope::envelope(get_post_meta($item->ID, '_tutorpress_live_lesson_sync', true));
+            if (is_array($accepted)) {
+                $envelopes[(int) $item->ID] = $accepted;
+            }
+        }
+
+        $result = TutorPress_Live_Lesson_Topic_Projector::project($topic, $course, $can, $projected, $envelopes);
+        if (!is_array($result)) {
+            return $rows;
+        }
+        foreach ($result as $index => $row) {
+            unset($result[$index]['ID'], $result[$index]['post_type'], $result[$index]['post_status'], $result[$index]['post_parent']);
+        }
+        return $result;
     }
 
     /**
@@ -563,6 +616,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function delete_item($request) {
+        if ($this->replacement_enabled()) {
+            return $this->delete_replacement($request);
+        }
         try {
             // Check Tutor LMS availability
             $tutor_check = $this->ensure_tutor_lms();
@@ -646,6 +702,83 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 ['status' => 500]
             );
         }
+    }
+
+    /**
+     * Gate-true topic delete. Children go through the cascade service.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error
+     */
+    private function delete_replacement($request) {
+        if (is_wp_error($tutor_check = $this->ensure_tutor_lms())) {
+            return $tutor_check;
+        }
+        $topic_post = get_post((int) $request->get_param('id'));
+        if (!$topic_post || 'topics' !== $topic_post->post_type) { return new WP_Error('invalid_topic', __('Invalid topic ID.', 'tutorpress'), ['status' => 404]); }
+        $course_post = get_post($topic_post->post_parent);
+        if (!$course_post || 'courses' !== $course_post->post_type) { return new WP_Error('invalid_course_id', __('Invalid course ID.', 'tutorpress'), ['status' => 404]); }
+        $can = static function ($capability, $object_id = 0) {
+            return 'edit_post' === $capability && current_user_can('edit_post', $object_id);
+        };
+        $topic = ['ID' => (int) $topic_post->ID, 'post_type' => $topic_post->post_type, 'post_parent' => (int) $topic_post->post_parent];
+        $course = ['ID' => (int) $course_post->ID, 'post_type' => $course_post->post_type];
+        if (null === TutorPress_Live_Lesson_Authorization::authorize_create($topic, $course, $can)) { return new WP_Error('rest_cannot_delete', __('Sorry, you are not allowed to delete this topic.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
+        $children = [];
+        foreach (get_posts(['post_type' => ['lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting'], 'post_parent' => (int) $topic_post->ID, 'posts_per_page' => -1, 'orderby' => 'menu_order', 'order' => 'ASC', 'post_status' => ['publish', 'draft', 'private', 'pending', 'future']]) as $item) {
+            $children[] = ['ID' => (int) $item->ID, 'post_type' => $item->post_type, 'post_title' => $item->post_title, 'post_content' => $item->post_content, 'post_status' => $item->post_status, 'post_parent' => (int) $item->post_parent, 'menu_order' => (int) $item->menu_order];
+        }
+        $result = $this->cascade_execute($topic, $course, $children, $can);
+        if (null === $result) { return new WP_Error('rest_cannot_delete', __('Sorry, you are not allowed to delete this topic.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
+        if (!is_array($result) || !isset($result['status'], $result['parent_deleted']) || 'complete' !== $result['status'] || true !== $result['parent_deleted']) { return new WP_Error('topic_deletion_failed', __('Topic could not be deleted.', 'tutorpress'), ['status' => 409]); }
+        return rest_ensure_response($this->format_response(null, __('Topic deleted successfully.', 'tutorpress')));
+    }
+
+    /**
+     * Run the topic cascade once.
+     *
+     * @since 1.0.0
+     * @param array<string,mixed> $topic    Topic row.
+     * @param array<string,mixed> $course   Course row.
+     * @param array<int,mixed>    $children Child rows.
+     * @param callable            $can      Capability closure.
+     * @return mixed
+     */
+    protected function cascade_execute(array $topic, array $course, array $children, $can) {
+        return TutorPress_Live_Lesson_Cascade_Delete::execute($topic, $course, $children, $can, function ($child) { return $this->delete_live_child($child); }, function ($child) { return $this->remove_topic_child($child); }, function ($parent) { return (bool) wp_delete_post((int) $parent['ID'], true); });
+    }
+
+    /**
+     * Delete one live child through the live-lessons controller.
+     *
+     * @since 1.0.0
+     * @param array<string,mixed> $child Child row.
+     * @return mixed
+     */
+    protected function delete_live_child(array $child) {
+        $request = new WP_REST_Request('DELETE');
+        $request->set_param('id', (int) $child['ID']);
+        $result = (new TutorPress_REST_Live_Lessons_Controller())->delete_item($request);
+        return $result instanceof WP_REST_Response ? ['outcome' => 'confirmed'] : $result;
+    }
+
+    /**
+     * Remove one non-live topic child.
+     *
+     * @since 1.0.0
+     * @param array<string,mixed> $child Child row.
+     * @return bool
+     */
+    protected function remove_topic_child(array $child) {
+        $request = new WP_REST_Request('DELETE');
+        $request->set_param('id', (int) $child['ID']);
+        $type = $child['post_type'];
+        if ('lesson' === $type) { $result = (new TutorPress_REST_Lessons_Controller())->delete_item($request); }
+        elseif ('tutor_assignments' === $type) { $result = (new TutorPress_REST_Assignments_Controller())->delete_item($request); }
+        elseif ('tutor_quiz' === $type || 'interactive_quiz' === $type) { $result = (new TutorPress_REST_Quizzes_Controller())->delete_item($request); }
+        else { $result = wp_delete_post((int) $child['ID'], true); }
+        return !is_wp_error($result);
     }
 
     /**
@@ -767,6 +900,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
      * @return WP_REST_Response|WP_Error Response object or error.
      */
     public function duplicate_item($request) {
+        if ($this->replacement_enabled()) {
+            return $this->duplicate_replacement($request);
+        }
         try {
             global $wpdb;
 
@@ -901,6 +1037,68 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 ['status' => 500]
             );
         }
+    }
+
+    /**
+     * Gate-true topic duplicate. All children go through the duplication service.
+     *
+     * @since 1.0.0
+     * @param WP_REST_Request $request The request object.
+     * @return WP_REST_Response|WP_Error
+     */
+    private function duplicate_replacement($request) {
+        if (is_wp_error($tutor_check = $this->ensure_tutor_lms())) {
+            return $tutor_check;
+        }
+        $topic = get_post($request->get_param('id'));
+        if (!$topic || 'topics' !== $topic->post_type) { return new WP_Error('invalid_topic', __('Invalid topic ID.', 'tutorpress'), ['status' => 404]); }
+        $course_id = $request->get_param('course_id');
+        $source_course = get_post($topic->post_parent);
+        $destination_post = get_post($course_id);
+        if (!$source_course || 'courses' !== $source_course->post_type || !$destination_post || 'courses' !== $destination_post->post_type) { return new WP_Error('invalid_course_id', __('Invalid course ID.', 'tutorpress'), ['status' => 404]); }
+        $can = static function ($capability, $object_id = 0) {
+            return 'edit_post' === $capability && current_user_can('edit_post', $object_id);
+        };
+        $source = ['ID' => (int) $topic->ID, 'post_type' => $topic->post_type, 'post_parent' => (int) $topic->post_parent];
+        $course = ['ID' => (int) $source_course->ID, 'post_type' => $source_course->post_type];
+        $destination = ['ID' => (int) $destination_post->ID, 'post_type' => $destination_post->post_type, 'post_author' => (int) $destination_post->post_author];
+        if (null === TutorPress_Live_Lesson_Authorization::authorize_duplicate($source, $course, $destination, $can)) { return new WP_Error('rest_cannot_create', __('Sorry, you are not allowed to duplicate this topic.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
+        global $wpdb;
+        $max_order = (int) $wpdb->get_var($wpdb->prepare("SELECT MAX(menu_order) FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'topics'", $course_id));
+        $new_topic_id = wp_insert_post(['post_type' => $topic->post_type, 'post_title' => sprintf('%s (copy)', $topic->post_title), 'post_content' => $topic->post_content, 'post_status' => $topic->post_status, 'post_parent' => $course_id, 'menu_order' => $max_order + 1], true);
+        if (is_wp_error($new_topic_id)) { return $new_topic_id; }
+        $topic_meta = get_post_meta($topic->ID);
+        if ($topic_meta) {
+            foreach ($topic_meta as $meta_key => $meta_values) {
+                if (in_array($meta_key, ['_edit_lock', '_edit_last'], true)) { continue; }
+                foreach ($meta_values as $meta_value) { add_post_meta($new_topic_id, $meta_key, maybe_unserialize($meta_value)); }
+            }
+        }
+        $children = [];
+        foreach (get_posts(['post_parent' => $topic->ID, 'post_type' => ['lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting'], 'posts_per_page' => -1, 'orderby' => 'menu_order', 'order' => 'ASC', 'post_status' => ['publish', 'draft', 'private', 'pending', 'future']]) as $item) {
+            $children[] = ['ID' => (int) $item->ID, 'post_type' => $item->post_type, 'post_title' => $item->post_title, 'post_content' => $item->post_content, 'post_status' => $item->post_status, 'post_parent' => (int) $item->post_parent, 'menu_order' => (int) $item->menu_order, 'meta' => get_post_meta($item->ID)];
+        }
+        $created = get_post($new_topic_id);
+        $target = ['ID' => (int) $created->ID, 'post_type' => $created->post_type, 'post_parent' => (int) $created->post_parent];
+        $copied = $this->copy_topic_children($source, $course, $destination, $target, $children, $can);
+        if (!is_array($copied)) { wp_delete_post($new_topic_id, true); return $copied instanceof WP_Error ? $copied : new WP_Error('topic_duplication_error', __('Topic could not be duplicated.', 'tutorpress'), ['status' => 500]); }
+        return rest_ensure_response(['status_code' => 200, 'success' => true, 'message' => __('Topic duplicated successfully.', 'tutorpress'), 'data' => ['id' => $created->ID, 'title' => $created->post_title, 'content' => $created->post_content, 'menu_order' => (int) $created->menu_order, 'status' => $created->post_status, 'contents' => $this->get_topic_contents($new_topic_id)]]);
+    }
+
+    /**
+     * Copy every child through the all-child duplication service.
+     *
+     * @since 1.0.0
+     * @param array<string,mixed> $source      Source topic.
+     * @param array<string,mixed> $course      Source course.
+     * @param array<string,mixed> $destination Destination course.
+     * @param array<string,mixed> $target      New topic.
+     * @param array<int,mixed>    $children    Source children.
+     * @param callable            $can         Capability closure.
+     * @return mixed
+     */
+    protected function copy_topic_children(array $source, array $course, array $destination, array $target, array $children, $can) {
+        return TutorPress_Topic_Duplication_Service::copy_topic($source, $course, $destination, $target, $children, $can);
     }
 
     /**

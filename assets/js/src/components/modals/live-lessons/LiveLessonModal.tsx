@@ -26,8 +26,45 @@ import type {
 } from "../../../types/liveLessons";
 import { GoogleMeetForm } from "./GoogleMeetForm";
 import { ZoomForm } from "./ZoomForm";
+import { LiveLessonRecoveryControls } from "./LiveLessonRecoveryControls";
+import { addZoomDuration, hydrateWallClock, hydrateZoomDuration, serializeWallClock, wallClockMinutes } from "../../../utils/liveLessonDateTime";
+import { deriveLiveLessonRecoveryActions } from "../../../utils/liveLessonReconciliation";
 
 const CURRICULUM_STORE = "tutorpress/curriculum";
+
+type LiveLessonRecoveryAction = ReturnType<typeof deriveLiveLessonRecoveryActions>[number];
+
+function canonicalLiveLessonSave(value: unknown): { refreshWarning: string | null } | null {
+  if (typeof value !== "object" || value === null) return null;
+  const outcome = (value as { outcome?: unknown }).outcome;
+  const refreshWarning = (value as { refreshWarning?: unknown }).refreshWarning;
+  if (typeof outcome !== "object" || outcome === null || typeof (outcome as { id?: unknown }).id !== "number") return null;
+  if (refreshWarning !== null && typeof refreshWarning !== "string") return null;
+  return { refreshWarning };
+}
+
+function liveLessonSaveFailure(error: unknown): {
+  refreshWarning: string | null;
+  actions: LiveLessonRecoveryAction[];
+  projectedRecord: object | null;
+} {
+  const empty = { refreshWarning: null, actions: [] as LiveLessonRecoveryAction[], projectedRecord: null };
+  if (typeof error !== "object" || error === null) return empty;
+  const source = error as { refreshWarning?: unknown; outcome?: unknown };
+  const refreshWarning = typeof source.refreshWarning === "string" && source.refreshWarning !== "" ? source.refreshWarning : null;
+  const outcome = source.outcome;
+  if (typeof outcome !== "object" || outcome === null) return { ...empty, refreshWarning };
+  const data = (outcome as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null) return { ...empty, refreshWarning };
+  const failure = data as { persisted?: unknown; projected_record?: unknown; actions?: unknown };
+  const projectedRecord =
+    failure.persisted === true && typeof failure.projected_record === "object" && failure.projected_record !== null
+      ? failure.projected_record
+      : null;
+  const actions =
+    window.tutorPressCurriculum?.liveLessonSyncEnabled === true ? deriveLiveLessonRecoveryActions(failure.actions) : [];
+  return { refreshWarning, actions, projectedRecord };
+}
 
 export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   isOpen,
@@ -41,6 +78,8 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
+  const [recoveryActions, setRecoveryActions] = useState<LiveLessonRecoveryAction[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Get WordPress date settings for proper timezone handling
@@ -51,9 +90,9 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   const [googleMeetForm, setGoogleMeetForm] = useState<GoogleMeetFormData>({
     title: "",
     summary: "",
-    startDate: new Date(),
+    startDate: "",
     startTime: "12:00 AM",
-    endDate: new Date(),
+    endDate: "",
     endTime: "12:30 AM",
     timezone: defaultTimezone,
     addEnrolledStudents: false,
@@ -63,7 +102,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   const [zoomForm, setZoomForm] = useState<ZoomFormData>({
     title: "",
     summary: "",
-    date: new Date(),
+    date: "",
     time: "12:00 AM",
     duration: 40,
     durationUnit: "minutes",
@@ -116,13 +155,15 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
       // Initialize form with loaded data based on lesson type
       if (data.type === "google_meet") {
+        const start = hydrateWallClock(data.startDateTime || "");
+        const end = hydrateWallClock(data.endDateTime || "");
         setGoogleMeetForm({
           title: data.title || "",
           summary: data.description || "",
-          startDate: new Date(data.startDateTime),
-          startTime: formatTimeFromDateTime(data.startDateTime),
-          endDate: new Date(data.endDateTime),
-          endTime: formatTimeFromDateTime(data.endDateTime),
+          startDate: start?.date ?? "",
+          startTime: start?.time ?? "12:00 AM",
+          endDate: end?.date ?? "",
+          endTime: end?.time ?? "12:30 AM",
           timezone: data.settings?.timezone || defaultTimezone,
           addEnrolledStudents: data.settings?.add_enrolled_students === "Yes",
         });
@@ -136,13 +177,15 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           autoRecording = data.providerConfig.autoRecording as "none" | "local" | "cloud";
         }
 
+        const start = hydrateWallClock(data.startDateTime || "");
+        const typed = hydrateZoomDuration(data.startDateTime || "", data.endDateTime || "", Number(data.settings?.duration));
         setZoomForm({
           title: data.title || "",
           summary: data.description || "",
-          date: new Date(data.startDateTime),
-          time: formatTimeFromDateTime(data.startDateTime),
-          duration: data.settings?.duration || 40,
-          durationUnit: "minutes",
+          date: start?.date ?? "",
+          time: start?.time ?? "12:00 AM",
+          duration: typed.value,
+          durationUnit: typed.unit,
           timezone: data.settings?.timezone || defaultTimezone,
           autoRecording: autoRecording,
           password: data.providerConfig?.password || "",
@@ -161,15 +204,12 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
    * Reset form to default values
    */
   const resetForm = () => {
-    const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
-
     setGoogleMeetForm({
       title: "",
       summary: "",
-      startDate: now,
+      startDate: "",
       startTime: "12:00 AM",
-      endDate: oneHourLater,
+      endDate: "",
       endTime: "12:30 AM",
       timezone: defaultTimezone,
       addEnrolledStudents: false,
@@ -178,7 +218,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
     setZoomForm({
       title: "",
       summary: "",
-      date: now,
+      date: "",
       time: "12:00 AM",
       duration: 40,
       durationUnit: "minutes",
@@ -189,56 +229,9 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
     });
 
     setSaveError(null);
+    setRefreshWarning(null);
+    setRecoveryActions([]);
     setLoadError(null);
-  };
-
-  /**
-   * Format time from ISO datetime string to 12-hour format
-   */
-  const formatTimeFromDateTime = (dateTimeString: string): string => {
-    try {
-      const date = new Date(dateTimeString);
-      return date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return "09:00 AM";
-    }
-  };
-
-  /**
-   * Combine date and time string into a Date object
-   */
-  const combineDateTime = (date: Date, timeString: string): Date => {
-    const [time, period] = timeString.split(" ");
-    const [hours, minutes] = time.split(":").map(Number);
-
-    let adjustedHours = hours;
-    if (period === "PM" && hours !== 12) {
-      adjustedHours += 12;
-    } else if (period === "AM" && hours === 12) {
-      adjustedHours = 0;
-    }
-
-    const combined = new Date(date);
-    combined.setHours(adjustedHours, minutes, 0, 0);
-    return combined;
-  };
-
-  /**
-   * Format datetime for storage exactly as user selected it (no timezone conversion)
-   * This matches how Tutor LMS handles datetime - store exactly what user entered
-   */
-  const formatDateTimeForStorage = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
   /**
@@ -269,25 +262,19 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
         errors.push(__("End time is required", "tutorpress"));
       }
 
-      // Validate date/time logic
-      const startDateTime = combineDateTime(googleMeetForm.startDate, googleMeetForm.startTime);
-      const endDateTime = combineDateTime(googleMeetForm.endDate, googleMeetForm.endTime);
+      const startWall = serializeWallClock(googleMeetForm.startDate, googleMeetForm.startTime);
+      const endWall = serializeWallClock(googleMeetForm.endDate, googleMeetForm.endTime);
 
-      if (isNaN(startDateTime.getTime())) {
+      if (!startWall) {
         errors.push(__("Invalid start date/time", "tutorpress"));
       }
 
-      if (isNaN(endDateTime.getTime())) {
+      if (!endWall) {
         errors.push(__("Invalid end date/time", "tutorpress"));
       }
 
-      if (endDateTime <= startDateTime) {
+      if (startWall && endWall && endWall <= startWall) {
         errors.push(__("End time must be after start time", "tutorpress"));
-      }
-
-      // Check if start time is in the past (optional, but good UX)
-      if (startDateTime < new Date()) {
-        errors.push(__("Start time cannot be in the past", "tutorpress"));
       }
     } else if (lessonType === "zoom") {
       // Required fields for Zoom
@@ -315,16 +302,15 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
         errors.push(__("Meeting host is required", "tutorpress"));
       }
 
-      // Validate date/time logic
-      const startDateTime = combineDateTime(zoomForm.date, zoomForm.time);
+      const startWall = serializeWallClock(zoomForm.date, zoomForm.time);
 
-      if (isNaN(startDateTime.getTime())) {
+      if (!startWall) {
         errors.push(__("Invalid start date/time", "tutorpress"));
       }
 
-      // Check if start time is in the past (optional, but good UX)
-      if (startDateTime < new Date()) {
-        errors.push(__("Start time cannot be in the past", "tutorpress"));
+      const endWall = startWall ? addZoomDuration(startWall, zoomForm.duration, zoomForm.durationUnit) : "";
+      if (startWall && endWall && endWall <= startWall) {
+        errors.push(__("End time must be after start time", "tutorpress"));
       }
 
       // Validate duration based on unit
@@ -350,25 +336,25 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
     setIsSaving(true);
     setSaveError(null);
+    setRefreshWarning(null);
+    setRecoveryActions([]);
 
     try {
       let liveLessonData: LiveLessonFormData;
 
       if (lessonType === "google_meet") {
-        // Combine date and time fields
-        const startDateTime = combineDateTime(googleMeetForm.startDate, googleMeetForm.startTime);
-        const endDateTime = combineDateTime(googleMeetForm.endDate, googleMeetForm.endTime);
+        const startDateTime = serializeWallClock(googleMeetForm.startDate, googleMeetForm.startTime) ?? "";
+        const endDateTime = serializeWallClock(googleMeetForm.endDate, googleMeetForm.endTime) ?? "";
 
-        // Convert form data to API format (matches previous implementation)
         liveLessonData = {
           title: googleMeetForm.title,
           description: googleMeetForm.summary,
           type: "google_meet",
-          startDateTime: formatDateTimeForStorage(startDateTime),
-          endDateTime: formatDateTimeForStorage(endDateTime),
+          startDateTime,
+          endDateTime,
           settings: {
             timezone: googleMeetForm.timezone,
-            duration: Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60)),
+            duration: wallClockMinutes(endDateTime) - wallClockMinutes(startDateTime),
             allowEarlyJoin: true,
             autoRecord: false,
             requirePassword: false,
@@ -377,21 +363,16 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           },
         };
       } else {
-        // Combine date and time fields
-        const startDateTime = combineDateTime(zoomForm.date, zoomForm.time);
-
-        // Calculate end date based on duration
-        const durationMs =
-          zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 * 60 * 1000 : zoomForm.duration * 60 * 1000;
-        const endDate = new Date(startDateTime.getTime() + durationMs);
+        const startDateTime = serializeWallClock(zoomForm.date, zoomForm.time) ?? "";
+        const endDateTime = addZoomDuration(startDateTime, zoomForm.duration, zoomForm.durationUnit);
 
         // Convert form data to API format (matches previous implementation)
         liveLessonData = {
           title: zoomForm.title,
           description: zoomForm.summary,
           type: "zoom",
-          startDateTime: formatDateTimeForStorage(startDateTime),
-          endDateTime: formatDateTimeForStorage(endDate),
+          startDateTime,
+          endDateTime,
           settings: {
             timezone: zoomForm.timezone,
             duration: zoomForm.durationUnit === "hours" ? zoomForm.duration * 60 : zoomForm.duration,
@@ -410,41 +391,43 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
       console.log("TutorPress: Saving Live Lesson with data:", liveLessonData);
 
-      // Use WordPress Data Store dispatch - different action for create vs update
-      if (lessonId) {
-        // Update existing lesson
-        await updateLiveLesson(lessonId, liveLessonData);
-
-        createNotice(
-          "success",
-          lessonType === "google_meet"
-            ? __("Google Meet lesson updated successfully", "tutorpress")
-            : __("Zoom lesson updated successfully", "tutorpress"),
-          {
-            type: "snackbar",
-            isDismissible: true,
-          }
-        );
-      } else {
-        // Create new lesson
-        await saveLiveLesson(liveLessonData, courseId || 0, topicId);
-
-        createNotice(
-          "success",
-          lessonType === "google_meet"
-            ? __("Google Meet lesson created successfully", "tutorpress")
-            : __("Zoom lesson created successfully", "tutorpress"),
-          {
-            type: "snackbar",
-            isDismissible: true,
-          }
-        );
+      const result: unknown = lessonId
+        ? await updateLiveLesson(lessonId, liveLessonData)
+        : await saveLiveLesson(liveLessonData, courseId || 0, topicId);
+      const saved = canonicalLiveLessonSave(result);
+      if (saved === null) {
+        setSaveError(__("Failed to save lesson", "tutorpress"));
+        setRefreshWarning(null);
+        setRecoveryActions([]);
+        return;
       }
 
-      // Close modal
+      createNotice(
+        "success",
+        lessonId
+          ? lessonType === "google_meet"
+            ? __("Google Meet lesson updated successfully", "tutorpress")
+            : __("Zoom lesson updated successfully", "tutorpress")
+          : lessonType === "google_meet"
+            ? __("Google Meet lesson created successfully", "tutorpress")
+            : __("Zoom lesson created successfully", "tutorpress"),
+        {
+          type: "snackbar",
+          isDismissible: true,
+        }
+      );
+      if (saved.refreshWarning) {
+        createNotice("error", saved.refreshWarning, {
+          type: "snackbar",
+          isDismissible: true,
+        });
+      }
       handleClose();
     } catch (error) {
       console.error("TutorPress: Failed to save Live Lesson:", error);
+      const failure = liveLessonSaveFailure(error);
+      setRefreshWarning(failure.refreshWarning);
+      setRecoveryActions(failure.actions);
       const isUpdating = !!lessonId;
       const providerName = lessonType === "google_meet" ? "Google Meet" : "Zoom";
 
@@ -459,6 +442,9 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
         }
       );
       setSaveError(error instanceof Error ? error.message : __("Failed to save lesson", "tutorpress"));
+      if (failure.projectedRecord !== null) {
+        return;
+      }
     } finally {
       setIsSaving(false);
     }
@@ -512,6 +498,14 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
             {saveError}
           </Notice>
         )}
+
+        {refreshWarning !== null && (
+          <Notice status="warning" isDismissible={false}>
+            {refreshWarning}
+          </Notice>
+        )}
+
+        <LiveLessonRecoveryControls actions={recoveryActions} />
 
         {/* Form Content */}
         {!isLoading && !loadError && (

@@ -25,7 +25,7 @@ import { appendContentDripPostFieldsToFormData } from "../../utils/quizForm";
 
 import { TopicRequest, APIResponse, TopicResponse } from "../../types/api";
 import apiFetch from "@wordpress/api-fetch";
-import { LiveLesson, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
+import { LiveLesson, LiveLessonAdvertisedAction, LiveLessonFormData, LiveLessonListResponse, LiveLessonApiResponse } from "../../types/liveLessons";
 import {
   createRemoveContentPayload,
   createRemoveMultiTypeContentPayload,
@@ -46,7 +46,9 @@ import {
   ContentReorderOperationState,
   ContentOrder,
 } from "./utils";
-import { reconcileFetchedTopics } from "./utils/topicRefresh";
+import { reconcileFetchedTopics, refreshTopicsAfterSettledMutation } from "./utils/topicRefresh";
+import { buildLiveLessonReconcileRequest } from "../../utils/liveLessonReconciliation";
+import { normalizeLiveLessonError, preserveLiveLessonMutation } from "../../utils/liveLessonErrors";
 import { createCurriculumError } from "../../utils/errors";
 
 // Define the store's state interface
@@ -184,7 +186,7 @@ export type CurriculumAction =
   | { type: "DUPLICATE_ASSIGNMENT_ERROR"; payload: { error: CurriculumError; assignmentId: number } }
   | { type: "DELETE_TOPIC_START"; payload: { topicId: number } }
   | { type: "DELETE_TOPIC_SUCCESS"; payload: { topicId: number } }
-  | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError } }
+  | { type: "DELETE_TOPIC_ERROR"; payload: { error: CurriculumError & { data?: Record<string, unknown> } } }
   | { type: "DUPLICATE_LESSON_START"; payload: { lessonId: number } }
   | { type: "DUPLICATE_LESSON_SUCCESS"; payload: { lesson: Lesson; sourceLessonId: number } }
   | { type: "DUPLICATE_LESSON_ERROR"; payload: { error: CurriculumError; lessonId: number } }
@@ -1437,6 +1439,19 @@ interface ParentInfoResponse {
   };
 }
 
+const refreshFailure = (warning: string | null): { message: string } | undefined => (warning === null ? undefined : { message: warning });
+
+function reconcileLiveLessonPath(id: number, action: string, kind?: string): string {
+  const base = `/tutorpress/v1/live-lessons/${id}`;
+  if (action === "attach" && kind === "uncertain_create") {
+    return `${base}/attach/uncertain-create`;
+  }
+  if (action === "attach" && kind === "legacy_identity") {
+    return `${base}/attach/legacy`;
+  }
+  return `${base}/reconcile`;
+}
+
 // Generator functions
 const resolvers = {
   *fetchTopics(courseId: number): Generator<unknown, void, unknown> {
@@ -1748,7 +1763,75 @@ const resolvers = {
     }
   },
 
-  deleteTopic: deleteResolvers.topic,
+  deleteTopic: function* (topicId: number, courseId: number): Generator<unknown, string | null, unknown> {
+    try {
+      yield {
+        type: "DELETE_TOPIC_START",
+        payload: { topicId },
+      };
+
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: `/tutorpress/v1/topics/${topicId}`,
+          method: "DELETE",
+        },
+      };
+
+      if (!response || typeof response !== "object" || !("success" in response) || response.success !== true) {
+        throw response;
+      }
+
+      yield {
+        type: "DELETE_TOPIC_SUCCESS",
+        payload: { topicId },
+      };
+
+      return typeof courseId === "number" && courseId > 0 ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+    } catch (error) {
+      const rawMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && "message" in error
+            ? error.message
+            : undefined;
+      const message =
+        typeof rawMessage === "string" && rawMessage !== "" ? rawMessage : __("Failed to delete topic", "tutorpress");
+      const failureData =
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        !Array.isArray(error.data)
+          ? error.data
+          : undefined;
+      const status = failureData && "status" in failureData ? failureData.status : undefined;
+      const refreshWarning =
+        (status === 207 || status === 409) && typeof courseId === "number" && courseId > 0
+          ? yield* refreshTopicsAfterSettledMutation(courseId)
+          : null;
+
+      yield {
+        type: "DELETE_TOPIC_ERROR",
+        payload: {
+          error: {
+            code: CurriculumErrorCode.DELETE_FAILED,
+            message,
+            ...(failureData ? { data: failureData } : {}),
+            context: {
+              action: "deleteTopic",
+              details: `Failed to delete topic ${topicId}`,
+            },
+          },
+        },
+      };
+
+      const rejection = new Error(message);
+      Object.assign(rejection, { refreshWarning });
+      throw rejection;
+    }
+  },
 
   // Wrapped createLesson with automatic START/SUCCESS/ERROR dispatching
   createLesson: createOperationWrapper(
@@ -2369,10 +2452,43 @@ const resolvers = {
 
   updateLiveLesson: saveUpdateResolvers.updateLiveLesson,
 
+  *reconcileLiveLesson(liveLessonId: number, descriptor: LiveLessonAdvertisedAction & { label?: string }, supplied: unknown, courseId: number, ambiguousOwner = false): Generator<unknown, { outcome: unknown; refreshWarning: string | null } | null, unknown> {
+    if (window.tutorPressCurriculum?.liveLessonSyncEnabled !== true) {
+      return null;
+    }
+    const body = buildLiveLessonReconcileRequest(descriptor, supplied, ambiguousOwner);
+    if (body === null) {
+      return null;
+    }
+    try {
+      const response = yield {
+        type: "API_FETCH",
+        request: {
+          path: reconcileLiveLessonPath(liveLessonId, descriptor.action, "kind" in descriptor ? descriptor.kind : undefined),
+          method: "POST",
+          data: body,
+        },
+      };
+      const refreshWarning =
+        typeof courseId === "number" && courseId > 0 ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+      return preserveLiveLessonMutation(response, refreshFailure(refreshWarning));
+    } catch (error) {
+      const normalized = normalizeLiveLessonError(error);
+      const data = normalized.data;
+      const settled = data?.persisted === true || data?.refetch_required === true || data?.projected_record !== undefined;
+      const refreshWarning =
+        settled && typeof courseId === "number" && courseId > 0 ? yield* refreshTopicsAfterSettledMutation(courseId) : null;
+      const preserved = preserveLiveLessonMutation(normalized, refreshFailure(refreshWarning));
+      throw Object.assign(new Error(normalized.message), preserved);
+    }
+  },
+
   reorderTopicContent,
 };
 
 export const saveQuizResolver = resolvers.saveQuiz;
+export const deleteTopicResolver = resolvers.deleteTopic;
+export const reconcileLiveLessonResolver = resolvers.reconcileLiveLesson;
 
 // Create and register the store
 const curriculumStore = createReduxStore("tutorpress/curriculum", {

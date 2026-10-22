@@ -10,6 +10,7 @@ import {
   OperationResult,
   TopicActiveOperation,
 } from "../../types/curriculum";
+import type { LiveLessonAdvertisedAction, LiveLessonSyncState } from "../../types/liveLessons";
 
 /**
  * Action types for the curriculum store
@@ -104,3 +105,13 @@ export type StateUpdate<T> = T | ((current: T) => T);
  * Helper type for handling state updates
  */
 export type StateUpdateHandler<T> = (current: T, update: StateUpdate<T>) => T;
+
+/**
+ * Topic-row sync overlay. Not a content item and not a store action.
+ */
+export interface LiveLessonSyncSummary {
+  sync_state: LiveLessonSyncState;
+  sync_version: number;
+  menuOrder: number;
+  actions: LiveLessonAdvertisedAction[];
+}

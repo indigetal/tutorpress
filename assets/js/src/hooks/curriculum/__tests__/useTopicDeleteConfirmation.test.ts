@@ -110,9 +110,13 @@ describe("useTopicDeleteConfirmation", () => {
     unmount();
   });
 
-  it("clears after rejection and allows a fresh confirmation request", async () => {
-    const deferred = createDeferred();
-    const continueTopicDelete = jest.fn(() => deferred.promise);
+  it("keeps the dialog open after rejection, clears busy, and allows a later confirm", async () => {
+    const calls: Array<ReturnType<typeof createDeferred>> = [];
+    const continueTopicDelete = jest.fn(() => {
+      const next = createDeferred();
+      calls.push(next);
+      return next.promise;
+    });
     const { current, unmount } = renderConfirmation(continueTopicDelete);
 
     act(() => {
@@ -125,19 +129,29 @@ describe("useTopicDeleteConfirmation", () => {
     });
 
     await act(async () => {
-      deferred.reject(new Error("delete failed"));
+      calls[0].reject(new Error("delete failed"));
       await confirmPromise.catch(() => {});
-    });
-
-    expect(current().isOpen).toBe(false);
-    expect(current().isBusy).toBe(false);
-
-    act(() => {
-      current().requestTopicDelete(101);
     });
 
     expect(current().requestedTopicId).toBe(101);
     expect(current().isOpen).toBe(true);
+    expect(current().isBusy).toBe(false);
+
+    let secondConfirm: Promise<void> = Promise.resolve();
+    act(() => {
+      secondConfirm = current().confirmTopicDelete();
+    });
+
+    expect(continueTopicDelete).toHaveBeenCalledTimes(2);
+    expect(current().isBusy).toBe(true);
+    expect(current().isOpen).toBe(true);
+
+    await act(async () => {
+      calls[1].resolve();
+      await secondConfirm;
+    });
+
+    expect(current().isOpen).toBe(false);
     expect(current().isBusy).toBe(false);
     unmount();
   });

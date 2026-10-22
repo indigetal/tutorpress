@@ -28,7 +28,7 @@ class TutorPress_Dependency_Checker {
     /**
      * Minimum WordPress version required
      */
-    const MINIMUM_WP_VERSION = '5.0';
+    const MINIMUM_WP_VERSION = '5.8';
     
     /**
      * Check immediate requirements (PHP/WordPress versions)

@@ -2,7 +2,7 @@
 Contributors: brandonmeyer, indigetal webcraft
 Tags: tutor-lms, gutenberg, lms, course-builder, freemius
 Requires at least: 5.8
-Tested up to: 6.4
+Tested up to: 7.1
 Stable tag: 2.3.1
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -42,7 +42,8 @@ Support included with license; see <support URL>.
 
 == Changelog ==
 = 2.3.1 =
-* Version bump to 2.3.1
+* Declared testing through WordPress 7.1
+* Aligned WordPress, PHP, license, and text-domain release metadata
 
 = 2.3.0 =
 * Version bump to 2.3.0

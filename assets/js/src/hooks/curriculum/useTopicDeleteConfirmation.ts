@@ -47,8 +47,8 @@ export function useTopicDeleteConfirmation(
 
     try {
       await continueTopicDelete(topicId);
-    } finally {
       setRequestedTopicId(null);
+    } finally {
       setIsBusy(false);
       submissionLatch.current = false;
     }

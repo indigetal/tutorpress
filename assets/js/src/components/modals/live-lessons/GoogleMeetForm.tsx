@@ -27,13 +27,48 @@ import { __ } from "@wordpress/i18n";
 import { calendar } from "@wordpress/icons";
 import type { GoogleMeetFormData } from "../../../types/liveLessons";
 import { generateTimezoneOptions } from "./index";
+import { generateTimeOptions } from "../../../utils/datetime-validation";
 
-// Import our reusable datetime validation utilities
-import {
-  generateTimeOptions,
-  filterEndTimeOptions,
-  validateAndCorrectDateTime,
-} from "../../../utils/datetime-validation";
+const dayPrefix = /^(\d{4}-\d{2}-\d{2})/;
+
+function calendarDay(value: string | null): string | null {
+  return dayPrefix.exec(value ?? "")?.[1] ?? null;
+}
+
+function dateToken(day: string): string | undefined {
+  return calendarDay(day) === day ? `${day}T00:00:00.000Z` : undefined;
+}
+
+function sameCalendarDay(startDate: string, endDate: string): boolean {
+  return startDate !== "" && startDate === endDate;
+}
+
+function laterEndTime(options: Array<{ value: string }>, startTime: string, endTime: string): string | undefined {
+  const startIndex = options.findIndex((option) => option.value === startTime);
+  const endIndex = options.findIndex((option) => option.value === endTime);
+  return startIndex >= 0 && endIndex >= 0 && endIndex <= startIndex ? options[startIndex + 1]?.value : undefined;
+}
+
+function endTimeChoices<T extends { value: string }>(options: T[], startDate: string, startTime: string, endDate: string): T[] {
+  if (!sameCalendarDay(startDate, endDate)) {
+    return options;
+  }
+  const startIndex = options.findIndex((option) => option.value === startTime);
+  return startIndex >= 0 ? options.slice(startIndex + 1) : options;
+}
+
+function applyGoogleSchedule(
+  current: GoogleMeetFormData,
+  patch: Partial<Pick<GoogleMeetFormData, "startDate" | "startTime" | "endDate" | "endTime">>,
+  options: Array<{ value: string }>
+): GoogleMeetFormData {
+  const startDate = patch.startDate ?? current.startDate;
+  const startTime = patch.startTime ?? current.startTime;
+  const endDate = patch.endDate ?? current.endDate;
+  const endTime = patch.endTime ?? current.endTime;
+  const corrected = sameCalendarDay(startDate, endDate) ? laterEndTime(options, startTime, endTime) : undefined;
+  return { ...current, startDate, startTime, endDate, endTime: corrected ?? endTime };
+}
 
 interface GoogleMeetFormProps {
   formData: GoogleMeetFormData;
@@ -97,34 +132,22 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                 onClick={() => setStartDatePickerOpen(!startDatePickerOpen)}
                 disabled={disabled}
               >
-                {formData.startDate.toLocaleDateString()}
+                {formData.startDate}
               </Button>
 
               {startDatePickerOpen && (
                 <Popover position="bottom left" onClose={() => setStartDatePickerOpen(false)}>
                   <DatePicker
-                    currentDate={formData.startDate.toISOString()}
+                    currentDate={dateToken(formData.startDate)}
                     onChange={(date) => {
-                      const newStartDate = new Date(date);
-
-                      // Auto-correct end date and time using simplified validation utility
-                      const validationResult = validateAndCorrectDateTime(
-                        newStartDate,
-                        formData.startTime,
-                        formData.endDate,
-                        formData.endTime
-                      );
-
-                      // Build updates object to avoid race conditions
-                      const updates: Partial<GoogleMeetFormData> = {
-                        startDate: newStartDate,
-                        ...(validationResult.correctedEndDate && { endDate: validationResult.correctedEndDate }),
-                        ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
-                      };
-
-                      // Apply all updates at once
-                      onChange({ ...formData, ...updates });
-
+                      const startDate = calendarDay(typeof date === "string" ? date : null);
+                      if (!startDate) {
+                        setStartDatePickerOpen(false);
+                        return;
+                      }
+                      const endDate =
+                        formData.endDate !== "" && startDate > formData.endDate ? startDate : formData.endDate;
+                      onChange(applyGoogleSchedule(formData, { startDate, endDate }, timeOptions));
                       setStartDatePickerOpen(false);
                     }}
                   />
@@ -138,25 +161,7 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
             <SelectControl
               value={formData.startTime}
               options={timeOptions}
-              onChange={(value) => {
-                // Auto-correct end date and time using simplified validation
-                const validationResult = validateAndCorrectDateTime(
-                  formData.startDate,
-                  value,
-                  formData.endDate,
-                  formData.endTime
-                );
-
-                // Build updates object to avoid race conditions
-                const updates: Partial<GoogleMeetFormData> = {
-                  startTime: value,
-                  ...(validationResult.correctedEndDate && { endDate: validationResult.correctedEndDate }),
-                  ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
-                };
-
-                // Apply all updates at once
-                onChange({ ...formData, ...updates });
-              }}
+              onChange={(value) => onChange(applyGoogleSchedule(formData, { startTime: value }, timeOptions))}
               disabled={disabled}
             />
           </FlexItem>
@@ -177,49 +182,22 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
                 onClick={() => setEndDatePickerOpen(!endDatePickerOpen)}
                 disabled={disabled}
               >
-                {formData.endDate.toLocaleDateString()}
+                {formData.endDate}
               </Button>
 
               {endDatePickerOpen && (
                 <Popover position="bottom left" onClose={() => setEndDatePickerOpen(false)}>
                   <DatePicker
-                    currentDate={formData.endDate.toISOString()}
+                    currentDate={dateToken(formData.endDate)}
                     onChange={(date) => {
-                      const newEndDate = new Date(date);
-
-                      // Auto-correct start date if end date is earlier (match Course Access Panel behavior)
-                      const validationResult = validateAndCorrectDateTime(
-                        formData.startDate,
-                        formData.startTime,
-                        newEndDate,
-                        formData.endTime
-                      );
-
-                      // Build updates object to avoid race conditions
-                      const updates: Partial<GoogleMeetFormData> = {
-                        endDate: newEndDate,
-                        ...(validationResult.correctedEndTime && { endTime: validationResult.correctedEndTime }),
-                      };
-
-                      // If end date is before start date, auto-correct by moving start date back
-                      const startDateOnly = new Date(
-                        formData.startDate.getFullYear(),
-                        formData.startDate.getMonth(),
-                        formData.startDate.getDate()
-                      );
-                      const endDateOnly = new Date(
-                        newEndDate.getFullYear(),
-                        newEndDate.getMonth(),
-                        newEndDate.getDate()
-                      );
-
-                      if (endDateOnly < startDateOnly) {
-                        updates.startDate = new Date(newEndDate);
+                      const endDate = calendarDay(typeof date === "string" ? date : null);
+                      if (!endDate) {
+                        setEndDatePickerOpen(false);
+                        return;
                       }
-
-                      // Apply all updates at once
-                      onChange({ ...formData, ...updates });
-
+                      const startDate =
+                        formData.startDate !== "" && endDate < formData.startDate ? endDate : formData.startDate;
+                      onChange(applyGoogleSchedule(formData, { startDate, endDate }, timeOptions));
                       setEndDatePickerOpen(false);
                     }}
                   />
@@ -232,19 +210,8 @@ export const GoogleMeetForm: React.FC<GoogleMeetFormProps> = ({ formData, onChan
           <FlexItem>
             <SelectControl
               value={formData.endTime}
-              options={filterEndTimeOptions(timeOptions, formData.startDate, formData.startTime, formData.endDate)}
-              onChange={(value) => {
-                const validationResult = validateAndCorrectDateTime(
-                  formData.startDate,
-                  formData.startTime,
-                  formData.endDate,
-                  value
-                );
-
-                // Use corrected time if validation suggests it, otherwise use selected value
-                const finalEndTime = validationResult.correctedEndTime || value;
-                updateField("endTime", finalEndTime);
-              }}
+              options={endTimeChoices(timeOptions, formData.startDate, formData.startTime, formData.endDate)}
+              onChange={(value) => onChange(applyGoogleSchedule(formData, { endTime: value }, timeOptions))}
               disabled={disabled}
             />
           </FlexItem>
