@@ -97,23 +97,27 @@ const finishRefresh = (generator: Generator) => {
 };
 
 describe("live lesson delete outcomes", () => {
-  it("refreshes a legacy deleted body and does not remove the row in place", () => {
-    mockedSelect.mockReturnValue({
-      getTopics: () => [{ id: 22, isCollapsed: false }],
-    });
+  it("rejects a legacy deleted body without refreshing", () => {
     const generator = openDelete(11);
-    expect(generator.next({ data: legacyDeleted }).value).toMatchObject({
-      type: "DELETE_LIVE_LESSON_SUCCESS",
-      payload: { liveLessonId: 9, courseId: 11 },
+    const failed = generator.next({ data: legacyDeleted });
+    expect(failed.value).toMatchObject({
+      type: "DELETE_LIVE_LESSON_ERROR",
+      payload: {
+        error: {
+          code: "delete_failed",
+          message: "Failed to delete live_lesson",
+          data: {},
+        },
+      },
     });
-    expect(generator.next().value).toEqual(topicsFetch);
-    const listed = generator.next(topicsBody);
-    expect(listed.value).toMatchObject({ type: "SET_TOPICS" });
-    expect(Array.isArray((listed.value as { payload: unknown }).payload)).toBe(true);
-    expect(generator.next()).toEqual({
-      done: true,
-      value: { outcome: legacyDeleted, refreshWarning: null },
-    });
+    const payload = (failed.value as { payload: { error: Record<string, unknown> } }).payload;
+    expect(payload).not.toHaveProperty("refreshWarning");
+    expect(payload.error).not.toHaveProperty("deleted");
+    const rejection = rejectDelete(generator);
+    expect(rejection.message).toBe("Failed to delete live_lesson");
+    expect(rejection.outcome.data).toEqual({});
+    expect(rejection.outcome).not.toEqual(legacyDeleted);
+    expect(rejection.refreshWarning).toBeNull();
   });
 
   it("refreshes a confirmed provider delete", () => {
@@ -135,16 +139,24 @@ describe("live lesson delete outcomes", () => {
     });
   });
 
-  it("reports success without refresh when the prefetched course id is not positive", () => {
+  it("rejects a legacy deleted body when the prefetched course id is not positive", () => {
     const generator = openDelete(0);
-    expect(generator.next({ message: "Live lesson deleted successfully.", data: legacyDeleted }).value).toMatchObject({
-      type: "DELETE_LIVE_LESSON_SUCCESS",
-      payload: { liveLessonId: 9 },
+    const failed = generator.next({ message: "Live lesson deleted successfully.", data: legacyDeleted });
+    expect(failed.value).toMatchObject({
+      type: "DELETE_LIVE_LESSON_ERROR",
+      payload: {
+        error: {
+          code: "delete_failed",
+          message: "Failed to delete live_lesson",
+          data: {},
+        },
+      },
     });
-    expect(generator.next()).toEqual({
-      done: true,
-      value: { outcome: legacyDeleted, refreshWarning: null },
-    });
+    const rejection = rejectDelete(generator);
+    expect(rejection.message).toBe("Failed to delete live_lesson");
+    expect(rejection.outcome.data).toEqual({});
+    expect(rejection.outcome).not.toEqual(legacyDeleted);
+    expect(rejection.refreshWarning).toBeNull();
   });
 
   it("refreshes a resolved sync envelope without reporting deletion success", () => {
@@ -215,11 +227,11 @@ describe("live lesson delete outcomes", () => {
 
   it("keeps a refresh warning on the rejection when the topics fetch fails", () => {
     const generator = openDelete(11);
-    expect(generator.next({ data: legacyDeleted }).value).toMatchObject({ type: "DELETE_LIVE_LESSON_SUCCESS" });
+    expect(generator.next({ data: confirmedProvider }).value).toMatchObject({ type: "DELETE_LIVE_LESSON_SUCCESS" });
     expect(generator.next().value).toEqual(topicsFetch);
     expect(generator.next({ success: false, message: "Network down", data: [] })).toEqual({
       done: true,
-      value: { outcome: legacyDeleted, refreshWarning: "Network down" },
+      value: { outcome: confirmedProvider, refreshWarning: "Network down" },
     });
   });
 });

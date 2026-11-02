@@ -159,3 +159,21 @@ foreach ( ( new ReflectionClass( 'TutorPress_Live_Lesson_Provider_Adapter' ) )->
 sort( $google_interface );
 tutorpress_live_lessons_assert( $google_interface === $google_public && array( 'settings' => true, 'hosts' => false, 'delete_convergence' => true ) === $adapter->capabilities() && true === $adapter->preflight( 7 ) && false === $adapter->validate_host( 7, 'host-1' ) && array( 'outcome', 'provider_id', 'item', 'diagnostics', 'provenance' ) === array_keys( $skipped[0] ) && null === $skipped[0]['item'] && ! method_exists( $adapter, 'persist_metadata' ) && ! method_exists( $adapter, 'extract_identity' ), 'google reflection matches the shared interface' );
 tutorpress_live_lessons_pass( 'google reflection matrix' );
+$pass_2e_keys    = array( 'summary', 'description', 'start', 'end', 'attendees', 'reminders', 'sendUpdates', 'transparency', 'visibility', 'status', 'conferenceData' );
+$pass_2e_default = $sent;
+$pass_2e_rich    = $events->calls[ $before_rich ][1];
+$pass_2e_clock   = array( 'dateTime' => '2026-09-22T15:00:00-04:00', 'timeZone' => 'America/New_York' );
+$pass_2e_end     = array( 'dateTime' => '2026-09-22T16:00:00-04:00', 'timeZone' => 'America/New_York' );
+$pass_2e_updates = array( $events->calls[ $before_named + 1 ][3], $events->calls[ $before_rich + 1 ][3] );
+$pass_2e_plain   = true;
+foreach ( $pass_2e_updates as $pass_2e_update ) {
+	$pass_2e_plain = $pass_2e_plain && false === array_key_exists( 'conferenceData', $pass_2e_update );
+}
+tutorpress_live_lessons_assert( $pass_2e_keys === array_keys( $pass_2e_default ) && $pass_2e_keys === array_keys( $pass_2e_rich ) && $pass_2e_clock === $pass_2e_default['start'] && $pass_2e_end === $pass_2e_default['end'] && $pass_2e_clock === $pass_2e_rich['start'] && $pass_2e_end === $pass_2e_rich['end'] && array() === $pass_2e_default['attendees'] && array( 'useDefault' => false, 'overrides' => array( array( 'method' => 'email', 'minutes' => 30 ), array( 'method' => 'popup', 'minutes' => 30 ) ) ) === $pass_2e_default['reminders'] && 'all' === $pass_2e_default['sendUpdates'] && 'transparent' === $pass_2e_default['transparency'] && 'public' === $pass_2e_default['visibility'] && 'confirmed' === $pass_2e_default['status'] && array( 'createRequest' => array( 'requestId' => '' ) ) === $pass_2e_default['conferenceData'] && array( 'conferenceDataVersion' => 1 ) === $events->calls[0][2] && array( array( 'displayName' => 'Ada', 'email' => 'ada@example.com', 'responseStatus' => 'needsAction' ) ) === $pass_2e_rich['attendees'] && array( 'useDefault' => false, 'overrides' => array( array( 'method' => 'email', 'minutes' => 15 ), array( 'method' => 'popup', 'minutes' => 15 ) ) ) === $pass_2e_rich['reminders'] && 'none' === $pass_2e_rich['sendUpdates'] && 'opaque' === $pass_2e_rich['transparency'] && 'private' === $pass_2e_rich['visibility'] && 'tentative' === $pass_2e_rich['status'] && array( 'createRequest' => array( 'requestId' => 'req-1' ) ) === $pass_2e_rich['conferenceData'] && array( 'conferenceDataVersion' => 1 ) === $events->calls[ $before_rich ][2] && $pass_2e_plain && $google_interface === $google_public && ! method_exists( 'TutorPress_Google_Meet_Provider_Adapter', 'persist_metadata' ) && ! method_exists( 'TutorPress_Google_Meet_Provider_Adapter', 'extract_identity' ), 'google insert fields stay on the adapter' );
+tutorpress_live_lessons_pass( 'google insert fields' );
+$pass_2f_keys = array( 'is_authorized', 'has_credentials', 'settings', 'authorization_url', 'setup_url' );
+$pass_2f_row  = array( 'value', 'label', 'type', 'options' );
+$pass_2f_seen = array_slice( $state['seen'], count( $before_seen ), 3 );
+$pass_2f_read = json_encode( $read );
+tutorpress_live_lessons_assert( $expected === $read && $pass_2f_keys === array_keys( $read ) && $pass_2f_row === array_keys( $read['settings']['reminder'] ) && array( 'switch:7', 'settings:7', 'restore:4' ) === $pass_2f_seen && 4 === $state['user'] && is_string( $pass_2f_read ) && false === strpos( $pass_2f_read, 'google-secret-sentinel' ) && false === strpos( $pass_2f_read, 'refresh-token-sentinel' ), 'google settings envelope stays on the captured owner read' );
+tutorpress_live_lessons_pass( 'google settings envelope stays on the captured owner read' );

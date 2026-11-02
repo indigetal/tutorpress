@@ -15,7 +15,6 @@ function tutorpress_live_lessons_production_files() {
 		'includes/live-lessons/class-tutorpress-live-lesson-owner-resolver.php',
 		'includes/live-lessons/class-tutorpress-google-meet-provider-adapter.php',
 		'includes/live-lessons/class-tutorpress-zoom-provider-adapter.php',
-		'includes/live-lessons/class-tutorpress-live-lesson-cutover.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-response-projector.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-ordering.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-collection-query.php',
@@ -32,3 +31,4 @@ $tutorpress_live_lessons_root = dirname( dirname( __DIR__ ) );
 foreach ( tutorpress_live_lessons_production_files() as $relative ) {
 	require_once $tutorpress_live_lessons_root . '/' . $relative;
 }
+

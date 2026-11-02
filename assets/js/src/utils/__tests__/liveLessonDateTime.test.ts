@@ -49,6 +49,18 @@ describe("live lesson wall-clock serialization", () => {
     expect(hydrateZoomDuration("2026-10-13 15:04:00", "2026-10-13 15:04:00", 0)).toEqual({ value: 40, unit: "minutes" });
     expect(hydrateZoomDuration("not-a-wall-clock", "2026-10-13 17:04:00", 2)).toEqual({ value: 2, unit: "minutes" });
   });
+  it("round-trips wall-clock text and a typed zoom unit", () => {
+    expect(hydrateWallClock(serializeWallClock("2026-09-21", "3:04 PM") ?? "")).toEqual({ date: "2026-09-21", time: "3:04 PM" });
+    expect(hydrateWallClock(serializeWallClock("2026-09-21", "12:00 AM") ?? "")).toEqual({ date: "2026-09-21", time: "12:00 AM" });
+    expect(hydrateWallClock(serializeWallClock("2026-09-21", "12:00 PM") ?? "")).toEqual({ date: "2026-09-21", time: "12:00 PM" });
+    expect(hydrateWallClock(serializeWallClock("2026-11-01", "1:30 AM") ?? "")).toEqual({ date: "2026-11-01", time: "1:30 AM" });
+    const hours = zoomDuration(2, "hours");
+    const minutes = zoomDuration(40, "minutes");
+    expect(hours).toEqual({ value: 2, unit: "hours" });
+    expect(minutes).toEqual({ value: 40, unit: "minutes" });
+    expect(hydrateZoomDuration("2026-10-13 15:04:00", addZoomDuration("2026-10-13 15:04:00", hours ? hours.value : 0, hours ? hours.unit : ""), hours ? hours.value : 0)).toEqual({ value: 2, unit: "hours" });
+    expect(hydrateZoomDuration("2026-10-13 15:04:00", addZoomDuration("2026-10-13 15:04:00", minutes ? minutes.value : 0, minutes ? minutes.unit : ""), minutes ? minutes.value : 0)).toEqual({ value: 40, unit: "minutes" });
+  });
 });
 
 describe("localizedTimezoneOptions", () => {

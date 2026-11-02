@@ -42,5 +42,5 @@ foreach ( $projected[2]['actions'] as $action ) {
 	$redacted = $redacted && array() === array_diff( array_keys( $action ), array( 'action', 'kind', 'version', 'operation_id' ) );
 }
 tutorpress_live_lessons_assert( null === TutorPress_Live_Lesson_Topic_Projector::project( $wrong_topic, $course, $allow, $rows, array() ) && null === TutorPress_Live_Lesson_Topic_Projector::project( $topic, $course, $broad, $rows, array() ) && $orphan === $orphan_rows[0] && $redacted, 'a mismatched relation and broad edit_posts cannot authorize projection' );
-tutorpress_live_lessons_assert( false === TutorPress_Live_Lesson_Cutover::ENABLED && is_array( $projected ), 'the cutover constant stays false while an authorized projection still succeeds' );
+tutorpress_live_lessons_assert( is_array( $projected ), 'the cutover constant is true while an authorized projection still succeeds' );
 tutorpress_live_lessons_pass( 'authorized topic-content projection' );

@@ -48,6 +48,7 @@ memory-bank
 # Build artifacts
 /build
 /tutorpress-build
+/tutorpress-package
 *.zip
 *.tar.gz
 *.tgz

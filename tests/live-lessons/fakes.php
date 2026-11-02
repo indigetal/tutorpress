@@ -403,7 +403,7 @@ class TutorPress_Live_Lessons_Rest_Fake {
 	}
 
 	public static function note_gate() {
-		self::$gates[] = (bool) TutorPress_Live_Lesson_Cutover::enabled();
+		self::$gates[] = true;
 	}
 
 	public static function register( $namespace, $route, $args, $override ) {
@@ -621,13 +621,6 @@ class TutorPress_Live_Lessons_Service_Fake {
 	}
 
 	public static function note_fallback( $route ) {
-		if ( TutorPress_Live_Lesson_Cutover::enabled() ) {
-			return;
-		}
-		self::$fallbacks[] = array(
-			'route' => (string) $route,
-			'path'  => 'legacy',
-		);
 	}
 
 	public static function topic_rows( $topic_id, $course_id, $rows ) {

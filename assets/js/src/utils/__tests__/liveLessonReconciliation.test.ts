@@ -97,6 +97,25 @@ describe("buildLiveLessonReconcileRequest", () => {
     expect(buildLiveLessonReconcileRequest({ action: "retry", version: 3, operation_id: "op-1" }, { provider_id: "evt-1" })).toBeNull();
   });
 
+  it("keeps uncertain-create, legacy attach, and ordinary server-id requests apart", () => {
+    expect(buildLiveLessonReconcileRequest(uncertain, { provider_id: "evt-1" })).toEqual({
+      provider_id: "evt-1",
+      version: 3,
+      operation_id: "op-1",
+    });
+    expect(buildLiveLessonReconcileRequest(legacy, { provider_id: "evt-1" })).toEqual({
+      provider_id: "evt-1",
+      version: 0,
+    });
+    expect(buildLiveLessonReconcileRequest(uncertain, { provider_id: "evt-1", event_id: "evt-2" })).toBeNull();
+    expect(buildLiveLessonReconcileRequest(uncertain, { provider_id: "evt-1", selected_owner_id: 7 })).toBeNull();
+    expect(buildLiveLessonReconcileRequest(legacy, { provider_id: "evt-1", operation_id: "op-1" })).toBeNull();
+    expect(buildLiveLessonReconcileRequest({ action: "inspect", version: 4 }, { provider_id: "evt-evil" })).toBeNull();
+    expect(buildLiveLessonReconcileRequest({ action: "retry", version: 3, operation_id: "op-1" }, { provider_id: "evt-evil" })).toBeNull();
+    expect(buildLiveLessonReconcileRequest({ action: "inspect", version: 4 }, {})).not.toHaveProperty("provider_id");
+    expect(buildLiveLessonReconcileRequest({ action: "retry", version: 3, operation_id: "op-1" }, {})).not.toHaveProperty("provider_id");
+  });
+
   it("copies abandon and resolve-owner without a supplied id or the orphan label", () => {
     expect(
       buildLiveLessonReconcileRequest({ action: "abandon", version: 3, operation_id: "op-1", label: "possible orphan" }, {})

@@ -15,5 +15,4 @@ foreach ( TutorPress_Live_Lesson_Ordering::sequence( $mixed ) as $child ) {
 	$ids[] = $child['ID'];
 }
 tutorpress_live_lessons_assert( array( 20, 10, 30, 15, 40 ) === $ids, 'sequence is menu order then post ID for every supported type' );
-tutorpress_live_lessons_assert( false === TutorPress_Live_Lesson_Cutover::ENABLED, 'ordering stays behind the false cutover gate' );
 tutorpress_live_lessons_pass( 'mixed topic-child order' );

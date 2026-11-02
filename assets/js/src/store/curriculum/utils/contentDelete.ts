@@ -28,18 +28,7 @@ export interface ComplexDeleteConfig {
   needsCourseId?: boolean;
 }
 
-/**
- * Configuration for topic delete operations
- */
-export interface TopicDeleteConfig {
-  type: "topic";
-  apiPath: string;
-  entityName: string;
-  idField: string;
-  courseIdField: string;
-}
-
-export type DeleteConfig = SimpleDeleteConfig | ComplexDeleteConfig | TopicDeleteConfig;
+export type DeleteConfig = SimpleDeleteConfig | ComplexDeleteConfig;
 
 const refreshFailure = (warning: string | null): { message: string } | undefined => (warning === null ? undefined : { message: warning });
 
@@ -57,7 +46,6 @@ const settledDeleteEnvelope = (value: unknown): boolean => {
 const confirmedLiveLessonDelete = (response: unknown): Record<string, unknown> | null => {
   if (!isRecord(response) || !isRecord(response.data)) return null;
   const data = response.data;
-  if (data.deleted === true) return data;
   if (data.outcome === "confirmed" && data.provenance === "delete" && data.item === null) return data;
   return null;
 };
@@ -220,75 +208,6 @@ export function createComplexDeleteResolver(config: ComplexDeleteConfig) {
 }
 
 /**
- * Creates a delete resolver for topics (special case with full refresh)
- */
-export function createTopicDeleteResolver(config: TopicDeleteConfig) {
-  return function* (topicId: number, courseId: number): Generator<unknown, void, unknown> {
-    try {
-      yield {
-        type: `DELETE_${config.entityName.toUpperCase()}_START`,
-        payload: { [config.idField]: topicId },
-      };
-
-      // Delete the topic
-      yield {
-        type: "API_FETCH",
-        request: {
-          path: `${config.apiPath}/${topicId}`,
-          method: "DELETE",
-        },
-      };
-
-      yield {
-        type: `DELETE_${config.entityName.toUpperCase()}_SUCCESS`,
-        payload: { [config.idField]: topicId },
-      };
-
-      // Fetch updated topics (topics deletion requires full refresh)
-      const topicsResponse = yield {
-        type: "API_FETCH",
-        request: {
-          path: `/tutorpress/v1/topics?course_id=${courseId}`,
-          method: "GET",
-        },
-      };
-
-      if (!topicsResponse || typeof topicsResponse !== "object" || !("data" in topicsResponse)) {
-        throw new Error("Invalid topics response");
-      }
-
-      const topics = topicsResponse as { data: any[] };
-
-      // Transform topics to set all to collapsed after deletion (user preference)
-      const transformedTopics = topics.data.map((topic) => ({
-        ...topic,
-        isCollapsed: true,
-        contents: topic.contents || [],
-      }));
-
-      yield {
-        type: "SET_TOPICS",
-        payload: transformedTopics,
-      };
-    } catch (error) {
-      yield {
-        type: `DELETE_${config.entityName.toUpperCase()}_ERROR`,
-        payload: {
-          error: {
-            code: CurriculumErrorCode.DELETE_FAILED,
-            message: error instanceof Error ? error.message : __(`Failed to delete ${config.entityName}`, "tutorpress"),
-            context: {
-              action: `delete${config.entityName.charAt(0).toUpperCase() + config.entityName.slice(1)}`,
-              details: `Failed to delete ${config.entityName} ${topicId}`,
-            },
-          },
-        },
-      };
-    }
-  };
-}
-
-/**
  * Pre-configured delete resolvers for all content types
  */
 export const deleteResolvers = {
@@ -359,13 +278,5 @@ export const deleteResolvers = {
     entityName: "live_lesson",
     idField: "liveLessonId",
     needsCourseId: false, // Live lesson response includes courseId
-  }),
-
-  topic: createTopicDeleteResolver({
-    type: "topic",
-    apiPath: "/tutorpress/v1/topics",
-    entityName: "topic",
-    idField: "topicId",
-    courseIdField: "courseId",
   }),
 };

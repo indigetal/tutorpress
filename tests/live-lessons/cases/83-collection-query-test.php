@@ -27,5 +27,4 @@ $foreign = array( array( 'ID' => 32, 'post_type' => 'tutor-google-meet', 'post_s
 $mismatch = TutorPress_Live_Lesson_Collection_Query::query( $course, $allow, array( array( 'ID' => 9, 'post_type' => 'topics', 'post_parent' => 4 ) ), $foreign, array() );
 $broad = static function ( $cap ) { return 'edit_posts' === $cap; };
 tutorpress_live_lessons_assert( 0 === $mismatch['data']['pagination']['total'] && null === TutorPress_Live_Lesson_Collection_Query::query( $course, $broad, $topics, $lessons, array() ), 'a mismatched topic and broad edit_posts do not authorize the collection' );
-tutorpress_live_lessons_assert( false === TutorPress_Live_Lesson_Cutover::ENABLED, 'the cutover constant stays false and is not the collection authorization check' );
 tutorpress_live_lessons_pass( 'authorized collection query' );

@@ -44,7 +44,6 @@ return array(
     'TutorPress_Live_Lesson_Authorization' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-authorization.php',
     'TutorPress_Live_Lesson_Cascade_Delete' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-cascade-delete.php',
     'TutorPress_Live_Lesson_Collection_Query' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-collection-query.php',
-    'TutorPress_Live_Lesson_Cutover' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-cutover.php',
     'TutorPress_Live_Lesson_Datetime' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-datetime.php',
     'TutorPress_Live_Lesson_Duplicate_Service' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-duplicate-service.php',
     'TutorPress_Live_Lesson_Ordering' => $baseDir . '/includes/live-lessons/class-tutorpress-live-lesson-ordering.php',

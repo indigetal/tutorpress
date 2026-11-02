@@ -49,7 +49,6 @@ class ComposerStaticInit640cf2b8a3264c3d585f43b7705aff5a
         'TutorPress_Live_Lesson_Authorization' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-authorization.php',
         'TutorPress_Live_Lesson_Cascade_Delete' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-cascade-delete.php',
         'TutorPress_Live_Lesson_Collection_Query' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-collection-query.php',
-        'TutorPress_Live_Lesson_Cutover' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-cutover.php',
         'TutorPress_Live_Lesson_Datetime' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-datetime.php',
         'TutorPress_Live_Lesson_Duplicate_Service' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-duplicate-service.php',
         'TutorPress_Live_Lesson_Ordering' => __DIR__ . '/../..' . '/includes/live-lessons/class-tutorpress-live-lesson-ordering.php',

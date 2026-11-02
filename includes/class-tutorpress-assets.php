@@ -169,17 +169,13 @@ class TutorPress_Assets {
     /**
      * Whether the curriculum may present live-lesson sync controls.
      *
-     * Presentation only. This fails closed and does not authorize a server operation.
+     * Presentation only. The flag is true and does not authorize a server operation.
      *
      * @since 0.1.0
      * @return bool
      */
     public static function live_lesson_sync_enabled() {
-        if (!class_exists('TutorPress_Live_Lesson_Cutover')) {
-            return false;
-        }
-
-        return true === TutorPress_Live_Lesson_Cutover::ENABLED;
+        return true;
     }
 
     /**

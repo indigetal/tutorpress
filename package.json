@@ -18,9 +18,9 @@
     "check-types": "tsc --noEmit",
     "test:quiz-settings": "wp-scripts test-unit-js assets/js/src/utils/__tests__/quizSettingsContract.test.ts assets/js/src/utils/__tests__/addonChecker.test.ts --runInBand",
     "test:live-lessons": "wp-scripts test-unit-js --runInBand --testPathPattern='liveLesson[^/]*\\.test\\.tsx?|assets/js/src/store/curriculum/utils/__tests__/topicRefresh\\.test\\.ts'",
-    "clean": "rm -rf build tutorpress-build tutorpress.zip",
+    "clean": "rm -rf build tutorpress-build tutorpress-package tutorpress.zip",
     "make-build": "npm run clean && npm run build && mkdir tutorpress-build && rsync -av --exclude-from=.distignore . tutorpress-build/",
-    "package": "npm run check-types && npm run make-build && cd tutorpress-build && zip -r ../tutorpress.zip . && cd .. && rm -rf tutorpress-build"
+    "package": "npm run check-types && npm run make-build && mkdir -p tutorpress-package && mv tutorpress-build tutorpress-package/tutorpress && cd tutorpress-package && zip -r ../tutorpress.zip tutorpress && cd .. && rm -rf tutorpress-package"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
