@@ -43,7 +43,7 @@ $envelope = static function ( $provider, $version, $state, $owner, $provider_id,
 };
 $plant = static function ( $post_type, $bytes ) {
 	$id = TutorPress_Live_Lessons_Store_Fake::insert_publish_post( array( 'post_type' => $post_type, 'post_parent' => 8, 'post_title' => 'Copied', 'post_content' => 'Body', 'menu_order' => 4, 'post_author' => 42 ) );
-	if ( null !== $bytes ) { add_post_meta( $id, '_tutorpress_live_lesson_sync', $bytes ); }
+	if ( null !== $bytes ) { add_post_meta( $id, '_tutorpress_live_lesson_sync', wp_slash( $bytes ) ); }
 	return array( 'ID' => $id, 'post_type' => $post_type, 'post_status' => 'publish', 'post_parent' => 8, 'post_title' => 'Copied', 'post_content' => 'Body', 'menu_order' => 4 );
 };
 $lock_bytes = static function ( $token, $operation, $expiry ) {

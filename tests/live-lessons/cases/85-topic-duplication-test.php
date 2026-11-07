@@ -40,7 +40,7 @@ if ( ! function_exists( 'add_post_meta' ) ) {
 		if ( 'throw' === TutorPress_Topic_Copy_Harness::$fail_insert && '_tutorpress_live_lesson_sync' === $meta_key ) {
 			throw new RuntimeException( 'envelope failed' );
 		}
-		return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $meta_key, $meta_value );
+		return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $meta_key, wp_unslash( $meta_value ) );
 	}
 }
 if ( ! function_exists( 'add_option' ) ) {
@@ -569,3 +569,20 @@ foreach ( array( $commit_events, $commit_wp_error_events, $commit_zero_events, $
 }
 tutorpress_live_lessons_assert( $pass_2e_commit_ok && $no_provider(), 'failed commit returns null after COMMIT then ROLLBACK on the fake ledger' );
 tutorpress_live_lessons_pass( 'topic copy COMMIT then ROLLBACK' );
+
+$slash_queue   = TutorPress_Live_Lessons_Adapter_Fake::$queue;
+$slash_title   = "Say \"hi\" \\\nCafé";
+$slash_content = "line1\n\"q\" \\ Café";
+$slash_course  = array( 'ID' => 7, 'post_type' => 'courses', 'post_author' => 42 );
+$slash_topic   = array( 'ID' => 8, 'post_type' => 'topics', 'post_parent' => 7 );
+$slash_allow   = static function ( $cap, $id ) { return 'edit_post' === $cap && 7 === (int) $id; };
+$slash_now     = new DateTimeImmutable( '2026-09-21 16:00:00', new DateTimeZone( 'UTC' ) );
+$slash_input   = array( 'provider' => 'google_meet', 'acting_user_id' => 11, 'title' => $slash_title, 'content' => $slash_content, 'start' => '2026-09-21 15:04:00', 'end' => '2026-09-21 16:04:00', 'timezone' => 'America/New_York' );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
+$slash_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $slash_topic, $slash_course, $slash_allow, $slash_input, array(), new TutorPress_Live_Lessons_Adapter_Fake(), $slash_now, 'token-slash' );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = $slash_queue;
+$slash_rows = is_array( $slash_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $slash_staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();
+$slash_raw  = isset( $slash_rows[0]['meta_value'] ) ? $slash_rows[0]['meta_value'] : null;
+$slash_op   = is_string( $slash_raw ) ? json_decode( $slash_raw, true ) : null;
+tutorpress_live_lessons_assert( is_array( $slash_staged ) && 1 === count( $slash_rows ) && $slash_raw === $slash_staged['envelope'] && is_array( $slash_op ) && isset( $slash_op['operation'] ) && $slash_title === $slash_op['operation']['title'] && $slash_content === $slash_op['operation']['content'], 'slash-safe envelope insert round-trips a quoted, backslash, newline, and Cafe title and content' );
+tutorpress_live_lessons_pass( 'slash-safe envelope insert' );

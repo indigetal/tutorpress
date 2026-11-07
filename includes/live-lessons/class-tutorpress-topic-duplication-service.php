@@ -62,7 +62,7 @@ final class TutorPress_Topic_Duplication_Service {
 						continue;
 					}
 					foreach ( $values as $value ) {
-						add_post_meta( $inserted, $key, $value );
+						add_post_meta( $inserted, $key, wp_slash( $value ) );
 					}
 				}
 			}
@@ -108,7 +108,7 @@ final class TutorPress_Topic_Duplication_Service {
 						continue;
 					}
 					foreach ( $values as $value ) {
-						add_post_meta( $inserted, $key, $value );
+						add_post_meta( $inserted, $key, wp_slash( $value ) );
 					}
 				}
 			}
@@ -136,7 +136,7 @@ final class TutorPress_Topic_Duplication_Service {
 		$next     = array( 'schema_version' => 1, 'version' => 1, 'state' => 'unlinked', 'provider' => $provider, 'owner_id' => $author, 'provider_id' => null, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
 		$lock     = $id > 0 && $author > 0 ? TutorPress_Live_Lesson_Sync_Repository::acquire( $id, 'initialize', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } ) : null;
 		$stored   = is_string( $lock ) ? TutorPress_Live_Lesson_Sync_Repository::during( $id, $token, $lock, static function () use ( $id, $lock, $token, $next ) {
-			return TutorPress_Live_Lesson_Sync_Repository::initialize( $id, $lock, $token, 0, $next, static function ( $post_id, $key ) { return self::meta_rows( $post_id, $key ); }, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, $value ); }, static function () { return true; } );
+			return TutorPress_Live_Lesson_Sync_Repository::initialize( $id, $lock, $token, 0, $next, static function ( $post_id, $key ) { return self::meta_rows( $post_id, $key ); }, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, wp_slash( $value ) ); }, static function () { return true; } );
 		}, static function ( $name, $prior ) { return self::delete_lock( $name, $prior ); } ) : null;
 		if ( is_string( $stored ) ) {
 			return $stored;

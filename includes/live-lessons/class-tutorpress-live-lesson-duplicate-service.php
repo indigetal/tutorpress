@@ -32,7 +32,7 @@ final class TutorPress_Live_Lesson_Duplicate_Service {
 		}
 		foreach ( array( 'tutor-google-meet-start-datetime', 'tutor-google-meet-end-datetime' ) as $key ) {
 			if ( isset( $meta[ $key ] ) && is_string( $meta[ $key ] ) && '' !== $meta[ $key ] ) {
-				add_post_meta( $copy_id, $key, $meta[ $key ] );
+				add_post_meta( $copy_id, $key, wp_slash( $meta[ $key ] ) );
 			}
 		}
 		$copy['ID'] = $copy_id;
@@ -92,7 +92,7 @@ final class TutorPress_Live_Lesson_Duplicate_Service {
 		if ( is_string( $lock ) ) {
 			try {
 				$stored = TutorPress_Live_Lesson_Sync_Repository::during( $id, $token, $lock, static function () use ( $id, $lock, $token, $next ) {
-					return TutorPress_Live_Lesson_Sync_Repository::initialize( $id, $lock, $token, 0, $next, static function ( $post_id, $key ) { return self::meta_rows( $post_id, $key ); }, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, $value ); }, static function () { return true; } );
+					return TutorPress_Live_Lesson_Sync_Repository::initialize( $id, $lock, $token, 0, $next, static function ( $post_id, $key ) { return self::meta_rows( $post_id, $key ); }, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, wp_slash( $value ) ); }, static function () { return true; } );
 				}, static function ( $name, $prior ) { return self::delete_lock( $name, $prior ); } );
 			} catch ( Throwable $thrown ) {
 				$stored = null;

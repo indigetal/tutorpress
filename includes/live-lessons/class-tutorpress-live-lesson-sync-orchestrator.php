@@ -92,7 +92,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 					$rows[] = array( 'post_id' => (int) $post_id, 'meta_value' => $value );
 				}
 				return $rows;
-			}, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, $value ); }, static function ( $name ) { return true; } );
+			}, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, wp_slash( $value ) ); }, static function ( $name ) { return true; } );
 		} catch ( Throwable $thrown ) {
 			unset( $thrown );
 			$bytes = null;
@@ -798,7 +798,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 				return null;
 			}
 			$next  = array( 'schema_version' => 1, 'version' => 1, 'state' => 'synced', 'provider' => 'zoom' === $provider ? 'zoom' : 'google_meet', 'owner_id' => $accepted, 'provider_id' => $identity, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
-			$bytes = TutorPress_Live_Lesson_Sync_Repository::initialize( $post_id, $lock, $token, 0, $next, $read, static function ( $id, $key, $value ) { return add_post_meta( $id, $key, $value ); }, static function () { return true; } );
+			$bytes = TutorPress_Live_Lesson_Sync_Repository::initialize( $post_id, $lock, $token, 0, $next, $read, static function ( $id, $key, $value ) { return add_post_meta( $id, $key, wp_slash( $value ) ); }, static function () { return true; } );
 			return is_string( $bytes ) ? array( 'post_id' => $post_id, 'provider' => $next['provider'], 'envelope' => $bytes ) : null;
 		} finally {
 			if ( false === $release_invoked && is_string( $lock ) ) {
@@ -926,7 +926,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 				return null;
 			}
 			$next  = array( 'schema_version' => 1, 'version' => 1, 'state' => 'synced', 'provider' => 'zoom' === $provider ? 'zoom' : 'google_meet', 'owner_id' => $owner_id, 'provider_id' => $identity, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
-			$bytes = TutorPress_Live_Lesson_Sync_Repository::initialize( $post_id, $lock, $token, 0, $next, $read, static function ( $id, $key, $value ) { return add_post_meta( $id, $key, $value ); }, static function () { return true; } );
+			$bytes = TutorPress_Live_Lesson_Sync_Repository::initialize( $post_id, $lock, $token, 0, $next, $read, static function ( $id, $key, $value ) { return add_post_meta( $id, $key, wp_slash( $value ) ); }, static function () { return true; } );
 			return is_string( $bytes ) ? array( 'post_id' => $post_id, 'provider' => $next['provider'], 'envelope' => $bytes ) : null;
 		} finally {
 			if ( false === $release_invoked && is_string( $lock ) ) {
