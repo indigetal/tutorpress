@@ -179,12 +179,17 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return $operation;
 	}
 
-	/** Write every mapped value and require each re-read to match. An empty map is incomplete. */
+	/** Write every mapped value and require each re-read to match its string form. An empty map is incomplete. */
 	private static function map_stored( $post_id, array $map, $write, $read ) {
 		foreach ( $map as $key => $value ) {
-			$wrote = is_string( $key ) ? $write( $post_id, $key, $value ) : false;
-			$rows  = is_int( $wrote ) ? $read( $post_id, $key ) : null;
-			if ( ! is_array( $rows ) || 1 !== count( $rows ) || ! isset( $rows[0]['meta_value'] ) || $rows[0]['meta_value'] !== $value ) { return false; }
+			if ( ! is_string( $key ) ) {
+				return false;
+			}
+			$write( $post_id, $key, $value );
+			$rows = $read( $post_id, $key );
+			if ( ! is_array( $rows ) || 1 !== count( $rows ) || ! isset( $rows[0]['meta_value'] ) || (string) $rows[0]['meta_value'] !== (string) $value ) {
+				return false;
+			}
 		}
 		return array() !== $map;
 	}

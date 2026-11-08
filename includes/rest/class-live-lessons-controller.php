@@ -933,7 +933,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * The capability closure checks only edit_post for the supplied course. Clock,
      * token, and user id come from overridable runtime loaders. Storage closures
      * read one option, compare-and-set one lock, read and compare-and-set sync meta,
-     * report the affected count, and insert one sync envelope. Route handlers do
+     * report the affected count, and update or add one slashed provider value. Route handlers do
      * not call this seam or those closures.
      *
      * @return array{lookup:callable,children:callable,topics:callable,can:callable,clock:DateTimeImmutable,token:string,user_id:int,option:callable,takeover:callable,read:callable,envelope:callable,metadata:callable,update:callable,affected:callable,write:callable}|null
@@ -1001,8 +1001,8 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             'affected' => function () {
                 return $this->load_affected();
             },
-            'write'    => function ($post_id, $bytes) {
-                return $this->load_sync_meta((int) $post_id, $bytes);
+            'write'    => function ($post_id, $key, $value) {
+                return update_post_meta( $post_id, $key, wp_slash( $value ) );
             },
         ];
     }
@@ -1133,9 +1133,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
 
     /** @return int */
     protected function load_affected() { return TutorPress_Live_Lesson_Sync_Repository::last_affected(); }
-
-    /** @param int $post_id Post ID. @param mixed $bytes Envelope bytes. @return int|false */
-    protected function load_sync_meta($post_id, $bytes) { return add_post_meta($post_id, '_tutorpress_live_lesson_sync', $bytes); }
 
     /**
      * Resolve one canonical provider adapter. Invalid providers do not touch the container.

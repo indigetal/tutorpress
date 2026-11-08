@@ -1453,10 +1453,6 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 		$this->calls[] = array( 'affected' );
 		return 1;
 	}
-	protected function load_sync_meta( $post_id, $bytes ) {
-		$this->calls[] = array( 'write', $post_id, $bytes );
-		return 64;
-	}
 	protected function load_post_meta( $post_id, $key ) {
 		$this->calls[] = array( 'meta', (int) $post_id, $key );
 		$bucket        = isset( $this->meta[ (int) $post_id ] ) ? $this->meta[ (int) $post_id ] : array();
@@ -1725,8 +1721,38 @@ $option_miss  = is_array( $bindings ) ? $bindings['option']( 'tutorpress_live_le
 $takeover     = is_array( $bindings ) ? $bindings['takeover']( 'tutorpress_live_lesson_lock_8', 'next-bytes', 'prior-bytes' ) : null;
 $read_rows    = is_array( $bindings ) ? $bindings['read']( 8, '_tutorpress_live_lesson_sync' ) : null;
 $updated      = is_array( $bindings ) ? $bindings['update']( 8, '_tutorpress_live_lesson_sync', 31, 'next-meta', 'prior-meta' ) : null;
-$affected     = is_array( $bindings ) ? $bindings['affected']() : null;
-$written      = is_array( $bindings ) ? $bindings['write']( 8, 'envelope-bytes' ) : null;
+$affected      = is_array( $bindings ) ? $bindings['affected']() : null;
+$write_rows    = array();
+$provider_blob = '{"id":"z","url":"https://zoom.example/j"}';
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $post_id, $key, $value ) {
+		global $write_rows, $controller;
+		$controller->calls[] = array( 'write', (int) $post_id, $key, $value );
+		foreach ( $write_rows as $index => $row ) {
+			if ( (int) $row['post_id'] !== (int) $post_id || $row['meta_key'] !== $key ) {
+				continue;
+			}
+			if ( isset( $row['meta_value'] ) && (string) $row['meta_value'] === (string) $value ) {
+				return false;
+			}
+			$write_rows[ $index ]['meta_value'] = $value;
+			return true;
+		}
+		$write_rows[] = array(
+			'post_id'    => (int) $post_id,
+			'meta_key'   => $key,
+			'meta_value' => $value,
+		);
+		return 64;
+	}
+}
+$written     = null;
+$rewritten   = null;
+if ( is_array( $bindings ) ) {
+	$written   = $bindings['write']( 8, '_tutor_zm_data', $provider_blob );
+	$rewritten = $bindings['write']( 8, '_tutor_zm_data', $provider_blob );
+}
+$stored_rows   = $write_rows;
 $storage_calls = $controller->calls;
 $storage_resolutions = $controller->adapter_resolutions;
 $controller->calls = array();
@@ -1930,7 +1956,7 @@ $takeover_body = $method_body( 'load_option_update' );
 $read_body     = $method_body( 'load_meta_rows' );
 $update_body   = $method_body( 'load_meta_update' );
 $affected_body = $method_body( 'load_affected' );
-$write_body    = $method_body( 'load_sync_meta' );
+$write_body    = $method_body( 'request_bindings' );
 $service_body  = $method_body( 'load_service' );
 $adapter_body  = $method_body( 'provider_adapter' );
 $metadata_body = $method_body( 'metadata' );
@@ -2710,7 +2736,7 @@ if ( 4 === count( $controller->last_callbacks ) ) {
 	$controller->last_callbacks[0]( 8, '_tutorpress_live_lesson_sync' );
 	$controller->last_callbacks[1]( 8, '_tutorpress_live_lesson_sync', 31, 'next-meta', 'prior-meta' );
 	$controller->last_callbacks[2]();
-	$controller->last_callbacks[3]( 8, 'envelope-bytes' );
+	$controller->last_callbacks[3]( 8, '_tutor_zm_for_course', 60 );
 	foreach ( $controller->calls as $callback_call ) {
 		$callback_names[] = is_array( $callback_call ) ? $callback_call[0] : $callback_call;
 	}
@@ -2861,7 +2887,7 @@ if ( 4 === count( $controller->last_callbacks ) ) {
 	$controller->last_callbacks[0]( 8, '_tutorpress_live_lesson_sync' );
 	$controller->last_callbacks[1]( 8, '_tutorpress_live_lesson_sync', 31, 'next-meta', 'prior-meta' );
 	$controller->last_callbacks[2]();
-	$controller->last_callbacks[3]( 8, 'envelope-bytes' );
+	$controller->last_callbacks[3]( 8, '_tutor_zm_for_course', 60 );
 	foreach ( $controller->calls as $callback_call ) {
 		$update_callbacks[] = is_array( $callback_call ) ? $callback_call[0] : $callback_call;
 	}
@@ -4072,6 +4098,8 @@ echo json_encode(
 		'affected_type'  => gettype( $affected ),
 		'written'        => $written,
 		'written_type'   => gettype( $written ),
+		'rewritten'      => $rewritten,
+		'write_rows'     => $stored_rows,
 		'google_same'    => $google_adapter === $google,
 		'zoom_same'      => $zoom_adapter === $zoom,
 		'valid_calls'    => $valid_calls,
@@ -4087,7 +4115,7 @@ echo json_encode(
 			'read'     => false !== strpos( $read_body, '::meta_rows' ) && false === strpos( $read_body, 'wpdb' ),
 			'update'   => false !== strpos( $update_body, '::compare_meta_update' ) && false === strpos( $update_body, '::compare_option_update' ) && false === strpos( $update_body, 'wpdb' ),
 			'affected' => false !== strpos( $affected_body, '::last_affected' ) && false === strpos( $affected_body, 'wpdb' ),
-			'write'    => false !== strpos( $write_body, 'add_post_meta' ) && false !== strpos( $write_body, '_tutorpress_live_lesson_sync' ) && false === strpos( $write_body, 'wpdb' ),
+			'write'    => false !== strpos( $write_body, 'update_post_meta' ) && false !== strpos( $write_body, 'wp_slash' ) && false === strpos( $write_body, 'load_sync_meta' ) && false === strpos( $write_body, '_tutorpress_live_lesson_sync' ) && false === strpos( $write_body, 'add_post_meta' ) && false === strpos( $write_body, 'wpdb' ),
 			'service'  => false !== strpos( $service_body, 'TutorPress_Service_Container::instance()->get' ),
 			'adapter'  => false !== strpos( $adapter_body, 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) && false !== strpos( $adapter_body, 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) && false !== strpos( $adapter_body, 'instanceof TutorPress_Live_Lesson_Provider_Adapter' ),
 			'seam'     => false === strpos( $seam, 'provider_adapter' ) && false === strpos( $seam, 'load_service' ) && false === strpos( $seam, 'add_post_meta' ),
@@ -4238,7 +4266,8 @@ tutorpress_live_lessons_assert(
 		array( 'read', 8, '_tutorpress_live_lesson_sync' ),
 		array( 'update', 8, '_tutorpress_live_lesson_sync', 31, 'next-meta', 'prior-meta' ),
 		array( 'affected' ),
-		array( 'write', 8, 'envelope-bytes' ),
+		array( 'write', 8, '_tutor_zm_data', wp_slash( '{"id":"z","url":"https://zoom.example/j"}' ) ),
+		array( 'write', 8, '_tutor_zm_data', wp_slash( '{"id":"z","url":"https://zoom.example/j"}' ) ),
 	) === $binding_probe['data']['storage_calls']
 	&& 'lock-bytes' === $binding_probe['data']['option_value']
 	&& null === $binding_probe['data']['option_miss']
@@ -4249,6 +4278,14 @@ tutorpress_live_lessons_assert(
 	&& 'integer' === $binding_probe['data']['affected_type']
 	&& 64 === $binding_probe['data']['written']
 	&& 'integer' === $binding_probe['data']['written_type']
+	&& false === $binding_probe['data']['rewritten']
+	&& array(
+		array(
+			'post_id'    => 8,
+			'meta_key'   => '_tutor_zm_data',
+			'meta_value' => wp_slash( '{"id":"z","url":"https://zoom.example/j"}' ),
+		),
+	) === $binding_probe['data']['write_rows']
 	&& true === $binding_probe['data']['proof']['option']
 	&& true === $binding_probe['data']['proof']['takeover']
 	&& true === $binding_probe['data']['proof']['read']

@@ -205,7 +205,16 @@ tutorpress_live_lessons_pass( 'pre-dispatch initialization cleanup' );
 $sync_read     = array( 'TutorPress_Live_Lessons_Store_Fake', 'meta_rows' );
 $sync_update   = static function ( $post_id, $key, $meta_id, $value, $prior ) { return TutorPress_Live_Lessons_Store_Fake::update_meta_bytes( $post_id, $key, $meta_id, $value, $prior ); };
 $sync_affected = static function () { return TutorPress_Live_Lessons_Store_Fake::$affected; };
-$sync_write    = static function ( $post_id, $key, $value ) { return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, $value ); };
+$sync_write    = static function ( $post_id, $key, $value ) {
+	$rows = TutorPress_Live_Lessons_Store_Fake::meta_rows( $post_id, $key );
+	if ( 1 === count( $rows ) && isset( $rows[0]['meta_value'] ) && (string) $rows[0]['meta_value'] === (string) $value ) {
+		return false;
+	}
+	if ( 1 === count( $rows ) ) {
+		return TutorPress_Live_Lessons_Store_Fake::update_meta_bytes( $post_id, $key, $rows[0]['meta_id'], $value, $rows[0]['meta_value'] );
+	}
+	return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, $value );
+};
 $dispatch      = static function ( $staged, $token, $adapter, $update = null, $write = null, array $context = array() ) use ( $sync_read, $sync_update, $sync_affected, $sync_write ) {
 	return TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $staged, $token, $adapter, $sync_read, null === $update ? $sync_update : $update, $sync_affected, null === $write ? $sync_write : $write, isset( $context['topic'] ) ? $context['topic'] : array(), isset( $context['course'] ) ? $context['course'] : array(), array_key_exists( 'can', $context ) ? $context['can'] : null );
 };
@@ -238,6 +247,22 @@ $stored_link = is_array( $dispatched ) ? TutorPress_Live_Lessons_Store_Fake::met
 $google_release = is_array( $dispatched ) ? $release_for( $dispatched['post_id'], $google_from ) : null;
 $google_hook = is_array( $dispatched ) ? array( 'tutor_google_meet_after_save_meeting', array( (int) $dispatched['post_id'] ) ) : array();
 tutorpress_live_lessons_assert( is_array( $spy->seen ) && 2 === $spy->seen['version'] && 'pending' === $spy->seen['state'] && 'dispatch_possible' === $spy->seen['operation']['dispatch_state'] && is_array( $done ) && 3 === $done['version'] && 'synced' === $done['state'] && 'evt-1' === $done['provider_id'] && 'create' === $done['provenance'] && false === $done['reconciliation_required'] && null === $done['error'] && 'evt-1' === $done_operation['provider_id'] && 'confirmed' === $done_operation['dispatch_state'] && 'No' === $create_target['add_enrolled_students'] && 'No' === $create_target['provider_target']['add_enrolled_students'] && 'https://meet.example/a' === $stored_link && array( 'create', 'metadata_map' ) === $methods() && is_array( $google_release ) && false !== strpos( $google_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $google_release[2], 'token-dispatch-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $dispatched['post_id'] ] ) && array( $google_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $google_hooks ) ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $dispatched['post_id'] ]['post_status'] && false === strpos( json_encode( $done ), 'decoy-id' ) && false === strpos( json_encode( $done ), 'ignore-me' ) && false === strpos( json_encode( $google_hook ), $secret ), 'confirmed google create copies scalars, writes the re-read map, releases the lock, and ignores the save hook return' );
+$rewrite_returns = array();
+$rewrite_write   = static function ( $post_id, $key, $value ) use ( $sync_write, &$rewrite_returns ) {
+	$wrote             = $sync_write( $post_id, $key, $value );
+	$rewrite_returns[] = $wrote;
+	return $wrote;
+};
+$rewrite_method = new ReflectionMethod( 'TutorPress_Live_Lesson_Sync_Orchestrator', 'map_stored' );
+if ( PHP_VERSION_ID < 80100 ) {
+	$rewrite_method->setAccessible( true );
+}
+$rewritten    = $rewrite_method->invoke( null, $dispatched['post_id'], $google_map, $rewrite_write, $sync_read );
+$rewrite_rows = array();
+foreach ( array_keys( $google_map ) as $rewrite_key ) {
+	$rewrite_rows[ $rewrite_key ] = count( TutorPress_Live_Lessons_Store_Fake::meta_rows( $dispatched['post_id'], $rewrite_key ) );
+}
+tutorpress_live_lessons_assert( true === $rewritten && array( false, false ) === $rewrite_returns && array( 'tutor-google-meet-link' => 1, 'tutor-google-meet-start-datetime' => 1 ) === $rewrite_rows && 1 === count( TutorPress_Live_Lessons_Store_Fake::meta_rows( $dispatched['post_id'], '_tutorpress_live_lesson_sync' ) ), 'an unchanged provider-meta rewrite succeeds and leaves one row per key' );
 
 $zoom_ready = $stage_for( $room_input, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-dispatch-zoom' );
 $zoom_from = count( $GLOBALS['wpdb']->statements );
