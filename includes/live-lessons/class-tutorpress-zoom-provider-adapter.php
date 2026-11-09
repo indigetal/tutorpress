@@ -465,23 +465,103 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		return null;
 	}
 
+	/** One raw "id" digit match from a blob string that did not decode. */
+	private function one_zoom_id( $raw ) {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return null;
+		}
+		$found = array();
+		if ( 1 !== preg_match_all( '/"id"\s*:\s*(?:"([0-9]+)"|([0-9]+))/', $raw, $found, PREG_SET_ORDER ) ) {
+			return null;
+		}
+		$digits = isset( $found[0][1] ) && '' !== $found[0][1] ? $found[0][1] : ( isset( $found[0][2] ) ? $found[0][2] : '' );
+		return (int) $digits > 0 ? $digits : null;
+	}
+
 	/** Hydrate schedule, typed duration, relations, host, and id from the seven Zoom keys. */
 	public function hydrate_item( array $local ) {
-		$raw   = isset( $local['_tutor_zm_data'] ) ? $local['_tutor_zm_data'] : '';
-		$data  = is_array( $raw ) ? $raw : ( is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : array() );
-		$data  = is_array( $data ) ? $data : array();
+		$raw     = isset( $local['_tutor_zm_data'] ) ? $local['_tutor_zm_data'] : '';
+		$decoded = is_array( $raw ) ? $raw : ( is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : array() );
+		$valid   = is_array( $decoded );
+		$data    = $valid ? $decoded : array();
 		$unit  = isset( $local['_tutor_zm_duration_unit'] ) && 'hr' === $local['_tutor_zm_duration_unit'] ? 'hours' : ( isset( $local['_tutor_zm_duration_unit'] ) && 'min' === $local['_tutor_zm_duration_unit'] ? 'minutes' : '' );
 		$value = isset( $local['_tutor_zm_duration'] ) && is_int( $local['_tutor_zm_duration'] ) ? $local['_tutor_zm_duration'] : ( isset( $local['_tutor_zm_duration'] ) && is_string( $local['_tutor_zm_duration'] ) && ctype_digit( $local['_tutor_zm_duration'] ) ? (int) $local['_tutor_zm_duration'] : null );
+		$zone     = isset( $data['timezone'] ) && TutorPress_Live_Lesson_Datetime::is_approved_timezone( $data['timezone'] ) ? $data['timezone'] : 'UTC';
+		$start    = $this->zoom_start_local( $data, $local, $zone );
+		$duration  = $this->zoom_hydrated_duration( $data, $value, $unit );
+		$settings  = isset( $data['settings'] ) && is_array( $data['settings'] ) ? $data['settings'] : array();
+		$recording = isset( $settings['auto_recording'] ) && is_string( $settings['auto_recording'] ) && in_array( $settings['auto_recording'], array( 'local', 'cloud', 'none' ), true ) ? $settings['auto_recording'] : '';
 		return array(
-			'start_date'  => isset( $local['_tutor_zm_start_date'] ) && is_string( $local['_tutor_zm_start_date'] ) ? $local['_tutor_zm_start_date'] : '',
-			'start_local' => isset( $local['_tutor_zm_start_datetime'] ) && is_string( $local['_tutor_zm_start_datetime'] ) ? $local['_tutor_zm_start_datetime'] : '',
-			'timezone'    => isset( $data['timezone'] ) && is_string( $data['timezone'] ) ? $data['timezone'] : '',
-			'duration'    => TutorPress_Live_Lesson_Datetime::zoom_duration( $value, $unit ),
-			'course_id'   => isset( $local['_tutor_zm_for_course'] ) && is_int( $local['_tutor_zm_for_course'] ) && $local['_tutor_zm_for_course'] > 0 ? $local['_tutor_zm_for_course'] : null,
-			'topic_id'    => isset( $local['_tutor_zm_for_topic'] ) && is_int( $local['_tutor_zm_for_topic'] ) && $local['_tutor_zm_for_topic'] > 0 ? $local['_tutor_zm_for_topic'] : null,
-			'provider_id' => $this->stored_id( $data ),
-			'host_id'     => isset( $data['host_id'] ) && is_string( $data['host_id'] ) ? $data['host_id'] : '',
+			'start_date'     => isset( $local['_tutor_zm_start_date'] ) && is_string( $local['_tutor_zm_start_date'] ) ? $local['_tutor_zm_start_date'] : '',
+			'start_local'    => $start,
+			'end_local'      => $this->zoom_end_local( $start, $duration, $zone ),
+			'timezone'       => $zone,
+			'duration'       => $duration,
+			'course_id'      => $this->relation_id( isset( $local['_tutor_zm_for_course'] ) ? $local['_tutor_zm_for_course'] : null ),
+			'topic_id'       => $this->relation_id( isset( $local['_tutor_zm_for_topic'] ) ? $local['_tutor_zm_for_topic'] : null ),
+			'provider_id'    => $valid ? $this->stored_id( $data ) : $this->one_zoom_id( is_string( $raw ) ? $raw : '' ),
+			'host_id'        => isset( $data['host_id'] ) && is_string( $data['host_id'] ) ? $data['host_id'] : '',
+			'password'       => isset( $data['password'] ) && is_string( $data['password'] ) ? $data['password'] : '',
+			'auto_recording' => $recording,
+			'waiting_room'   => isset( $settings['waiting_room'] ) && is_bool( $settings['waiting_room'] ) ? $settings['waiting_room'] : false,
 		);
+	}
+
+	/** Blob start_time is UTC, with or without Z, then the approved zone. Seconds are :00. */
+	private function zoom_start_local( array $data, array $local, $zone ) {
+		$blob = isset( $data['start_time'] ) && is_string( $data['start_time'] ) ? $data['start_time'] : '';
+		if ( '' !== $blob ) {
+			$target = new DateTimeZone( $zone );
+			try {
+				$parsed = new DateTime( $blob, new DateTimeZone( 'UTC' ) );
+				return $parsed->setTimezone( $target )->format( 'Y-m-d H:i:00' );
+			} catch ( Exception $thrown ) {
+				unset( $thrown );
+			}
+		}
+		$scalar = isset( $local['_tutor_zm_start_datetime'] ) && is_string( $local['_tutor_zm_start_datetime'] ) ? $local['_tutor_zm_start_datetime'] : '';
+		return 1 === preg_match( '/\A([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}):[0-9]{2}\z/', $scalar, $match ) ? $match[1] . ':00' : $scalar;
+	}
+
+	/** Blob minutes win. An even hour count is that total divided by 60. */
+	private function zoom_hydrated_duration( array $data, $value, $unit ) {
+		$blob = isset( $data['duration'] ) && is_int( $data['duration'] ) ? $data['duration'] : ( isset( $data['duration'] ) && is_string( $data['duration'] ) && ctype_digit( $data['duration'] ) ? (int) $data['duration'] : null );
+		if ( null === $blob ) {
+			return TutorPress_Live_Lesson_Datetime::zoom_duration( $value, $unit );
+		}
+		if ( 'hours' === $unit && $blob > 0 && 0 === $blob % 60 ) {
+			return TutorPress_Live_Lesson_Datetime::zoom_duration( intdiv( $blob, 60 ), 'hours' );
+		}
+		return TutorPress_Live_Lesson_Datetime::zoom_duration( $blob, 'hours' === $unit || 'minutes' === $unit ? 'minutes' : '' );
+	}
+
+	/** End is the wall-clock start plus the typed minutes. An unusable start is copied. */
+	private function zoom_end_local( $start, $duration, $zone ) {
+		if ( ! is_string( $start ) ) {
+			return '';
+		}
+		$minutes = is_array( $duration ) && isset( $duration['value'], $duration['unit'] ) && is_int( $duration['value'] ) && $duration['value'] > 0 ? ( 'hours' === $duration['unit'] ? $duration['value'] * 60 : ( 'minutes' === $duration['unit'] ? $duration['value'] : 0 ) ) : 0;
+		if ( $minutes < 1 || '' === $start || ! TutorPress_Live_Lesson_Datetime::is_wall_clock( $start ) ) {
+			return $start;
+		}
+		$parsed = TutorPress_Live_Lesson_Datetime::parse_wall_clock( $start, $zone );
+		if ( ! $parsed instanceof DateTimeImmutable ) {
+			return $start;
+		}
+		$end = $parsed->modify( '+' . $minutes . ' minutes' );
+		return $end instanceof DateTimeImmutable ? $end->format( 'Y-m-d H:i:00' ) : $start;
+	}
+
+	/** Positive int, or a digit string whose cast is greater than zero. */
+	private function relation_id( $value ) {
+		if ( is_int( $value ) && $value > 0 ) {
+			return $value;
+		}
+		if ( is_string( $value ) && ctype_digit( $value ) ) {
+			$cast = (int) $value;
+			return $cast > 0 ? $cast : null;
+		}
+		return null;
 	}
 
 	/** Legacy provider id is the id inside _tutor_zm_data. */

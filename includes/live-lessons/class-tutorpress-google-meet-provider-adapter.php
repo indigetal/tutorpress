@@ -213,8 +213,64 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 		return array( 'useDefault' => isset( $row['useDefault'] ) && is_bool( $row['useDefault'] ) ? $row['useDefault'] : false, 'overrides' => $overrides );
 	}
 	public function hydrate_item( array $local ) {
-		$details = $this->details_array( isset( $local['tutor-google-meet-event-details'] ) ? $local['tutor-google-meet-event-details'] : '' );
-		return array( 'start_local' => $this->meta_string( $local, 'tutor-google-meet-start-datetime' ), 'end_local' => $this->meta_string( $local, 'tutor-google-meet-end-datetime' ), 'timezone' => $this->meta_string( $details, 'timezone' ), 'provider_id' => isset( $details['id'] ) && is_string( $details['id'] ) && '' !== $details['id'] ? $details['id'] : null, 'link' => $this->meta_string( $local, 'tutor-google-meet-link' ) );
+		$raw     = isset( $local['tutor-google-meet-event-details'] ) ? $local['tutor-google-meet-event-details'] : '';
+		$decoded = is_array( $raw ) ? $raw : ( is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : array() );
+		$valid   = is_array( $decoded );
+		$details = $valid ? $decoded : $this->details_array( $raw );
+		$zone    = isset( $details['timezone'] ) && TutorPress_Live_Lesson_Datetime::is_approved_timezone( $details['timezone'] ) ? $details['timezone'] : 'UTC';
+		return array(
+			'start_local' => $this->google_wall( isset( $details['start_datetime'] ) ? $details['start_datetime'] : null, $this->meta_string( $local, 'tutor-google-meet-start-datetime' ) ),
+			'end_local'   => $this->google_wall( isset( $details['end_datetime'] ) ? $details['end_datetime'] : null, $this->meta_string( $local, 'tutor-google-meet-end-datetime' ) ),
+			'timezone'    => $zone,
+			'provider_id'            => $valid ? ( isset( $details['id'] ) && is_string( $details['id'] ) && '' !== $details['id'] ? $details['id'] : null ) : $this->one_google_id( is_string( $raw ) ? $raw : '' ),
+			'link'                   => $this->meta_string( $local, 'tutor-google-meet-link' ),
+			'add_enrolled_students'  => $this->enrolled_choice( isset( $details['attendees'] ) ? $details['attendees'] : null ),
+			'status'                 => $this->meta_string( $details, 'status' ),
+			'transparency'           => $this->meta_string( $details, 'transparency' ),
+			'visibility'             => $this->meta_string( $details, 'visibility' ),
+			'reminder_minutes'       => $this->first_reminder( $details ),
+		);
+	}
+	/** One raw quoted "id" from a blob string that did not decode. Empty quotes count, then lose. */
+	private function one_google_id( $raw ) {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return null;
+		}
+		$found = array();
+		if ( 1 !== preg_match_all( '/"id"\s*:\s*"([^"\\\\]*)"/', $raw, $found, PREG_SET_ORDER ) ) {
+			return null;
+		}
+		$id = isset( $found[0][1] ) ? $found[0][1] : '';
+		return '' !== $id ? $id : null;
+	}
+	/** Yes or No. Any other attendees value, including a missing one, stays empty. */
+	private function enrolled_choice( $value ) {
+		return is_string( $value ) && ( 'Yes' === $value || 'No' === $value ) ? $value : '';
+	}
+	/** The first override's integer minutes. A string is not cast, and a later override is ignored. */
+	private function first_reminder( array $details ) {
+		$row       = isset( $details['reminders'] ) && is_array( $details['reminders'] ) ? $details['reminders'] : array();
+		$overrides = isset( $row['overrides'] ) && is_array( $row['overrides'] ) ? $row['overrides'] : array();
+		$first     = isset( $overrides[0] ) && is_array( $overrides[0] ) ? $overrides[0] : array();
+		return isset( $first['minutes'] ) && is_int( $first['minutes'] ) ? $first['minutes'] : null;
+	}
+	/** A JSON Y-m-d H:i:s clock wins. Any other JSON value uses the scalar. */
+	private function google_wall( $json, $scalar ) {
+		if ( is_string( $json ) ) {
+			$clock = $this->truncate_wall( $json );
+			if ( null !== $clock ) {
+				return $clock;
+			}
+		}
+		if ( ! is_string( $scalar ) ) {
+			return '';
+		}
+		$clock = $this->truncate_wall( $scalar );
+		return null !== $clock ? $clock : $scalar;
+	}
+	/** Rewrite a Y-m-d H:i:s clock to :00. A T or an offset is not a clock. */
+	private function truncate_wall( $value ) {
+		return is_string( $value ) && 1 === preg_match( '/\A([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}):[0-9]{2}\z/', $value, $match ) ? $match[1] . ':00' : null;
 	}
 	public function hydrate_legacy( array $local ) {
 		return array( 'provider_id' => $this->hydrate_item( $local )['provider_id'] );
