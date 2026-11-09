@@ -1487,6 +1487,7 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 		$this->adapter_runs++;
 		return parent::provider_adapter( $provider );
 	}
+	public function provider_linked( $post_id, $post_type ) { return $this->load_provider_linked( $post_id, $post_type ); }
 	protected function stage_live_create( array $topic, array $course, $can, array $input, array $children, $adapter, DateTimeImmutable $now, $token ) {
 		$this->stage_calls[] = array(
 			'topic'    => isset( $topic['ID'] ) ? (int) $topic['ID'] : 0,
@@ -4034,6 +4035,71 @@ $google_settings = array(
 	'guard'         => $google_guard_proof,
 	'order'         => $google_read_proof,
 );
+$marker_saved = $controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'];
+$marker_idle  = static function () { return null; };
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'] = new TutorPress_Google_Meet_Provider_Adapter( $marker_idle, $marker_idle, $marker_idle, $marker_idle, $marker_idle );
+$zoom_saved = $controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'];
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'] = new TutorPress_Zoom_Provider_Adapter( $marker_idle, $marker_idle, $marker_idle, $marker_idle, $marker_idle, $marker_idle, $marker_idle );
+$controller->meta[0]  = array( 'tutor-google-meet-event-details' => '{"id":"evt-copy"}' );
+$controller->meta[91] = $controller->meta[0];
+$controller->meta[92] = array( 'tutor-google-meet-event-details' => '{"id":"evt-empty"}' );
+$controller->meta[93] = array( 'tutor-google-meet-event-details' => '{}' );
+$controller->meta[94] = array( 'tutor-google-meet-event-details' => '{"id":"evt-one"}' );
+$controller->meta[95] = $controller->meta[94];
+$controller->meta[96] = array( 'tutor-google-meet-event-details' => '{"id":"evt-like"}' );
+$controller->meta[98] = array( 'tutor-google-meet-event-details' => '{"id":"evt-many"}' );
+$controller->meta[99] = $controller->meta[98];
+$controller->meta[100] = array( '_tutor_zm_data' => '{"id":"88001"}' );
+$controller->meta[101] = $controller->meta[100];
+$controller->sync_rows[0]  = array();
+$controller->sync_rows[91] = array();
+$controller->sync_rows[92] = array( array( 'meta_id' => 1, 'meta_value' => '', 'post_id' => 92 ) );
+$controller->sync_rows[93] = array();
+$controller->sync_rows[94] = array( array( 'meta_id' => 1, 'meta_value' => 'https://meet.example/one', 'post_id' => 94 ) );
+$controller->sync_rows[95] = array();
+$controller->sync_rows[96] = array( array( 'meta_id' => 1, 'meta_value' => 'https://meet.example/like', 'post_id' => 96 ) );
+$controller->sync_rows[97] = array( array( 'meta_id' => 1, 'meta_value' => 'https://meet.example/other', 'post_id' => 97 ) );
+$controller->sync_rows[98] = array( array( 'meta_id' => 1, 'meta_value' => 'https://meet.example/many', 'post_id' => 98 ) );
+$controller->sync_rows[99] = array( array( 'meta_id' => 1, 'meta_value' => 'https://meet.example/many-b', 'post_id' => 99 ) );
+$controller->sync_rows[100] = array();
+$controller->sync_rows[101] = array();
+$GLOBALS['wpdb'] = new class() {
+	public function __call( $name, $args ) { unset( $name, $args ); throw new RuntimeException( 'queried' ); }
+};
+$marker = array(
+	'copy'    => $controller->provider_linked( 91, 'tutor-google-meet' ),
+	'empty'   => null,
+	'missing' => $controller->provider_linked( 93, 'tutor-google-meet' ),
+	'zero'    => $controller->provider_linked( 0, 'tutor-google-meet' ),
+	'zoom'    => $controller->provider_linked( 91, 'tutor_zoom_meeting' ),
+);
+$GLOBALS['wpdb'] = new class() {
+	public $posts    = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
+	public $calls    = array();
+	public $rows     = array();
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
+	public function prepare( $query, ...$args ) { unset( $query ); $this->calls[] = $args; return 'prepared'; }
+	public function get_results( $query = '' ) { unset( $query ); return $this->rows; }
+};
+$marker['empty'] = $controller->provider_linked( 92, 'tutor-google-meet' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 101, 'meta_value' => '{"id":"88001"}' ) );
+$marker['zoom_shared'] = $controller->provider_linked( 100, 'tutor_zoom_meeting' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 100, 'meta_value' => '{"id":"88001"}' ) );
+$marker['zoom_other'] = $controller->provider_linked( 101, 'tutor_zoom_meeting' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 97, 'meta_value' => '{"id":"evt-like-x"}' ) );
+$marker['like'] = $controller->provider_linked( 96, 'tutor-google-meet' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 95, 'meta_value' => '{"id":"evt-one"}' ) );
+$marker['source'] = $controller->provider_linked( 94, 'tutor-google-meet' );
+$marker['copy_shared'] = $controller->provider_linked( 95, 'tutor-google-meet' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 99, 'meta_value' => '{"id":"evt-many"}' ) );
+$marker['many'] = $controller->provider_linked( 98, 'tutor-google-meet' );
+$GLOBALS['wpdb']->rows = array( (object) array( 'post_id' => 98, 'meta_value' => '{"id":"evt-many"}' ) );
+$marker['many_other'] = $controller->provider_linked( 99, 'tutor-google-meet' );
+$marker_args = $GLOBALS['wpdb']->calls;
+unset( $GLOBALS['wpdb'] );
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'] = $marker_saved;
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'] = $zoom_saved;
 echo json_encode(
 	array(
 		'enabled'        => true,
@@ -4171,6 +4237,8 @@ echo json_encode(
 		'attaches' => $attach_cases,
 		'matrix'   => $matrix,
 		'google_settings' => $google_settings,
+		'marker' => $marker,
+		'marker_args' => $marker_args,
 	)
 );
 PHP
@@ -4178,6 +4246,16 @@ PHP
 tutorpress_live_lessons_assert(
 	0 === $binding_probe['status'] && '' === $binding_probe['err'] && is_array( $binding_probe['data'] ),
 	'request binding probe stays isolated ' . $binding_probe['status'] . ' ' . $binding_probe['err'] . ' ' . substr( (string) $binding_probe['out'], 0, 400 )
+);
+tutorpress_live_lessons_assert(
+	isset( $binding_probe['data']['marker'] )
+	&& array( 'copy' => false, 'empty' => true, 'missing' => true, 'zero' => true, 'zoom' => true, 'zoom_shared' => false, 'zoom_other' => false, 'like' => true, 'source' => true, 'copy_shared' => false, 'many' => false, 'many_other' => false ) === $binding_probe['data']['marker'],
+	'google copy marker unlinks only an event id with no link row'
+);
+tutorpress_live_lessons_assert(
+	isset( $binding_probe['data']['marker_args'] )
+	&& array( array( 'tutor-google-meet', 'tutor-google-meet-event-details', 92, '%evt-empty%' ), array( 'tutor_zoom_meeting', '_tutor_zm_data', 100, '%88001%' ), array( 'tutor_zoom_meeting', '_tutor_zm_data', 101, '%88001%' ), array( 'tutor-google-meet', 'tutor-google-meet-event-details', 96, '%evt-like%' ), array( 'tutor-google-meet', 'tutor-google-meet-event-details', 94, '%evt-one%' ), array( 'tutor-google-meet', 'tutor-google-meet-event-details', 98, '%evt-many%' ), array( 'tutor-google-meet', 'tutor-google-meet-event-details', 99, '%evt-many%' ) ) === $binding_probe['data']['marker_args'],
+	'google shared-id query binds the event id for the lesson that has a link row'
 );
 $canonical_keys = array( 'ID', 'post_type', 'post_status', 'post_parent', 'post_author', 'post_title', 'post_content', 'menu_order' );
 $child_types    = array( 'lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting' );

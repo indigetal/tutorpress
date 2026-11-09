@@ -1101,6 +1101,75 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         return [] === $kept ? null : $kept;
     }
 
+    /** Google event id with no link row is unlinked. Zoom unlinks when another lesson stores the same id. A Google link row stays linked when no other lesson has that exact id and a link row. @param int $post_id Lesson ID. @param mixed $post_type Post type. @return bool */
+    protected function load_provider_linked($post_id, $post_type) {
+        if ((int) $post_id < 1 || !is_string($post_type) || ('tutor-google-meet' !== $post_type && 'tutor_zoom_meeting' !== $post_type)) {
+            return true;
+        }
+        if ('tutor_zoom_meeting' === $post_type) {
+            $zoom = $this->provider_adapter('zoom');
+            if (!($zoom instanceof TutorPress_Live_Lesson_Provider_Adapter)) {
+                return true;
+            }
+            $blob = $this->load_post_meta((int) $post_id, '_tutor_zm_data');
+            $item = $zoom->hydrate_item(['_tutor_zm_data' => (is_string($blob) || is_array($blob)) ? $blob : '']);
+            $zoom_id = is_array($item) && isset($item['provider_id']) && is_string($item['provider_id']) ? $item['provider_id'] : '';
+            return '' === $zoom_id || $this->google_link_is_unique((int) $post_id, $post_type, '_tutor_zm_data', $zoom_id, $zoom);
+        }
+        $adapter = $this->provider_adapter('google_meet');
+        if (!($adapter instanceof TutorPress_Live_Lesson_Provider_Adapter)) {
+            return true;
+        }
+        $blob = $this->load_post_meta((int) $post_id, 'tutor-google-meet-event-details');
+        $item = $adapter->hydrate_item(['tutor-google-meet-event-details' => (is_string($blob) || is_array($blob)) ? $blob : '']);
+        $id = is_array($item) && isset($item['provider_id']) && is_string($item['provider_id']) ? $item['provider_id'] : '';
+        if ('' === $id) {
+            return true;
+        }
+        $rows = $this->load_meta_rows((int) $post_id, 'tutor-google-meet-link');
+        if (!is_array($rows) || [] === $rows) {
+            return false;
+        }
+        return $this->google_link_is_unique((int) $post_id, 'tutor-google-meet', 'tutor-google-meet-event-details', $id, $adapter);
+    }
+
+    /** True when no other lesson stores this exact provider id. Zoom unlinks on that match. Google unlinks only when that other lesson also has a link row. @param int $post_id Lesson ID. @param string $post_type Post type. @param string $key Provider meta key. @param string $id Provider id. @param TutorPress_Live_Lesson_Provider_Adapter $adapter Reader. @return bool */
+    private function google_link_is_unique($post_id, $post_type, $key, $id, $adapter) {
+        global $wpdb;
+        $like = '%' . $wpdb->esc_like($id) . '%';
+        $sql = $wpdb->prepare(
+            "SELECT pm.post_id, pm.meta_value FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE p.post_type = %s AND pm.meta_key = %s AND pm.post_id <> %d AND pm.meta_value LIKE %s",
+            $post_type,
+            $key,
+            (int) $post_id,
+            $like
+        );
+        $found = is_string($sql) ? $wpdb->get_results($sql) : [];
+        $seen = [];
+        foreach (is_array($found) ? $found : [] as $row) {
+            $row = (array) $row;
+            $candidate = isset($row['post_id']) ? (int) $row['post_id'] : 0;
+            if ($candidate < 1 || isset($seen[$candidate])) {
+                continue;
+            }
+            $seen[$candidate] = true;
+            $value = isset($row['meta_value']) ? wp_unslash($row['meta_value']) : '';
+            $hydrated = $adapter->hydrate_item([$key => (is_string($value) || is_array($value)) ? $value : '']);
+            $found_id = is_array($hydrated) && isset($hydrated['provider_id']) && is_string($hydrated['provider_id']) ? $hydrated['provider_id'] : '';
+            if ($id !== $found_id) {
+                continue;
+            }
+            if ('tutor_zoom_meeting' === $post_type) {
+                return false;
+            }
+            $match_rows = $this->load_meta_rows($candidate, 'tutor-google-meet-link');
+            if (is_array($match_rows) && [] !== $match_rows) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** @param int $post_id Post ID. @param string $key Meta key. @return mixed */
     protected function load_post_meta($post_id, $key) { return get_post_meta($post_id, $key, true); }
 
