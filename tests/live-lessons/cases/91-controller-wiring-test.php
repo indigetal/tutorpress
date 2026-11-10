@@ -2730,6 +2730,8 @@ $zoom_body['type'] = 'zoom';
 $string_body = $create_body;
 $string_body['course_id'] = '15';
 $string_body['topic_id'] = '71';
+$put( 90, 'tutor-google-meet', 'publish', 71 );
+$controller->sync_rows[90] = $sync_row( 90, $dispatch_bytes );
 $google_row = $run_create( $create_body, 'POST', true, $staged_ok, $dispatched_ok );
 $controller->calls = array();
 $callback_names = array();
@@ -2762,6 +2764,9 @@ foreach ( $delegate_marks as $delegate_mark ) {
 	$delegate_order  = $delegate_order && false !== $delegate_at && $delegate_at > $delegate_cursor;
 	$delegate_cursor = false === $delegate_at ? $delegate_cursor : $delegate_at;
 }
+$string_row = $run_create( $string_body, 'POST', true, $staged_ok, $dispatched_ok );
+$put( 90, 'tutor_zoom_meeting', 'publish', 71 );
+$zoom_row = $run_create( $zoom_body, 'POST', true, $staged_ok, $dispatched_ok );
 $creates = array(
 	'false' => $false_gate,
 	'incomplete' => $run_create( array( 'startDateTime' => '2026-10-06 15:00:00' ) ),
@@ -2776,8 +2781,8 @@ $creates = array(
 	'denied'     => $run_create( array_merge( $create_body, array( 'course_id' => 8, 'topic_id' => 81 ) ) ),
 	'zero'       => $run_create( array_merge( $create_body, array( 'course_id' => 0 ) ) ),
 	'google'     => $google_row,
-	'string_ids' => $run_create( $string_body, 'POST', true, $staged_ok, $dispatched_ok ),
-	'zoom'       => $run_create( $zoom_body, 'POST', true, $staged_ok, $dispatched_ok ),
+	'string_ids' => $string_row,
+	'zoom'       => $zoom_row,
 	'null_stage' => $run_create( $create_body, 'POST', true, null, $dispatched_ok ),
 	'error_stage' => $run_create( $create_body, 'POST', true, $stage_error, $dispatched_ok ),
 	'malformed'  => $run_create( $create_body, 'POST', true, array( 'note' => 'plain' ), $dispatched_ok ),
@@ -4762,7 +4767,7 @@ $legacy_shape = static function ( $row, $id, $type ) {
 		&& 'error' === $row['sync_state']
 		&& 0 === $row['sync_version']
 		&& false === $row['persisted_envelope']
-		&& array( 'legacy_resolution_required' ) === $row['resolution']
+		&& null === $row['resolution']
 		&& null === $row['record'];
 };
 $stored_shape = static function ( $row, $id, $state, $record ) use ( $operation_summary ) {
@@ -4833,6 +4838,8 @@ tutorpress_live_lessons_assert(
 	&& $stored_shape( $error_row, 523, 'error', $operation_target )
 	&& $item_kept( $binding_probe['data']['pending_meta_item'], $zoom_calls( 524 ) )
 	&& $stored_shape( $pending_meta_row, 524, 'pending', $sanitized_meta )
+	&& 'hidden-pw' === $pending_meta_row['password']
+	&& ! isset( $pending_meta_row['record']['_tutor_zm_data']['password'] )
 	&& $operation_target !== $pending_meta_row['record']
 	&& $item_kept( $binding_probe['data']['error_meta_item'], $zoom_calls( 525 ) )
 	&& $stored_shape( $error_meta_row, 525, 'error', $sanitized_meta )
@@ -5067,7 +5074,7 @@ tutorpress_live_lessons_assert(
 	&& 'response' === $outcome['duplicate']['packed']['kind']
 	&& true === $outcome['duplicate']['packed']['data']['success']
 	&& 'Google Meet lesson duplicated successfully.' === $outcome['duplicate']['packed']['data']['message']
-	&& array(
+	&& array_merge( array(
 		'id'                 => 540,
 		'title'              => 'Stored title',
 		'description'        => 'Stored notes',
@@ -5081,9 +5088,9 @@ tutorpress_live_lessons_assert(
 		'operation'          => null,
 		'warning'            => null,
 		'error'              => null,
-		'resolution'         => array( 'legacy_resolution_required' ),
+		'resolution'         => null,
 		'record'             => null,
-	) === $outcome['duplicate']['packed']['data']['data']
+	), tutorpress_live_lesson_empty_edit() ) === $outcome['duplicate']['packed']['data']['data']
 	&& $outcome_held( $outcome['missing'] )
 	&& array( 'clock', 'token', 'user', array( 'post', 900 ) ) === $outcome['missing']['calls']
 	&& $outcome_error( $outcome['missing'], 'duplicate_data_error', 'Duplicate created but failed to retrieve data.', 500 )
@@ -5142,15 +5149,24 @@ $create_error = static function ( $row, $code, $message, $status ) {
 $create_stopped = static function ( $row ) {
 	return is_array( $row ) && array() === $row['stages'] && array() === $row['dispatches'] && 0 === $row['adapters'] && array( 'zoom' ) === $row['ledger'] && array() === $row['services'] && array() === $row['writes'] && array() === $row['updates'] && array() === $row['metas'] && true === $row['boundary'];
 };
-$create_success = static function ( $row, $provider ) use ( $create_input, $create_child ) {
+$create_success = static function ( $row, $provider ) use ( $create_input, $create_child, $google_meta_keys, $zoom_meta_keys ) {
 	$stage    = isset( $row['stages'][0] ) && is_array( $row['stages'][0] ) ? $row['stages'][0] : array();
 	$dispatch = isset( $row['dispatches'][0] ) && is_array( $row['dispatches'][0] ) ? $row['dispatches'][0] : array();
+	$metas    = array();
+	foreach ( ( 'zoom' === $provider ? $zoom_meta_keys : $google_meta_keys ) as $key ) {
+		$metas[] = array( 'meta', 90, $key );
+	}
 	return is_array( $row )
 		&& 'response' === $row['packed']['kind']
 		&& true === $row['packed']['data']['success']
 		&& 'Live lesson created successfully.' === $row['packed']['data']['message']
-		&& 3 === $row['packed']['data']['data']['version']
-		&& 'synced' === $row['packed']['data']['data']['state']
+		&& 90 === $row['packed']['data']['data']['id']
+		&& 'Stored title' === $row['packed']['data']['data']['title']
+		&& ( 'zoom' === $provider ? 'zoom' : 'google_meet' ) === $row['packed']['data']['data']['type']
+		&& 'synced' === $row['packed']['data']['data']['sync_state']
+		&& 3 === $row['packed']['data']['data']['sync_version']
+		&& 'UTC' === $row['packed']['data']['data']['settings']['timezone']
+		&& '' === $row['packed']['data']['data']['password']
 		&& 1 === count( $row['stages'] )
 		&& 1 === count( $row['dispatches'] )
 		&& $create_input( $provider ) === $stage['input']
@@ -5165,16 +5181,16 @@ $create_success = static function ( $row, $provider ) use ( $create_input, $crea
 		&& 15 === $stage['course']
 		&& 17 === $stage['author']
 		&& array( 'zoom', $provider ) === $row['ledger']
-		&& 1 === $row['bindings']
+		&& 2 === $row['bindings']
 		&& 1 === $row['adapters']
-		&& array( array( 'post', 15 ), array( 'post', 71 ) ) === $row['posts']
-		&& array( array( 'can', 'edit_post', 15 ) ) === $row['caps']
+		&& array( array( 'post', 15 ), array( 'post', 71 ), array( 'post', 90 ), array( 'post', 71 ), array( 'post', 15 ) ) === $row['posts']
+		&& array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) ) === $row['caps']
 		&& 1 === count( $row['queries'] )
 		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
-		&& array() === $row['metas']
-		&& array() === $row['reads']
+		&& $metas === $row['metas']
+		&& array( array( 'read', 90, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
 		&& true === $row['boundary']
 		&& is_string( $dispatch['staged']['envelope'] )
 		&& 1 === json_decode( $dispatch['staged']['envelope'], true )['version'];
@@ -5240,7 +5256,7 @@ tutorpress_live_lessons_assert(
 	&& $create_success( $creates['string_ids'], 'google_meet' )
 	&& $create_success( $creates['zoom'], 'zoom' )
 	&& array( 'read', 'update', 'affected', 'write' ) === $creates['callbacks'],
-	'valid Google and Zoom creates stage once, dispatch once, and preserve the create success envelope'
+	'valid Google and Zoom creates stage once, dispatch once, and return the created lesson'
 );
 tutorpress_live_lessons_assert(
 	$create_error( $creates['null_stage'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
@@ -5315,18 +5331,27 @@ $update_envelope = static function ( $row, $id ) use ( $update_error ) {
 		&& array() === $row['dispatches']
 		&& array() === $row['synced_dispatch'];
 };
-$update_success = static function ( $row, $provider, $item, $post_type, $kind ) use ( $update_input ) {
+$update_success = static function ( $row, $provider, $item, $post_type, $kind ) use ( $update_input, $google_meta_keys, $zoom_meta_keys ) {
 	$stage    = 'unlinked' === $kind ? ( isset( $row['unlinked'][0] ) ? $row['unlinked'][0] : array() ) : ( isset( $row['synced'][0] ) ? $row['synced'][0] : array() );
 	$dispatch = 'unlinked' === $kind ? ( isset( $row['dispatches'][0] ) ? $row['dispatches'][0] : array() ) : ( isset( $row['synced_dispatch'][0] ) ? $row['synced_dispatch'][0] : array() );
 	$opposite = 'unlinked' === $kind
 		? array() === $row['synced'] && array() === $row['synced_dispatch'] && array() === $row['stages'] && 1 === count( $row['unlinked'] ) && 1 === count( $row['dispatches'] )
 		: array() === $row['unlinked'] && array() === $row['dispatches'] && array() === $row['stages'] && 1 === count( $row['synced'] ) && 1 === count( $row['synced_dispatch'] );
+	$metas    = array();
+	foreach ( ( 'zoom' === $provider ? $zoom_meta_keys : $google_meta_keys ) as $key ) {
+		$metas[] = array( 'meta', $item, $key );
+	}
 	return is_array( $row )
 		&& 'response' === $row['packed']['kind']
 		&& true === $row['packed']['data']['success']
 		&& 'Live lesson retrieved successfully.' === $row['packed']['data']['message']
-		&& 3 === $row['packed']['data']['data']['version']
-		&& 'synced' === $row['packed']['data']['data']['state']
+		&& $item === $row['packed']['data']['data']['id']
+		&& 'Stored title' === $row['packed']['data']['data']['title']
+		&& $provider === $row['packed']['data']['data']['type']
+		&& $kind === $row['packed']['data']['data']['sync_state']
+		&& 1 === $row['packed']['data']['data']['sync_version']
+		&& 'UTC' === $row['packed']['data']['data']['settings']['timezone']
+		&& '' === $row['packed']['data']['data']['password']
 		&& $update_input( $provider ) === $stage['input']
 		&& $provider === $stage['adapter']
 		&& $provider === $dispatch['adapter']
@@ -5342,16 +5367,16 @@ $update_success = static function ( $row, $provider, $item, $post_type, $kind ) 
 		&& 32 === strlen( $stage['token'] )
 		&& $stage['token'] === $dispatch['token']
 		&& array( 'zoom', $provider ) === $row['ledger']
-		&& 1 === $row['bindings']
+		&& 2 === $row['bindings']
 		&& 1 === $row['adapters']
-		&& array( array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
-		&& array( array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& array( array( 'read', $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
+		&& array( array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
+		&& array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) ) === $row['caps']
+		&& array( array( 'read', $item, '_tutorpress_live_lesson_sync' ), array( 'read', $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
 		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
 		&& array() === $row['queries']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
-		&& array() === $row['metas']
+		&& $metas === $row['metas']
 		&& true === $row['boundary']
 		&& true === $opposite
 		&& is_string( $dispatch['staged']['envelope'] )
@@ -5744,7 +5769,7 @@ $duplicate_once = static function ( $row, $target, $target_course, $children, $b
 		&& array( 0, 0 ) === $row['lifecycle']
 		&& true === $row['hosts'];
 };
-$projected_duplicate = array(
+$projected_duplicate = array_merge( array(
 	'id'                 => 540,
 	'title'              => 'Stored title',
 	'description'        => 'Stored notes',
@@ -5758,9 +5783,9 @@ $projected_duplicate = array(
 	'operation'          => null,
 	'warning'            => null,
 	'error'              => null,
-	'resolution'         => array( 'legacy_resolution_required' ),
+	'resolution'         => null,
 	'record'             => null,
-);
+), tutorpress_live_lesson_empty_edit() );
 $source_caps = array( array( 'can', 'edit_post', 15 ) );
 $duplicate_encoded = json_encode( $duplicates );
 tutorpress_live_lessons_assert(

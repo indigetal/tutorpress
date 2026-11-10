@@ -453,7 +453,10 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $ready = $this->staged_create($staged);
         $result = is_array($ready) ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $staged;
         $accepted = is_array($ready) && is_array($result) && isset($result['envelope']) ? $this->accepted_bytes($result['envelope']) : null;
-        return $this->rest_outcome('create', is_array($accepted) ? $accepted : (is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result));
+        if (is_array($accepted)) {
+            return $this->mutation_projection(isset($result['post_id']) ? (int) $result['post_id'] : 0);
+        }
+        return $this->rest_outcome('create', is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result);
     }
 
     /** @param mixed $value Request id. @return int */
@@ -550,7 +553,10 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $ready = $this->staged_create($staged);
         $result = is_array($ready) ? ('unlinked' === $state ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $this->dispatch_live_synced($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'])) : $staged;
         $accepted = is_array($ready) && is_array($result) && isset($result['envelope']) ? $this->accepted_bytes($result['envelope']) : null;
-        return $this->rest_outcome('update', is_array($accepted) ? $accepted : (is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result));
+        if (is_array($accepted)) {
+            return $this->mutation_projection((int) $item['ID'], 'update');
+        }
+        return $this->rest_outcome('update', is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result);
     }
 
     /**
@@ -1088,8 +1094,12 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         foreach ($keys[$post_type] as $key) {
             $value = $this->load_post_meta((int) $post_id, $key);
             if (isset($json[$key])) {
-                $value = is_array($value) ? $value : (is_string($value) && '' !== $value ? json_decode($value, true) : null);
-                $value = is_array($value) ? $this->strip_sensitive_meta($value) : null;
+                $decoded  = is_array($value) ? $value : (is_string($value) && '' !== $value ? json_decode($value, true) : null);
+                $password = '_tutor_zm_data' === $key && is_array($decoded) && isset($decoded['password']) && is_string($decoded['password']) ? $decoded['password'] : '';
+                $value    = is_array($decoded) ? $this->strip_sensitive_meta($decoded) : null;
+                if (is_array($value) && '' !== $password) {
+                    $value['password'] = $password;
+                }
                 if (!is_array($value) || [] === $value) {
                     continue;
                 }
@@ -1406,6 +1416,37 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         if (false === $envelope) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
         $projected = TutorPress_Live_Lesson_Response_Projector::project_item($item, $topic, $course, $can, $envelope, null);
         return is_array($projected) ? rest_ensure_response($this->format_response($projected, __('Google Meet lesson duplicated successfully.', 'tutorpress'))) : $failed;
+    }
+
+    /** Created or updated lesson projection, or the matching failure when the post cannot be projected. */
+    private function mutation_projection($id, $action = 'create') {
+        $bindings  = $this->request_bindings();
+        $update    = 'update' === $action;
+        $failed    = new WP_Error($update ? 'live_lesson_update_failed' : 'live_lesson_creation_failed', $update ? __('Failed to update live lesson.', 'tutorpress') : __('Failed to create live lesson.', 'tutorpress'), ['status' => 500]);
+        $item      = is_array($bindings) ? $bindings['lookup']((int) $id) : null;
+        $type      = is_array($item) && isset($item['post_type']) ? $item['post_type'] : '';
+        $parent    = is_array($item) && isset($item['post_parent']) && ('tutor-google-meet' === $type || 'tutor_zoom_meeting' === $type) ? (int) $item['post_parent'] : 0;
+        $topic     = $parent > 0 ? $bindings['lookup']($parent) : null;
+        $course_id = is_array($topic) && isset($topic['post_type'], $topic['ID'], $topic['post_parent']) && 'topics' === $topic['post_type'] ? (int) $topic['post_parent'] : 0;
+        $course    = $course_id > 0 ? $bindings['lookup']($course_id) : null;
+        $linked    = is_array($item) && is_array($topic) && is_array($course) && isset($course['post_type'], $course['ID'], $topic['ID'], $item['post_parent'], $topic['post_parent']) && 'courses' === $course['post_type'] && (int) $item['post_parent'] === (int) $topic['ID'] && (int) $topic['post_parent'] === (int) $course['ID'];
+        if (!$linked) {
+            return $failed;
+        }
+        $can = static function ($capability, $post_id) use ($bindings) {
+            return 'edit_post' === $capability && true === $bindings['can']((int) $post_id);
+        };
+        if (null === TutorPress_Live_Lesson_Authorization::authorize($item, $topic, $course, $can)) {
+            return new WP_Error($update ? 'rest_cannot_edit' : 'rest_cannot_create', $update ? __('Sorry, you are not allowed to edit this live lesson.', 'tutorpress') : __('Sorry, you are not allowed to create live lessons in this course.', 'tutorpress'), ['status' => rest_authorization_required_code()]);
+        }
+        $envelope = $bindings['envelope']((int) $item['ID']);
+        if (false === $envelope) {
+            return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]);
+        }
+        $metadata  = $bindings['metadata']((int) $item['ID'], $item['post_type']);
+        $projected = TutorPress_Live_Lesson_Response_Projector::project_item($item, $topic, $course, $can, $envelope, $metadata);
+        $message   = $update ? __('Live lesson retrieved successfully.', 'tutorpress') : __('Live lesson created successfully.', 'tutorpress');
+        return is_array($projected) ? rest_ensure_response($this->format_response($projected, $message)) : $failed;
     }
 
     /**
