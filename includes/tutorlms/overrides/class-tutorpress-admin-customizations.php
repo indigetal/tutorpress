@@ -168,13 +168,11 @@ class TutorPress_Admin_Customizations {
     }
 
     /**
-     * Fix Tutor LMS's broken lesson access check for co-instructors
+     * Replace Tutor's load-post.php check with a parent-course rule.
      *
-     * Tutor LMS's Admin::check_if_current_users_post() method checks if user is
-     * co-instructor of the LESSON itself, but should check the PARENT COURSE.
-     * This prevents co-instructors from editing lessons in Gutenberg.
-     *
-     * Solution: Remove Tutor's broken check and replace with corrected version.
+     * Administrators and non-instructors return immediately. Tutor 4.2.1 still
+     * allows a child post_author who is not a course instructor; this does not.
+     * Each Tutor post type is allowed only under its parent-course rule.
      *
      * @since 2.0.11
      */
@@ -216,18 +214,14 @@ class TutorPress_Admin_Customizations {
             return;
         }
         
-        $tutor_post_types = array(
-            tutor()->course_post_type,
-            tutor()->lesson_post_type,
-            tutor()->assignment_post_type
-        );
+        $tutor_post_types = function_exists('get_tutor_post_types') ? array_values(get_tutor_post_types()) : array(tutor()->course_post_type, tutor()->bundle_post_type, tutor()->lesson_post_type, tutor()->assignment_post_type, tutor()->quiz_post_type, tutor()->topics_post_type, tutor()->announcement_post_type, tutor()->zoom_post_type, tutor()->meet_post_type, tutor()->enrollment_post_type);
         $current_user = get_current_user_id();
         
         if (!in_array($post->post_type, $tutor_post_types, true)) {
             return;
         }
 
-        $child_types = array(tutor()->lesson_post_type, tutor()->assignment_post_type);
+        $child_types = array(tutor()->lesson_post_type, tutor()->assignment_post_type, tutor()->quiz_post_type);
         if (in_array($post->post_type, $child_types, true)) {
             if (tutorpress_permissions()->can_user_edit_course_content($post_id, $current_user)) {
                 return;
@@ -236,11 +230,39 @@ class TutorPress_Admin_Customizations {
             wp_die(esc_html__('Permission Denied', 'tutor'));
         }
 
-        if ($post->post_author == $current_user) {
+        if ($post->post_type === tutor()->bundle_post_type) {
+            if (tutorpress_permissions()->can_user_edit_bundle($post_id, $current_user)) {
+                return;
+            }
+            wp_die(esc_html__('Permission Denied', 'tutor'));
+        }
+        if (in_array($post->post_type, array(tutor()->topics_post_type, tutor()->announcement_post_type), true)) {
+            $course_id = (int) $post->post_parent;
+            if ($course_id && function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $course_id)) {
+                return;
+            }
+            wp_die(esc_html__('Permission Denied', 'tutor'));
+        }
+        if (in_array($post->post_type, array(tutor()->zoom_post_type, tutor()->meet_post_type), true)) {
+            $course_id = function_exists('tutor_utils') ? (int) tutor_utils()->get_course_id_by_subcontent($post_id) : 0;
+            if ($course_id && tutor_utils()->can_user_edit_course($current_user, $course_id)) {
+                return;
+            }
+            wp_die(esc_html__('Permission Denied', 'tutor'));
+        }
+        if ($post->post_type === tutor()->enrollment_post_type) {
+            $course_id = (int) $post->post_parent;
+            if ($course_id && function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $course_id)) {
+                return;
+            }
+            wp_die(esc_html__('Permission Denied', 'tutor'));
+        }
+
+        if ($post->post_type === tutor()->course_post_type && (int) $post->post_author === $current_user) {
             return;
         }
 
-        if (function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $post_id)) {
+        if ($post->post_type === tutor()->course_post_type && function_exists('tutor_utils') && tutor_utils()->can_user_edit_course($current_user, $post_id)) {
             return;
         }
         
