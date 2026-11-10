@@ -258,11 +258,28 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$settings = isset( $input['settings'] ) && is_array( $input['settings'] ) ? $input['settings'] : array();
 		if ( 'zoom' === $valid['provider'] ) {
 			$recording = isset( $settings['auto_recording'] ) && in_array( $settings['auto_recording'], array( 'cloud', 'local', 'none' ), true ) ? $settings['auto_recording'] : 'none';
-			return array( 'auto_recording' => $recording, 'enforce_login' => false, 'host_id' => $valid['host_id'], 'host_video' => false, 'join_before_host' => isset( $settings['join_before_host'] ) && true === $settings['join_before_host'], 'mute_upon_entry' => false, 'participant_video' => false, 'waiting_room' => isset( $settings['waiting_room'] ) && true === $settings['waiting_room'] );
+			$flags     = self::zoom_owner_flags( isset( $valid['owner_id'] ) ? $valid['owner_id'] : 0 );
+			return array( 'auto_recording' => $recording, 'enforce_login' => $flags['enforce_login'], 'host_id' => $valid['host_id'], 'host_video' => $flags['host_video'], 'join_before_host' => $flags['join_before_host'], 'mute_upon_entry' => $flags['mute_upon_entry'], 'participant_video' => $flags['participant_video'], 'waiting_room' => isset( $settings['waiting_room'] ) && true === $settings['waiting_room'] );
 		}
 		$enrolled = isset( $settings['add_enrolled_students'] ) && 'Yes' === $settings['add_enrolled_students'] ? 'Yes' : 'No';
 		$minutes  = isset( $settings['reminder_minutes'] ) && is_int( $settings['reminder_minutes'] ) ? $settings['reminder_minutes'] : 30;
 		return array( 'add_enrolled_students' => $enrolled, 'reminder_minutes' => $minutes, 'send_updates' => isset( $settings['send_updates'] ) && is_string( $settings['send_updates'] ) ? $settings['send_updates'] : 'all', 'status' => isset( $settings['status'] ) && is_string( $settings['status'] ) ? $settings['status'] : 'confirmed', 'transparency' => isset( $settings['transparency'] ) && is_string( $settings['transparency'] ) ? $settings['transparency'] : 'transparent', 'visibility' => isset( $settings['visibility'] ) && is_string( $settings['visibility'] ) ? $settings['visibility'] : 'public' );
+	}
+
+	/** Owner Tutor Zoom settings. A missing or empty value is false. */
+	private static function zoom_owner_flags( $owner_id ) {
+		$flags = array( 'enforce_login' => false, 'host_video' => false, 'join_before_host' => false, 'mute_upon_entry' => false, 'participant_video' => false );
+		$owner = is_int( $owner_id ) ? $owner_id : 0;
+		$raw   = $owner >= 1 ? get_user_meta( $owner, 'tutor_zoom_settings', true ) : '';
+		$data  = is_string( $raw ) ? json_decode( $raw, true ) : null;
+		if ( ! is_array( $data ) ) {
+			return $flags;
+		}
+		$map = array( 'enforce_login' => 'enforce_login', 'host_video' => 'host_video', 'join_before_host' => 'join_before_host', 'mute_upon_entry' => 'mute_participants', 'participant_video' => 'participants_video' );
+		foreach ( $map as $name => $key ) {
+			$flags[ $name ] = ( isset( $data[ $key ] ) && $data[ $key ] ) ? true : false;
+		}
+		return $flags;
 	}
 
 	/** CAS one pending create onto an existing unlinked publish copy. The post is not replaced. */
@@ -347,7 +364,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$end = array_key_exists( 'end', $input ) ? $input['end'] : ( isset( $previous['end_local'] ) ? $previous['end_local'] : '' ); $typed = array_key_exists( 'duration', $input ) ? $input['duration'] : ( isset( $previous['duration'] ) ? $previous['duration'] : array() );
 		$duration = 'zoom' === $provider && is_array( $typed ) ? TutorPress_Live_Lesson_Datetime::zoom_duration( isset( $typed['value'] ) ? $typed['value'] : null, isset( $typed['unit'] ) ? $typed['unit'] : '' ) : null; $changed = $start !== ( isset( $previous['start_local'] ) ? $previous['start_local'] : null ) || $zone !== ( isset( $previous['timezone'] ) ? $previous['timezone'] : null ) || ( 'google_meet' === $provider ? $end !== ( isset( $previous['end_local'] ) ? $previous['end_local'] : null ) : $typed !== ( isset( $previous['duration'] ) ? $previous['duration'] : null ) );
 		if ( ( $changed && ! TutorPress_Live_Lesson_Datetime::is_future_wall_clock( $start, $zone, $now ) ) || ( 'google_meet' === $provider && ! TutorPress_Live_Lesson_Datetime::google_end_after_start( $start, $end, $zone ) ) || ( 'zoom' === $provider && null === $duration ) ) { return null; }
-		$valid    = array( 'provider' => $provider, 'host_id' => $host_id, 'start' => $start, 'timezone' => $zone, 'end' => 'google_meet' === $provider ? $end : null, 'duration' => $duration );
+		$valid    = array( 'provider' => $provider, 'owner_id' => $owner_id, 'host_id' => $host_id, 'start' => $start, 'timezone' => $zone, 'end' => 'google_meet' === $provider ? $end : null, 'duration' => $duration );
 		$schedule = self::create_schedule( $valid );
 		$target   = is_array( $schedule ) ? self::create_target( $valid, $input ) : null;
 		if ( null === $target || ! isset( $item['menu_order'] ) || ! is_int( $item['menu_order'] ) || $item['menu_order'] < 0 ) { return null; }

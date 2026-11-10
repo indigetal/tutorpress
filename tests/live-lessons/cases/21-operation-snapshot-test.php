@@ -4,6 +4,16 @@ $operation = array( 'operation_id' => 'op-1', 'kind' => 'create', 'started_at' =
 $envelope  = array( 'schema_version' => 1, 'version' => 1, 'state' => 'pending', 'provider' => 'zoom', 'owner_id' => 42, 'provider_id' => null, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
 $stored    = TutorPress_Live_Lesson_Sync_Envelope::envelope( $envelope );
 tutorpress_live_lessons_assert( is_array( $stored ) && 42 === $stored['operation']['owner_id'] && is_int( $stored['operation']['owner_id'] ) && 'op-1' === $stored['operation']['operation_id'] && 'host-1' === $stored['operation']['provider_target']['host_id'], 'common snapshot keeps the owner user id, operation id, and zoom host id' );
+$true_flags = $operation;
+$true_flags['provider_target']['enforce_login'] = true;
+$true_flags['provider_target']['host_video'] = true;
+$true_flags['provider_target']['mute_upon_entry'] = true;
+$true_flags['provider_target']['participant_video'] = true;
+$true_stored = TutorPress_Live_Lesson_Sync_Envelope::envelope( array_merge( $envelope, array( 'operation' => $true_flags ) ) );
+tutorpress_live_lessons_assert( is_array( $true_stored ) && true === $true_stored['operation']['provider_target']['enforce_login'] && true === $true_stored['operation']['provider_target']['host_video'] && true === $true_stored['operation']['provider_target']['mute_upon_entry'] && true === $true_stored['operation']['provider_target']['participant_video'], 'zoom settings accept either boolean' );
+$reject_flags = $true_flags;
+$reject_flags['provider_target']['host_video'] = 1;
+tutorpress_live_lessons_assert( null === TutorPress_Live_Lesson_Sync_Envelope::envelope( array_merge( $envelope, array( 'operation' => $reject_flags ) ) ), 'zoom host video rejects an integer' );
 $headers = $envelope;
 $headers['operation']['headers'] = array( 'Cookie' => 'a=b' );
 $token = $envelope;

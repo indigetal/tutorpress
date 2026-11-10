@@ -2413,17 +2413,19 @@ class TutorPress_Zoom_Users_Legacy {
 function get_current_user_id() {
 	return 44;
 }
-function get_user_meta( $user_id, $key, $single = false ) {
-	TutorPress_Zoom_Users_Legacy::$meta++;
-	if ( 'tutor_zoom_api' === $key ) {
-		return json_encode(
-			array(
-				'api_key'    => 'configured-key',
-				'api_secret' => 'configured-secret',
-			)
-		);
+if ( ! function_exists( 'get_user_meta' ) ) {
+	function get_user_meta( $user_id, $key, $single = false ) {
+		TutorPress_Zoom_Users_Legacy::$meta++;
+		if ( 'tutor_zoom_api' === $key ) {
+			return json_encode(
+				array(
+					'api_key'    => 'configured-key',
+					'api_secret' => 'configured-secret',
+				)
+			);
+		}
+		return '';
 	}
-	return '';
 }
 function wp_set_current_user( $user_id ) {
 	TutorPress_Zoom_Users_Legacy::$switches++;

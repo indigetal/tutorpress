@@ -101,7 +101,7 @@ class TutorPress_Live_Lesson_Sync_Envelope {
 		$keys   = is_array( $target ) ? array_keys( $target ) : array();
 		sort( $keys, SORT_STRING );
 		if ( 'zoom' === $value['provider'] ) {
-			return array( 'auto_recording', 'enforce_login', 'host_id', 'host_video', 'join_before_host', 'mute_upon_entry', 'participant_video', 'waiting_room' ) === $keys && is_string( $target['host_id'] ) && '' !== $target['host_id'] && is_bool( $target['join_before_host'] ) && false === $target['host_video'] && false === $target['participant_video'] && false === $target['mute_upon_entry'] && false === $target['enforce_login'] && in_array( $target['auto_recording'], array( 'cloud', 'local', 'none' ), true ) && is_bool( $target['waiting_room'] );
+			return array( 'auto_recording', 'enforce_login', 'host_id', 'host_video', 'join_before_host', 'mute_upon_entry', 'participant_video', 'waiting_room' ) === $keys && is_string( $target['host_id'] ) && '' !== $target['host_id'] && is_bool( $target['join_before_host'] ) && is_bool( $target['host_video'] ) && is_bool( $target['participant_video'] ) && is_bool( $target['mute_upon_entry'] ) && is_bool( $target['enforce_login'] ) && in_array( $target['auto_recording'], array( 'cloud', 'local', 'none' ), true ) && is_bool( $target['waiting_room'] );
 		}
 		return 'google_meet' === $value['provider'] && array( 'add_enrolled_students', 'reminder_minutes', 'send_updates', 'status', 'transparency', 'visibility' ) === $keys && in_array( $target['add_enrolled_students'], array( 'No', 'Yes' ), true ) && is_scalar( $target['reminder_minutes'] ) && is_scalar( $target['send_updates'] ) && is_scalar( $target['status'] ) && is_scalar( $target['transparency'] ) && is_scalar( $target['visibility'] );
 	}

@@ -150,11 +150,11 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		}
 		$body['settings'] = array(
 			'join_before_host'  => isset( $provider['join_before_host'] ) && true === $provider['join_before_host'],
-			'host_video'        => false,
-			'participant_video' => false,
-			'mute_upon_entry'   => false,
+			'host_video'        => isset( $provider['host_video'] ) && true === $provider['host_video'],
+			'participant_video' => isset( $provider['participant_video'] ) && true === $provider['participant_video'],
+			'mute_upon_entry'   => isset( $provider['mute_upon_entry'] ) && true === $provider['mute_upon_entry'],
 			'auto_recording'    => isset( $provider['auto_recording'] ) && is_string( $provider['auto_recording'] ) && '' !== $provider['auto_recording'] ? $provider['auto_recording'] : 'none',
-			'enforce_login'     => false,
+			'enforce_login'     => isset( $provider['enforce_login'] ) && true === $provider['enforce_login'],
 			'waiting_room'      => isset( $provider['waiting_room'] ) && true === $provider['waiting_room'],
 		);
 		return $body;

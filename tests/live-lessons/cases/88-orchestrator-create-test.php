@@ -125,6 +125,32 @@ $operation = is_array( $decoded ) && isset( $decoded['operation'] ) ? $decoded['
 $sync_rows = is_array( $staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();
 $sync_bytes = isset( $sync_rows[0]['meta_value'] ) ? $sync_rows[0]['meta_value'] : '';
 tutorpress_live_lessons_assert( is_array( $staged ) && is_array( $decoded ) && $sync_bytes === $staged['envelope'] && $sync_bytes === TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $decoded ) && is_array( TutorPress_Live_Lesson_Sync_Envelope::envelope( $decoded ) ) && 1 === $decoded['version'] && 'pending' === $decoded['state'] && 'google_meet' === $decoded['provider'] && 11 === $decoded['owner_id'] && null === $decoded['provider_id'] && null === $decoded['provenance'] && false === $decoded['reconciliation_required'] && 1 === preg_match( '/\A[0-9a-f]{32}\z/', $operation['operation_id'] ) && 'create' === $operation['kind'] && '2026-09-21 16:00:00' === $operation['started_at'] && 0 === $operation['base_version'] && 'not_dispatched' === $operation['dispatch_state'] && 7 === $operation['course_id'] && 8 === $operation['topic_id'] && 42 === $operation['post_author'] && 10 === $operation['menu_order'] && 'Standup' === $operation['title'] && 'Notes' === $operation['content'] && '2026-09-21 15:04:00' === $operation['start_local'] && '2026-09-21 16:04:00' === $operation['end_local'] && 'America/New_York' === $operation['timezone'] && array( 'unit' => 'minutes', 'value' => 60 ) === $operation['duration'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'transparent', 'visibility' => 'public' ) === $operation['provider_target'] && null === $operation['delete_hook'] && null === $operation['provider_id'] && TutorPress_Live_Lesson_Sync_Repository::owns( $staged['lock'], 'token-stage-google' ) && false === strpos( $sync_bytes, $secret ) && false === strpos( $sync_bytes, 'token-stage-google' ) && false === strpos( $sync_bytes, 'hidden-pass' ) && false === strpos( $sync_bytes, 'student@example.com' ) && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $staged['post_id'] ) && array( 'preflight' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && $before === $children, 'google create stages a version-1 pending snapshot before dispatch' );
+function get_user_meta( $user_id, $key, $single = false ) {
+	if ( class_exists( 'TutorPress_Zoom_Users_Legacy', false ) ) {
+		TutorPress_Zoom_Users_Legacy::$meta++;
+	}
+	if ( 42 === (int) $user_id && 'tutor_zoom_settings' === $key ) {
+		return json_encode(
+			array(
+				'host_video'         => '',
+				'participants_video' => '1',
+				'mute_participants'  => '',
+				'enforce_login'      => '1',
+				'join_before_host'   => '',
+			)
+		);
+	}
+	if ( 'tutor_zoom_api' === $key ) {
+		return json_encode(
+			array(
+				'api_key'    => 'configured-key',
+				'api_secret' => 'configured-secret',
+			)
+		);
+	}
+	return '';
+}
+$zoom_owner_target = array( 'auto_recording' => 'cloud', 'enforce_login' => true, 'host_id' => 'host-1', 'host_video' => false, 'join_before_host' => false, 'mute_upon_entry' => false, 'participant_video' => true, 'waiting_room' => false );
 $room_input = $zoom;
 $room_input['title'] = 'Room';
 $room_input['content'] = 'Agenda';
@@ -135,7 +161,7 @@ $room_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, 
 $room_decoded = is_array( $room_staged ) ? json_decode( $room_staged['envelope'], true ) : null;
 $room_operation = is_array( $room_decoded ) && isset( $room_decoded['operation'] ) ? $room_decoded['operation'] : array();
 $room_bytes = is_array( $room_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $room_staged['post_id'], '_tutorpress_live_lesson_sync' ) : '';
-tutorpress_live_lessons_assert( is_array( $room_decoded ) && 'zoom' === $room_decoded['provider'] && 42 === $room_decoded['owner_id'] && null === $room_decoded['provider_id'] && 'pending' === $room_decoded['state'] && 1 === $room_decoded['version'] && array( 'unit' => 'hours', 'value' => 2 ) === $room_operation['duration'] && '2026-09-21 17:04:00' === $room_operation['end_local'] && '2026-09-21 15:04:00' === $room_operation['start_local'] && 42 === $room_operation['post_author'] && array( 'auto_recording' => 'cloud', 'enforce_login' => false, 'host_id' => 'host-1', 'host_video' => false, 'join_before_host' => true, 'mute_upon_entry' => false, 'participant_video' => false, 'waiting_room' => false ) === $room_operation['provider_target'] && 'not_dispatched' === $room_operation['dispatch_state'] && null === $room_operation['delete_hook'] && $room_bytes === $room_staged['envelope'] && false === strpos( (string) $room_bytes, 'hidden-pass' ) && false === strpos( (string) $room_bytes, $secret ) && false === strpos( (string) $room_bytes, 'token-stage-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $room_staged['post_id'] ), 'zoom create stages the typed duration and omits the password' );
+tutorpress_live_lessons_assert( is_array( $room_decoded ) && 'zoom' === $room_decoded['provider'] && 42 === $room_decoded['owner_id'] && null === $room_decoded['provider_id'] && 'pending' === $room_decoded['state'] && 1 === $room_decoded['version'] && array( 'unit' => 'hours', 'value' => 2 ) === $room_operation['duration'] && '2026-09-21 17:04:00' === $room_operation['end_local'] && '2026-09-21 15:04:00' === $room_operation['start_local'] && 42 === $room_operation['post_author'] && $zoom_owner_target === $room_operation['provider_target'] && 'not_dispatched' === $room_operation['dispatch_state'] && null === $room_operation['delete_hook'] && $room_bytes === $room_staged['envelope'] && false === strpos( (string) $room_bytes, 'hidden-pass' ) && false === strpos( (string) $room_bytes, $secret ) && false === strpos( (string) $room_bytes, 'token-stage-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $room_staged['post_id'] ), 'zoom create stages the typed duration and omits the password' );
 $evil = $draft;
 $evil['provider_id'] = 'evt-evil';
 $before_evil = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
@@ -403,7 +429,7 @@ $zoom_saved = $stage_copy( $zoom_item, $zoom_save, array( 'preflight' => array( 
 $zoom_decoded = is_array( $zoom_saved ) ? json_decode( $zoom_saved['envelope'], true ) : null;
 $zoom_operation = is_array( $zoom_decoded ) && isset( $zoom_decoded['operation'] ) ? $zoom_decoded['operation'] : array();
 $zoom_bytes = is_array( $zoom_saved ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_saved['post_id'], '_tutorpress_live_lesson_sync' ) : '';
-tutorpress_live_lessons_assert( null === $zoom_dup && $zoom_dup_next === $zoom_item['ID'] && $zoom_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && is_array( $zoom_decoded ) && 2 === $zoom_decoded['version'] && 'pending' === $zoom_decoded['state'] && 'zoom' === $zoom_decoded['provider'] && 42 === $zoom_decoded['owner_id'] && null === $zoom_decoded['provider_id'] && 6 === $zoom_operation['menu_order'] && array( 'unit' => 'hours', 'value' => 2 ) === $zoom_operation['duration'] && '2026-09-21 17:04:00' === $zoom_operation['end_local'] && array( 'auto_recording' => 'cloud', 'enforce_login' => false, 'host_id' => 'host-1', 'host_video' => false, 'join_before_host' => true, 'mute_upon_entry' => false, 'participant_video' => false, 'waiting_room' => false ) === $zoom_operation['provider_target'] && 'not_dispatched' === $zoom_operation['dispatch_state'] && $zoom_bytes === $zoom_saved['envelope'] && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_saved['lock'], 'token-unlinked-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $zoom_item['ID'] ) && false === strpos( (string) $zoom_bytes, 'hidden-pass' ) && false === strpos( (string) $zoom_bytes, $secret ) && $zoom_stage_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'topic zoom unlinked save is allowed and direct zoom duplication inserts nothing' );
+tutorpress_live_lessons_assert( null === $zoom_dup && $zoom_dup_next === $zoom_item['ID'] && $zoom_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && is_array( $zoom_decoded ) && 2 === $zoom_decoded['version'] && 'pending' === $zoom_decoded['state'] && 'zoom' === $zoom_decoded['provider'] && 42 === $zoom_decoded['owner_id'] && null === $zoom_decoded['provider_id'] && 6 === $zoom_operation['menu_order'] && array( 'unit' => 'hours', 'value' => 2 ) === $zoom_operation['duration'] && '2026-09-21 17:04:00' === $zoom_operation['end_local'] && $zoom_owner_target === $zoom_operation['provider_target'] && 'not_dispatched' === $zoom_operation['dispatch_state'] && $zoom_bytes === $zoom_saved['envelope'] && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_saved['lock'], 'token-unlinked-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $zoom_item['ID'] ) && false === strpos( (string) $zoom_bytes, 'hidden-pass' ) && false === strpos( (string) $zoom_bytes, $secret ) && $zoom_stage_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'topic zoom unlinked save is allowed and direct zoom duplication inserts nothing' );
 $zoom_hook_before = TutorPress_Live_Lessons_Hook_Fake::$calls;
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( array( '_tutor_zm_data' => '{"id":"evt-1"}' ) ) );
