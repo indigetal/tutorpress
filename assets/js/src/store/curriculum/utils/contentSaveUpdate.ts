@@ -213,12 +213,17 @@ function liveLessonProviderConfig(config: LiveLessonFormData["providerConfig"]) 
 
 function liveLessonMutationBody(data: LiveLessonFormData) {
   const settings = data.settings;
+  const zoomPassword =
+    data.type === "zoom" && typeof data.providerConfig?.password === "string"
+      ? { password: data.providerConfig.password }
+      : {};
   const meetingSettings = {
     allow_early_join: settings.allowEarlyJoin,
     auto_record: settings.autoRecord,
     require_password: settings.requirePassword,
     waiting_room: settings.waitingRoom,
     add_enrolled_students: settings.add_enrolled_students,
+    ...zoomPassword,
   };
   const body: Record<string, unknown> = {
     title: data.title,

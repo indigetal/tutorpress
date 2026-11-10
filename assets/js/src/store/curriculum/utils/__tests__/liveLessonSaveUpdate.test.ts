@@ -47,6 +47,11 @@ const meetingFlags = {
   add_enrolled_students: "Yes",
 };
 
+const zoomFlags = {
+  ...meetingFlags,
+  password: "keep",
+};
+
 const shared = {
   title: "Standup",
   description: "Notes",
@@ -63,7 +68,7 @@ const falseGateZoom = {
   settings: {
     timezone: "America/New_York",
     duration: 40,
-    ...meetingFlags,
+    ...zoomFlags,
   },
 };
 
@@ -100,9 +105,22 @@ describe("live lesson create body", () => {
       duration: { value: 40, unit: "minutes" },
       settings: {
         timezone: "America/New_York",
-        ...meetingFlags,
+        ...zoomFlags,
       },
     });
+  });
+
+  it("copies a Zoom password into settings on both gates", () => {
+    for (const enabled of [undefined, true] as const) {
+      setFlag(enabled);
+      const zoom = lesson("zoom");
+      expect(liveLessonCreateBody(zoom, 11, 22).settings).toMatchObject({ password: "keep" });
+      const cleared = { ...zoom, providerConfig: { ...zoom.providerConfig, password: "" } };
+      expect(liveLessonCreateBody(cleared, 11, 22).settings).toMatchObject({ password: "" });
+      const { password: _removed, ...config } = zoom.providerConfig ?? {};
+      expect(liveLessonCreateBody({ ...zoom, providerConfig: config }, 11, 22).settings).not.toHaveProperty("password");
+      expect(liveLessonCreateBody(lesson("google_meet"), 11, 22).settings).not.toHaveProperty("password");
+    }
   });
 
   it("omits top-level duration for Google and for a rejected minute count", () => {
@@ -243,8 +261,34 @@ const topicsFetch = {
 const createdLesson = {
   id: 9,
   title: "Standup",
+  description: "Notes",
   type: "zoom" as const,
+  topicId: 22,
   courseId: 11,
+  status: "scheduled" as const,
+  startDateTime: "2026-10-13 15:04:00",
+  endDateTime: "2026-10-13 16:04:00",
+  duration: { value: 40, unit: "minutes" as const },
+  settings: {
+    timezone: "America/New_York",
+    autoRecording: "none",
+    waitingRoom: false,
+    addEnrolledStudents: "",
+    status: "",
+    transparency: "",
+    visibility: "",
+    reminder_minutes: null,
+  },
+  providerConfig: { host: "host-1" },
+  password: "keep",
+  sync_state: "synced" as const,
+  sync_version: 3,
+  persisted_envelope: true,
+  operation: null,
+  warning: null,
+  error: null,
+  resolution: null,
+  record: null,
 };
 
 const projection = {
@@ -452,7 +496,6 @@ describe("live lesson update outcomes", () => {
       type: "UPDATE_LIVE_LESSON_SUCCESS",
       payload: { liveLesson: createdLesson, courseId: 11 },
     });
-    expect(createdLesson).not.toHaveProperty("sync_state");
     expect(generator.next().value).toEqual(topicsFetch);
     const listed = generator.next(topicsBody);
     expect(listed.value).toMatchObject({ type: "SET_TOPICS" });

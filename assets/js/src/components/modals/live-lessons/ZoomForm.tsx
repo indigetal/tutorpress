@@ -16,6 +16,7 @@ import {
   TextareaControl,
   DatePicker,
   SelectControl,
+  CheckboxControl,
   Popover,
   Button,
   __experimentalNumberControl as NumberControl,
@@ -292,6 +293,14 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
         onChange={(value: string) => updateField("autoRecording", value)}
         disabled={disabled}
         help={__("Choose whether to automatically record this meeting", "tutorpress")}
+      />
+
+      <CheckboxControl
+        label={__("Waiting Room", "tutorpress")}
+        checked={formData.waitingRoom}
+        onChange={(checked) => updateField("waitingRoom", checked)}
+        disabled={disabled}
+        help={__("Participants wait until the host admits them", "tutorpress")}
       />
 
       {/* Meeting Password with Eye Toggle */}

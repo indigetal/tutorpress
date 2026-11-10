@@ -27,7 +27,7 @@ import type {
 import { GoogleMeetForm } from "./GoogleMeetForm";
 import { ZoomForm } from "./ZoomForm";
 import { LiveLessonRecoveryControls } from "./LiveLessonRecoveryControls";
-import { addZoomDuration, hydrateWallClock, hydrateZoomDuration, serializeWallClock, wallClockMinutes } from "../../../utils/liveLessonDateTime";
+import { addZoomDuration, hydrateWallClock, serializeWallClock, wallClockMinutes, zoomDuration } from "../../../utils/liveLessonDateTime";
 import { deriveLiveLessonRecoveryActions } from "../../../utils/liveLessonReconciliation";
 
 const CURRICULUM_STORE = "tutorpress/curriculum";
@@ -109,6 +109,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
     timezone: defaultTimezone,
     autoRecording: "none",
     password: "",
+    waitingRoom: true,
     host: "", // Will be populated by ZoomForm when Zoom users load
   });
 
@@ -165,31 +166,33 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
           endDate: end?.date ?? "",
           endTime: end?.time ?? "12:30 AM",
           timezone: data.settings?.timezone || defaultTimezone,
-          addEnrolledStudents: data.settings?.add_enrolled_students === "Yes",
+          addEnrolledStudents: data.settings?.addEnrolledStudents === "Yes",
         });
       } else if (data.type === "zoom") {
-        // Use autoRecording value from providerConfig
-        let autoRecording: "none" | "local" | "cloud" = "none";
-        if (
-          data.providerConfig?.autoRecording &&
-          ["none", "local", "cloud"].includes(data.providerConfig.autoRecording)
-        ) {
-          autoRecording = data.providerConfig.autoRecording as "none" | "local" | "cloud";
-        }
-
+        const recording = data.settings?.autoRecording;
+        const autoRecording =
+          recording === "none" || recording === "local" || recording === "cloud" ? recording : "none";
         const start = hydrateWallClock(data.startDateTime || "");
-        const typed = hydrateZoomDuration(data.startDateTime || "", data.endDateTime || "", Number(data.settings?.duration));
+        const duration = data.duration;
+        const typed =
+          duration &&
+          typeof duration === "object" &&
+          typeof duration.value === "number" &&
+          typeof duration.unit === "string"
+            ? zoomDuration(duration.value, duration.unit)
+            : null;
         setZoomForm({
           title: data.title || "",
           summary: data.description || "",
           date: start?.date ?? "",
           time: start?.time ?? "12:00 AM",
-          duration: typed.value,
-          durationUnit: typed.unit,
+          duration: typed?.value ?? 40,
+          durationUnit: typed?.unit ?? "minutes",
           timezone: data.settings?.timezone || defaultTimezone,
-          autoRecording: autoRecording,
-          password: data.providerConfig?.password || "",
-          host: data.providerConfig?.host || "", // Will be populated by ZoomForm when Zoom users load
+          autoRecording,
+          password: typeof data.password === "string" ? data.password : "",
+          host: data.providerConfig?.host || "",
+          waitingRoom: data.settings?.waitingRoom === true,
         });
       }
     } catch (error) {
@@ -225,6 +228,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       timezone: defaultTimezone,
       autoRecording: "none",
       password: "",
+      waitingRoom: true,
       host: "", // Will be populated by ZoomForm when Zoom users load
     });
 
@@ -379,7 +383,7 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
             allowEarlyJoin: true,
             autoRecord: zoomForm.autoRecording !== "none",
             requirePassword: !!zoomForm.password,
-            waitingRoom: true,
+            waitingRoom: zoomForm.waitingRoom,
           },
           providerConfig: {
             password: zoomForm.password,
