@@ -293,14 +293,16 @@ tutorpress_live_lessons_assert( true === $rewritten && array( false, false ) ===
 $zoom_ready = $stage_for( $room_input, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-dispatch-zoom' );
 $zoom_from = count( $GLOBALS['wpdb']->statements );
 $zoom_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$zoom_confirmed = $confirmed;
+$zoom_confirmed['item']['details'] = array( 'id' => 'decoy-id', 'password' => 'hidden-pass' );
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( array( '_tutor_zm_data' => '{"id":"evt-1"}' ) ) );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $zoom_confirmed ), 'metadata_map' => array( array( '_tutor_zm_data' => '{"id":"evt-1"}' ) ) );
 $zoom_done = $dispatch( $zoom_ready, 'token-dispatch-zoom', $adapter );
 $zoom_target = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
 $zoom_envelope = is_array( $zoom_done ) ? json_decode( $zoom_done['envelope'], true ) : null;
 $zoom_release = is_array( $zoom_done ) ? $release_for( $zoom_done['post_id'], $zoom_from ) : null;
 $zoom_hook = is_array( $zoom_done ) ? array( 'tutor_zoom_after_save_meeting', array( (int) $zoom_done['post_id'] ) ) : array();
-tutorpress_live_lessons_assert( is_array( $zoom_envelope ) && 'synced' === $zoom_envelope['state'] && 'evt-1' === $zoom_envelope['provider_id'] && 'host-1' === $zoom_target['provider_target']['host_id'] && false === array_key_exists( 'host_id', $zoom_target ) && '{"id":"evt-1"}' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_done['post_id'], '_tutor_zm_data' ) && array( 'create', 'metadata_map' ) === $methods() && is_array( $zoom_release ) && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_release[2], 'token-dispatch-zoom' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_done['post_id'] ] ) && array( $zoom_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $zoom_hooks ) ), 'zoom create keeps the nested provider target and fires the zoom save hook' );
+tutorpress_live_lessons_assert( is_array( $zoom_envelope ) && 'synced' === $zoom_envelope['state'] && 'evt-1' === $zoom_envelope['provider_id'] && 'host-1' === $zoom_target['provider_target']['host_id'] && false === array_key_exists( 'host_id', $zoom_target ) && '{"id":"evt-1"}' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_done['post_id'], '_tutor_zm_data' ) && array( 'create', 'metadata_map' ) === $methods() && is_array( $zoom_release ) && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_release[2], 'token-dispatch-zoom' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_done['post_id'] ] ) && array( $zoom_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $zoom_hooks ) ) && false === strpos( (string) $zoom_done['envelope'], 'hidden-pass' ), 'zoom create keeps the nested provider target and fires the zoom save hook' );
 
 $blocked_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-block' );
 $blocked_before = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $blocked_ready['post_id'], '_tutorpress_live_lesson_sync' );

@@ -288,7 +288,7 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		);
 	}
 
-	/** Confirmed create schedule comes only from the authorized target. */
+	/** Confirmed create schedule comes only from the authorized target. Details are the allow-listed response. */
 	private function create_item( DateTimeImmutable $start, $timezone, array $duration, array $row ) {
 		$minutes = 'hours' === $duration['unit'] ? $duration['value'] * 60 : $duration['value'];
 		$end     = $start->modify( '+' . $minutes . ' minutes' );
@@ -298,7 +298,7 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 			'timezone'         => is_string( $timezone ) ? $timezone : '',
 			'duration_minutes' => $minutes,
 			'join_url'         => isset( $row['join_url'] ) && is_string( $row['join_url'] ) && '' !== $row['join_url'] ? $row['join_url'] : null,
-			'details'          => array(),
+			'details'          => $this->meeting_details( $row ),
 		);
 	}
 
@@ -314,22 +314,83 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'uncertain', 'provider_id' => $provider_id, 'item' => null, 'diagnostics' => array(), 'provenance' => 'fetch' ) );
 	}
 
-	/** Selected-zone RFC3339 start, derived end, minutes, and join URL. Details stay empty. */
+	/** Selected-zone RFC3339 start, derived end, minutes, join URL, and the allow-listed response. */
 	private function meeting_item( array $row ) {
-		$zone    = isset( $row['timezone'] ) && is_string( $row['timezone'] ) && '' !== $row['timezone'] ? $row['timezone'] : null;
-		$raw     = isset( $row['start_time'] ) && is_string( $row['start_time'] ) ? str_replace( 'T', ' ', $row['start_time'] ) : '';
-		$start   = null !== $zone && '' !== $raw ? TutorPress_Live_Lesson_Datetime::parse_wall_clock( $raw, $zone ) : null;
+		$zone     = isset( $row['timezone'] ) && is_string( $row['timezone'] ) && '' !== $row['timezone'] ? $row['timezone'] : null;
+		$start    = $this->meeting_start( isset( $row['start_time'] ) ? $row['start_time'] : '', $zone );
 		$start_at = $start instanceof DateTimeImmutable ? $start->format( DateTimeInterface::RFC3339 ) : null;
-		$minutes = isset( $row['duration'] ) && is_int( $row['duration'] ) && $row['duration'] > 0 ? $row['duration'] : null;
-		$end_at  = $start instanceof DateTimeImmutable && null !== $minutes ? $start->modify( '+' . $minutes . ' minutes' )->format( DateTimeInterface::RFC3339 ) : null;
+		$minutes  = isset( $row['duration'] ) && is_int( $row['duration'] ) && $row['duration'] > 0 ? $row['duration'] : null;
+		$end_at   = $start instanceof DateTimeImmutable && null !== $minutes ? $start->modify( '+' . $minutes . ' minutes' )->format( DateTimeInterface::RFC3339 ) : null;
 		return array(
 			'start_at'         => $start_at,
 			'end_at'           => $end_at,
 			'timezone'         => $zone,
 			'duration_minutes' => $minutes,
 			'join_url'         => isset( $row['join_url'] ) && is_string( $row['join_url'] ) && '' !== $row['join_url'] ? $row['join_url'] : null,
-			'details'          => array(),
+			'details'          => $this->meeting_details( $row ),
 		);
+	}
+
+	/** Allow-listed response fields. Code and every other key stay out. */
+	private function meeting_details( array $row ) {
+		$details = array();
+		if ( isset( $row['id'] ) && is_string( $row['id'] ) && '' !== $row['id'] ) {
+			$details['id'] = $row['id'];
+		} elseif ( isset( $row['id'] ) && is_int( $row['id'] ) && $row['id'] > 0 ) {
+			$details['id'] = $row['id'];
+		}
+		foreach ( array( 'host_id', 'host_email', 'topic', 'start_time', 'timezone', 'password', 'join_url', 'start_url' ) as $key ) {
+			if ( isset( $row[ $key ] ) && is_string( $row[ $key ] ) ) {
+				$details[ $key ] = $row[ $key ];
+			}
+		}
+		foreach ( array( 'type', 'duration' ) as $key ) {
+			if ( isset( $row[ $key ] ) && is_int( $row[ $key ] ) ) {
+				$details[ $key ] = $row[ $key ];
+			}
+		}
+		$settings = $this->meeting_settings( isset( $row['settings'] ) ? $row['settings'] : null );
+		if ( array() !== $settings ) {
+			$details['settings'] = $settings;
+		}
+		return $details;
+	}
+
+	/** Bool flags and a string auto_recording, in Tutor's settings order. */
+	private function meeting_settings( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			return array();
+		}
+		$copied = array();
+		foreach ( array( 'join_before_host', 'host_video', 'participant_video', 'mute_upon_entry', 'enforce_login' ) as $key ) {
+			if ( isset( $settings[ $key ] ) && is_bool( $settings[ $key ] ) ) {
+				$copied[ $key ] = $settings[ $key ];
+			}
+		}
+		if ( isset( $settings['auto_recording'] ) && is_string( $settings['auto_recording'] ) ) {
+			$copied['auto_recording'] = $settings['auto_recording'];
+		}
+		if ( isset( $settings['waiting_room'] ) && is_bool( $settings['waiting_room'] ) ) {
+			$copied['waiting_room'] = $settings['waiting_room'];
+		}
+		return $copied;
+	}
+
+	/** A Z or numeric offset is an absolute instant. A zone-less clock stays in the response zone. */
+	private function meeting_start( $raw, $zone ) {
+		if ( ! is_string( $raw ) || '' === $raw || ! is_string( $zone ) || ! TutorPress_Live_Lesson_Datetime::is_approved_timezone( $zone ) ) {
+			return null;
+		}
+		if ( 1 === preg_match( '/\A(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(Z|[+-]\d{2}:\d{2})\z/', $raw, $parts ) ) {
+			$stamp    = $parts[1] . ( 'Z' === $parts[2] ? '+00:00' : $parts[2] );
+			$absolute = DateTimeImmutable::createFromFormat( 'Y-m-d\TH:i:sP', $stamp );
+			$errors   = DateTimeImmutable::getLastErrors();
+			if ( ! $absolute instanceof DateTimeImmutable || $absolute->format( 'Y-m-d\TH:i:sP' ) !== $stamp || ( is_array( $errors ) && ( $errors['warning_count'] > 0 || $errors['error_count'] > 0 ) ) ) {
+				return null;
+			}
+			return $absolute->setTimezone( new DateTimeZone( $zone ) );
+		}
+		return TutorPress_Live_Lesson_Datetime::parse_wall_clock( str_replace( 'T', ' ', $raw ), $zone );
 	}
 
 	/** Read a string id or a positive integer id from a meeting payload. */
@@ -431,7 +492,7 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		);
 	}
 
-	/** Return the seven Zoom keys from a normalized result and target. This method does not write. */
+	/** Return the seven Zoom keys from a normalized result and target. The blob is the allow-listed details plus the status code. This method does not write. */
 	public function metadata_map( array $result, array $target ) {
 		$id       = TutorPress_Live_Lesson_Provider_Result::identity( $result );
 		$zone     = isset( $target['timezone'] ) && is_string( $target['timezone'] ) ? $target['timezone'] : '';
@@ -443,6 +504,14 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		if ( 'confirmed' !== ( isset( $result['outcome'] ) ? $result['outcome'] : null ) || null === $id || ! ( $start instanceof DateTimeImmutable ) || ! is_array( $duration ) || $course < 1 || $topic < 1 || '' === $host ) {
 			return null;
 		}
+		$item         = isset( $result['item'] ) && is_array( $result['item'] ) ? $result['item'] : array();
+		$details      = isset( $item['details'] ) && is_array( $item['details'] ) ? $item['details'] : array();
+		$blob         = $details;
+		$blob['code'] = 'create' === ( isset( $result['provenance'] ) ? $result['provenance'] : null ) ? 201 : 200;
+		$encoded      = json_encode( $blob, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT );
+		if ( ! is_string( $encoded ) ) {
+			return null;
+		}
 		return array(
 			'_tutor_zm_start_date'     => $start->format( 'Y-m-d' ),
 			'_tutor_zm_start_datetime' => $start->format( 'Y-m-d H:i:s' ),
@@ -450,7 +519,7 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 			'_tutor_zm_duration_unit'  => 'hours' === $duration['unit'] ? 'hr' : 'min',
 			'_tutor_zm_for_course'     => $course,
 			'_tutor_zm_for_topic'      => $topic,
-			'_tutor_zm_data'           => json_encode( array( 'id' => $id, 'timezone' => $zone, 'host_id' => $host ) ),
+			'_tutor_zm_data'           => $encoded,
 		);
 	}
 
