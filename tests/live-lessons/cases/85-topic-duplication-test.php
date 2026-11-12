@@ -578,7 +578,7 @@ $slash_topic   = array( 'ID' => 8, 'post_type' => 'topics', 'post_parent' => 7 )
 $slash_allow   = static function ( $cap, $id ) { return 'edit_post' === $cap && 7 === (int) $id; };
 $slash_now     = new DateTimeImmutable( '2026-09-21 16:00:00', new DateTimeZone( 'UTC' ) );
 $slash_input   = array( 'provider' => 'google_meet', 'acting_user_id' => 11, 'title' => $slash_title, 'content' => $slash_content, 'start' => '2026-09-21 15:04:00', 'end' => '2026-09-21 16:04:00', 'timezone' => 'America/New_York' );
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
 $slash_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $slash_topic, $slash_course, $slash_allow, $slash_input, array(), new TutorPress_Live_Lessons_Adapter_Fake(), $slash_now, 'token-slash' );
 TutorPress_Live_Lessons_Adapter_Fake::$queue = $slash_queue;
 $slash_rows = is_array( $slash_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $slash_staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();

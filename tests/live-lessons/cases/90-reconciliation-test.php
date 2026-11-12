@@ -748,11 +748,11 @@ $edit_bytes = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $edit_store
 $edit_item = $plant( 'tutor-google-meet', $edit_bytes );
 $edit_input = array( 'acting_user_id' => 11, 'selected_owner_id' => 99, 'credentials' => $creds );
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'hydrate_item' => array( array( 'status' => '', 'transparency' => '', 'visibility' => '', 'reminder_minutes' => null ) ), 'settings' => array( null ) );
 $edit_saved = TutorPress_Live_Lesson_Sync_Orchestrator::stage_update( $edit_item, $topic, $course, $allow, $edit_input, $adapter, $now, 'token-owner-edit', $sync_read, $sync_update, $sync_affected );
 $edit_decoded = is_array( $edit_saved ) && isset( $edit_saved['envelope'] ) ? json_decode( $edit_saved['envelope'], true ) : null;
 $edit_encoded = json_encode( $edit_decoded );
-tutorpress_live_lessons_assert( is_array( $edit_saved ) && is_array( $edit_decoded ) && 11 === $edit_saved['owner_id'] && 11 === $edit_decoded['owner_id'] && 11 === $edit_decoded['operation']['owner_id'] && 99 !== $edit_decoded['owner_id'] && 5 !== $edit_decoded['owner_id'] && is_string( $edit_encoded ) && false === strpos( $edit_encoded, 'selected_owner_id' ) && false === strpos( $edit_encoded, $secret ) && array( array( 'preflight', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a normal edit keeps the re-resolved owner when selected_owner_id is supplied' );
+tutorpress_live_lessons_assert( is_array( $edit_saved ) && is_array( $edit_decoded ) && 11 === $edit_saved['owner_id'] && 11 === $edit_decoded['owner_id'] && 11 === $edit_decoded['operation']['owner_id'] && 99 !== $edit_decoded['owner_id'] && 5 !== $edit_decoded['owner_id'] && is_string( $edit_encoded ) && false === strpos( $edit_encoded, 'selected_owner_id' ) && false === strpos( $edit_encoded, $secret ) && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => '' ) ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a normal edit keeps the re-resolved owner when selected_owner_id is supplied' );
 
 tutorpress_live_lessons_pass( 'legacy owner selection is recomputed' );
 

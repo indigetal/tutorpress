@@ -78,7 +78,8 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			return $valid;
 		}
 		$schedule = is_array( $valid ) ? self::create_schedule( $valid ) : null;
-		$target   = is_array( $schedule ) ? self::create_target( $valid, $input ) : null;
+		$owner    = ( is_array( $schedule ) && 'google_meet' === $valid['provider'] ) ? self::google_owner_settings( $adapter, $valid['owner_id'] ) : array();
+		$target   = is_array( $schedule ) ? self::create_target( $valid, $input, $owner ) : null;
 		if ( null === $target ) {
 			return null;
 		}
@@ -174,9 +175,30 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 	/** Zoom keeps a nested provider_target. Google scalars are copied onto that same target. */
 	private static function dispatch_target( array $operation ) {
 		if ( 'google_meet' === $operation['provider'] && isset( $operation['provider_target'] ) && is_array( $operation['provider_target'] ) ) {
-			return array_merge( $operation, $operation['provider_target'] );
+			$target = array_merge( $operation, $operation['provider_target'] );
+			if ( isset( $target['add_enrolled_students'] ) && 'Yes' === $target['add_enrolled_students'] ) {
+				$target['attendees'] = self::enrolled_attendees( isset( $target['course_id'] ) ? $target['course_id'] : 0 );
+			}
+			return $target;
 		}
 		return $operation;
+	}
+
+	/** Enrolled students for one Google dispatch. The envelope keeps the Yes or No string. */
+	private static function enrolled_attendees( $course_id ) {
+		$course   = is_int( $course_id ) ? $course_id : 0;
+		$utils    = ( $course >= 1 && function_exists( 'tutor_utils' ) ) ? tutor_utils() : null;
+		$students = ( is_object( $utils ) && is_callable( array( $utils, 'get_students_data_by_course_id' ) ) ) ? $utils->get_students_data_by_course_id( $course, 'ID', true ) : array();
+		$rows     = array();
+		foreach ( ( is_array( $students ) ? $students : array() ) as $student ) {
+			$email = is_object( $student ) && isset( $student->user_email ) && is_string( $student->user_email ) ? $student->user_email : '';
+			$name  = is_object( $student ) && isset( $student->display_name ) && is_string( $student->display_name ) ? $student->display_name : null;
+			$user  = is_object( $student ) && isset( $student->username ) && is_string( $student->username ) ? $student->username : '';
+			if ( '' !== $email ) {
+				$rows[] = array( 'displayName' => '' === $name ? $user : ( is_string( $name ) ? $name : '' ), 'email' => $email, 'responseStatus' => 'needsAction' );
+			}
+		}
+		return $rows;
 	}
 
 	/** Write every mapped value and require each re-read to match its string form. An empty map is incomplete. */
@@ -254,7 +276,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 	}
 
 	/** Sanitized provider settings. Attendees, passwords, and credentials stay out. */
-	private static function create_target( array $valid, array $input ) {
+	private static function create_target( array $valid, array $input, array $owner = array() ) {
 		$settings = isset( $input['settings'] ) && is_array( $input['settings'] ) ? $input['settings'] : array();
 		if ( 'zoom' === $valid['provider'] ) {
 			$recording = isset( $settings['auto_recording'] ) && in_array( $settings['auto_recording'], array( 'cloud', 'local', 'none' ), true ) ? $settings['auto_recording'] : 'none';
@@ -262,8 +284,40 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			return array( 'auto_recording' => $recording, 'enforce_login' => $flags['enforce_login'], 'host_id' => $valid['host_id'], 'host_video' => $flags['host_video'], 'join_before_host' => $flags['join_before_host'], 'mute_upon_entry' => $flags['mute_upon_entry'], 'participant_video' => $flags['participant_video'], 'waiting_room' => isset( $settings['waiting_room'] ) && true === $settings['waiting_room'] );
 		}
 		$enrolled = isset( $settings['add_enrolled_students'] ) && 'Yes' === $settings['add_enrolled_students'] ? 'Yes' : 'No';
-		$minutes  = isset( $settings['reminder_minutes'] ) && is_int( $settings['reminder_minutes'] ) ? $settings['reminder_minutes'] : 30;
-		return array( 'add_enrolled_students' => $enrolled, 'reminder_minutes' => $minutes, 'send_updates' => isset( $settings['send_updates'] ) && is_string( $settings['send_updates'] ) ? $settings['send_updates'] : 'all', 'status' => isset( $settings['status'] ) && is_string( $settings['status'] ) ? $settings['status'] : 'confirmed', 'transparency' => isset( $settings['transparency'] ) && is_string( $settings['transparency'] ) ? $settings['transparency'] : 'transparent', 'visibility' => isset( $settings['visibility'] ) && is_string( $settings['visibility'] ) ? $settings['visibility'] : 'public' );
+		$minutes  = isset( $settings['reminder_minutes'] ) && is_int( $settings['reminder_minutes'] ) ? $settings['reminder_minutes'] : ( isset( $owner['reminder_minutes'] ) && is_int( $owner['reminder_minutes'] ) ? $owner['reminder_minutes'] : 30 );
+		$choose   = static function ( $key, $fallback ) use ( $settings, $owner ) {
+			if ( isset( $settings[ $key ] ) && is_string( $settings[ $key ] ) ) {
+				return $settings[ $key ];
+			}
+			return ( isset( $owner[ $key ] ) && is_string( $owner[ $key ] ) ) ? $owner[ $key ] : $fallback;
+		};
+		return array( 'add_enrolled_students' => $enrolled, 'reminder_minutes' => $minutes, 'send_updates' => $choose( 'send_updates', 'all' ), 'status' => $choose( 'status', 'confirmed' ), 'transparency' => $choose( 'transparency', 'transparent' ), 'visibility' => $choose( 'visibility', 'public' ) );
+	}
+
+	/** Owner Tutor Google settings. A missing or invalid value uses Tutor's outbound fallback. */
+	private static function google_owner_settings( $adapter, $owner_id ) {
+		$raw     = ( $adapter instanceof TutorPress_Live_Lesson_Provider_Adapter && is_int( $owner_id ) && $owner_id > 0 ) ? $adapter->settings( $owner_id ) : null;
+		$rows    = ( is_array( $raw ) && isset( $raw['settings'] ) && is_array( $raw['settings'] ) ) ? $raw['settings'] : array();
+		$text    = static function ( $key, $fallback ) use ( $rows ) {
+			$value = ( isset( $rows[ $key ] ) && is_array( $rows[ $key ] ) && isset( $rows[ $key ]['value'] ) ) ? $rows[ $key ]['value'] : null;
+			return is_string( $value ) && '' !== $value ? $value : $fallback;
+		};
+		$minutes = $text( 'reminder_time', '30' );
+		return array( 'reminder_minutes' => in_array( $minutes, array( '5', '15', '30' ), true ) ? (int) $minutes : 30, 'send_updates' => $text( 'send_updates', 'all' ), 'status' => $text( 'event_status', 'confirmed' ), 'transparency' => $text( 'transparency', 'transparent' ), 'visibility' => $text( 'event_visibility', 'public' ) );
+	}
+
+	/** Stored Google event details for an update. send_updates comes from the owner's Tutor Google settings. */
+	private static function google_update_source( $adapter, $owner_id, $post_id, $read ) {
+		$rows  = $read( (int) $post_id, 'tutor-google-meet-event-details' );
+		$blob  = is_array( $rows ) && 1 === count( $rows ) && isset( $rows[0]['meta_value'] ) && is_string( $rows[0]['meta_value'] ) ? $rows[0]['meta_value'] : '';
+		$item  = $adapter->hydrate_item( array( 'tutor-google-meet-event-details' => $blob ) );
+		$item  = is_array( $item ) ? $item : array();
+		$owner = self::google_owner_settings( $adapter, $owner_id );
+		$kept  = array( 'send_updates' => $owner['send_updates'], 'status' => isset( $item['status'] ) && is_string( $item['status'] ) ? $item['status'] : '', 'transparency' => isset( $item['transparency'] ) && is_string( $item['transparency'] ) ? $item['transparency'] : '', 'visibility' => isset( $item['visibility'] ) && is_string( $item['visibility'] ) ? $item['visibility'] : '' );
+		if ( isset( $item['reminder_minutes'] ) && is_int( $item['reminder_minutes'] ) ) {
+			$kept['reminder_minutes'] = $item['reminder_minutes'];
+		}
+		return $kept;
 	}
 
 	/** Owner Tutor Zoom settings. A missing or empty value is false. */
@@ -307,7 +361,8 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		}
 		$valid['menu_order'] = $item['menu_order'];
 		$schedule            = self::create_schedule( $valid );
-		$target              = is_array( $schedule ) ? self::create_target( $valid, $input ) : null;
+		$owner               = ( is_array( $schedule ) && 'google_meet' === $valid['provider'] ) ? self::google_owner_settings( $adapter, $valid['owner_id'] ) : array();
+		$target              = is_array( $schedule ) ? self::create_target( $valid, $input, $owner ) : null;
 		if ( null === $target ) {
 			return null;
 		}
@@ -366,7 +421,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		if ( ( $changed && ! TutorPress_Live_Lesson_Datetime::is_future_wall_clock( $start, $zone, $now ) ) || ( 'google_meet' === $provider && ! TutorPress_Live_Lesson_Datetime::google_end_after_start( $start, $end, $zone ) ) || ( 'zoom' === $provider && null === $duration ) ) { return null; }
 		$valid    = array( 'provider' => $provider, 'owner_id' => $owner_id, 'host_id' => $host_id, 'start' => $start, 'timezone' => $zone, 'end' => 'google_meet' === $provider ? $end : null, 'duration' => $duration );
 		$schedule = self::create_schedule( $valid );
-		$target   = is_array( $schedule ) ? self::create_target( $valid, $input ) : null;
+		$target   = is_array( $schedule ) ? ( 'google_meet' === $provider ? self::create_target( $valid, $input, self::google_update_source( $adapter, $owner_id, $post_id, $read ) ) : self::create_target( $valid, $input ) ) : null;
 		if ( null === $target || ! isset( $item['menu_order'] ) || ! is_int( $item['menu_order'] ) || $item['menu_order'] < 0 ) { return null; }
 		$expiry = $now->setTimezone( new DateTimeZone( 'UTC' ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
 		$lock   = TutorPress_Live_Lesson_Sync_Repository::acquire( $post_id, 'update', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } );
