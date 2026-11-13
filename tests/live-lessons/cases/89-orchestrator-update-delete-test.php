@@ -40,7 +40,7 @@ $plant = static function ( $post_type, $bytes, $menu_order = 4 ) {
 	if ( null !== $bytes ) { add_post_meta( $id, '_tutorpress_live_lesson_sync', $bytes ); }
 	return array( 'ID' => $id, 'post_type' => $post_type, 'post_status' => 'publish', 'post_parent' => 8, 'post_title' => 'Copied', 'post_content' => 'Body', 'menu_order' => $menu_order );
 };
-$stage = static function ( array $item, array $input, array $queue, $token, $can = null, $update = null ) use ( $topic, $course, $allow, $adapter, $now, $sync_read, $sync_update, $sync_affected ) {
+$stage = static function ( array $item, array $input, array $queue, $token, $can = null, $update = null, $local = null ) use ( $topic, $course, $allow, $adapter, $now, $sync_read, $sync_update, $sync_affected ) {
 	TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 	if ( isset( $item['post_type'] ) && 'tutor-google-meet' === $item['post_type'] ) {
 		if ( ! array_key_exists( 'hydrate_item', $queue ) ) {
@@ -51,7 +51,7 @@ $stage = static function ( array $item, array $input, array $queue, $token, $can
 		}
 	}
 	TutorPress_Live_Lessons_Adapter_Fake::$queue = $queue;
-	return TutorPress_Live_Lesson_Sync_Orchestrator::stage_update( $item, $topic, $course, null === $can ? $allow : $can, $input, $adapter, $now, $token, $sync_read, null === $update ? $sync_update : $update, $sync_affected );
+	return TutorPress_Live_Lesson_Sync_Orchestrator::stage_update( $item, $topic, $course, null === $can ? $allow : $can, $input, $adapter, $now, $token, $sync_read, null === $update ? $sync_update : $update, $sync_affected, $local );
 };
 $google_stored = $envelope( 'google_meet', 3, 'synced', 'evt-stored', $operation( 'google_meet', '2026-09-21 10:00:00', '2026-09-21 11:00:00', array( 'value' => 60, 'unit' => 'minutes' ), $google_target ) );
 $zoom_stored   = $envelope( 'zoom', 1, 'synced', 'evt-stored', $operation( 'zoom', '2026-09-21 10:00:00', '2026-09-21 12:00:00', array( 'value' => 2, 'unit' => 'hours' ), $zoom_target ) );
@@ -79,6 +79,51 @@ $pass9d_saved = $stage( $pass9d_item, $google_input, array( 'preflight' => array
 $pass9d_decoded = is_array( $pass9d_saved ) ? json_decode( $pass9d_saved['envelope'], true ) : null;
 $pass9d_operation = is_array( $pass9d_decoded ) && isset( $pass9d_decoded['operation'] ) ? $pass9d_decoded['operation'] : array();
 tutorpress_live_lessons_assert( array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 15, 'send_updates' => 'none', 'status' => 'tentative', 'transparency' => 'opaque', 'visibility' => 'private' ) === ( isset( $pass9d_operation['provider_target'] ) ? $pass9d_operation['provider_target'] : null ) && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => $pass9d_blob ) ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a google update keeps the stored status, transparency, visibility, and reminder, and takes send updates from the owner settings' );
+
+$pass10a_stored = $envelope( 'google_meet', 3, 'synced', 'evt-stored', $operation( 'google_meet', '2026-09-21 09:00:00', '2026-09-21 09:30:00', array( 'value' => 30, 'unit' => 'minutes' ), $google_target ) );
+$pass10a_bytes  = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $pass10a_stored );
+$pass10a_item   = $plant( 'tutor-google-meet', $pass10a_bytes );
+$pass10a_local  = array( 'tutor-google-meet-start-datetime' => '2026-09-21 10:00:17', 'tutor-google-meet-end-datetime' => '2026-09-21 11:00:17' );
+$pass10a_input  = $google_input;
+$pass10a_input['start']    = '2026-09-21 10:00:00';
+$pass10a_input['end']      = '2026-09-21 11:00:00';
+$pass10a_input['timezone'] = 'America/New_York';
+$pass10a_saved     = $stage( $pass10a_item, $pass10a_input, array( 'preflight' => array( true ), 'hydrate_item' => array( array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 11:00:00', 'timezone' => 'America/New_York', 'provider_id' => 'evt-meta' ), array( 'status' => '', 'transparency' => '', 'visibility' => '', 'reminder_minutes' => null ) ), 'settings' => array( null ) ), 'token-update-seconds', null, null, $pass10a_local );
+$pass10a_decoded   = is_array( $pass10a_saved ) ? json_decode( $pass10a_saved['envelope'], true ) : null;
+$pass10a_operation = is_array( $pass10a_decoded ) && isset( $pass10a_decoded['operation'] ) ? $pass10a_decoded['operation'] : array();
+tutorpress_live_lessons_assert( is_array( $pass10a_saved ) && is_array( $pass10a_decoded ) && 'evt-meta' === $pass10a_decoded['provider_id'] && 'evt-meta' === $pass10a_operation['provider_id'] && '2026-09-21 10:00:00' === $pass10a_operation['start_local'] && '2026-09-21 11:00:00' === $pass10a_operation['end_local'] && 'America/New_York' === $pass10a_operation['timezone'] && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass10a_local ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => '' ) ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'an unchanged past google schedule with non-zero stored seconds stages the truncated clocks and the lesson meeting id' );
+
+$pass10b_item  = $plant( 'tutor-google-meet', null );
+$pass10b_bare  = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass10b_item['ID'], '_tutorpress_live_lesson_sync' );
+$pass10b_local = array( 'tutor-google-meet-start-datetime' => '2026-09-21 10:00:17', 'tutor-google-meet-end-datetime' => '2026-09-21 11:00:17' );
+$pass10b_input = $google_input;
+$pass10b_input['start']    = '2026-09-21 10:00:00';
+$pass10b_input['end']      = '2026-09-21 11:00:00';
+$pass10b_input['timezone'] = 'America/New_York';
+$pass10b_saved     = $stage( $pass10b_item, $pass10b_input, array( 'preflight' => array( true ), 'hydrate_item' => array( array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 11:00:00', 'timezone' => 'America/New_York', 'provider_id' => 'evt-tutor' ), array( 'status' => '', 'transparency' => '', 'visibility' => '', 'reminder_minutes' => null ) ), 'settings' => array( null ) ), 'token-update-bare', null, null, $pass10b_local );
+$pass10b_decoded   = is_array( $pass10b_saved ) ? json_decode( $pass10b_saved['envelope'], true ) : null;
+$pass10b_operation = is_array( $pass10b_decoded ) && isset( $pass10b_decoded['operation'] ) ? $pass10b_decoded['operation'] : array();
+$pass10b_lock      = is_array( $pass10b_saved ) ? json_decode( $pass10b_saved['lock'], true ) : null;
+$pass10b_name      = 'tutorpress_live_lesson_lock_' . $pass10b_item['ID'];
+tutorpress_live_lessons_assert( null === $pass10b_bare && is_array( $pass10b_saved ) && is_array( $pass10b_decoded ) && is_array( $pass10b_lock ) && 2 === $pass10b_decoded['version'] && 'pending' === $pass10b_decoded['state'] && 'update' === $pass10b_operation['kind'] && 1 === $pass10b_operation['base_version'] && 'evt-tutor' === $pass10b_decoded['provider_id'] && 'evt-tutor' === $pass10b_operation['provider_id'] && '2026-09-21 10:00:00' === $pass10b_operation['start_local'] && '2026-09-21 11:00:00' === $pass10b_operation['end_local'] && 'America/New_York' === $pass10b_operation['timezone'] && 'update' === $pass10b_lock['operation'] && isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass10b_name ] ) && $pass10b_saved['lock'] === TutorPress_Live_Lessons_Store_Fake::$options[ $pass10b_name ] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass10b_saved['lock'], 'token-update-bare' ) && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass10b_local ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => '' ) ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a lesson with no sync row stages an update from its saved schedule and keeps the update lock' );
+
+$pass10d_item = $plant( 'tutor-google-meet', null );
+$pass10d_name = 'tutorpress_live_lesson_lock_' . $pass10d_item['ID'];
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array();
+$pass10d_skipped = TutorPress_Live_Lesson_Sync_Orchestrator::stage_unlinked( $pass10d_item, $topic, $course, $allow, $google_input, $adapter, $now, 'token-unlinked-skip', $sync_read, $sync_update, $sync_affected );
+$pass10d_quiet  = array() === $methods() && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass10d_item['ID'], '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass10d_name ] );
+$pass10d_input = $google_input;
+$pass10d_input['start']    = '2026-09-21 17:00:00';
+$pass10d_input['end']      = '2026-09-21 18:00:00';
+$pass10d_input['timezone'] = 'UTC';
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
+$pass10d_saved     = TutorPress_Live_Lesson_Sync_Orchestrator::stage_unlinked( $pass10d_item, $topic, $course, $allow, $pass10d_input, $adapter, $now, 'token-unlinked-adopt', $sync_read, $sync_update, $sync_affected, false );
+$pass10d_decoded   = is_array( $pass10d_saved ) ? json_decode( $pass10d_saved['envelope'], true ) : null;
+$pass10d_operation = is_array( $pass10d_decoded ) && isset( $pass10d_decoded['operation'] ) ? $pass10d_decoded['operation'] : array();
+$pass10d_lock      = is_array( $pass10d_saved ) ? json_decode( $pass10d_saved['lock'], true ) : null;
+tutorpress_live_lessons_assert( null === $pass10d_skipped && true === $pass10d_quiet && is_array( $pass10d_saved ) && is_array( $pass10d_decoded ) && is_array( $pass10d_lock ) && 2 === $pass10d_decoded['version'] && 'pending' === $pass10d_decoded['state'] && null === $pass10d_decoded['provider_id'] && 'create' === $pass10d_operation['kind'] && 1 === $pass10d_operation['base_version'] && null === $pass10d_operation['provider_id'] && '2026-09-21 17:00:00' === $pass10d_operation['start_local'] && '2026-09-21 18:00:00' === $pass10d_operation['end_local'] && 'UTC' === $pass10d_operation['timezone'] && array( 'unit' => 'minutes', 'value' => 60 ) === $pass10d_operation['duration'] && 'create' === $pass10d_lock['operation'] && isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass10d_name ] ) && $pass10d_saved['lock'] === TutorPress_Live_Lessons_Store_Fake::$options[ $pass10d_name ] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass10d_saved['lock'], 'token-unlinked-adopt' ) && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'an empty unlinked read stages a pending create and an omitted flag writes nothing' );
 
 $again = $stage( $google_item, $google_input, array(), 'token-update-again' );
 tutorpress_live_lessons_assert( null === $again && array() === $methods() && TutorPress_Live_Lesson_Sync_Repository::owns( $google_saved['lock'], 'token-update-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_again' ] ), 'a pending row is rejected before preflight and the update lock stays' );

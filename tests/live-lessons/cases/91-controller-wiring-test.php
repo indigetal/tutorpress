@@ -1518,7 +1518,7 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 		unset( $can );
 		return $this->dispatch_script;
 	}
-	protected function stage_live_unlinked( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected ) {
+	protected function stage_live_unlinked( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true ) {
 		$this->unlinked_stages[] = array(
 			'item'     => isset( $item['ID'] ) ? (int) $item['ID'] : 0,
 			'type'     => isset( $item['post_type'] ) ? $item['post_type'] : '',
@@ -1531,11 +1531,12 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 			'read'     => is_callable( $read ),
 			'update'   => is_callable( $update ),
 			'affected' => is_callable( $affected ),
+			'linked'   => $linked,
 		);
 		unset( $can );
 		return $this->stage_script;
 	}
-	protected function stage_live_synced( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected ) {
+	protected function stage_live_synced( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $local ) {
 		$this->synced_stages[] = array(
 			'item'     => isset( $item['ID'] ) ? (int) $item['ID'] : 0,
 			'type'     => isset( $item['post_type'] ) ? $item['post_type'] : '',
@@ -1548,6 +1549,7 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 			'read'     => is_callable( $read ),
 			'update'   => is_callable( $update ),
 			'affected' => is_callable( $affected ),
+			'local'    => $local,
 		);
 		unset( $can );
 		return $this->stage_script;
@@ -2922,6 +2924,16 @@ foreach ( $update_marks as $update_mark ) {
 	$update_cursor = false === $update_at ? $update_cursor : $update_at;
 }
 $update_pairs = 1 === substr_count( $update_unlinked, 'stage_unlinked(' ) && false === strpos( $update_unlinked, 'stage_update(' ) && false === strpos( $update_unlinked, 'dispatch_' ) && 1 === substr_count( $update_synced, 'stage_update(' ) && false === strpos( $update_synced, 'stage_unlinked(' ) && false === strpos( $update_synced, 'dispatch_' ) && 1 === substr_count( $update_open_go, 'dispatch_create(' ) && false === strpos( $update_open_go, 'dispatch_update(' ) && 1 === substr_count( $update_sync_go, 'dispatch_update(' ) && false === strpos( $update_sync_go, 'dispatch_create(' ) && 1 === substr_count( $update_delegate, 'stage_live_unlinked(' ) && 1 === substr_count( $update_delegate, 'stage_live_synced(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_create(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_synced(' );
+$controller->meta[521] = array(
+	'_tutor_zm_data' => array(
+		'id'         => 'zm-9',
+		'password'   => 'hidden-pw',
+		'api_secret' => 'fake-credential-value',
+		'host_id'    => 'host-9',
+	),
+);
+$patch_absent = $run_update( $with_id( 521, 'zoom' ) );
+unset( $controller->meta[521] );
 $legacy_update = false === method_exists( 'TutorPress_REST_Live_Lessons_Controller', 'update_item' );
 $mutate_update = false === strpos( $update_mutate, 'request_bindings' ) && false === strpos( $update_mutate, 'provider_adapter' ) && false === strpos( $update_mutate, 'rest_outcome' ) && false === strpos( $update_mutate, 'stage_unlinked' ) && false === strpos( $update_mutate, 'stage_update' ) && false === strpos( $update_mutate, 'dispatch_create' ) && false === strpos( $update_mutate, 'dispatch_update' ) && false !== strpos( $update_mutate, 'delegate_update(' ) && false !== strpos( $update_mutate, 'schedule_result(' );
 $updates = array(
@@ -2944,7 +2956,7 @@ $updates = array(
 	'draft'        => $run_update( $with_id( 518, 'zoom' ) ),
 	'private'      => $run_update( $with_id( 519, 'zoom' ) ),
 	'rejected'     => $run_update( $with_id( 520, 'zoom' ) ),
-	'absent'       => $run_update( $with_id( 521, 'zoom' ) ),
+	'absent'       => $patch_absent,
 	'pending'      => $run_update( $with_id( 522, 'google_meet' ) ),
 	'error_state'  => $run_update( $with_id( 523, 'google_meet' ) ),
 	'zoom_unlinked' => $zoom_unlinked,
@@ -2964,6 +2976,43 @@ $updates = array(
 	'lifecycle'    => array( $google->lifecycle, $zoom->lifecycle ),
 	'proof'        => $update_clean && $update_order && $update_pairs && $legacy_update && $mutate_update,
 );
+class TutorPress_Live_Lessons_Pass10f_Reader extends TutorPress_Live_Lessons_Binding_Adapter {
+	public function hydrate_item( array $local ) {
+		$blob    = reset( $local );
+		$decoded = is_array( $blob ) ? $blob : ( is_string( $blob ) && '' !== $blob ? json_decode( $blob, true ) : null );
+		$id      = is_array( $decoded ) && isset( $decoded['id'] ) && is_string( $decoded['id'] ) && '' !== $decoded['id'] ? $decoded['id'] : '';
+		return '' === $id ? null : array( 'provider_id' => $id );
+	}
+}
+$put( 613, 'tutor-google-meet', 'publish', 40 );
+$controller->meta[613]       = array( 'tutor-google-meet-event-details' => '{"id":"evt-copy-10f"}' );
+$controller->sync_rows[613]  = array();
+$pass10f_google              = $controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'];
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'] = new TutorPress_Live_Lessons_Pass10f_Reader();
+$GLOBALS['wpdb'] = new class() {
+	public function __call( $name, $args ) { unset( $name, $args ); throw new RuntimeException( 'queried' ); }
+};
+$pass10f_copy = $run_update( $with_id( 613, 'google_meet' ), true, $staged_ok );
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:google_meet'] = $pass10f_google;
+unset( $controller->meta[613], $controller->sync_rows[613], $GLOBALS['wpdb'] );
+$put( 612, 'tutor_zoom_meeting', 'publish', 40 );
+$controller->meta[612]      = array( '_tutor_zm_data' => '{"id":"88021"}' );
+$controller->sync_rows[612] = array();
+$pass10f_zoom               = $controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'];
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'] = new TutorPress_Live_Lessons_Pass10f_Reader();
+$GLOBALS['wpdb'] = new class() {
+	public $posts    = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
+	public $calls    = array();
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
+	public function prepare( $query, ...$args ) { unset( $query ); $this->calls[] = $args; return 'prepared'; }
+	public function get_results( $query = '' ) { unset( $query ); return array( (object) array( 'post_id' => 614, 'meta_value' => '{"id":"88021"}' ) ); }
+};
+$pass10f_shared = $run_update( $with_id( 612, 'zoom' ), true, $staged_ok );
+$pass10f_args   = $GLOBALS['wpdb']->calls;
+$controller->services['TutorPress_Live_Lesson_Provider_Adapter:zoom'] = $pass10f_zoom;
+unset( $controller->meta[612], $controller->sync_rows[612], $GLOBALS['wpdb'] );
+$pass10f = array( 'copy' => $pass10f_copy, 'shared' => $pass10f_shared, 'args' => $pass10f_args );
 $delete_input = array(
 	'acting_user_id'       => 44,
 	'course_author_id'     => 17,
@@ -4238,6 +4287,7 @@ echo json_encode(
 		'outcomes' => $outcomes,
 		'creates'  => $creates,
 		'updates'  => $updates,
+		'pass10f'  => $pass10f,
 		'deletes'  => $deletes,
 		'duplicates' => $duplicates,
 		'reconciles' => $reconcile_cases,
@@ -5378,7 +5428,8 @@ $update_success = static function ( $row, $provider, $item, $post_type, $kind ) 
 		&& array() === $row['queries']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
-		&& $metas === $row['metas']
+		&& ( 'synced' === $kind ? array_merge( $metas, $metas ) : $metas ) === $row['metas']
+		&& ( 'synced' !== $kind || null === $stage['local'] )
 		&& true === $row['boundary']
 		&& true === $opposite
 		&& is_string( $dispatch['staged']['envelope'] )
@@ -5450,20 +5501,83 @@ tutorpress_live_lessons_assert(
 	&& $update_quiet( $updates['private'], array( array( 'post', 519 ), array( 'post', 40 ), array( 'post', 15 ) ), array( array( 'can', 'edit_post', 15 ) ) ),
 	'missing relations, non-publish items, and denied edit_post stop before envelope and adapter resolution'
 );
+$patch_absent_stage = isset( $updates['absent']['synced'][0] ) ? $updates['absent']['synced'][0] : array();
+$patch_absent_metas = array( array( 'meta', 521, '_tutor_zm_data' ) );
+foreach ( $zoom_meta_keys as $patch_absent_key ) {
+	$patch_absent_metas[] = array( 'meta', 521, $patch_absent_key );
+}
 tutorpress_live_lessons_assert(
 	$update_envelope( $updates['rejected'], 520 )
-	&& $update_envelope( $updates['absent'], 521 )
 	&& $update_envelope( $updates['pending'], 522 )
 	&& $update_envelope( $updates['error_state'], 523 ),
-	'rejected, absent, pending, and error envelopes do not resolve an adapter'
+	'rejected, pending, and error envelopes do not resolve an adapter'
+);
+tutorpress_live_lessons_assert(
+	$update_error( $updates['absent'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
+	&& 1 === count( $updates['absent']['synced'] )
+	&& array() === $updates['absent']['unlinked']
+	&& array() === $updates['absent']['dispatches']
+	&& array() === $updates['absent']['synced_dispatch']
+	&& 2 === $updates['absent']['adapters']
+	&& array( 'zoom', 'zoom', 'zoom' ) === $updates['absent']['ledger']
+	&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ), array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) ) === $updates['absent']['services']
+	&& array( array( 'post', 521 ), array( 'post', 40 ), array( 'post', 15 ) ) === $updates['absent']['posts']
+	&& array( array( 'can', 'edit_post', 15 ) ) === $updates['absent']['caps']
+	&& array( array( 'read', 521, '_tutorpress_live_lesson_sync' ) ) === $updates['absent']['reads']
+	&& $patch_absent_metas === $updates['absent']['metas']
+	&& 1 === $updates['absent']['bindings']
+	&& 521 === $patch_absent_stage['item']
+	&& 'tutor_zoom_meeting' === $patch_absent_stage['type']
+	&& 'zoom' === $patch_absent_stage['adapter']
+	&& array(
+		'_tutor_zm_data' => array(
+			'id'       => 'zm-9',
+			'host_id'  => 'host-9',
+			'password' => 'hidden-pw',
+		),
+	) === $patch_absent_stage['local']
+	&& true === $updates['absent']['boundary'],
+	'a missing sync row stages through provider meta and the stub returns the update failure'
 );
 tutorpress_live_lessons_assert(
 	$update_success( $updates['zoom_unlinked'], 'zoom', 526, 'tutor_zoom_meeting', 'unlinked' )
+	&& true === $updates['zoom_unlinked']['unlinked'][0]['linked']
 	&& $update_success( $updates['google_unlinked'], 'google_meet', 610, 'tutor-google-meet', 'unlinked' )
+	&& true === $updates['google_unlinked']['unlinked'][0]['linked']
 	&& $update_success( $updates['zoom_synced'], 'zoom', 528, 'tutor_zoom_meeting', 'synced' )
 	&& $update_success( $updates['google_synced'], 'google_meet', 611, 'tutor-google-meet', 'synced' )
 	&& array( 'read', 'update', 'affected', 'write' ) === $updates['callbacks'],
 	'canonical unlinked and synced items use only their matching stage and dispatch pair'
+);
+$pass10f_row   = isset( $binding_probe['data']['pass10f']['copy'] ) && is_array( $binding_probe['data']['pass10f']['copy'] ) ? $binding_probe['data']['pass10f']['copy'] : array();
+$pass10f_stage = isset( $pass10f_row['unlinked'][0] ) && is_array( $pass10f_row['unlinked'][0] ) ? $pass10f_row['unlinked'][0] : array();
+tutorpress_live_lessons_assert(
+	isset( $pass10f_row['unlinked'], $pass10f_row['synced'], $pass10f_row['synced_dispatch'], $pass10f_row['dispatches'] )
+	&& 1 === count( $pass10f_row['unlinked'] )
+	&& array() === $pass10f_row['synced']
+	&& array() === $pass10f_row['synced_dispatch']
+	&& 1 === count( $pass10f_row['dispatches'] )
+	&& false === $pass10f_stage['linked']
+	&& 613 === $pass10f_stage['item']
+	&& 'tutor-google-meet' === $pass10f_stage['type']
+	&& 'google_meet' === $pass10f_stage['adapter'],
+	'a Google lesson with an event id and no link row starts a new meeting'
+);
+$pass10f_shared_row   = isset( $binding_probe['data']['pass10f']['shared'] ) && is_array( $binding_probe['data']['pass10f']['shared'] ) ? $binding_probe['data']['pass10f']['shared'] : array();
+$pass10f_shared_stage = isset( $pass10f_shared_row['unlinked'][0] ) && is_array( $pass10f_shared_row['unlinked'][0] ) ? $pass10f_shared_row['unlinked'][0] : array();
+$pass10f_args         = isset( $binding_probe['data']['pass10f']['args'] ) && is_array( $binding_probe['data']['pass10f']['args'] ) ? $binding_probe['data']['pass10f']['args'] : array();
+tutorpress_live_lessons_assert(
+	isset( $pass10f_shared_row['unlinked'], $pass10f_shared_row['synced'], $pass10f_shared_row['synced_dispatch'], $pass10f_shared_row['dispatches'] )
+	&& 1 === count( $pass10f_shared_row['unlinked'] )
+	&& array() === $pass10f_shared_row['synced']
+	&& array() === $pass10f_shared_row['synced_dispatch']
+	&& 1 === count( $pass10f_shared_row['dispatches'] )
+	&& false === $pass10f_shared_stage['linked']
+	&& 612 === $pass10f_shared_stage['item']
+	&& 'tutor_zoom_meeting' === $pass10f_shared_stage['type']
+	&& 'zoom' === $pass10f_shared_stage['adapter']
+	&& array( array( 'tutor_zoom_meeting', '_tutor_zm_data', 612, '%88021%' ) ) === $pass10f_args,
+	'a Zoom lesson that shares its meeting id starts a new meeting'
 );
 tutorpress_live_lessons_assert(
 	$update_error( $updates['null_stage'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )

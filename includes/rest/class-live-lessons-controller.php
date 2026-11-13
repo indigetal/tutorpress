@@ -544,14 +544,16 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         if ('publish' !== (isset($item['post_status']) ? $item['post_status'] : '')) { return $missing; }
         $stored = $bindings['envelope']((int) $item['ID']);
         $state = is_array($stored) && isset($stored['state']) ? $stored['state'] : '';
-        if ('unlinked' !== $state && 'synced' !== $state) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
+        if (null !== $stored && 'unlinked' !== $state && 'synced' !== $state) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
         $provider = 'tutor_zoom_meeting' === $type ? 'zoom' : 'google_meet';
         $input = $this->map_mutation($request, $normalized, $course, $bindings['user_id']);
         $input['provider'] = $provider;
         $adapter = $this->provider_adapter($provider);
-        $staged = 'unlinked' === $state ? $this->stage_live_unlinked($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected']) : $this->stage_live_synced($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected']);
+        $copy = null !== $stored || $this->load_provider_linked((int) $item['ID'], $type);
+        $open = 'unlinked' === $state || false === $copy;
+        $staged = $open ? $this->stage_live_unlinked($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], ...($copy ? array() : array(false))) : $this->stage_live_synced($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['metadata']((int) $item['ID'], $type));
         $ready = $this->staged_create($staged);
-        $result = is_array($ready) ? ('unlinked' === $state ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $this->dispatch_live_synced($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'])) : $staged;
+        $result = is_array($ready) ? ($open ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $this->dispatch_live_synced($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'])) : $staged;
         $accepted = is_array($ready) && is_array($result) && isset($result['envelope']) ? $this->accepted_bytes($result['envelope']) : null;
         if (is_array($accepted)) {
             return $this->mutation_projection((int) $item['ID'], 'update');
@@ -571,10 +573,11 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @param callable            $read     Sync read.
      * @param callable            $update   Sync update.
      * @param callable            $affected Affected count.
+     * @param bool                $linked   False adopts a missing envelope. Omitted keeps the version-1 guard.
      * @return mixed
      */
-    protected function stage_live_unlinked(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected) {
-        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_unlinked($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected);
+    protected function stage_live_unlinked(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true) {
+        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_unlinked($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected, $linked);
     }
 
     /**
@@ -589,10 +592,11 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @param callable            $read     Sync read.
      * @param callable            $update   Sync update.
      * @param callable            $affected Affected count.
+     * @param array<string,mixed>|null $local Tutor provider meta.
      * @return mixed
      */
-    protected function stage_live_synced(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected) {
-        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_update($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected);
+    protected function stage_live_synced(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $local) {
+        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_update($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected, $local);
     }
 
     /**
