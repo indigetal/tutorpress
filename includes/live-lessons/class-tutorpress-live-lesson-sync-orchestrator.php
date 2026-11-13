@@ -105,7 +105,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return $valid;
 	}
 
-	/** Dispatch a version-1 or version-2 pending create. Synced completion releases the lock, then fires one save hook. */
+	/** Dispatch a version-1 or version-2 pending create. A finished return releases the lock. Synced completion then fires one save hook. */
 	public static function dispatch_create( array $staged, $token, $adapter, $read, $update, $affected, $write, array $topic = array(), array $course = array(), $can = null ) {
 		$prior     = isset( $staged['envelope'] ) && is_string( $staged['envelope'] ) ? json_decode( $staged['envelope'], true ) : null;
 		$operation = is_array( $prior ) && isset( $prior['operation'] ) && is_array( $prior['operation'] ) ? $prior['operation'] : null;
@@ -139,7 +139,11 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$bytes = TutorPress_Live_Lesson_Sync_Repository::exchange( (int) $staged['post_id'], $staged['lock'], $token, 'create', 'pending', $version + 1, $possible, $next, $read, $update, $affected );
 		if ( ! is_string( $bytes ) ) { return null; }
 		$staged['envelope'] = $bytes;
-		return 'synced' === $next['state'] ? self::finish_synced( $staged, $token, $topic, $course, $can ) : $staged;
+		if ( 'synced' !== $next['state'] ) {
+			self::release_exact( (int) $staged['post_id'], $token, $staged['lock'] );
+			return $staged;
+		}
+		return self::finish_synced( $staged, $token, $topic, $course, $can );
 	}
 
 	/** Release the exact token, then fire one provider save hook. A crash after release is not replayed. */
@@ -352,8 +356,9 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$empty  = is_array( $rows ) && array() === $rows;
 		$adopt  = $empty && false === $linked;
 		$prior  = is_array( $rows ) && 1 === count( $rows ) && isset( $rows[0]['meta_id'], $rows[0]['meta_value'], $rows[0]['post_id'] ) && (int) $rows[0]['post_id'] === $post_id && is_string( $rows[0]['meta_value'] ) ? $rows[0]['meta_value'] : null;
-		$stored = is_string( $prior ) ? json_decode( $prior, true ) : null;
-		if ( ! $adopt && ( ! is_array( $stored ) || ! isset( $stored['version'], $stored['state'], $stored['provider'] ) || 1 !== $stored['version'] || 'unlinked' !== $stored['state'] || ! array_key_exists( 'provider_id', $stored ) || null !== $stored['provider_id'] || ! array_key_exists( 'operation', $stored ) || null !== $stored['operation'] || $stored['provider'] !== $provider ) ) {
+		$stored   = is_string( $prior ) ? json_decode( $prior, true ) : null;
+		$recreate = is_array( $stored ) && isset( $stored['version'], $stored['state'], $stored['provider'], $stored['operation'] ) && is_int( $stored['version'] ) && $stored['version'] >= 1 && 'error' === $stored['state'] && is_array( $stored['operation'] ) && array_key_exists( 'provider_id', $stored ) && null === $stored['provider_id'] && $stored['provider'] === $provider;
+		if ( ! $adopt && ! $recreate && ( ! is_array( $stored ) || ! isset( $stored['version'], $stored['state'], $stored['provider'] ) || 1 !== $stored['version'] || 'unlinked' !== $stored['state'] || ! array_key_exists( 'provider_id', $stored ) || null !== $stored['provider_id'] || ! array_key_exists( 'operation', $stored ) || null !== $stored['operation'] || $stored['provider'] !== $provider ) ) {
 			return null;
 		}
 		$input['provider'] = $provider;
@@ -368,8 +373,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		if ( null === $target ) {
 			return null;
 		}
-		$expiry = $now->setTimezone( new DateTimeZone( 'UTC' ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
-		$lock   = TutorPress_Live_Lesson_Sync_Repository::acquire( $post_id, 'create', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } );
+		$lock = self::hold( $post_id, 'create', $token, $now, array( __CLASS__, 'lock_option' ), array( __CLASS__, 'lock_replace' ) );
 		if ( ! is_string( $lock ) ) {
 			return null;
 		}
@@ -381,9 +385,10 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 				return null;
 			}
 		}
-		$operation = array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => 'create', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => 1, 'provider' => $provider, 'owner_id' => $valid['owner_id'], 'provider_id' => null, 'dispatch_state' => 'not_dispatched', 'course_id' => $valid['course_id'], 'topic_id' => $valid['topic_id'], 'post_author' => $author, 'menu_order' => $valid['menu_order'], 'title' => isset( $input['title'] ) && is_string( $input['title'] ) ? $input['title'] : ( isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '' ), 'content' => isset( $input['content'] ) && is_string( $input['content'] ) ? $input['content'] : ( isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '' ), 'start_local' => $schedule['start_local'], 'end_local' => $schedule['end_local'], 'timezone' => $schedule['timezone'], 'duration' => $schedule['duration'], 'provider_target' => $target, 'delete_hook' => null );
-		$next      = array( 'schema_version' => 1, 'version' => 2, 'state' => 'pending', 'provider' => $provider, 'owner_id' => $valid['owner_id'], 'provider_id' => null, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
-		$bytes     = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'create', 'unlinked', 1, $prior, $next, $read, $update, $affected );
+		$from_version = $recreate ? $stored['version'] : 1;
+		$operation    = array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => 'create', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => $from_version, 'provider' => $provider, 'owner_id' => $valid['owner_id'], 'provider_id' => null, 'dispatch_state' => 'not_dispatched', 'course_id' => $valid['course_id'], 'topic_id' => $valid['topic_id'], 'post_author' => $author, 'menu_order' => $valid['menu_order'], 'title' => isset( $input['title'] ) && is_string( $input['title'] ) ? $input['title'] : ( isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '' ), 'content' => isset( $input['content'] ) && is_string( $input['content'] ) ? $input['content'] : ( isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '' ), 'start_local' => $schedule['start_local'], 'end_local' => $schedule['end_local'], 'timezone' => $schedule['timezone'], 'duration' => $schedule['duration'], 'provider_target' => $target, 'delete_hook' => null );
+		$next         = array( 'schema_version' => 1, 'version' => $from_version + 1, 'state' => 'pending', 'provider' => $provider, 'owner_id' => $valid['owner_id'], 'provider_id' => null, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
+		$bytes        = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'create', $recreate ? 'error' : 'unlinked', $from_version, $prior, $next, $read, $update, $affected );
 		if ( ! is_string( $bytes ) ) {
 			TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) {
 				global $wpdb;
@@ -413,7 +418,12 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$prior   = is_array( $rows ) && 1 === count( $rows ) && isset( $rows[0]['meta_id'], $rows[0]['meta_value'], $rows[0]['post_id'] ) && (int) $rows[0]['post_id'] === $post_id && is_string( $rows[0]['meta_value'] ) ? $rows[0]['meta_value'] : null;
 		$stored  = is_string( $prior ) ? json_decode( $prior, true ) : null;
 		$version = is_array( $stored ) && isset( $stored['version'] ) && is_int( $stored['version'] ) ? $stored['version'] : 0; $known = is_array( $stored ) && isset( $stored['provider_id'] ) && is_string( $stored['provider_id'] ) ? $stored['provider_id'] : ''; $previous = is_array( $stored ) && isset( $stored['operation'] ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
-		if ( ( ! $empty || ! is_array( $local ) ) && ( ! is_array( $stored ) || $version < 1 || ! isset( $stored['state'], $stored['provider'] ) || 'synced' !== $stored['state'] || '' === $known || $stored['provider'] !== $provider || ! is_array( $previous ) ) ) {
+		$state   = is_array( $stored ) && isset( $stored['state'] ) ? $stored['state'] : '';
+		if ( is_array( $stored ) && 'error' === $state && array_key_exists( 'provider_id', $stored ) && null === $stored['provider_id'] ) {
+			return self::stage_unlinked( $item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected );
+		}
+		$open = 'synced' === $state || 'error' === $state || ( 'pending' === $state && self::lock_expired( $post_id, $now ) );
+		if ( ( ! $empty || ! is_array( $local ) ) && ( ! is_array( $stored ) || $version < 1 || ! isset( $stored['state'], $stored['provider'] ) || ! $open || '' === $known || $stored['provider'] !== $provider || ! is_array( $previous ) ) ) {
 			return null;
 		}
 		$owner_id = 'google_meet' === $provider ? TutorPress_Live_Lesson_Owner_Resolver::google( $course_id, isset( $input['acting_user_id'] ) ? $input['acting_user_id'] : 0 ) : self::zoom_input_owner( $course_id, $input );
@@ -438,8 +448,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$schedule = self::create_schedule( $valid );
 		$target   = is_array( $schedule ) ? ( 'google_meet' === $provider ? self::create_target( $valid, $input, self::google_update_source( $adapter, $owner_id, $post_id, $read ) ) : self::create_target( $valid, $input ) ) : null;
 		if ( null === $target || ! isset( $item['menu_order'] ) || ! is_int( $item['menu_order'] ) || $item['menu_order'] < 0 ) { return null; }
-		$expiry = $now->setTimezone( new DateTimeZone( 'UTC' ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
-		$lock   = TutorPress_Live_Lesson_Sync_Repository::acquire( $post_id, 'update', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } );
+		$lock = self::held_lock( $post_id, 'update', $token, $now, $state );
 		if ( ! is_string( $lock ) ) { return null; }
 		if ( $empty ) {
 			$seed    = array( 'schema_version' => 1, 'version' => 1, 'state' => 'synced', 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
@@ -453,7 +462,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		}
 		$operation = array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => 'update', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => $version, 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'dispatch_state' => 'not_dispatched', 'course_id' => $course_id, 'topic_id' => (int) $topic['ID'], 'post_author' => $author, 'menu_order' => $item['menu_order'], 'title' => isset( $input['title'] ) && is_string( $input['title'] ) ? $input['title'] : ( isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '' ), 'content' => isset( $input['content'] ) && is_string( $input['content'] ) ? $input['content'] : ( isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '' ), 'start_local' => $schedule['start_local'], 'end_local' => $schedule['end_local'], 'timezone' => $schedule['timezone'], 'duration' => $schedule['duration'], 'provider_target' => $target, 'delete_hook' => null );
 		$next      = array( 'schema_version' => 1, 'version' => $version + 1, 'state' => 'pending', 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'provenance' => isset( $stored['provenance'] ) && is_string( $stored['provenance'] ) ? $stored['provenance'] : null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
-		$bytes     = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'update', 'synced', $version, $prior, $next, $read, $update, $affected );
+		$bytes     = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'update', $stored['state'], $version, $prior, $next, $read, $update, $affected );
 		if ( ! is_string( $bytes ) ) {
 			TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) { global $wpdb; $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior_lock ) ); return 1 === (int) $wpdb->rows_affected; } );
 			return null;
@@ -461,7 +470,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return array( 'post_id' => $post_id, 'lock' => $lock, 'dispatch_state' => 'not_dispatched', 'envelope' => $bytes, 'provider' => $provider, 'owner_id' => $owner_id, 'course_id' => $course_id );
 	}
 
-	/** Dispatch one staged pending update. Confirmation writes metadata. Error and uncertain outcomes do not fire a save hook. */
+	/** Dispatch one staged pending update. A finished return releases the lock and does not fire a save hook. */
 	public static function dispatch_update( array $staged, $token, $adapter, $read, $update, $affected, $write ) {
 		$prior     = isset( $staged['envelope'] ) && is_string( $staged['envelope'] ) ? json_decode( $staged['envelope'], true ) : null;
 		$operation = is_array( $prior ) && isset( $prior['operation'] ) && is_array( $prior['operation'] ) ? $prior['operation'] : null;
@@ -500,10 +509,11 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$bytes = TutorPress_Live_Lesson_Sync_Repository::exchange( (int) $staged['post_id'], $staged['lock'], $token, 'update', 'pending', $version + 1, $possible, $next, $read, $update, $affected );
 		if ( ! is_string( $bytes ) ) { return null; }
 		$staged['envelope'] = $bytes;
+		self::release_exact( (int) $staged['post_id'], $token, $staged['lock'] );
 		return $staged;
 	}
 
-	/** CAS one pending delete, then delete locally only after normalized convergence. */
+	/** CAS one pending delete, then delete locally only after normalized convergence. A finished return releases the lock. */
 	public static function stage_delete( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected ) {
 		if ( array_key_exists( 'provider_id', $input ) || array_key_exists( 'id', $input ) ) { return null; }
 		$course_id = TutorPress_Live_Lesson_Authorization::authorize( $item, $topic, $course, $can );
@@ -517,17 +527,18 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$prior = is_array( $rows ) && 1 === count( $rows ) && isset( $rows[0]['meta_id'], $rows[0]['meta_value'], $rows[0]['post_id'] ) && (int) $rows[0]['post_id'] === $post_id && is_string( $rows[0]['meta_value'] ) ? $rows[0]['meta_value'] : null;
 		$stored = is_string( $prior ) ? json_decode( $prior, true ) : null;
 		$version = is_array( $stored ) && isset( $stored['version'] ) && is_int( $stored['version'] ) ? $stored['version'] : 0; $known = is_array( $stored ) && isset( $stored['provider_id'] ) && is_string( $stored['provider_id'] ) ? $stored['provider_id'] : ''; $previous = is_array( $stored ) && isset( $stored['operation'] ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
-		if ( ! is_array( $stored ) || $version < 1 || ! isset( $stored['state'], $stored['provider'] ) || 'synced' !== $stored['state'] || '' === $known || $stored['provider'] !== $provider || ! is_array( $previous ) ) { return null; }
+		$state   = is_array( $stored ) && isset( $stored['state'] ) ? $stored['state'] : '';
+		$open    = 'synced' === $state || 'error' === $state || ( 'pending' === $state && self::lock_expired( $post_id, $now ) );
+		if ( ! is_array( $stored ) || $version < 1 || ! isset( $stored['state'], $stored['provider'] ) || ! $open || '' === $known || $stored['provider'] !== $provider || ! is_array( $previous ) ) { return null; }
 		$owner_id = 'google_meet' === $provider ? TutorPress_Live_Lesson_Owner_Resolver::google( $course_id, isset( $input['acting_user_id'] ) ? $input['acting_user_id'] : 0 ) : self::zoom_input_owner( $course_id, $input );
 		if ( null === $owner_id || true !== $adapter->preflight( $owner_id ) ) { return null; }
 		$title = isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '';
 		$operation = array_merge( $previous, array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => 'delete', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => $version, 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'dispatch_state' => 'not_dispatched', 'course_id' => $course_id, 'topic_id' => (int) $topic['ID'], 'post_author' => $author, 'menu_order' => isset( $item['menu_order'] ) && is_int( $item['menu_order'] ) ? $item['menu_order'] : -1, 'title' => $title, 'content' => isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '', 'delete_hook' => array( 'lesson_id' => $post_id, 'title' => $title, 'topic_id' => (int) $topic['ID'], 'type' => $provider ) ) );
 		if ( $operation['menu_order'] < 0 ) { return null; }
-		$expiry = $now->setTimezone( new DateTimeZone( 'UTC' ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
-		$lock = TutorPress_Live_Lesson_Sync_Repository::acquire( $post_id, 'delete', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } );
+		$lock = self::held_lock( $post_id, 'delete', $token, $now, $state );
 		if ( ! is_string( $lock ) ) { return null; }
 		$next = array( 'schema_version' => 1, 'version' => $version + 1, 'state' => 'pending', 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'provenance' => isset( $stored['provenance'] ) && is_string( $stored['provenance'] ) ? $stored['provenance'] : null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
-		$bytes = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'delete', 'synced', $version, $prior, $next, $read, $update, $affected );
+		$bytes = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'delete', $stored['state'], $version, $prior, $next, $read, $update, $affected );
 		if ( ! is_string( $bytes ) ) {
 			TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) { global $wpdb; $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior_lock ) ); return 1 === (int) $wpdb->rows_affected; } );
 			return null;
@@ -541,7 +552,10 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		try { $returned = $adapter->delete( $owner_id, $known ); } catch ( Throwable $thrown ) { unset( $thrown ); }
 		$staged = array( 'post_id' => $post_id, 'lock' => $lock, 'dispatch_state' => 'dispatch_possible', 'envelope' => $possible, 'provider' => $provider, 'owner_id' => $owner_id, 'course_id' => $course_id );
 		$result = TutorPress_Live_Lesson_Provider_Result::from( $returned );
-		if ( ! is_array( $result ) ) { return $staged; }
+		if ( ! is_array( $result ) ) {
+			self::release_exact( $post_id, $token, $lock );
+			return $staged;
+		}
 		$identity = TutorPress_Live_Lesson_Provider_Result::identity( $result );
 		$same     = $identity === $known && 'delete' === $result['provenance'] && null === $result['item'];
 		$closed   = $same && ( 'confirmed' === $result['outcome'] || ( 'google_meet' === $provider && 'known_id_not_found' === $result['outcome'] ) );
@@ -577,6 +591,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$error_bytes = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'delete', 'pending', $version + 2, $possible, $failed, $read, $update, $affected );
 		if ( ! is_string( $error_bytes ) ) { return null; }
 		$staged['envelope'] = $error_bytes;
+		self::release_exact( $post_id, $token, $lock );
 		return $staged;
 	}
 
@@ -635,6 +650,42 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return $stored;
 	}
 
+	/** True when the stored lock expiry parses as UTC and is at or before the injected instant. */
+	private static function lock_expired( $post_id, DateTimeImmutable $now ) {
+		$prior  = self::lock_option( 'tutorpress_live_lesson_lock_' . (int) $post_id );
+		$stored = is_string( $prior ) ? json_decode( $prior, true ) : null;
+		$raw    = is_array( $stored ) && isset( $stored['expiry'] ) ? $stored['expiry'] : null;
+		$expiry = is_string( $raw ) ? DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $raw, new DateTimeZone( 'UTC' ) ) : false;
+		$errors = DateTimeImmutable::getLastErrors();
+		$valid  = $expiry instanceof DateTimeImmutable && ( ! is_array( $errors ) || ( 0 === $errors['warning_count'] && 0 === $errors['error_count'] ) ) && $expiry->format( 'Y-m-d H:i:s' ) === $raw;
+		return $valid && ! ( $expiry > $now->setTimezone( new DateTimeZone( 'UTC' ) ) );
+	}
+
+	/** Hold the lesson lock. A pending row keeps it only when the prior option was a string. */
+	private static function held_lock( $post_id, $operation, $token, DateTimeImmutable $now, $state ) {
+		$prior = self::lock_option( 'tutorpress_live_lesson_lock_' . (int) $post_id );
+		$lock  = self::hold( $post_id, $operation, $token, $now, array( __CLASS__, 'lock_option' ), array( __CLASS__, 'lock_replace' ) );
+		if ( ! is_string( $lock ) ) {
+			return null;
+		}
+		if ( 'pending' === $state && ! is_string( $prior ) ) {
+			self::release_exact( $post_id, $token, $lock );
+			return null;
+		}
+		return $lock;
+	}
+
+	/** Read one lock option. A string is returned as stored, and every other value is missing. */
+	private static function lock_option( $name ) {
+		$value = is_string( $name ) ? get_option( $name ) : null;
+		return is_string( $value ) ? $value : null;
+	}
+
+	/** Replace one lock option when its stored bytes still match. */
+	private static function lock_replace( $name, $bytes, $prior ) {
+		return TutorPress_Live_Lesson_Sync_Repository::compare_option_update( $name, $bytes, $prior );
+	}
+
 	/** Acquire a missing lock, or take over one whose expiry is at or before the injected instant. */
 	private static function hold( $post_id, $operation, $token, DateTimeImmutable $now, $read, $update ) {
 		$name  = 'tutorpress_live_lesson_lock_' . (int) $post_id;
@@ -643,8 +694,11 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			$expiry = $now->setTimezone( new DateTimeZone( 'UTC' ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
 			return TutorPress_Live_Lesson_Sync_Repository::acquire( (int) $post_id, $operation, $token, $expiry, static function ( $option_name, $bytes ) { return add_option( $option_name, $bytes, '', false ); } );
 		}
-		$clock = $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
-		return is_string( $prior ) ? TutorPress_Live_Lesson_Sync_Repository::takeover( (int) $post_id, $operation, $token, $prior, $clock, $update ) : null;
+		$clock    = $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$callback = is_callable( $update ) ? static function ( $name, $bytes, $prior_bytes ) use ( $update ) {
+			return $update( $name, $bytes, $prior_bytes );
+		} : $update;
+		return is_string( $prior ) ? TutorPress_Live_Lesson_Sync_Repository::takeover( (int) $post_id, $operation, $token, $prior, $clock, $callback ) : null;
 	}
 
 	/** Delete this exact token with one prepared binary compare. This method does not set a release flag. */
@@ -694,10 +748,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			$staged = array( 'post_id' => $post_id, 'lock' => $lock, 'owner_id' => $guard['owner_id'], 'provider' => $guard['provider'], 'envelope' => $bytes );
 			$helper = 'create' === $kind ? self::dispatch_create( $staged, $token, $adapter, $read, $update, $affected, $write, $topic, $course, $can ) : self::dispatch_update( $staged, $token, $adapter, $read, $update, $affected, $write );
 			$code = $helper instanceof WP_Error ? $helper->get_error_code() : '';
-			$done = is_array( $helper ) && isset( $helper['envelope'] ) && is_string( $helper['envelope'] ) ? json_decode( $helper['envelope'], true ) : null;
-			$synced = is_array( $done ) && 'synced' === ( isset( $done['state'] ) ? $done['state'] : '' );
-			if ( 'live_lesson_persisted_transition' === $code || ( $synced && 'create' === $kind ) ) { $release_invoked = true; }
-			elseif ( $synced && 'update' === $kind ) { self::release_exact( $post_id, $token, $lock ); $release_invoked = true; }
+			if ( 'live_lesson_persisted_transition' === $code || is_array( $helper ) ) { $release_invoked = true; }
 			return $helper;
 		} finally {
 			if ( false === $release_invoked ) { self::release_exact( $post_id, $token, $lock ); }

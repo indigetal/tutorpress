@@ -48,6 +48,11 @@ if ( ! function_exists( 'add_option' ) ) {
 		return TutorPress_Topic_Copy_Harness::$fail_lock ? false : TutorPress_Live_Lessons_Store_Fake::add_option( $name, $bytes );
 	}
 }
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $name, $default = false ) {
+		return isset( TutorPress_Live_Lessons_Store_Fake::$options[ $name ] ) ? TutorPress_Live_Lessons_Store_Fake::$options[ $name ] : $default;
+	}
+}
 if ( ! function_exists( 'get_post_meta' ) ) {
 	function get_post_meta( $post_id, $key = '', $single = false ) {
 		if ( TutorPress_Topic_Copy_Harness::$fail_init && '_tutorpress_live_lesson_sync' === $key ) {
@@ -83,12 +88,28 @@ class TutorPress_Topic_Copy_Wpdb {
 	public $rows_affected = 0;
 	public $statements    = array();
 
-	public function prepare( $query, $name, $prior ) {
-		return array( $query, $name, $prior );
+	public function prepare( $query, $name, $prior, $update = null ) {
+		$prepared = array( $query, $name, $prior );
+		if ( func_num_args() > 3 ) {
+			$prepared[] = $update;
+		}
+		return $prepared;
 	}
 
 	public function query( $prepared ) {
 		$this->statements[] = $prepared;
+		if ( is_array( $prepared ) && isset( $prepared[0] ) && is_string( $prepared[0] ) && 0 === strpos( $prepared[0], 'UPDATE ' ) ) {
+			$bytes = $prepared[1];
+			$name  = $prepared[2];
+			$prior = isset( $prepared[3] ) ? $prepared[3] : null;
+			if ( ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $name ] ) || TutorPress_Live_Lessons_Store_Fake::$options[ $name ] !== $prior ) {
+				$this->rows_affected = 0;
+				return 0;
+			}
+			TutorPress_Live_Lessons_Store_Fake::$options[ $name ] = $bytes;
+			$this->rows_affected = 1;
+			return 1;
+		}
 		if ( is_string( $prepared ) ) {
 			TutorPress_Topic_Copy_Harness::$events[] = array( 'sql', $prepared );
 			if ( 'COMMIT' === $prepared && TutorPress_Topic_Copy_Harness::$fail_commit ) {

@@ -1306,8 +1306,11 @@ $matrix_saved_wpdb = $GLOBALS['wpdb'];
 $matrix_watch      = new class() extends TutorPress_Topic_Copy_Wpdb {
 	public $ledger_at    = array();
 	public $script_false = false;
-	public function prepare( $query, $name, $prior ) {
+	public function prepare( $query, $name, $prior, $update = null ) {
 		$this->ledger_at[] = count( TutorPress_Live_Lessons_Hook_Fake::$calls );
+		if ( func_num_args() > 3 ) {
+			return parent::prepare( $query, $name, $prior, $update );
+		}
 		return parent::prepare( $query, $name, $prior );
 	}
 	public function query( $prepared ) {
