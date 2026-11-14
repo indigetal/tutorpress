@@ -643,9 +643,13 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $author = isset($course['post_author']) ? (int) $course['post_author'] : 0;
         $input = ['acting_user_id' => $actor > 0 ? $actor : 0, 'course_author_id' => $author > 0 ? $author : 0, 'acting_instructor_id' => $actor > 0 ? $actor : 0];
         $adapter = $this->provider_adapter('tutor_zoom_meeting' === $type ? 'zoom' : 'google_meet');
-        $staged = $this->stage_live_delete($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected']);
+        $stored = $this->load_envelope((int) $item['ID']);
+        $copy = null !== $stored || $this->load_provider_linked((int) $item['ID'], $type);
+        $local = $this->metadata((int) $item['ID'], $type);
+        $staged = $this->stage_live_delete($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], $copy, $local);
         $accepted = is_array($staged) && isset($staged['dispatch_state'], $staged['envelope']) && is_string($staged['envelope']) ? $this->accepted_bytes($staged['envelope']) : null;
-        $confirmed = is_array($accepted) && 'confirmed' === $staged['dispatch_state'];
+        $null_envelope = is_array($staged) && array_key_exists('envelope', $staged) && null === $staged['envelope'] && isset($staged['dispatch_state']) && 'confirmed' === $staged['dispatch_state'];
+        $confirmed = (is_array($accepted) && 'confirmed' === $staged['dispatch_state']) || $null_envelope;
         $provider_id = $confirmed && isset($accepted['provider_id']) && is_string($accepted['provider_id']) && '' !== $accepted['provider_id'] ? $accepted['provider_id'] : null;
         return $this->rest_outcome('delete', $confirmed ? ['outcome' => 'confirmed', 'provider_id' => $provider_id, 'item' => null, 'diagnostics' => [], 'provenance' => 'delete'] : (is_array($accepted) ? $accepted : $staged));
     }
@@ -664,10 +668,12 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      * @param callable            $read     Sync read.
      * @param callable            $update   Sync update.
      * @param callable            $affected Affected count.
+     * @param bool                $linked   False is an unlinked missing row. Omitted stays linked.
+     * @param array<string,mixed>|null $local Tutor provider meta.
      * @return mixed
      */
-    protected function stage_live_delete(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected) {
-        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_delete($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected);
+    protected function stage_live_delete(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true, $local = null) {
+        return TutorPress_Live_Lesson_Sync_Orchestrator::stage_delete($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected, $linked, $local);
     }
 
     /**

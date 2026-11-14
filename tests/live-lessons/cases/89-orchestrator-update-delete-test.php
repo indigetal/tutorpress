@@ -494,10 +494,10 @@ tutorpress_live_lessons_pass( 'update interruption rejects a stale response with
 
 $google_caps = array( 'settings' => true, 'hosts' => false, 'delete_convergence' => true );
 $zoom_caps   = array( 'settings' => false, 'hosts' => true, 'delete_convergence' => false );
-$stage_delete = static function ( array $item, array $input, array $queue, $token, $can = null, $update = null, $adapter_arg = null ) use ( $topic, $course, $allow, $adapter, $now, $sync_read, $sync_update, $sync_affected ) {
+$stage_delete = static function ( array $item, array $input, array $queue, $token, $can = null, $update = null, $adapter_arg = null, $linked = true, $local = null ) use ( $topic, $course, $allow, $adapter, $now, $sync_read, $sync_update, $sync_affected ) {
 	TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 	TutorPress_Live_Lessons_Adapter_Fake::$queue = $queue;
-	return TutorPress_Live_Lesson_Sync_Orchestrator::stage_delete( $item, $topic, $course, null === $can ? $allow : $can, $input, null === $adapter_arg ? $adapter : $adapter_arg, $now, $token, $sync_read, null === $update ? $sync_update : $update, $sync_affected );
+	return TutorPress_Live_Lesson_Sync_Orchestrator::stage_delete( $item, $topic, $course, null === $can ? $allow : $can, $input, null === $adapter_arg ? $adapter : $adapter_arg, $now, $token, $sync_read, null === $update ? $sync_update : $update, $sync_affected, $linked, $local );
 };
 $pass11b2_item  = $plant( 'tutor-google-meet', $error_bytes );
 $pass11b2_saved = $stage_delete( $pass11b2_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'delete' => array( true ) ), 'token-pass11b2-delete' );
@@ -604,6 +604,133 @@ $broad_delete_item = $plant( 'tutor-google-meet', $google_bytes );
 $broad_delete = $stage_delete( $broad_delete_item, $google_input, array( 'capabilities' => array( $google_caps ) ), 'token-delete-broad', $broad );
 tutorpress_live_lessons_assert( null === $bare_saved && array( 'capabilities' ) === $bare_methods && null === $zoom_delete_saved && array( 'capabilities' ) === $zoom_delete_methods && null === $broad_delete && array() === $methods() && $zoom_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_delete_item['ID'], '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $bare_item['ID'] ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_delete_item['ID'] ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $broad_delete_item['ID'] ] ) && $zoom_delete_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $zoom_delete_item['ID'] ] ), 'a bare capability boolean, zoom delete_convergence false, and broad edit_posts do not lock or dispatch' );
 
+$pass12b_null_operation = $operation( 'zoom', '2026-09-21 10:00:00', '2026-09-21 12:00:00', array( 'value' => 2, 'unit' => 'hours' ), $zoom_target );
+$pass12b_error_bytes = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $envelope( 'zoom', 1, 'error', null, $pass12b_null_operation ) );
+$pass12l_local = array( 'tutor-google-meet-event-details' => '{"id":"evt-error-row"}' );
+$pass12l_item = $plant( 'tutor_zoom_meeting', $pass12b_error_bytes );
+$pass12l_id = $pass12l_item['ID'];
+$pass12l_name = 'tutorpress_live_lesson_lock_' . $pass12l_id;
+$pass12l_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12l_from = count( $GLOBALS['wpdb']->statements );
+$pass12l_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12l_saved = $stage_delete( $pass12l_item, $zoom_input, array(), 'token-pass12l', null, null, null, true, $pass12l_local );
+$pass12l_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12l_from );
+tutorpress_live_lessons_assert( is_array( $pass12l_saved ) && 'confirmed' === $pass12l_saved['dispatch_state'] && $pass12b_error_bytes === $pass12l_saved['envelope'] && $pass12l_id === $pass12l_saved['post_id'] && 'zoom' === $pass12l_saved['provider'] && 7 === $pass12l_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12l_id ] ) && array( array( $pass12l_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12l_removed ) && array() === $methods() && array() === TutorPress_Live_Lessons_Adapter_Fake::$calls && $pass12l_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12l_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12l_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12l_sql[0][0] && $pass12l_name === $pass12l_sql[0][1] && $pass12l_saved['lock'] === $pass12l_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12l_sql[0][2], 'token-pass12l' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12l_name ] ), 'an error zoom row with a null provider id deletes locally and does not read the meeting id' );
+
+$pass12l_live_item = $plant( 'tutor_zoom_meeting', $pass12b_error_bytes );
+$pass12l_live_id = $pass12l_live_item['ID'];
+$pass12l_live_name = 'tutorpress_live_lesson_lock_' . $pass12l_live_id;
+$pass12l_live_bytes = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12l_live_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12l_live_from = count( $GLOBALS['wpdb']->statements );
+$pass12l_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12l_live_name ] = $pass12l_live_bytes;
+$pass12l_live_saved = $stage_delete( $pass12l_live_item, $zoom_input, array(), 'token-pass12l-live', null, null, null, true, $pass12l_local );
+tutorpress_live_lessons_assert( null === $pass12l_live_saved && $pass12l_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12l_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12l_live_id ] ) && $pass12b_error_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12l_live_id, '_tutorpress_live_lesson_sync' ) && $pass12l_live_from === count( $GLOBALS['wpdb']->statements ) && $pass12l_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12l_live_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array() === $methods(), 'a live lock on an error zoom row with a null provider id returns before the post delete and leaves the post and the planted option' );
+
+$pass12b_synced_bytes   = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $envelope( 'zoom', 1, 'synced', null, $pass12b_null_operation ) );
+$pass12b_synced_item    = $plant( 'tutor_zoom_meeting', $pass12b_synced_bytes );
+$pass12b_synced_id      = $pass12b_synced_item['ID'];
+$pass12b_synced_name    = 'tutorpress_live_lesson_lock_' . $pass12b_synced_id;
+$pass12b_synced_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12b_synced_from    = count( $GLOBALS['wpdb']->statements );
+$pass12b_synced_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12b_synced_saved   = $stage_delete( $pass12b_synced_item, $zoom_input, array(), 'token-pass12b-synced' );
+$pass12b_synced_sql     = array_slice( $GLOBALS['wpdb']->statements, $pass12b_synced_from );
+$pass12b_synced_row     = is_array( $pass12b_synced_saved ) ? json_decode( (string) $pass12b_synced_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass12b_synced_saved ) && 'confirmed' === $pass12b_synced_saved['dispatch_state'] && $pass12b_synced_bytes === $pass12b_synced_saved['envelope'] && $pass12b_synced_id === $pass12b_synced_saved['post_id'] && 'zoom' === $pass12b_synced_saved['provider'] && 7 === $pass12b_synced_saved['course_id'] && is_array( $pass12b_synced_row ) && null === $pass12b_synced_row['provider_id'] && 'evt-stored' === $pass12b_synced_row['operation']['provider_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12b_synced_id ] ) && array( array( $pass12b_synced_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12b_synced_removed ) && array() === $methods() && $pass12b_synced_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12b_synced_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12b_synced_sql[0][0] && $pass12b_synced_name === $pass12b_synced_sql[0][1] && $pass12b_synced_saved['lock'] === $pass12b_synced_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12b_synced_sql[0][2], 'token-pass12b-synced' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12b_synced_name ] ), 'a synced zoom row with a null provider id force-deletes and releases the lock once' );
+
+$pass12b_fail_bytes   = $pass12b_synced_bytes;
+$pass12b_fail_item    = $plant( 'tutor_zoom_meeting', $pass12b_fail_bytes );
+$pass12b_fail_id      = $pass12b_fail_item['ID'];
+$pass12b_fail_name    = 'tutorpress_live_lesson_lock_' . $pass12b_fail_id;
+$pass12b_fail_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12b_fail_from    = count( $GLOBALS['wpdb']->statements );
+$pass12b_fail_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12b_fail_id ] = true;
+$pass12b_fail_saved = $stage_delete( $pass12b_fail_item, $zoom_input, array(), 'token-pass12b-fail' );
+unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12b_fail_id ] );
+$pass12b_fail_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12b_fail_from );
+tutorpress_live_lessons_assert( null === $pass12b_fail_saved && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12b_fail_id ] ) && $pass12b_fail_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12b_fail_id, '_tutorpress_live_lesson_sync' ) && array( array( $pass12b_fail_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12b_fail_removed ) && array() === $methods() && $pass12b_fail_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12b_fail_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12b_fail_sql[0][0] && $pass12b_fail_name === $pass12b_fail_sql[0][1] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12b_fail_sql[0][2], 'token-pass12b-fail' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12b_fail_name ] ), 'a failed force delete releases once and leaves the original sync bytes' );
+
+$pass12b_live_item    = $plant( 'tutor_zoom_meeting', $pass12b_synced_bytes );
+$pass12b_live_id      = $pass12b_live_item['ID'];
+$pass12b_live_name    = 'tutorpress_live_lesson_lock_' . $pass12b_live_id;
+$pass12b_live_bytes   = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12b_live_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12b_live_from    = count( $GLOBALS['wpdb']->statements );
+$pass12b_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12b_live_name ] = $pass12b_live_bytes;
+$pass12b_live_saved = $stage_delete( $pass12b_live_item, $zoom_input, array(), 'token-pass12b-live' );
+tutorpress_live_lessons_assert( null === $pass12b_live_saved && $pass12b_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12b_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12b_live_id ] ) && $pass12b_synced_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12b_live_id, '_tutorpress_live_lesson_sync' ) && $pass12b_live_from === count( $GLOBALS['wpdb']->statements ) && $pass12b_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12b_live_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array() === $methods(), 'a live lock on a synced null-id row returns before the post delete and leaves the planted option' );
+
+$pass12c_zoom_item    = $plant( 'tutor_zoom_meeting', $zoom_bytes );
+$pass12c_zoom_id      = $pass12c_zoom_item['ID'];
+$pass12c_zoom_name    = 'tutorpress_live_lesson_lock_' . $pass12c_zoom_id;
+$pass12c_zoom_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12c_zoom_from    = count( $GLOBALS['wpdb']->statements );
+$pass12c_zoom_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12c_zoom_saved   = $stage_delete( $pass12c_zoom_item, $zoom_input, array(), 'token-pass12c-zoom', null, null, null, false );
+$pass12c_zoom_sql     = array_slice( $GLOBALS['wpdb']->statements, $pass12c_zoom_from );
+$pass12c_zoom_row     = is_array( $pass12c_zoom_saved ) ? json_decode( (string) $pass12c_zoom_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass12c_zoom_saved ) && 'confirmed' === $pass12c_zoom_saved['dispatch_state'] && $zoom_bytes === $pass12c_zoom_saved['envelope'] && $pass12c_zoom_id === $pass12c_zoom_saved['post_id'] && 'zoom' === $pass12c_zoom_saved['provider'] && 7 === $pass12c_zoom_saved['course_id'] && is_array( $pass12c_zoom_row ) && 'evt-stored' === $pass12c_zoom_row['provider_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12c_zoom_id ] ) && array( array( $pass12c_zoom_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12c_zoom_removed ) && array() === $methods() && $pass12c_zoom_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12c_zoom_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12c_zoom_sql[0][0] && $pass12c_zoom_name === $pass12c_zoom_sql[0][1] && $pass12c_zoom_saved['lock'] === $pass12c_zoom_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12c_zoom_sql[0][2], 'token-pass12c-zoom' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_zoom_name ] ), 'an unlinked synced zoom row with a stored id force-deletes without a provider call' );
+
+$pass12c_google_item    = $plant( 'tutor-google-meet', $google_bytes );
+$pass12c_google_id      = $pass12c_google_item['ID'];
+$pass12c_google_name    = 'tutorpress_live_lesson_lock_' . $pass12c_google_id;
+$pass12c_google_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12c_google_from    = count( $GLOBALS['wpdb']->statements );
+$pass12c_google_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12c_google_saved   = $stage_delete( $pass12c_google_item, $google_input, array(), 'token-pass12c-google', null, null, null, false );
+$pass12c_google_sql     = array_slice( $GLOBALS['wpdb']->statements, $pass12c_google_from );
+$pass12c_google_row     = is_array( $pass12c_google_saved ) ? json_decode( (string) $pass12c_google_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass12c_google_saved ) && 'confirmed' === $pass12c_google_saved['dispatch_state'] && $google_bytes === $pass12c_google_saved['envelope'] && $pass12c_google_id === $pass12c_google_saved['post_id'] && 'google_meet' === $pass12c_google_saved['provider'] && 7 === $pass12c_google_saved['course_id'] && is_array( $pass12c_google_row ) && 'evt-stored' === $pass12c_google_row['provider_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12c_google_id ] ) && array( array( $pass12c_google_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12c_google_removed ) && array() === $methods() && $pass12c_google_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12c_google_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12c_google_sql[0][0] && $pass12c_google_name === $pass12c_google_sql[0][1] && $pass12c_google_saved['lock'] === $pass12c_google_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12c_google_sql[0][2], 'token-pass12c-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_google_name ] ), 'an unlinked synced google row with a stored id force-deletes without a provider call' );
+
+$pass12c_live_item    = $plant( 'tutor_zoom_meeting', $zoom_bytes );
+$pass12c_live_id      = $pass12c_live_item['ID'];
+$pass12c_live_name    = 'tutorpress_live_lesson_lock_' . $pass12c_live_id;
+$pass12c_live_bytes   = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12c_live_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12c_live_from    = count( $GLOBALS['wpdb']->statements );
+$pass12c_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_live_name ] = $pass12c_live_bytes;
+$pass12c_live_saved = $stage_delete( $pass12c_live_item, $zoom_input, array(), 'token-pass12c-live', null, null, null, false );
+tutorpress_live_lessons_assert( null === $pass12c_live_saved && $pass12c_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12c_live_id ] ) && $zoom_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12c_live_id, '_tutorpress_live_lesson_sync' ) && $pass12c_live_from === count( $GLOBALS['wpdb']->statements ) && $pass12c_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12c_live_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array() === $methods(), 'a live lock on an unlinked synced zoom row returns before the post delete and leaves the planted option' );
+
+$pass12c_fail_item    = $plant( 'tutor-google-meet', $google_bytes );
+$pass12c_fail_id      = $pass12c_fail_item['ID'];
+$pass12c_fail_name    = 'tutorpress_live_lesson_lock_' . $pass12c_fail_id;
+$pass12c_fail_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12c_fail_from    = count( $GLOBALS['wpdb']->statements );
+$pass12c_fail_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12c_fail_id ] = true;
+$pass12c_fail_saved = $stage_delete( $pass12c_fail_item, $google_input, array(), 'token-pass12c-fail', null, null, null, false );
+unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12c_fail_id ] );
+$pass12c_fail_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12c_fail_from );
+tutorpress_live_lessons_assert( null === $pass12c_fail_saved && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12c_fail_id ] ) && $google_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12c_fail_id, '_tutorpress_live_lesson_sync' ) && array( array( $pass12c_fail_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12c_fail_removed ) && array() === $methods() && $pass12c_fail_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12c_fail_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12c_fail_sql[0][0] && $pass12c_fail_name === $pass12c_fail_sql[0][1] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12c_fail_sql[0][2], 'token-pass12c-fail' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_fail_name ] ), 'a failed unlinked google delete releases once and leaves the original sync bytes' );
+
+$pass12l_false_item = $plant( 'tutor_zoom_meeting', $pass12b_error_bytes );
+$pass12l_false_id = $pass12l_false_item['ID'];
+$pass12l_false_name = 'tutorpress_live_lesson_lock_' . $pass12l_false_id;
+$pass12l_false_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12l_false_from = count( $GLOBALS['wpdb']->statements );
+$pass12l_false_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12l_false_saved = $stage_delete( $pass12l_false_item, $zoom_input, array(), 'token-pass12l-false', null, null, null, false, $pass12l_local );
+$pass12l_false_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12l_false_from );
+tutorpress_live_lessons_assert( is_array( $pass12l_false_saved ) && 'confirmed' === $pass12l_false_saved['dispatch_state'] && $pass12b_error_bytes === $pass12l_false_saved['envelope'] && $pass12l_false_id === $pass12l_false_saved['post_id'] && 'zoom' === $pass12l_false_saved['provider'] && 7 === $pass12l_false_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12l_false_id ] ) && array( array( $pass12l_false_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12l_false_removed ) && array() === $methods() && array() === TutorPress_Live_Lessons_Adapter_Fake::$calls && $pass12l_false_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12l_false_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12l_false_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12l_false_sql[0][0] && $pass12l_false_name === $pass12l_false_sql[0][1] && $pass12l_false_saved['lock'] === $pass12l_false_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12l_false_sql[0][2], 'token-pass12l-false' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12l_false_name ] ), 'an error zoom row with a null provider id still deletes locally when the flag is false' );
+
+$pass12c_pending_bytes = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $envelope( 'zoom', 1, 'pending', 'evt-stored', $operation( 'zoom', '2026-09-21 10:00:00', '2026-09-21 12:00:00', array( 'value' => 2, 'unit' => 'hours' ), $zoom_target ) ) );
+$pass12c_pending_item  = $plant( 'tutor_zoom_meeting', $pass12c_pending_bytes );
+$pass12c_pending_id    = $pass12c_pending_item['ID'];
+$pass12c_pending_name  = 'tutorpress_live_lesson_lock_' . $pass12c_pending_id;
+$pass12c_pending_lock  = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12c_pending_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12c_pending_from  = count( $GLOBALS['wpdb']->statements );
+$pass12c_pending_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_pending_name ] = $pass12c_pending_lock;
+$pass12c_pending_saved = $stage_delete( $pass12c_pending_item, $zoom_input, array( 'capabilities' => array( $zoom_caps ) ), 'token-pass12c-pending', null, null, null, false );
+tutorpress_live_lessons_assert( null === $pass12c_pending_saved && array( 'capabilities' ) === $methods() && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12c_pending_id ] ) && $pass12c_pending_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12c_pending_id, '_tutorpress_live_lesson_sync' ) && $pass12c_pending_lock === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12c_pending_name ] && $pass12c_pending_from === count( $GLOBALS['wpdb']->statements ) && $pass12c_pending_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12c_pending_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a pending zoom row with a live lock and a stored id reaches capabilities and leaves the post and the planted option' );
+
 $preflight_delete_item = $plant( 'tutor-google-meet', $google_bytes );
 $preflight_delete_saved = $stage_delete( $preflight_delete_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( false ) ), 'token-delete-preflight' );
 tutorpress_live_lessons_assert( null === $preflight_delete_saved && array( 'capabilities', 'preflight' ) === $methods() && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $preflight_delete_item['ID'] ] ) && $google_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $preflight_delete_item['ID'], '_tutorpress_live_lesson_sync' ), 'a failed delete preflight returns null before the lock' );
@@ -680,6 +807,117 @@ $forged_delete_row = is_array( $forged_delete_saved ) ? json_decode( $forged_del
 tutorpress_live_lessons_assert( is_array( $forged_delete_row ) && 6 === $forged_delete_row['version'] && 'error' === $forged_delete_row['state'] && true === $forged_delete_row['reconciliation_required'] && 'evt-stored' === $forged_delete_row['provider_id'] && 'evt-stored' === $forged_delete_row['operation']['provider_id'] && $planted_row === $publish_row( $forged_delete_id ) && $forged_delete_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && false === strpos( json_encode( $forged_delete_row ), 'evt-evil' ), 'a confirmed delete with a different provider id keeps the stored id and the publish post' );
 
 $zoom_open = array( 'settings' => false, 'hosts' => true, 'delete_convergence' => true );
+$pass12d_google_local = array( 'tutor-google-meet-start-datetime' => '2026-09-21 10:00:17', 'tutor-google-meet-end-datetime' => '2026-09-21 11:00:17' );
+$pass12d_google_hydrate = array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 11:00:00', 'timezone' => 'America/New_York', 'provider_id' => 'evt-tutor' );
+$pass12d_google_item = $plant( 'tutor-google-meet', null );
+$pass12d_google_id = $pass12d_google_item['ID'];
+$pass12d_google_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12d_google_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12d_google_saved = $stage_delete( $pass12d_google_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'hydrate_item' => array( $pass12d_google_hydrate, array( 'status' => '', 'transparency' => '', 'visibility' => '', 'reminder_minutes' => null ) ), 'settings' => array( null ), 'delete' => array( $delete_result( 'confirmed', 'evt-tutor' ) ) ), 'token-pass12d-google', null, null, null, true, $pass12d_google_local );
+$pass12d_google_row = is_array( $pass12d_google_saved ) ? json_decode( (string) $pass12d_google_saved['envelope'], true ) : null;
+$pass12d_google_new_hooks = array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $pass12d_google_hooks ) );
+tutorpress_live_lessons_assert( is_array( $pass12d_google_saved ) && 'confirmed' === $pass12d_google_saved['dispatch_state'] && is_array( $pass12d_google_row ) && 3 === $pass12d_google_row['version'] && 'evt-tutor' === $pass12d_google_row['provider_id'] && 'delete' === $pass12d_google_row['operation']['kind'] && 1 === $pass12d_google_row['operation']['base_version'] && '2026-09-21 10:00:00' === $pass12d_google_row['operation']['start_local'] && '2026-09-21 11:00:00' === $pass12d_google_row['operation']['end_local'] && 'America/New_York' === $pass12d_google_row['operation']['timezone'] && array( 'unit' => 'minutes', 'value' => 60 ) === $pass12d_google_row['operation']['duration'] && $google_blank === $pass12d_google_row['operation']['provider_target'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_google_id ] ) && array( array( $pass12d_google_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12d_google_removed ) && array( array( 'tutorpress_live_lesson_deleted', array( $pass12d_google_id, array( 'id' => $pass12d_google_id, 'title' => 'Copied', 'type' => 'google_meet', 'topicId' => 8 ) ) ) ) === $pass12d_google_new_hooks && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass12d_google_local ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => '' ) ) ), array( 'settings', array( 'owner_id' => 11 ) ), array( 'delete', array( 'owner_id' => 11, 'provider_id' => 'evt-tutor' ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a google lesson with no sync row adopts its meeting id and the confirmed delete removes the post' );
+
+$pass12d_zoom_local = array( '_tutor_zm_data' => '{"id":"evt-tutor"}' );
+$pass12d_zoom_stopped_item = $plant( 'tutor_zoom_meeting', null );
+$pass12d_zoom_stopped_saved = $stage_delete( $pass12d_zoom_stopped_item, $zoom_input, array( 'capabilities' => array( $zoom_caps ) ), 'token-pass12d-zoom-stopped', null, null, null, true, $pass12d_zoom_local );
+tutorpress_live_lessons_assert( null === $pass12d_zoom_stopped_saved && array( 'capabilities' ) === $methods() && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12d_zoom_stopped_item['ID'], '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_zoom_stopped_item['ID'] ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $pass12d_zoom_stopped_item['ID'] ] ), 'a zoom lesson with no sync row stops at the false capability and writes no seed' );
+
+$pass12d_zoom_hydrate = array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 12:00:00', 'timezone' => 'America/New_York', 'provider_id' => 'evt-tutor', 'host_id' => 'host-1', 'duration' => array( 'value' => 2, 'unit' => 'hours' ) );
+$pass12d_zoom_item = $plant( 'tutor_zoom_meeting', null );
+$pass12d_zoom_id = $pass12d_zoom_item['ID'];
+$pass12d_zoom_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12d_zoom_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12d_zoom_saved = $stage_delete( $pass12d_zoom_item, $zoom_input, array( 'capabilities' => array( $zoom_open ), 'preflight' => array( true ), 'hydrate_item' => array( $pass12d_zoom_hydrate ), 'delete' => array( $delete_result( 'confirmed', 'evt-tutor' ) ) ), 'token-pass12d-zoom', null, null, null, true, $pass12d_zoom_local );
+$pass12d_zoom_row = is_array( $pass12d_zoom_saved ) ? json_decode( (string) $pass12d_zoom_saved['envelope'], true ) : null;
+$pass12d_zoom_new_hooks = array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $pass12d_zoom_hooks ) );
+tutorpress_live_lessons_assert( is_array( $pass12d_zoom_saved ) && 'confirmed' === $pass12d_zoom_saved['dispatch_state'] && is_array( $pass12d_zoom_row ) && 3 === $pass12d_zoom_row['version'] && 'evt-tutor' === $pass12d_zoom_row['provider_id'] && 1 === $pass12d_zoom_row['operation']['base_version'] && '2026-09-21 12:00:00' === $pass12d_zoom_row['operation']['end_local'] && array( 'unit' => 'hours', 'value' => 2 ) === $pass12d_zoom_row['operation']['duration'] && $zoom_owner_target === $pass12d_zoom_row['operation']['provider_target'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_zoom_id ] ) && array( array( $pass12d_zoom_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12d_zoom_removed ) && array( array( 'tutorpress_live_lesson_deleted', array( $pass12d_zoom_id, array( 'id' => $pass12d_zoom_id, 'title' => 'Copied', 'type' => 'zoom', 'topicId' => 8 ) ) ) ) === $pass12d_zoom_new_hooks && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 42 ) ), array( 'hydrate_item', array( 'target' => $pass12d_zoom_local ) ), array( 'delete', array( 'owner_id' => 42, 'provider_id' => 'evt-tutor' ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a zoom lesson with no sync row adopts its meeting id when delete convergence is queued true' );
+
+$pass12d_live_item = $plant( 'tutor-google-meet', null );
+$pass12d_live_id = $pass12d_live_item['ID'];
+$pass12d_live_name = 'tutorpress_live_lesson_lock_' . $pass12d_live_id;
+$pass12d_live_bytes = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12d_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12d_live_name ] = $pass12d_live_bytes;
+$pass12d_live_saved = $stage_delete( $pass12d_live_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'hydrate_item' => array( $pass12d_google_hydrate, array( 'status' => '', 'transparency' => '', 'visibility' => '', 'reminder_minutes' => null ) ), 'settings' => array( null ) ), 'token-pass12d-live', null, null, null, true, $pass12d_google_local );
+tutorpress_live_lessons_assert( null === $pass12d_live_saved && $pass12d_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12d_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_live_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12d_live_id, '_tutorpress_live_lesson_sync' ) && $pass12d_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass12d_google_local ) ), array( 'hydrate_item', array( 'target' => array( 'tutor-google-meet-event-details' => '' ) ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a live lock on a lesson with no sync row returns before the seed and leaves the post' );
+
+$pass12e_item    = $plant( 'tutor-google-meet', null );
+$pass12e_id      = $pass12e_item['ID'];
+$pass12e_name    = 'tutorpress_live_lesson_lock_' . $pass12e_id;
+$pass12e_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12e_from    = count( $GLOBALS['wpdb']->statements );
+$pass12e_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12e_saved   = $stage_delete( $pass12e_item, $google_input, array(), 'token-pass12e', null, null, null, false, $pass12d_google_local );
+$pass12e_sql     = array_slice( $GLOBALS['wpdb']->statements, $pass12e_from );
+tutorpress_live_lessons_assert( is_array( $pass12e_saved ) && 'confirmed' === $pass12e_saved['dispatch_state'] && null === $pass12e_saved['envelope'] && $pass12e_id === $pass12e_saved['post_id'] && 'google_meet' === $pass12e_saved['provider'] && 7 === $pass12e_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12e_id ] ) && array( array( $pass12e_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12e_removed ) && array() === $methods() && $pass12e_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12e_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12e_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12e_sql[0][0] && $pass12e_name === $pass12e_sql[0][1] && $pass12e_saved['lock'] === $pass12e_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12e_sql[0][2], 'token-pass12e' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12e_name ] ), 'an unlinked lesson with no sync row force-deletes before capabilities and writes no seed' );
+
+$pass12e_live_item    = $plant( 'tutor-google-meet', null );
+$pass12e_live_id      = $pass12e_live_item['ID'];
+$pass12e_live_name    = 'tutorpress_live_lesson_lock_' . $pass12e_live_id;
+$pass12e_live_bytes   = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12e_live_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12e_live_from    = count( $GLOBALS['wpdb']->statements );
+$pass12e_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12e_live_name ] = $pass12e_live_bytes;
+$pass12e_live_saved = $stage_delete( $pass12e_live_item, $google_input, array(), 'token-pass12e-live', null, null, null, false, $pass12d_google_local );
+tutorpress_live_lessons_assert( null === $pass12e_live_saved && $pass12e_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12e_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12e_live_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12e_live_id, '_tutorpress_live_lesson_sync' ) && $pass12e_live_from === count( $GLOBALS['wpdb']->statements ) && $pass12e_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12e_live_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array() === $methods(), 'a live lock on an unlinked lesson with no sync row returns before the post delete and leaves the planted option' );
+
+$pass12e_fail_item    = $plant( 'tutor-google-meet', null );
+$pass12e_fail_id      = $pass12e_fail_item['ID'];
+$pass12e_fail_name    = 'tutorpress_live_lesson_lock_' . $pass12e_fail_id;
+$pass12e_fail_hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12e_fail_from    = count( $GLOBALS['wpdb']->statements );
+$pass12e_fail_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12e_fail_id ] = true;
+$pass12e_fail_saved = $stage_delete( $pass12e_fail_item, $google_input, array(), 'token-pass12e-fail', null, null, null, false, $pass12d_google_local );
+unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $pass12e_fail_id ] );
+$pass12e_fail_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12e_fail_from );
+tutorpress_live_lessons_assert( null === $pass12e_fail_saved && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12e_fail_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12e_fail_id, '_tutorpress_live_lesson_sync' ) && array( array( $pass12e_fail_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12e_fail_removed ) && array() === $methods() && $pass12e_fail_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && 1 === count( $pass12e_fail_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12e_fail_sql[0][0] && $pass12e_fail_name === $pass12e_fail_sql[0][1] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12e_fail_sql[0][2], 'token-pass12e-fail' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12e_fail_name ] ), 'a failed delete of an unlinked lesson with no sync row releases once and leaves the post' );
+
+$pass12f_local = array( 'blob' => 'meta' );
+$pass12f_google_item = $plant( 'tutor-google-meet', null );
+$pass12f_google_id = $pass12f_google_item['ID'];
+$pass12f_google_name = 'tutorpress_live_lesson_lock_' . $pass12f_google_id;
+$pass12f_google_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12f_google_from = count( $GLOBALS['wpdb']->statements );
+$pass12f_google_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12f_google_saved = $stage_delete( $pass12f_google_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'hydrate_item' => array( null ) ), 'token-pass12f-google', null, null, null, true, $pass12f_local );
+$pass12f_google_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12f_google_from );
+tutorpress_live_lessons_assert( is_array( $pass12f_google_saved ) && 'confirmed' === $pass12f_google_saved['dispatch_state'] && null === $pass12f_google_saved['envelope'] && $pass12f_google_id === $pass12f_google_saved['post_id'] && 'google_meet' === $pass12f_google_saved['provider'] && 7 === $pass12f_google_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12f_google_id ] ) && array( array( $pass12f_google_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12f_google_removed ) && $pass12f_google_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12f_google_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12f_google_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12f_google_sql[0][0] && $pass12f_google_name === $pass12f_google_sql[0][1] && $pass12f_google_saved['lock'] === $pass12f_google_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12f_google_sql[0][2], 'token-pass12f-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12f_google_name ] ) && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass12f_local ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a lesson with no sync row deletes locally when its meeting details are not an array' );
+
+$pass12f_zoom_item = $plant( 'tutor_zoom_meeting', null );
+$pass12f_zoom_id = $pass12f_zoom_item['ID'];
+$pass12f_zoom_name = 'tutorpress_live_lesson_lock_' . $pass12f_zoom_id;
+$pass12f_zoom_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12f_zoom_from = count( $GLOBALS['wpdb']->statements );
+$pass12f_zoom_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12f_zoom_saved = $stage_delete( $pass12f_zoom_item, $zoom_input, array( 'capabilities' => array( $zoom_open ), 'preflight' => array( true ), 'hydrate_item' => array( array( 'provider_id' => '', 'host_id' => '' ) ) ), 'token-pass12f-zoom', null, null, null, true, $pass12f_local );
+$pass12f_zoom_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12f_zoom_from );
+tutorpress_live_lessons_assert( is_array( $pass12f_zoom_saved ) && 'confirmed' === $pass12f_zoom_saved['dispatch_state'] && null === $pass12f_zoom_saved['envelope'] && $pass12f_zoom_id === $pass12f_zoom_saved['post_id'] && 'zoom' === $pass12f_zoom_saved['provider'] && 7 === $pass12f_zoom_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12f_zoom_id ] ) && array( array( $pass12f_zoom_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12f_zoom_removed ) && $pass12f_zoom_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12f_zoom_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12f_zoom_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12f_zoom_sql[0][0] && $pass12f_zoom_name === $pass12f_zoom_sql[0][1] && $pass12f_zoom_saved['lock'] === $pass12f_zoom_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12f_zoom_sql[0][2], 'token-pass12f-zoom' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12f_zoom_name ] ) && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 42 ) ), array( 'hydrate_item', array( 'target' => $pass12f_local ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a zoom lesson with an empty meeting id and an empty host id deletes locally' );
+
+$pass12f_host_item = $plant( 'tutor_zoom_meeting', null );
+$pass12f_host_id = $pass12f_host_item['ID'];
+$pass12f_host_name = 'tutorpress_live_lesson_lock_' . $pass12f_host_id;
+$pass12f_host_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12f_host_from = count( $GLOBALS['wpdb']->statements );
+$pass12f_host_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12f_host_saved = $stage_delete( $pass12f_host_item, $zoom_input, array( 'capabilities' => array( $zoom_open ), 'preflight' => array( true ), 'hydrate_item' => array( array( 'provider_id' => 'evt-tutor', 'host_id' => '' ) ) ), 'token-pass12f-host', null, null, null, true, $pass12f_local );
+tutorpress_live_lessons_assert( null === $pass12f_host_saved && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12f_host_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12f_host_id, '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12f_host_name ] ) && $pass12f_host_from === count( $GLOBALS['wpdb']->statements ) && $pass12f_host_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12f_host_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 42 ) ), array( 'hydrate_item', array( 'target' => $pass12f_local ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a zoom lesson with a meeting id and an empty host id returns before the lock and writes no seed' );
+
+$pass12g_bytes = TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $envelope( 'google_meet', 3, 'synced', 'evt-stored', $operation( 'google_meet', '2026-09-21 09:00:00', '2026-09-21 09:30:00', array( 'value' => 30, 'unit' => 'minutes' ), $google_target ) ) );
+$pass12g_local = array( 'tutor-google-meet-start-datetime' => '2026-09-21 10:00:17' );
+$pass12g_hydrate = array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 11:00:00', 'timezone' => 'UTC', 'duration' => array( 'value' => 60, 'unit' => 'minutes' ), 'provider_id' => 'evt-other' );
+$pass12g_item = $plant( 'tutor-google-meet', $pass12g_bytes );
+$pass12g_saved = $stage_delete( $pass12g_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'hydrate_item' => array( $pass12g_hydrate ), 'delete' => array( $delete_result( 'confirmed' ) ) ), 'token-pass12g', null, null, null, true, $pass12g_local );
+$pass12g_row = is_array( $pass12g_saved ) ? json_decode( (string) $pass12g_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass12g_row ) && '2026-09-21 10:00:00' === $pass12g_row['operation']['start_local'] && '2026-09-21 11:00:00' === $pass12g_row['operation']['end_local'] && 'UTC' === $pass12g_row['operation']['timezone'] && array( 'unit' => 'minutes', 'value' => 60 ) === $pass12g_row['operation']['duration'] && $google_target === $pass12g_row['operation']['provider_target'] && 'evt-stored' === $pass12g_row['provider_id'] && 'evt-stored' === $pass12g_row['operation']['provider_id'] && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass12g_local ) ), array( 'delete', array( 'owner_id' => 11, 'provider_id' => 'evt-stored' ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a stored delete copies the hydrated schedule and removes the stored meeting id' );
+
+$pass12g_plain_item = $plant( 'tutor-google-meet', $pass12g_bytes );
+$pass12g_plain_saved = $stage_delete( $pass12g_plain_item, $google_input, array( 'capabilities' => array( $google_caps ), 'preflight' => array( true ), 'hydrate_item' => array( null ), 'delete' => array( $delete_result( 'confirmed' ) ) ), 'token-pass12g-plain', null, null, null, true, $pass12g_local );
+$pass12g_plain_row = is_array( $pass12g_plain_saved ) ? json_decode( (string) $pass12g_plain_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass12g_plain_row ) && '2026-09-21 09:00:00' === $pass12g_plain_row['operation']['start_local'] && '2026-09-21 09:30:00' === $pass12g_plain_row['operation']['end_local'] && 'America/New_York' === $pass12g_plain_row['operation']['timezone'] && array( 'unit' => 'minutes', 'value' => 30 ) === $pass12g_plain_row['operation']['duration'] && $google_target === $pass12g_plain_row['operation']['provider_target'] && 'evt-stored' === $pass12g_plain_row['operation']['provider_id'] && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 11 ) ), array( 'hydrate_item', array( 'target' => $pass12g_local ) ), array( 'delete', array( 'owner_id' => 11, 'provider_id' => 'evt-stored' ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a non-array hydrate leaves the stored delete schedule in place' );
+
 $zoom_absent = $plant( 'tutor_zoom_meeting', $zoom_bytes );
 $zoom_absent_id = $zoom_absent['ID'];
 $zoom_absent_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
@@ -803,6 +1041,38 @@ $known_miss_names = array();
 foreach ( $known_miss_new as $known_miss_call ) { $known_miss_names[] = $known_miss_call[0]; }
 $known_miss_payload = isset( $known_miss_new[0][1][1] ) && is_array( $known_miss_new[0][1][1] ) ? $known_miss_new[0][1][1] : array();
 tutorpress_live_lessons_assert( is_array( $known_miss_saved ) && 'confirmed' === $known_miss_saved['dispatch_state'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $known_miss_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $known_miss_id, '_tutorpress_live_lesson_sync' ) && array( array( 'tutorpress_live_lesson_deleted', array( $known_miss_id, array( 'id' => $known_miss_id, 'title' => 'Copied', 'type' => 'google_meet', 'topicId' => 8 ) ) ) ) === $known_miss_new && array( 'tutorpress_live_lesson_deleted' ) === $known_miss_names && array( 'id', 'title', 'type', 'topicId' ) === array_keys( $known_miss_payload ) && ! array_key_exists( 'provider_id', $known_miss_payload ) && 'Copied' === $known_miss_payload['title'] && false === strpos( json_encode( $known_miss_new ), 'evt-stored' ) && false === strpos( json_encode( $known_miss_new ), $secret ) && false === strpos( (string) $known_miss_saved['envelope'], $secret ), 'a google known-id 404 removes the post, fires the delete hook, and leaves no publish error row' );
+
+$pass12j_item = $plant( 'tutor_zoom_meeting', $zoom_bytes );
+$pass12j_id = $pass12j_item['ID'];
+$pass12j_from = count( $GLOBALS['wpdb']->statements );
+$pass12j_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12j_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12j_saved = $stage_delete( $pass12j_item, $zoom_input, array( 'capabilities' => array( $zoom_open ), 'preflight' => array( true ), 'delete' => array( $delete_result( 'confirmed' ) ) ), 'token-pass12j-zoom' );
+$pass12j_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12j_from );
+$pass12j_new_hooks = array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $pass12j_hooks ) );
+tutorpress_live_lessons_assert( is_array( $pass12j_saved ) && 'confirmed' === $pass12j_saved['dispatch_state'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12j_id ] ) && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12j_id, '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $pass12j_id ] ) && array( array( $pass12j_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12j_removed ) && 1 === count( $pass12j_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12j_sql[0][0] && 'tutorpress_live_lesson_lock_' . $pass12j_id === $pass12j_sql[0][1] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12j_sql[0][2], 'token-pass12j-zoom' ) && array( array( 'tutorpress_live_lesson_deleted', array( $pass12j_id, array( 'id' => $pass12j_id, 'title' => 'Copied', 'type' => 'zoom', 'topicId' => 8 ) ) ) ) === $pass12j_new_hooks && array( array( 'capabilities', array() ), array( 'preflight', array( 'owner_id' => 42 ) ), array( 'delete', array( 'owner_id' => 42, 'provider_id' => 'evt-stored' ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'a confirmed zoom delete of a stored meeting id removes the post' );
+
+$pass12k_local = array( 'tutor-google-meet-event-details' => '{"id":"evt-stored-unlinked"}' );
+$pass12k_item = $plant( 'tutor-google-meet', $unlinked_bytes );
+$pass12k_id = $pass12k_item['ID'];
+$pass12k_name = 'tutorpress_live_lesson_lock_' . $pass12k_id;
+$pass12k_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12k_from = count( $GLOBALS['wpdb']->statements );
+$pass12k_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12k_saved = $stage_delete( $pass12k_item, $google_input, array(), 'token-pass12k', null, null, null, true, $pass12k_local );
+$pass12k_sql = array_slice( $GLOBALS['wpdb']->statements, $pass12k_from );
+tutorpress_live_lessons_assert( is_array( $pass12k_saved ) && 'confirmed' === $pass12k_saved['dispatch_state'] && $unlinked_bytes === $pass12k_saved['envelope'] && $pass12k_id === $pass12k_saved['post_id'] && 'google_meet' === $pass12k_saved['provider'] && 7 === $pass12k_saved['course_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12k_id ] ) && array( array( $pass12k_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12k_removed ) && array() === $methods() && array() === TutorPress_Live_Lessons_Adapter_Fake::$calls && $pass12k_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12k_id, '_tutorpress_live_lesson_sync' ) && 1 === count( $pass12k_sql ) && 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)' === $pass12k_sql[0][0] && $pass12k_name === $pass12k_sql[0][1] && $pass12k_saved['lock'] === $pass12k_sql[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $pass12k_sql[0][2], 'token-pass12k' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass12k_name ] ), 'a stored unlinked envelope deletes locally and does not read the meeting id' );
+
+$pass12k_live_item = $plant( 'tutor-google-meet', $unlinked_bytes );
+$pass12k_live_id = $pass12k_live_item['ID'];
+$pass12k_live_name = 'tutorpress_live_lesson_lock_' . $pass12k_live_id;
+$pass12k_live_bytes = '{"expiry":"2026-09-21 16:05:00"}';
+$pass12k_live_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$pass12k_live_from = count( $GLOBALS['wpdb']->statements );
+$pass12k_live_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+TutorPress_Live_Lessons_Store_Fake::$options[ $pass12k_live_name ] = $pass12k_live_bytes;
+$pass12k_live_saved = $stage_delete( $pass12k_live_item, $google_input, array(), 'token-pass12k-live', null, null, null, true, $pass12k_local );
+tutorpress_live_lessons_assert( null === $pass12k_live_saved && $pass12k_live_bytes === TutorPress_Live_Lessons_Store_Fake::$options[ $pass12k_live_name ] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12k_live_id ] ) && $unlinked_bytes === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12k_live_id, '_tutorpress_live_lesson_sync' ) && $pass12k_live_from === count( $GLOBALS['wpdb']->statements ) && $pass12k_live_removed === count( TutorPress_Topic_Copy_Harness::$deletes ) && $pass12k_live_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array() === $methods(), 'a live lock on a stored unlinked envelope returns before the post delete and leaves the planted option' );
 
 $zoom_uncertain_item = $plant( 'tutor_zoom_meeting', $zoom_bytes );
 $zoom_uncertain_id = $zoom_uncertain_item['ID'];

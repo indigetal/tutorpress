@@ -44,12 +44,12 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		return true;
 	}
 
-	/** Zoom has no settings surface and cannot prove delete convergence. */
+	/** Zoom has no settings surface. */
 	public function capabilities() {
 		return array(
 			'settings'           => false,
 			'hosts'              => true,
-			'delete_convergence' => false,
+			'delete_convergence' => true,
 		);
 	}
 
@@ -223,17 +223,35 @@ class TutorPress_Zoom_Provider_Adapter implements TutorPress_Live_Lesson_Provide
 		return $this->classify_known( $fetched, $provider_id );
 	}
 
-	/** Zoom removal cannot prove convergence, so it never constructs Meetings or calls remove. */
+	/** Remove one stored Zoom meeting. A throw is uncertain, and the Meetings return is ignored. */
 	public function delete( $owner_id, $provider_id ) {
-		return TutorPress_Live_Lesson_Provider_Result::from(
-			array(
-				'outcome'     => 'pre_dispatch_failure',
-				'provider_id' => is_string( $provider_id ) && '' !== $provider_id ? $provider_id : null,
-				'item'        => null,
-				'diagnostics' => array( 'error' => 'Zoom delete is unsupported before dispatch.' ),
-				'provenance'  => 'delete',
-			)
+		$id     = is_string( $provider_id ) && '' !== $provider_id ? $provider_id : '';
+		$result = array(
+			'outcome'     => 'pre_dispatch_failure',
+			'provider_id' => null,
+			'item'        => null,
+			'diagnostics' => array(),
+			'provenance'  => 'delete',
 		);
+		if ( '' === $id ) {
+			return TutorPress_Live_Lesson_Provider_Result::from( $result );
+		}
+		$client = $this->meetings( $owner_id );
+		if ( ! is_object( $client ) ) {
+			$result['provider_id'] = $id;
+			return TutorPress_Live_Lesson_Provider_Result::from( $result );
+		}
+		try {
+			$client->remove( $id );
+		} catch ( Throwable $thrown ) {
+			unset( $thrown );
+			$result['outcome']     = 'uncertain';
+			$result['provider_id'] = $id;
+			return TutorPress_Live_Lesson_Provider_Result::from( $result );
+		}
+		$result['outcome']     = 'confirmed';
+		$result['provider_id'] = $id;
+		return TutorPress_Live_Lesson_Provider_Result::from( $result );
 	}
 
 	/** Compare a normalized result with canonical expected identity, instant, zone, and minutes. */

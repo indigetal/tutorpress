@@ -1554,7 +1554,7 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 		unset( $can );
 		return $this->stage_script;
 	}
-	protected function stage_live_delete( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected ) {
+	protected function stage_live_delete( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true, $local = null ) {
 		$this->delete_stages[] = array(
 			'item'        => isset( $item['ID'] ) ? (int) $item['ID'] : 0,
 			'item_type'   => isset( $item['post_type'] ) ? $item['post_type'] : '',
@@ -1572,6 +1572,8 @@ $controller = new class() extends TutorPress_REST_Live_Lessons_Controller {
 			'update'      => is_callable( $update ),
 			'affected'    => is_callable( $affected ),
 			'edit_posts'  => is_callable( $can ) && true === $can( 'edit_posts', isset( $course['ID'] ) ? (int) $course['ID'] : 0 ),
+			'linked'      => $linked,
+			'local'       => $local,
 		);
 		return $this->stage_script;
 	}
@@ -3145,12 +3147,13 @@ $deletes = array(
 	'bad_bytes'      => $run_delete( $delete_body( 530, 'zoom' ), true, array( 'dispatch_state' => 'confirmed', 'envelope' => 'not-json' ) ),
 	'unconfirmed'    => $run_delete( $delete_body( 528, 'google_meet' ), true, $unconfirmed_stage ),
 	'confirmed'      => $run_delete( $delete_body( 530, 'zoom' ), true, $confirmed_stage ),
+	'null_envelope'  => $run_delete( $delete_body( 530, 'zoom' ), true, array( 'dispatch_state' => 'confirmed', 'envelope' => null ) ),
 	'confirmed_envelope' => $confirmed_envelope,
 	'unconfirmed_envelope' => $unconfirmed_envelope,
 	'params'         => array( 'stage' => $stage_names, 'authorize' => array_slice( $auth_names, 0, 4 ), 'orchestrator' => $orch_names ),
 	'cascade'        => false !== strpos( $cascade_body, 'authorize( $child, $topic, $course, $can )' ) && false !== strpos( $cascade_body, '$delete( $child )' ),
 	'lifecycle'      => array( $google->lifecycle, $zoom->lifecycle ),
-	'proof'          => $delete_clean && $delete_order && $legacy_delete && $stage_names === $orch_names && array( 'item', 'topic', 'course', 'can' ) === array_slice( $auth_names, 0, 4 ),
+	'proof'          => $delete_clean && $delete_order && $legacy_delete && $stage_names === $orch_names && array( 'linked', 'local' ) === array_slice( $stage_names, -2 ) && array( 'item', 'topic', 'course', 'can' ) === array_slice( $auth_names, 0, 4 ),
 );
 $put( 640, 'topics', 'publish', 641 );
 $controller->posts[641] = $make_post(
@@ -5661,19 +5664,26 @@ $delete_once = static function ( $row, $provider, $item, $post_type ) use ( $del
 		&& true === $stage['affected']
 		&& is_string( $stage['token'] )
 		&& 32 === strlen( $stage['token'] )
-		&& array( 'zoom', $provider ) === $row['ledger']
+		&& true === $stage['linked']
+		&& null === $stage['local']
 		&& 1 === $row['bindings']
-		&& 1 === $row['adapters']
 		&& array( array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
 		&& array( array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& array() === $row['reads']
-		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
+		&& array( array( 'read', (int) $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
 		&& array() === $row['queries']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
-		&& array() === $row['metas']
 		&& true === $row['boundary']
-		&& array( 'acting_user_id', 'course_author_id', 'acting_instructor_id' ) === array_keys( $stage['input'] );
+		&& array( 'acting_user_id', 'course_author_id', 'acting_instructor_id' ) === array_keys( $stage['input'] )
+		&& ( 530 === (int) $item
+			? array( 'zoom', 'google_meet', 'google_meet' ) === $row['ledger']
+				&& 2 === $row['adapters']
+				&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ), array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) ) === $row['services']
+				&& array( array( 'meta', 530, 'tutor-google-meet-event-details' ), array( 'meta', 530, 'tutor-google-meet-start-datetime' ), array( 'meta', 530, 'tutor-google-meet-end-datetime' ), array( 'meta', 530, 'tutor-google-meet-event-details' ), array( 'meta', 530, 'tutor-google-meet-link' ) ) === $row['metas']
+			: array( 'zoom', $provider ) === $row['ledger']
+				&& 1 === $row['adapters']
+				&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
+				&& array( array( 'meta', (int) $item, '_tutor_zm_start_date' ), array( 'meta', (int) $item, '_tutor_zm_start_datetime' ), array( 'meta', (int) $item, '_tutor_zm_duration' ), array( 'meta', (int) $item, '_tutor_zm_duration_unit' ), array( 'meta', (int) $item, '_tutor_zm_for_course' ), array( 'meta', (int) $item, '_tutor_zm_for_topic' ), array( 'meta', (int) $item, '_tutor_zm_data' ) ) === $row['metas'] );
 };
 $delete_encoded = json_encode( $deletes );
 tutorpress_live_lessons_assert(
@@ -5738,12 +5748,21 @@ tutorpress_live_lessons_assert(
 		'item'        => null,
 		'diagnostics' => array(),
 		'provenance'  => 'delete',
-	) === $deletes['confirmed']['packed']['data']['data'],
+	) === $deletes['confirmed']['packed']['data']['data']
+	&& $delete_once( $deletes['null_envelope'], 'google_meet', 530, 'tutor-google-meet' )
+	&& 'Live lesson deleted successfully.' === $deletes['null_envelope']['packed']['data']['message']
+	&& array(
+		'outcome'     => 'confirmed',
+		'provider_id' => null,
+		'item'        => null,
+		'diagnostics' => array(),
+		'provenance'  => 'delete',
+	) === $deletes['null_envelope']['packed']['data']['data'],
 	'null, error, malformed, unconfirmed, and confirmed stage outcomes stay on the delete rest boundary'
 );
 tutorpress_live_lessons_assert(
 	true === $deletes['cascade']
-	&& array( 'item', 'topic', 'course', 'can', 'input', 'adapter', 'now', 'token', 'read', 'update', 'affected' ) === $deletes['params']['stage']
+	&& array( 'item', 'topic', 'course', 'can', 'input', 'adapter', 'now', 'token', 'read', 'update', 'affected', 'linked', 'local' ) === $deletes['params']['stage']
 	&& array( 'item', 'topic', 'course', 'can' ) === $deletes['params']['authorize']
 	&& $deletes['params']['stage'] === $deletes['params']['orchestrator']
 	&& array( 0, 0 ) === $deletes['lifecycle']
@@ -7069,7 +7088,7 @@ tutorpress_live_lessons_assert(
 	&& $matrix_rejected( $matrix['supplied']['create'] )
 	&& $matrix_rejected( $matrix['supplied']['patch'] )
 	&& $matrix_rejected( $matrix['supplied']['reconcile'] )
-	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet' ) )
+	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet', 'google_meet' ) )
 	&& $matrix_delete_kept( $matrix['ignored']['delete_zoom'], 'zoom', array( 'zoom', 'zoom' ) )
 	&& $matrix_duplicate_kept( $matrix['ignored']['duplicate'] )
 	&& $matrix_attach_kept( $matrix['attach']['google'], 'google_meet' )
@@ -7120,7 +7139,7 @@ tutorpress_live_lessons_assert(
 	&& $zoom_stopped( $zoom_case['denied'], array( 'clock', 'token', 'user', array( 'post', 8 ), array( 'can', 'edit_post', 8 ) ) )
 	&& $pass_2b_identity
 	&& $forged_rows === $mutation_probe['data']['forged']
-	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet' ) )
+	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet', 'google_meet' ) )
 	&& $matrix_delete_kept( $matrix['ignored']['delete_zoom'], 'zoom', array( 'zoom', 'zoom' ) )
 	&& $matrix_duplicate_kept( $matrix['ignored']['duplicate'] )
 	&& true === $matrix_required( $matrix_uncertain_schema, 'provider_id' )
