@@ -642,7 +642,26 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
         }
         $result = $this->cascade_execute($topic, $course, $children, $can);
         if (null === $result) { return new WP_Error('rest_cannot_delete', __('Sorry, you are not allowed to delete this topic.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
-        if (!is_array($result) || !isset($result['status'], $result['parent_deleted']) || 'complete' !== $result['status'] || true !== $result['parent_deleted']) { return new WP_Error('topic_deletion_failed', __('Topic could not be deleted.', 'tutorpress'), ['status' => 409]); }
+        if (!is_array($result) || !isset($result['status'], $result['parent_deleted']) || 'complete' !== $result['status'] || true !== $result['parent_deleted']) {
+            if (is_array($result) && array_key_exists('failed_title', $result) && is_string($result['failed_title'])) {
+                $live_title = $result['failed_title'];
+                $live_id    = isset($result['failed']) ? (int) $result['failed'] : 0;
+                return new WP_Error(
+                    'topic_deletion_failed',
+                    sprintf(
+                        /* translators: %s: live lesson title. */
+                        __('Topic could not be deleted because the live lesson "%s" could not be deleted. Try deleting that live lesson first.', 'tutorpress'),
+                        $live_title
+                    ),
+                    array(
+                        'status'             => 409,
+                        'live_lesson_id'     => $live_id,
+                        'live_lesson_title'  => $live_title,
+                    )
+                );
+            }
+            return new WP_Error('topic_deletion_failed', __('Topic could not be deleted.', 'tutorpress'), ['status' => 409]);
+        }
         return rest_ensure_response($this->format_response(null, __('Topic deleted successfully.', 'tutorpress')));
     }
 

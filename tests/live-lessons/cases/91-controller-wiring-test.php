@@ -7604,13 +7604,20 @@ $contents_body   = $slice( $contents_method );
 $enabled_body    = $slice( $enabled_method );
 $duplicate_pack = static function ( $result ) {
 	if ( $result instanceof WP_Error ) {
-		$data = $result->get_error_data();
-		return array(
+		$data   = $result->get_error_data();
+		$packed = array(
 			'kind'    => 'error',
 			'code'    => $result->get_error_code(),
 			'message' => $result->get_error_message(),
 			'status'  => is_array( $data ) && isset( $data['status'] ) ? $data['status'] : null,
 		);
+		if ( is_array( $data ) && array_key_exists( 'live_lesson_id', $data ) ) {
+			$packed['live_lesson_id'] = $data['live_lesson_id'];
+		}
+		if ( is_array( $data ) && array_key_exists( 'live_lesson_title', $data ) ) {
+			$packed['live_lesson_title'] = $data['live_lesson_title'];
+		}
+		return $packed;
 	}
 	if ( $result instanceof WP_REST_Response ) {
 		return array( 'kind' => 'response', 'data' => $result->get_data() );
@@ -7683,6 +7690,8 @@ $delete_run = static function ( $enabled, $id, $can, $missing, $script ) use ( $
 	);
 };
 $delete_stopped  = array( 'status' => 'stopped', 'parent_deleted' => false, 'failed' => 21, 'detail' => 'secret-child-error' );
+$delete_named    = array( 'status' => 'stopped', 'parent_deleted' => false, 'failed' => 21, 'failed_title' => 'Meet', 'detail' => 'secret-child-error' );
+$delete_blank    = array( 'status' => 'stopped', 'parent_deleted' => false, 'failed' => 22, 'failed_title' => '', 'detail' => 'secret-child-error' );
 $delete_complete = array( 'status' => 'complete', 'parent_deleted' => true );
 echo json_encode( array(
 	'enabled'            => true,
@@ -7721,6 +7730,8 @@ echo json_encode( array(
 		'broad'          => $delete_run( true, 8, 'broad', '', $delete_complete ),
 		'null_cascade'   => $delete_run( true, 8, 'allow', '', null ),
 		'stopped'        => $delete_run( true, 8, 'allow', '', $delete_stopped ),
+		'named'          => $delete_run( true, 8, 'allow', '', $delete_named ),
+		'blank'          => $delete_run( true, 8, 'allow', '', $delete_blank ),
 		'complete'       => $delete_run( true, 8, 'allow', '', $delete_complete ),
 	),
 ) );
@@ -8036,9 +8047,13 @@ $topic_delete_children = array(
 );
 $topic_delete_false    = $topic_delete['false'];
 $topic_delete_stopped  = $topic_delete['stopped'];
+$topic_delete_named    = $topic_delete['named'];
+$topic_delete_blank    = $topic_delete['blank'];
 $topic_delete_complete = $topic_delete['complete'];
 $topic_delete_null     = $topic_delete['null_cascade'];
 $topic_stopped_encoded = json_encode( $topic_delete_stopped['packed'] );
+$topic_named_encoded   = json_encode( $topic_delete_named['packed'] );
+$topic_blank_encoded   = json_encode( $topic_delete_blank['packed'] );
 tutorpress_live_lessons_assert(
 	true === $topic_delete['legacy_partial']
 	&& isset( $topic_delete_false['entered'] )
@@ -8091,16 +8106,45 @@ tutorpress_live_lessons_assert(
 	&& 'topic_deletion_failed' === $topic_delete_stopped['packed']['code']
 	&& 'Topic could not be deleted.' === $topic_delete_stopped['packed']['message']
 	&& 409 === $topic_delete_stopped['packed']['status']
+	&& false === array_key_exists( 'live_lesson_id', $topic_delete_stopped['packed'] )
+	&& false === array_key_exists( 'live_lesson_title', $topic_delete_stopped['packed'] )
 	&& false === strpos( $topic_delete_stopped['packed']['message'], 'secret-child-error' )
 	&& is_string( $topic_stopped_encoded )
 	&& false === strpos( $topic_stopped_encoded, '207' )
 	&& false === strpos( $topic_stopped_encoded, 'secret-child-error' )
+	&& false === strpos( $topic_stopped_encoded, 'live_lesson_id' )
+	&& false === strpos( $topic_stopped_encoded, 'live_lesson_title' )
 	&& 1 === count( $topic_delete_null['cascades'] )
 	&& array() === $topic_delete_null['deletes']
 	&& 'rest_cannot_delete' === $topic_delete_null['packed']['code']
 	&& 'Sorry, you are not allowed to delete this topic.' === $topic_delete_null['packed']['message']
 	&& 401 === $topic_delete_null['packed']['status'],
 	'a stopped topic cascade keeps the parent and returns no child error ' . substr( (string) $topic_stopped_encoded, 0, 300 )
+);
+tutorpress_live_lessons_assert(
+	1 === count( $topic_delete_named['cascades'] )
+	&& array() === $topic_delete_named['deletes']
+	&& 'error' === $topic_delete_named['packed']['kind']
+	&& 'topic_deletion_failed' === $topic_delete_named['packed']['code']
+	&& 'Topic could not be deleted because the live lesson "Meet" could not be deleted. Try deleting that live lesson first.' === $topic_delete_named['packed']['message']
+	&& 409 === $topic_delete_named['packed']['status']
+	&& 21 === $topic_delete_named['packed']['live_lesson_id']
+	&& 'Meet' === $topic_delete_named['packed']['live_lesson_title']
+	&& false === strpos( $topic_delete_named['packed']['message'], 'secret-child-error' )
+	&& is_string( $topic_named_encoded )
+	&& false === strpos( $topic_named_encoded, '207' )
+	&& false === strpos( $topic_named_encoded, 'secret-child-error' )
+	&& 1 === count( $topic_delete_blank['cascades'] )
+	&& array() === $topic_delete_blank['deletes']
+	&& 'Topic could not be deleted because the live lesson "" could not be deleted. Try deleting that live lesson first.' === $topic_delete_blank['packed']['message']
+	&& 409 === $topic_delete_blank['packed']['status']
+	&& 22 === $topic_delete_blank['packed']['live_lesson_id']
+	&& '' === $topic_delete_blank['packed']['live_lesson_title']
+	&& is_string( $topic_blank_encoded )
+	&& false === strpos( $topic_blank_encoded, '207' )
+	&& false === strpos( $topic_blank_encoded, 'secret-child-error' )
+	&& false === strpos( $topic_blank_encoded, 'Zoom' ),
+	'a named live-lesson stop returns the lesson id and title ' . substr( (string) $topic_named_encoded, 0, 300 )
 );
 tutorpress_live_lessons_assert(
 	array() === $topic_delete_complete['deletes']

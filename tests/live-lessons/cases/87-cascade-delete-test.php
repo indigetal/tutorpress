@@ -48,7 +48,7 @@ $delete = static function ( $child ) use ( &$seen ) {
 };
 TutorPress_Live_Lessons_Hook_Fake::$calls = array();
 $stopped = TutorPress_Live_Lesson_Cascade_Delete::delete_provider_children( $topic, $course, $children, $allow, $delete );
-tutorpress_live_lessons_assert( array( 2, 4 ) === $seen && array( 'deleted' => array( 2 ), 'stopped' => 4, 'parent_retained' => true ) === $stopped && array( array( 'tutorpress_live_lesson_deleted', array( 2, array( 'id' => 2, 'title' => 'Standup', 'type' => 'google_meet', 'topicId' => 8 ) ) ) ) === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an uncertain live delete stops before the remaining children' );
+tutorpress_live_lessons_assert( array( 2, 4 ) === $seen && array( 'deleted' => array( 2 ), 'stopped' => 4, 'stopped_title' => 'Room', 'parent_retained' => true ) === $stopped && array( array( 'tutorpress_live_lesson_deleted', array( 2, array( 'id' => 2, 'title' => 'Standup', 'type' => 'google_meet', 'topicId' => 8 ) ) ) ) === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an uncertain live delete stops before the remaining children' );
 
 foreach ( array( new WP_Error( 'stop', 'stop' ), false, null, 0 ) as $bad ) {
 	$seen   = array();
@@ -58,7 +58,7 @@ foreach ( array( new WP_Error( 'stop', 'stop' ), false, null, 0 ) as $bad ) {
 	};
 	TutorPress_Live_Lessons_Hook_Fake::$calls = array();
 	$halted = TutorPress_Live_Lesson_Cascade_Delete::delete_provider_children( $topic, $course, $children, $allow, $delete );
-	tutorpress_live_lessons_assert( array( 1 ) === $seen && array( 'deleted' => array(), 'stopped' => 2, 'parent_retained' => true ) === $halted && array() === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unconfirmed live delete does not fire the hook' );
+	tutorpress_live_lessons_assert( array( 1 ) === $seen && array( 'deleted' => array(), 'stopped' => 2, 'stopped_title' => 'Standup', 'parent_retained' => true ) === $halted && array() === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unconfirmed live delete does not fire the hook' );
 }
 $seen   = array();
 $delete = static function () use ( &$seen ) {
@@ -101,7 +101,7 @@ $delete_parent = static function ( $row ) use ( &$parent_calls ) {
 	return true;
 };
 $stopped = TutorPress_Live_Lesson_Cascade_Delete::execute( $topic, $course, $children, $allow, $delete, $remove, $delete_parent );
-tutorpress_live_lessons_assert( array( 2, 4 ) === $order && array() === $remove_calls && array() === $parent_calls && array( 'completed' => array( 2 ), 'failed' => 4, 'parent_deleted' => false, 'status' => 'stopped' ) === $stopped, 'a stopped live delete skips non-live handlers and the parent' );
+tutorpress_live_lessons_assert( array( 2, 4 ) === $order && array() === $remove_calls && array() === $parent_calls && array( 'completed' => array( 2 ), 'failed' => 4, 'failed_title' => 'Room', 'parent_deleted' => false, 'status' => 'stopped' ) === $stopped, 'a stopped live delete skips non-live handlers and the parent' );
 
 $order        = array();
 $remove_calls = array();
@@ -169,7 +169,7 @@ $delete_parent = static function ( $row ) use ( &$parent_calls ) {
 };
 TutorPress_Live_Lessons_Hook_Fake::$calls = array();
 $first = TutorPress_Live_Lesson_Cascade_Delete::execute( $topic, $course, $children, $allow, $delete, $remove, $delete_parent );
-tutorpress_live_lessons_assert( array( 'completed' => array(), 'failed' => 2, 'parent_deleted' => false, 'status' => 'stopped' ) === $first && array() === $remove_calls && array() === $parent_calls && array() === TutorPress_Live_Lessons_Hook_Fake::$calls, 'the first live child stops the cascade' );
+tutorpress_live_lessons_assert( array( 'completed' => array(), 'failed' => 2, 'failed_title' => 'Standup', 'parent_deleted' => false, 'status' => 'stopped' ) === $first && array() === $remove_calls && array() === $parent_calls && array() === TutorPress_Live_Lessons_Hook_Fake::$calls, 'the first live child stops the cascade' );
 
 $remove_calls = array();
 $parent_calls = array();

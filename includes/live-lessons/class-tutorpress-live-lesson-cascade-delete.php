@@ -62,7 +62,7 @@ final class TutorPress_Live_Lesson_Cascade_Delete {
 			);
 			$result   = $delete( $child );
 			if ( true !== $result && ( ! is_array( $result ) || ! isset( $result['outcome'] ) || 'confirmed' !== $result['outcome'] ) ) {
-				return array( 'deleted' => $deleted, 'stopped' => $snapshot['id'], 'parent_retained' => true );
+				return array( 'deleted' => $deleted, 'stopped' => $snapshot['id'], 'stopped_title' => $snapshot['title'], 'parent_retained' => true );
 			}
 			do_action( 'tutorpress_live_lesson_deleted', $snapshot['id'], $snapshot );
 			$deleted[] = $snapshot['id'];
@@ -85,7 +85,7 @@ final class TutorPress_Live_Lesson_Cascade_Delete {
 		}
 		$completed = $live['deleted'];
 		if ( null !== $live['stopped'] ) {
-			return array( 'completed' => $completed, 'failed' => $live['stopped'], 'parent_deleted' => false, 'status' => 'stopped' );
+			return array( 'completed' => $completed, 'failed' => $live['stopped'], 'failed_title' => $live['stopped_title'], 'parent_deleted' => false, 'status' => 'stopped' );
 		}
 		foreach ( $plan['children'] as $child ) {
 			if ( 'tutor-google-meet' === $child['post_type'] || 'tutor_zoom_meeting' === $child['post_type'] ) {
