@@ -7387,18 +7387,20 @@ function get_post_meta( $id, $key = '', $single = false ) {
 		return '';
 	}
 	if ( 22 === (int) $id ) {
-		return array(
-			'error'                   => null,
-			'operation'               => null,
-			'owner_id'                => 9,
-			'provenance'              => null,
-			'provider'                => 'zoom',
-			'provider_id'             => 'evt-zoom-1',
-			'reconciliation_required' => false,
-			'schema_version'          => 1,
-			'state'                   => 'synced',
-			'version'                 => 6,
-			'warning'                 => 'hidden-sentinel',
+		return json_encode(
+			array(
+				'error'                   => null,
+				'operation'               => null,
+				'owner_id'                => 9,
+				'provenance'              => null,
+				'provider'                => 'zoom',
+				'provider_id'             => 'evt-zoom-1',
+				'reconciliation_required' => false,
+				'schema_version'          => 1,
+				'state'                   => 'synced',
+				'version'                 => 6,
+				'warning'                 => 'hidden-sentinel',
+			)
 		);
 	}
 	if ( in_array( (int) $id, array( 31, 32, 33, 34 ), true ) ) {

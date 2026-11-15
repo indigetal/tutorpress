@@ -396,7 +396,12 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             if (!isset($live[$item->post_type])) {
                 continue;
             }
-            $accepted = TutorPress_Live_Lesson_Sync_Envelope::envelope(get_post_meta($item->ID, '_tutorpress_live_lesson_sync', true));
+            $stored = get_post_meta($item->ID, '_tutorpress_live_lesson_sync', true);
+            if (is_string($stored)) {
+                $decoded = json_decode($stored, true);
+                $stored  = is_array($decoded) ? $decoded : null;
+            }
+            $accepted = is_array($stored) ? TutorPress_Live_Lesson_Sync_Envelope::envelope($stored) : null;
             if (is_array($accepted)) {
                 $envelopes[(int) $item->ID] = $accepted;
             }

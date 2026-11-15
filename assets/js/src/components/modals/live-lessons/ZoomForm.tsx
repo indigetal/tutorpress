@@ -10,7 +10,7 @@
  * @since 1.5.2
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   TextControl,
   TextareaControl,
@@ -68,6 +68,8 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
   const courseId = useSelect((select: any) => {
     return select("tutorpress/curriculum").getCourseId();
   }, []);
+  const formRef = useRef(formData);
+  formRef.current = formData;
 
   /**
    * Fetch Zoom users on component mount
@@ -81,7 +83,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
       return;
     }
 
-    const host = formData.host;
+    let active = true;
     const fetchZoomUsers = async () => {
       setLoadingUsers(true);
       setUsersError(null);
@@ -90,24 +92,36 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
           path: request.path,
           method: "GET",
         });
+        if (!active) {
+          return;
+        }
         const result = normalizeZoomUsersBody(response);
         setZoomUsers(result.hosts);
         setUsersError(result.message);
         if (result.message === null) {
-          const nextHost = selectedZoomHost(host, result.hosts);
-          if (nextHost !== host) {
-            updateField("host", nextHost);
+          const current = formRef.current;
+          const nextHost = selectedZoomHost(current.host, result.hosts);
+          if (nextHost !== current.host) {
+            onChange({ ...current, host: nextHost });
           }
         }
       } catch (error) {
+        if (!active) {
+          return;
+        }
         setUsersError(normalizeZoomUsersError(error).message);
       } finally {
-        setLoadingUsers(false);
+        if (active) {
+          setLoadingUsers(false);
+        }
       }
     };
 
     fetchZoomUsers();
-  }, [courseId]);
+    return () => {
+      active = false;
+    };
+  }, [courseId, onChange]);
 
   /**
    * Handle form field updates
