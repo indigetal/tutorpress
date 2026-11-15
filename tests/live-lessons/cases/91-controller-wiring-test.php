@@ -7807,10 +7807,7 @@ $topic_held = array(
 	array( 'id' => 33, 'title' => 'Held pending', 'type' => 'meet_lesson', 'menu_order' => 8, 'status' => 'pending' ),
 	array( 'id' => 34, 'title' => 'Held future', 'type' => 'zoom_lesson', 'menu_order' => 9, 'status' => 'future' ),
 );
-$topic_legacy_actions = array(
-	array( 'action' => 'resolve_owner', 'version' => 0 ),
-	array( 'action' => 'attach', 'kind' => 'legacy_identity', 'version' => 0 ),
-);
+$topic_legacy_actions = array();
 $topic_summarize = static function ( $row, $state, $version, $actions ) {
 	$row['sync_state']   = $state;
 	$row['sync_version'] = $version;
@@ -7823,7 +7820,7 @@ $topic_true = array(
 	$topic_h5p,
 	$topic_draft,
 	$topic_summarize( $topic_meet, 'error', 0, $topic_legacy_actions ),
-	$topic_summarize( $topic_zoom, 'synced', 6, array( array( 'action' => 'inspect', 'version' => 6 ) ) ),
+	$topic_summarize( $topic_zoom, 'synced', 6, array() ),
 );
 foreach ( $topic_held as $topic_held_row ) {
 	$topic_true[] = $topic_summarize( $topic_held_row, 'error', 0, $topic_legacy_actions );

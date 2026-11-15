@@ -89,7 +89,7 @@ class TutorPress_Live_Lesson_Response_Projector {
 		return $value;
 	}
 
-	/** Topic-row summary. Actions are narrow descriptors with no provider id. */
+	/** Topic-row summary. The actions list is empty. */
 	public static function project_summary( array $item, array $topic, array $course, $can, $envelope ) {
 		$full = self::project_item( $item, $topic, $course, $can, $envelope, null );
 		if ( ! is_array( $full ) ) {
@@ -104,32 +104,9 @@ class TutorPress_Live_Lesson_Response_Projector {
 		);
 	}
 
-	/** Inspect, retry, resolve-owner, abandon, or one distinct attach shape. */
+	/** Recovery actions are not advertised. */
 	private static function actions( $envelope ) {
-		$stored = null === $envelope ? null : TutorPress_Live_Lesson_Sync_Envelope::envelope( $envelope );
-		if ( ! is_array( $stored ) ) {
-			return array(
-				array( 'action' => 'resolve_owner', 'version' => 0 ),
-				array( 'action' => 'attach', 'kind' => 'legacy_identity', 'version' => 0 ),
-			);
-		}
-		$operation = is_array( $stored['operation'] ) ? $stored['operation'] : null;
-		$idless    = is_array( $operation ) && 'create' === $operation['kind'] && null === $stored['provider_id'] && null === $operation['provider_id'];
-		if ( $idless ) {
-			return array(
-				array( 'action' => 'inspect', 'version' => $stored['version'], 'operation_id' => $operation['operation_id'] ),
-				array( 'action' => 'attach', 'kind' => 'uncertain_create', 'version' => $stored['version'], 'operation_id' => $operation['operation_id'] ),
-				array( 'action' => 'abandon', 'version' => $stored['version'], 'operation_id' => $operation['operation_id'] ),
-			);
-		}
-		$actions = array();
-		if ( is_array( $operation ) && 'not_dispatched' === $operation['dispatch_state'] ) {
-			$actions[] = array( 'action' => 'retry', 'version' => $stored['version'], 'operation_id' => $operation['operation_id'] );
-		}
-		if ( is_string( $stored['provider_id'] ) && '' !== $stored['provider_id'] ) {
-			$actions[] = array( 'action' => 'inspect', 'version' => $stored['version'] );
-		}
-		return $actions;
+		return array();
 	}
 
 	/** Persisted success stays success. Refresh failure is only a sanitized warning. */

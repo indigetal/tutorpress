@@ -26,7 +26,6 @@ import type {
 } from "../../../types/liveLessons";
 import { GoogleMeetForm } from "./GoogleMeetForm";
 import { ZoomForm } from "./ZoomForm";
-import { LiveLessonRecoveryControls } from "./LiveLessonRecoveryControls";
 import { addZoomDuration, hydrateWallClock, serializeWallClock, wallClockMinutes, zoomDuration } from "../../../utils/liveLessonDateTime";
 import { deriveLiveLessonRecoveryActions } from "../../../utils/liveLessonReconciliation";
 
@@ -79,7 +78,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
-  const [recoveryActions, setRecoveryActions] = useState<LiveLessonRecoveryAction[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Get WordPress date settings for proper timezone handling
@@ -234,7 +232,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
 
     setSaveError(null);
     setRefreshWarning(null);
-    setRecoveryActions([]);
     setLoadError(null);
   };
 
@@ -341,7 +338,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
     setIsSaving(true);
     setSaveError(null);
     setRefreshWarning(null);
-    setRecoveryActions([]);
 
     try {
       let liveLessonData: LiveLessonFormData;
@@ -402,7 +398,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       if (saved === null) {
         setSaveError(__("Failed to save lesson", "tutorpress"));
         setRefreshWarning(null);
-        setRecoveryActions([]);
         return;
       }
 
@@ -431,7 +426,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       console.error("TutorPress: Failed to save Live Lesson:", error);
       const failure = liveLessonSaveFailure(error);
       setRefreshWarning(failure.refreshWarning);
-      setRecoveryActions(failure.actions);
       const isUpdating = !!lessonId;
       const providerName = lessonType === "google_meet" ? "Google Meet" : "Zoom";
 
@@ -508,8 +502,6 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
             {refreshWarning}
           </Notice>
         )}
-
-        <LiveLessonRecoveryControls actions={recoveryActions} />
 
         {/* Form Content */}
         {!isLoading && !loadError && (

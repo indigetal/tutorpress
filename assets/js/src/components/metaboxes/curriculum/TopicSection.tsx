@@ -58,7 +58,6 @@ import { useQuizzes } from "../../../hooks/curriculum/useQuizzes";
 import { useSortableList } from "../../../hooks/common/useSortableList";
 import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
-import { LiveLessonRecoveryControls } from "../../modals/live-lessons/LiveLessonRecoveryControls";
 import { isH5pPluginActive } from "../../../utils/addonChecker";
 import { liveLessonRowPresentation } from "../../../utils/liveLessonReconciliation";
 import { store as noticesStore } from "@wordpress/notices";
@@ -182,8 +181,9 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
               />
             </span>
           )}
-          {recovery.badge !== null && <span className="tutorpress-live-lesson-sync">{recovery.badge}</span>}
-          <LiveLessonRecoveryControls actions={recovery.actions} />
+          {recovery.badge !== null && (
+            <span className="tutorpress-content-item-video-meta tutorpress-live-lesson-sync">{recovery.badge}</span>
+          )}
         </FlexBlock>
         <div className="tpress-item-actions-right">
           <ActionButtons onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
@@ -445,9 +445,23 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   };
 
   // Live lesson delete handlers
-  const handleLiveLessonDelete = (liveLessonId: number) => {
-    if (window.confirm(__("Are you sure you want to delete this live lesson?", "tutorpress"))) {
-      deleteLiveLesson(liveLessonId);
+  const handleLiveLessonDelete = async (liveLessonId: number) => {
+    if (!window.confirm(__("Are you sure you want to delete this live lesson?", "tutorpress"))) {
+      return;
+    }
+    try {
+      await deleteLiveLesson(liveLessonId);
+    } catch (error) {
+      createNotice(
+        "error",
+        error instanceof Error && "" !== error.message
+          ? error.message
+          : __("Failed to delete live lesson.", "tutorpress"),
+        {
+          isDismissible: true,
+          type: "snackbar",
+        }
+      );
     }
   };
 
