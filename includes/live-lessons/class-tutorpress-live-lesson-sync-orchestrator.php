@@ -236,7 +236,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 	private static function cleanup_before_dispatch( $post_id, array $item, array $topic, array $course, $can, $token, $lock ) {
 		$removed = false;
 		try {
-			$removed = true === wp_delete_post( (int) $post_id, true );
+			$removed = self::post_removed( wp_delete_post( (int) $post_id, true ) );
 		} catch ( Throwable $thrown ) {
 			unset( $thrown );
 			$removed = false;
@@ -622,7 +622,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			$fresh   = is_array( $current ) && 1 === count( $current ) && isset( $current[0]['meta_value'] ) && $current[0]['meta_value'] === $possible;
 			$removed = false;
 			if ( $fresh ) {
-				try { $removed = true === wp_delete_post( $post_id, true ); } catch ( Throwable $thrown ) { unset( $thrown ); }
+				try { $removed = self::post_removed( wp_delete_post( $post_id, true ) ); } catch ( Throwable $thrown ) { unset( $thrown ); }
 			}
 			if ( $removed ) {
 				$released = TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) { global $wpdb; $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior_lock ) ); return 1 === (int) $wpdb->rows_affected; } );
@@ -653,6 +653,11 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return $staged;
 	}
 
+	/** True when wp_delete_post() returned true or the removed post. */
+	private static function post_removed( $result ) {
+		return true === $result || $result instanceof WP_Post;
+	}
+
 	/** Force-delete one open lesson. One release, and a failed delete leaves the original bytes. */
 	private static function delete_local( $post_id, $token, DateTimeImmutable $now, $state, $prior, $provider, $course_id ) {
 		$lock = self::held_lock( (int) $post_id, 'delete', $token, $now, $state );
@@ -661,7 +666,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		}
 		$removed = false;
 		try {
-			$removed = true === wp_delete_post( (int) $post_id, true );
+			$removed = self::post_removed( wp_delete_post( (int) $post_id, true ) );
 		} catch ( Throwable $thrown ) {
 			unset( $thrown );
 		}
@@ -879,7 +884,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		}
 		if ( ! $closed || ! self::same_prior( $post_id, $version, $op_id, $prior, $read ) ) { return null; }
 		$removed = false;
-		try { $removed = true === wp_delete_post( (int) $post_id, true ); } catch ( Throwable $thrown ) { unset( $thrown ); }
+		try { $removed = self::post_removed( wp_delete_post( (int) $post_id, true ) ); } catch ( Throwable $thrown ) { unset( $thrown ); }
 		$released        = self::release_exact( $post_id, $token, $lock );
 		$release_invoked = true;
 		if ( ! $removed || true !== $released ) { return null; }
