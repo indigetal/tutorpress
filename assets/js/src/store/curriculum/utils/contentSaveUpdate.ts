@@ -217,6 +217,11 @@ function liveLessonMutationBody(data: LiveLessonFormData) {
     data.type === "zoom" && typeof data.providerConfig?.password === "string"
       ? { password: data.providerConfig.password }
       : {};
+  const autoRecording = data.providerConfig?.autoRecording;
+  const recording =
+    autoRecording === "cloud" || autoRecording === "local" || autoRecording === "none"
+      ? { auto_recording: autoRecording }
+      : {};
   const meetingSettings = {
     allow_early_join: settings.allowEarlyJoin,
     auto_record: settings.autoRecord,
@@ -224,6 +229,7 @@ function liveLessonMutationBody(data: LiveLessonFormData) {
     waiting_room: settings.waitingRoom,
     add_enrolled_students: settings.add_enrolled_students,
     ...zoomPassword,
+    ...recording,
   };
   const body: Record<string, unknown> = {
     title: data.title,

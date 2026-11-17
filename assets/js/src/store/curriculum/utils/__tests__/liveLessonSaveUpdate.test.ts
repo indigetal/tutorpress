@@ -165,6 +165,39 @@ describe("live lesson create body", () => {
       expect(body.course_id).toBe(11);
     }
   });
+
+  it("copies auto_recording from providerConfig on both gates", () => {
+    for (const enabled of [false, true] as const) {
+      setFlag(enabled);
+      for (const autoRecording of ["local", "cloud", "none"] as const) {
+        const base = lesson("zoom");
+        const form: LiveLessonFormData = {
+          ...base,
+          settings: { ...base.settings, waitingRoom: true },
+          providerConfig: { ...base.providerConfig, autoRecording },
+        };
+        const created = liveLessonCreateBody(form, 11, 22);
+        const patched = liveLessonPatchBody(form);
+        for (const body of [created, patched]) {
+          expect(body.settings).toMatchObject({
+            auto_recording: autoRecording,
+            auto_record: form.settings.autoRecord,
+            waiting_room: true,
+          });
+        }
+        if (enabled) {
+          expect(created).toMatchObject({
+            timezone: "America/New_York",
+            duration: { value: 40, unit: "minutes" },
+          });
+          expect(patched).toMatchObject({
+            timezone: "America/New_York",
+            duration: { value: 40, unit: "minutes" },
+          });
+        }
+      }
+    }
+  });
 });
 
 const scheduleOf = (body: Record<string, unknown>) => {
