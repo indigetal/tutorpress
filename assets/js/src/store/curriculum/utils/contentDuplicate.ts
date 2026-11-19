@@ -1,6 +1,5 @@
 import { __ } from "@wordpress/i18n";
 import { CurriculumErrorCode, ContentItem } from "../../../types/curriculum";
-import { LiveLesson, LiveLessonCreateResponse } from "../../../types/liveLessons";
 import { Lesson } from "../../../types/lessons";
 import { Assignment } from "../../../types/assignments";
 import { normalizeLiveLessonError, preserveLiveLessonMutation } from "../../../utils/liveLessonErrors";
@@ -194,11 +193,6 @@ export const responseDataExtractors = {
     title: response.data.title,
   }),
 
-  liveLesson: (response: LiveLessonCreateResponse) => ({
-    id: response.data.id,
-    title: response.data.title,
-  }),
-
   assignment: (response: { data: Assignment }) => ({
     id: response.data.id,
     title: response.data.title,
@@ -228,20 +222,6 @@ export const duplicateResolvers = {
     sourceIdField: "quizId",
     targetIdField: "topic_id",
     responseDataExtractor: responseDataExtractors.quiz,
-    requiresCourseId: true,
-  }),
-
-  liveLesson: createStandardDuplicateResolver({
-    type: "standard",
-    apiPath: "/tutorpress/v1/live-lessons",
-    contentType: "meet_lesson", // Will be resolved by resolveContentType
-    entityName: "live_lesson",
-    sourceIdField: "liveLessonId",
-    targetIdField: "topic_id",
-    responseDataExtractor: (response: LiveLessonCreateResponse) => ({
-      id: response.data.id,
-      title: response.data.title,
-    }),
     requiresCourseId: true,
   }),
 

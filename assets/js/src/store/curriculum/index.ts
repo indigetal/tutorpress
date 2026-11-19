@@ -94,12 +94,6 @@ export interface CurriculumState {
     activeLiveLessonId?: number;
     lastSavedLiveLessonId?: number;
   };
-  liveLessonDuplicationState: {
-    status: "idle" | "duplicating" | "error" | "success";
-    error?: CurriculumError;
-    sourceLiveLessonId?: number;
-    duplicatedLiveLessonId?: number;
-  };
   contentReorderState: ContentReorderOperationState;
   isAddingTopic: boolean;
   activeOperation: { type: string; topicId?: number };
@@ -126,7 +120,6 @@ const DEFAULT_STATE: CurriculumState = {
   lessonState: { status: "idle" },
   assignmentState: { status: "idle" },
   liveLessonState: { status: "idle" },
-  liveLessonDuplicationState: { status: "idle" },
   contentReorderState: { status: "idle" },
   isAddingTopic: false,
   activeOperation: { type: "none" },
@@ -235,14 +228,7 @@ export type CurriculumAction =
   | { type: "DELETE_LIVE_LESSON_START"; payload: { liveLessonId: number } }
   | { type: "DELETE_LIVE_LESSON_SUCCESS"; payload: { liveLessonId: number; courseId: number } }
   | { type: "DELETE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError } }
-  | { type: "DUPLICATE_LIVE_LESSON_START"; payload: { liveLessonId: number; topicId: number; courseId: number } }
-  | {
-      type: "DUPLICATE_LIVE_LESSON_SUCCESS";
-      payload: { liveLesson: LiveLesson; sourceLiveLessonId: number; courseId: number };
-    }
-  | { type: "DUPLICATE_LIVE_LESSON_ERROR"; payload: { error: CurriculumError; liveLessonId: number } }
   | { type: "SET_LIVE_LESSON_STATE"; payload: CurriculumState["liveLessonState"] }
-  | { type: "SET_LIVE_LESSON_DUPLICATION_STATE"; payload: CurriculumState["liveLessonDuplicationState"] }
   | { type: "SET_CONTENT_REORDER_STATE"; payload: ContentReorderOperationState }
   | { type: "REORDER_TOPIC_CONTENT"; payload: { topicId: number; contentOrders: ContentOrder[] } };
 
@@ -489,23 +475,9 @@ export const actions = {
     };
   },
 
-  duplicateLiveLesson(liveLessonId: number, topicId: number, courseId: number) {
-    return {
-      type: "DUPLICATE_LIVE_LESSON",
-      payload: { liveLessonId, topicId, courseId },
-    };
-  },
-
   setLiveLessonState(state: CurriculumState["liveLessonState"]) {
     return {
       type: "SET_LIVE_LESSON_STATE",
-      payload: state,
-    };
-  },
-
-  setLiveLessonDuplicationState(state: CurriculumState["liveLessonDuplicationState"]) {
-    return {
-      type: "SET_LIVE_LESSON_DUPLICATION_STATE",
       payload: state,
     };
   },
@@ -716,10 +688,6 @@ const selectors = {
   hasLiveLessonError: namedLiveLessonSelectors.hasLiveLessonError,
   getLiveLessonError: namedLiveLessonSelectors.getLiveLessonError,
 
-  // Custom live lesson selector not covered by factory
-  getLiveLessonDuplicationState(state: CurriculumState) {
-    return state.liveLessonDuplicationState;
-  },
   getContentReorderState(state: CurriculumState) {
     return state.contentReorderState;
   },
@@ -1351,41 +1319,10 @@ const reducer = (state = DEFAULT_STATE, action: CurriculumAction): CurriculumSta
           error: action.payload.error,
         },
       };
-    case "DUPLICATE_LIVE_LESSON_START":
-      return {
-        ...state,
-        liveLessonDuplicationState: {
-          status: "duplicating",
-          sourceLiveLessonId: action.payload.liveLessonId,
-        },
-      };
-    case "DUPLICATE_LIVE_LESSON_SUCCESS":
-      return {
-        ...state,
-        liveLessonDuplicationState: {
-          status: "success",
-          sourceLiveLessonId: action.payload.sourceLiveLessonId,
-          duplicatedLiveLessonId: action.payload.liveLesson.id,
-        },
-      };
-    case "DUPLICATE_LIVE_LESSON_ERROR":
-      return {
-        ...state,
-        liveLessonDuplicationState: {
-          status: "error",
-          error: action.payload.error,
-          sourceLiveLessonId: action.payload.liveLessonId,
-        },
-      };
     case "SET_LIVE_LESSON_STATE":
       return {
         ...state,
         liveLessonState: action.payload,
-      };
-    case "SET_LIVE_LESSON_DUPLICATION_STATE":
-      return {
-        ...state,
-        liveLessonDuplicationState: action.payload,
       };
 
     case "SET_CONTENT_REORDER_STATE":
@@ -2446,8 +2383,6 @@ const resolvers = {
 
   deleteLiveLesson: deleteResolvers.liveLesson,
 
-  duplicateLiveLesson: duplicateResolvers.liveLesson,
-
   saveLiveLesson: saveUpdateResolvers.saveLiveLesson,
 
   updateLiveLesson: saveUpdateResolvers.updateLiveLesson,
@@ -2567,7 +2502,6 @@ export const {
   hasLiveLessonError,
   getLiveLessonError,
   // Custom selectors not covered by factory
-  getLiveLessonDuplicationState,
   // Content reorder selectors
   getContentReorderState,
   isContentReordering,

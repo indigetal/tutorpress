@@ -70,11 +70,23 @@ export const useQuizzes = ({ courseId, topicId }: UseQuizzesProps): UseQuizzesRe
 
       console.log("Quiz duplication result:", duplicatedQuiz);
 
-      // Store handles state updates and notices automatically
-      // No manual state management needed
+      const duplicatedId = Number(duplicatedQuiz?.id);
+      if (!Number.isInteger(duplicatedId) || duplicatedId <= 0) {
+        createNotice("error", __("Failed to duplicate quiz.", "tutorpress"), {
+          type: "snackbar",
+        });
+        return;
+      }
+
+      createNotice("success", __("Quiz duplicated successfully.", "tutorpress"), {
+        type: "snackbar",
+      });
     } catch (error) {
       console.error("Error duplicating quiz:", error);
-      // Store handles error notices automatically
+      const errorMessage = error instanceof Error ? error.message : __("Failed to duplicate quiz.", "tutorpress");
+      createNotice("error", errorMessage, {
+        type: "snackbar",
+      });
     }
   };
 

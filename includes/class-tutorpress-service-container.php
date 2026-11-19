@@ -464,12 +464,6 @@ class TutorPress_Service_Container {
         );
         $shared = array( 'live_lesson.authorization', 'live_lesson.ordering', 'live_lesson.repository', 'live_lesson.response_projector' );
         $this->register_factory(
-            'live_lesson.direct_duplicate',
-            function () use ( $shared ) {
-                return $this->resolve_class( 'live_lesson.direct_duplicate', $shared, TutorPress_Live_Lesson_Duplicate_Service::class );
-            }
-        );
-        $this->register_factory(
             'live_lesson.topic_duplication',
             function () use ( $shared ) {
                 return $this->resolve_class( 'live_lesson.topic_duplication', $shared, TutorPress_Topic_Duplication_Service::class );

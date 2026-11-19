@@ -49,7 +49,7 @@ $bare = TutorPress_Live_Lessons_Rest_Fake::note_result( $denied );
 tutorpress_live_lessons_assert( $bare instanceof WP_Error && ! ( $bare instanceof WP_REST_Response ) && array( array( 'kind' => 'wp_error', 'code' => 'rest_forbidden' ) ) === TutorPress_Live_Lessons_Rest_Fake::$results, 'bare error stays a WP_Error' );
 
 TutorPress_Live_Lessons_Rest_Fake::note_gate();
-tutorpress_live_lessons_assert( array( true ) === TutorPress_Live_Lessons_Rest_Fake::$gates && 17 === count( tutorpress_live_lessons_production_files() ), 'gate ledger reads the true constant and the loader stays eighteen files' );
+tutorpress_live_lessons_assert( array( true ) === TutorPress_Live_Lessons_Rest_Fake::$gates && 16 === count( tutorpress_live_lessons_production_files() ), 'gate ledger reads the true constant and the loader stays seventeen files' );
 
 if ( ! function_exists( 'add_action' ) ) {
 	/**
@@ -98,7 +98,7 @@ tutorpress_live_lessons_assert(
 	&& false !== strpos( $sync_window, "'before'" )
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Topics_Controller', false )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'the sync presentation flag is true while the gate is true and enqueue assigns it without running'
 );
 
@@ -141,7 +141,7 @@ tutorpress_live_lessons_assert(
 	&& false !== strpos( $zone_window, "'before'" )
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Topics_Controller', false )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'timezone options are the full approved identifier set and enqueue assigns them without running'
 );
 
@@ -247,7 +247,7 @@ foreach ( $foundation as $service_id => $class_name ) {
 }
 $foundation_encoded = json_encode( $resolved );
 tutorpress_live_lessons_assert(
-	is_string( $foundation_encoded ) && false === strpos( $foundation_encoded, 'fake-credential-value' ) && 17 === count( tutorpress_live_lessons_production_files() ),
+	is_string( $foundation_encoded ) && false === strpos( $foundation_encoded, 'fake-credential-value' ) && 16 === count( tutorpress_live_lessons_production_files() ),
 	'foundation resolution stays gate-false and omits the credential sentinel'
 );
 
@@ -268,7 +268,7 @@ foreach ( $reads as $service_id => $expected ) {
 	tutorpress_live_lessons_assert( $expected[0] === $value && $expected[1] === $container->dependencies( $service_id ), $service_id . ' resolves with its declared dependencies' );
 }
 tutorpress_live_lessons_assert(
-	false === $container->resolved( 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) && false === $container->resolved( 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) && 17 === count( tutorpress_live_lessons_production_files() ),
+	false === $container->resolved( 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) && false === $container->resolved( 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) && 16 === count( tutorpress_live_lessons_production_files() ),
 	'read services construct no adapter while the gate stays false'
 );
 $read_encoded = json_encode( $read_resolved );
@@ -297,7 +297,7 @@ tutorpress_live_lessons_assert(
 );
 $google_encoded = json_encode( array( 'owner' => $owner_resolver, 'callbacks' => array_keys( $google_calls ) ) );
 tutorpress_live_lessons_assert(
-	is_string( $google_encoded ) && false === strpos( $google_encoded, 'fake-credential-value' ) && 17 === count( tutorpress_live_lessons_production_files() ),
+	is_string( $google_encoded ) && false === strpos( $google_encoded, 'fake-credential-value' ) && 16 === count( tutorpress_live_lessons_production_files() ),
 	'google registration stays gate-false and does not invoke owner-context callbacks'
 );
 
@@ -320,7 +320,7 @@ tutorpress_live_lessons_assert(
 );
 $zoom_encoded = json_encode( array( 'callbacks' => array_keys( $zoom_calls ) ) );
 tutorpress_live_lessons_assert(
-	is_string( $zoom_encoded ) && false === strpos( $zoom_encoded, 'fake-credential-value' ) && 17 === count( tutorpress_live_lessons_production_files() ),
+	is_string( $zoom_encoded ) && false === strpos( $zoom_encoded, 'fake-credential-value' ) && 16 === count( tutorpress_live_lessons_production_files() ),
 	'zoom registration stays gate-false and does not invoke owner-context callbacks'
 );
 
@@ -338,7 +338,6 @@ $orchestrator_dependencies = array(
 );
 $shared_dependencies = array( 'live_lesson.authorization', 'live_lesson.ordering', 'live_lesson.repository', 'live_lesson.response_projector' );
 $orchestrator        = $container->get( 'live_lesson.orchestrator' );
-$direct_duplicate    = $container->get( 'live_lesson.direct_duplicate' );
 $topic_duplication   = $container->get( 'live_lesson.topic_duplication' );
 $cascade_delete      = $container->get( 'live_lesson.cascade_delete' );
 $mutation_source     = file_get_contents( dirname( __DIR__, 3 ) . '/includes/class-tutorpress-service-container.php' );
@@ -350,7 +349,7 @@ tutorpress_live_lessons_assert(
 	'orchestrator resolves interface-keyed adapters'
 );
 tutorpress_live_lessons_assert(
-	'TutorPress_Live_Lesson_Duplicate_Service' === $direct_duplicate && $shared_dependencies === $container->dependencies( 'live_lesson.direct_duplicate' ) && 'TutorPress_Topic_Duplication_Service' === $topic_duplication && $shared_dependencies === $container->dependencies( 'live_lesson.topic_duplication' ) && 'TutorPress_Live_Lesson_Cascade_Delete' === $cascade_delete && array( 'live_lesson.authorization' ) === $container->dependencies( 'live_lesson.cascade_delete' ),
+	'TutorPress_Topic_Duplication_Service' === $topic_duplication && $shared_dependencies === $container->dependencies( 'live_lesson.topic_duplication' ) && 'TutorPress_Live_Lesson_Cascade_Delete' === $cascade_delete && array( 'live_lesson.authorization' ) === $container->dependencies( 'live_lesson.cascade_delete' ),
 	'duplication and cascade factories stay separate from the orchestrator'
 );
 tutorpress_live_lessons_assert(
@@ -360,16 +359,14 @@ tutorpress_live_lessons_assert(
 $mutation_encoded = json_encode(
 	array(
 		$container->dependencies( 'live_lesson.orchestrator' ),
-		$container->dependencies( 'live_lesson.direct_duplicate' ),
 		$container->dependencies( 'live_lesson.topic_duplication' ),
 		$container->dependencies( 'live_lesson.cascade_delete' ),
 	)
 );
-$direct_dependencies = $container->dependencies( 'live_lesson.direct_duplicate' );
 $topic_dependencies  = $container->dependencies( 'live_lesson.topic_duplication' );
 $cascade_dependencies = $container->dependencies( 'live_lesson.cascade_delete' );
 tutorpress_live_lessons_assert(
-	is_string( $mutation_encoded ) && false === strpos( $mutation_encoded, 'fake-credential-value' ) && false === in_array( 'live_lesson.orchestrator', $direct_dependencies, true ) && false === in_array( 'TutorPress_Live_Lesson_Provider_Adapter:google_meet', $direct_dependencies, true ) && false === in_array( 'TutorPress_Live_Lesson_Provider_Adapter:zoom', $topic_dependencies, true ) && false === in_array( 'live_lesson.orchestrator', $cascade_dependencies, true ) && 17 === count( tutorpress_live_lessons_production_files() ),
+	is_string( $mutation_encoded ) && false === strpos( $mutation_encoded, 'fake-credential-value' ) && false === in_array( 'TutorPress_Live_Lesson_Provider_Adapter:zoom', $topic_dependencies, true ) && false === in_array( 'live_lesson.orchestrator', $cascade_dependencies, true ) && 16 === count( tutorpress_live_lessons_production_files() ),
 	'mutation resolution stays gate-false and does not invoke owner-context callbacks'
 );
 
@@ -513,7 +510,7 @@ tutorpress_live_lessons_assert(
 	'gate-false read probe stays isolated and does not call the handlers'
 );
 tutorpress_live_lessons_assert(
-	is_array( $legacy ) && false === $legacy['tutor'] && true === $legacy['enabled'] && 17 === $legacy['files'] && false === $legacy['base_listed'] && false === $legacy['controller_listed'] && 17 === count( $production_files ) && $production_files === tutorpress_live_lessons_production_files() && false === in_array( 'includes/rest/class-rest-controller.php', $production_files, true ) && false === in_array( 'includes/rest/class-live-lessons-controller.php', $production_files, true ) && false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false ) && false === class_exists( 'TutorPress_REST_Controller', false ),
+	is_array( $legacy ) && false === $legacy['tutor'] && true === $legacy['enabled'] && 16 === $legacy['files'] && false === $legacy['base_listed'] && false === $legacy['controller_listed'] && 16 === count( $production_files ) && $production_files === tutorpress_live_lessons_production_files() && false === in_array( 'includes/rest/class-rest-controller.php', $production_files, true ) && false === in_array( 'includes/rest/class-live-lessons-controller.php', $production_files, true ) && false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false ) && false === class_exists( 'TutorPress_REST_Controller', false ),
 	'gate-false read probe keeps the production file list'
 );
 
@@ -630,7 +627,7 @@ tutorpress_live_lessons_assert(
 );
 tutorpress_live_lessons_assert(
 	true === $false_schedule['data']['enabled']
-	&& 17 === $false_schedule['data']['files']
+	&& 16 === $false_schedule['data']['files']
 	&& false === $false_schedule['data']['aliases']
 	&& array(
 		array(
@@ -699,7 +696,7 @@ tutorpress_live_lessons_assert(
 	'false-gate POST and PATCH use the wall-clock schema'
 );
 $plain_rows  = is_array( $false_schedule['data']['plain'] ) ? $false_schedule['data']['plain'] : array();
-$plain_clear = 6 === count( $plain_rows )
+$plain_clear = 5 === count( $plain_rows )
 	&& true === $plain_rows[0]['duration']
 	&& true === $plain_rows[0]['timezone']
 	&& true === $plain_rows[1]['duration']
@@ -709,9 +706,7 @@ $plain_clear = 6 === count( $plain_rows )
 	&& false === $plain_rows[3]['duration']
 	&& false === $plain_rows[3]['timezone']
 	&& false === $plain_rows[4]['duration']
-	&& false === $plain_rows[4]['timezone']
-	&& false === $plain_rows[5]['duration']
-	&& false === $plain_rows[5]['timezone'];
+	&& false === $plain_rows[4]['timezone'];
 tutorpress_live_lessons_assert( $plain_clear, 'false-gate POST and PATCH carry duration and timezone and the three added POST routes omit both' );
 
 $true_schedule = $run_controller_probe(
@@ -819,7 +814,7 @@ foreach ( $true_schedule['data']['ledger'] as $row ) {
 }
 tutorpress_live_lessons_assert(
 	true === $true_schedule['data']['enabled']
-	&& 17 === $true_schedule['data']['files']
+	&& 16 === $true_schedule['data']['files']
 	&& false === $true_schedule['data']['aliases']
 	&& false === $true_schedule['data']['text_field']
 	&& '2026-10-06 15:00:00' === $true_schedule['data']['clean']
@@ -867,11 +862,11 @@ $schedule_encoded = json_encode( array( $false_schedule['data'], $true_schedule[
 tutorpress_live_lessons_assert(
 	is_string( $schedule_encoded )
 	&& false === strpos( $schedule_encoded, 'fake-credential-value' )
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& $production_files === tutorpress_live_lessons_production_files()
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Controller', false ),
-	'wall-clock probes keep the false gate, eighteen-file loader, and no controller leak'
+	'wall-clock probes keep the false gate, seventeen-file loader, and no controller leak'
 );
 
 tutorpress_live_lessons_pass( 'wall-clock schedule accepts normalized aliases' );
@@ -1086,7 +1081,7 @@ foreach ( array( 'provider_id', 'event_id', 'meeting_id', 'eventId', 'meetingId'
 }
 tutorpress_live_lessons_assert(
 	true === $duration_probe['data']['enabled']
-	&& 17 === $duration_probe['data']['files']
+	&& 16 === $duration_probe['data']['files']
 	&& false === $duration_probe['data']['text_field']
 	&& array(
 		$duration_field( 'POST', 'duration', 'object', 'sanitize_duration', 'validate_duration' ),
@@ -1151,11 +1146,11 @@ $duration_encoded = json_encode( $duration_probe['data'] );
 tutorpress_live_lessons_assert(
 	is_string( $duration_encoded )
 	&& false === strpos( $duration_encoded, 'fake-credential-value' )
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& $production_files === tutorpress_live_lessons_production_files()
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Controller', false ),
-	'duration probes keep the false gate, eighteen-file loader, and no controller leak'
+	'duration probes keep the false gate, seventeen-file loader, and no controller leak'
 );
 
 tutorpress_live_lessons_pass( 'typed duration and approved timezone reject supplied identity' );
@@ -1270,7 +1265,7 @@ foreach ( array( 'provider_id', 'event_id', 'meeting_id', 'eventId', 'meetingId'
 }
 tutorpress_live_lessons_assert(
 	true === $mutation_probe['data']['enabled']
-	&& 17 === $mutation_probe['data']['files']
+	&& 16 === $mutation_probe['data']['files']
 	&& false === $mutation_probe['data']['lookups']
 	&& false === $mutation_probe['data']['attach']
 	&& array(
@@ -1309,11 +1304,11 @@ $mutation_encoded = json_encode( $mutation_probe['data'] );
 tutorpress_live_lessons_assert(
 	is_string( $mutation_encoded )
 	&& false === strpos( $mutation_encoded, 'fake-credential-value' )
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& $production_files === tutorpress_live_lessons_production_files()
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Controller', false ),
-	'mutation map keeps the false gate, eighteen-file loader, and no controller leak'
+	'mutation map keeps the false gate, seventeen-file loader, and no controller leak'
 );
 
 tutorpress_live_lessons_pass( 'mutation map whitelists domain input' );
@@ -1970,7 +1965,7 @@ $post_meta_body = $method_body( 'load_post_meta' );
 $strip_body = $method_body( 'strip_sensitive_meta' );
 $clock = is_array( $bindings ) ? $bindings['clock'] : null;
 $token = is_array( $bindings ) ? $bindings['token'] : '';
-$handlers = array( 'get_items', 'get_item', 'delete_item', 'duplicate_item', 'get_zoom_users', 'get_google_meet_settings', 'mutate_schedule', 'normalize_mutation', 'map_mutation' );
+$handlers = array( 'get_items', 'get_item', 'delete_item', 'get_zoom_users', 'get_google_meet_settings', 'mutate_schedule', 'normalize_mutation', 'map_mutation' );
 $handler_calls = array();
 foreach ( $handlers as $name ) {
 	$method = new ReflectionMethod( 'TutorPress_REST_Live_Lessons_Controller', $name );
@@ -2531,9 +2526,9 @@ $zoom_users          = array(
 	'boundary'         => $zoom_boundary_after === $zoom_boundary_before && array() === $zoom_boundary_after,
 	'google_hosts'     => $google_host_calls,
 );
-$outcome_body = $method_body( 'rest_outcome' ) . $method_body( 'outcome_failure' ) . $method_body( 'outcome_comparison' ) . $method_body( 'duplicate_projection' );
+$outcome_body = $method_body( 'rest_outcome' ) . $method_body( 'outcome_failure' ) . $method_body( 'outcome_comparison' );
 $outcome_forbidden = array( 'provider_adapter', 'load_service', 'metadata_map', 'hydrate_item', 'hydrate_legacy', 'Orchestrator', 'add_post_meta', 'update_post_meta', 'get_post_meta', 'load_sync_meta', 'load_meta_update', 'load_post_meta', 'GoogleEvent', 'TUTOR_ZOOM', 'list_hosts', 'preflight(', '->create(', '->delete(', '->fetch(', '->update(', "['metadata']", "['write']", "['update']" );
-$outcome_proof = false === strpos( $method_body( 'rest_outcome' ), 'request_bindings' ) && false !== strpos( $method_body( 'duplicate_projection' ), 'request_bindings' ) && false !== strpos( $method_body( 'duplicate_projection' ), 'project_item' ) && false !== strpos( $method_body( 'duplicate_projection' ), "'edit_post' === " ) && false === strpos( $outcome_body, 'edit_posts' );
+$outcome_proof = false === strpos( $method_body( 'rest_outcome' ), 'request_bindings' ) && false === strpos( $outcome_body, 'edit_posts' );
 foreach ( $outcome_forbidden as $outcome_needle ) {
 	$outcome_proof = $outcome_proof && false === strpos( $outcome_body, $outcome_needle );
 }
@@ -3250,54 +3245,6 @@ $duplicate_names       = static function ( $class, $method ) {
 	}
 	return $names;
 };
-$duplicate_delegate  = $method_body( 'delegate_duplicate' );
-$duplicate_live      = $method_body( 'duplicate_live' );
-$duplicate_route     = $method_body( 'duplicate_item' );
-$duplicate_legacy_at = strpos( $duplicate_route, 'delegate_duplicate(' );
-$duplicate_legacy    = false === $duplicate_legacy_at ? $duplicate_route : substr( $duplicate_route, $duplicate_legacy_at + strlen( 'delegate_duplicate($request);' ) );
-$duplicate_path      = $duplicate_delegate . $duplicate_live;
-$duplicate_forbidden = array( 'provider_adapter', 'load_service', 'wp_insert_post', 'wp_delete_post', 'wp_update_post', 'update_post_meta', 'add_post_meta', 'delete_post_meta', 'get_post_meta', 'metadata_map', 'hydrate_', 'Orchestrator', 'stage_pending', 'stage_delete', 'stage_update', 'dispatch_', 'do_action', "['envelope']", "['write']", "['update']", 'edit_posts', 'list_hosts', 'preflight(', 'GoogleEvent', 'TUTOR_ZOOM' );
-$duplicate_clean     = 1 === substr_count( $duplicate_live, 'TutorPress_Live_Lesson_Duplicate_Service::duplicate(' ) && 1 === substr_count( $duplicate_delegate, 'duplicate_live(' ) && 1 === substr_count( $duplicate_delegate, "rest_outcome('duplicate'" ) && false === strpos( $duplicate_delegate, 'Duplicate_Service' ) && false !== strpos( $duplicate_delegate, "'edit_post' === \$capability" ) && false !== strpos( $duplicate_live, 'duplicate($source, $topic, $course, $target, $target_course, $children, $meta, $can)' );
-foreach ( $duplicate_forbidden as $duplicate_needle ) {
-	$duplicate_clean = $duplicate_clean && false === strpos( $duplicate_path, $duplicate_needle );
-}
-$duplicate_marks  = array( "['lookup']", 'invalid_post_type', 'invalid_topic', "'edit_post' === \$capability", '::authorize(', "'publish'", 'duplication_not_supported', "get_param('topic_id')", 'authorize_create(', "['children']", "['metadata']", 'duplicate_live(', "rest_outcome('duplicate'" );
-$duplicate_order  = true;
-$duplicate_cursor = -1;
-foreach ( $duplicate_marks as $duplicate_mark ) {
-	$duplicate_at     = strpos( $duplicate_delegate, $duplicate_mark );
-	$duplicate_order  = $duplicate_order && false !== $duplicate_at && $duplicate_at > $duplicate_cursor;
-	$duplicate_cursor = false === $duplicate_at ? $duplicate_cursor : $duplicate_at;
-}
-$legacy_duplicate = false === strpos( $duplicate_route, 'replacement_enabled' ) && 1 === substr_count( $duplicate_route, 'delegate_duplicate(' ) && false === strpos( $duplicate_legacy, 'request_bindings' ) && false === strpos( $duplicate_legacy, 'provider_adapter' ) && false === strpos( $duplicate_legacy, 'rest_outcome' ) && false === strpos( $duplicate_legacy, 'delegate_duplicate' ) && false === strpos( $duplicate_legacy, 'duplicate_live(' ) && false === strpos( $duplicate_legacy, 'Duplicate_Service' );
-$live_names       = $duplicate_names( 'TutorPress_REST_Live_Lessons_Controller', 'duplicate_live' );
-$service_names    = $duplicate_names( 'TutorPress_Live_Lesson_Duplicate_Service', 'duplicate' );
-$duplicates       = array(
-	'false'          => array( 'entered' => false ),
-	'missing'        => $run_duplicate( $duplicate_body( 501 ) ),
-	'wrong'          => $run_duplicate( $duplicate_body( 502 ) ),
-	'draft'          => $run_duplicate( $duplicate_body( 542 ) ),
-	'private'        => $run_duplicate( $duplicate_body( 519 ) ),
-	'missing_topic'  => $run_duplicate( $duplicate_body( 503 ) ),
-	'wrong_topic'    => $run_duplicate( $duplicate_body( 504 ) ),
-	'missing_course' => $run_duplicate( $duplicate_body( 506 ) ),
-	'wrong_course'   => $run_duplicate( $duplicate_body( 508 ) ),
-	'broken_item'    => $run_duplicate( $duplicate_body( 511 ) ),
-	'broken_course'  => $run_duplicate( $duplicate_body( 513 ) ),
-	'denied'         => $run_duplicate( $duplicate_body( 541 ) ),
-	'zoom'           => $run_duplicate( $duplicate_body( 528 ) ),
-	'dest_missing'   => $run_duplicate( $duplicate_body( 530, 699 ) ),
-	'dest_zero'      => $run_duplicate( $duplicate_body( 530, 0 ) ),
-	'dest_wrong'     => $run_duplicate( $duplicate_body( 530, 502 ) ),
-	'dest_forged'    => $run_duplicate( $duplicate_body( 530, 640 ) ),
-	'dest_denied'    => $run_duplicate( $duplicate_body( 530, 81 ) ),
-	'default'        => $run_duplicate( $duplicate_body( 530 ), true, 540 ),
-	'explicit'       => $run_duplicate( $duplicate_body( 530, 71 ), true, 540 ),
-	'null_result'    => $run_duplicate( $duplicate_body( 530 ), true, null ),
-	'error_result'   => $run_duplicate( $duplicate_body( 530 ), true, $duplicate_error ),
-	'params'         => array( 'live' => $live_names, 'service' => $service_names ),
-	'proof'          => $duplicate_clean && $duplicate_order && $legacy_duplicate && $live_names === $service_names,
-);
 $reconcile_error = new WP_Error( 'live_lesson_retry_blocked', 'Retry blocked.', array( 'status' => 409 ) );
 $meet_comparison = array(
 	'match'  => false,
@@ -3798,9 +3745,6 @@ $matrix_denied = array(
 	'delete' => $matrix_call( true, true, static function () use ( $controller, $matrix_request, $matrix_item ) {
 		return $controller->delete_item( $matrix_request( 'DELETE', $matrix_item, array( 'id' => 530 ) ) );
 	} ),
-	'duplicate' => $matrix_call( true, true, static function () use ( $controller, $matrix_request ) {
-		return $controller->duplicate_item( $matrix_request( 'POST', '/live-lessons/(?P<id>[\d]+)/duplicate', array( 'id' => 530 ) ) );
-	} ),
 	'inspect' => $matrix_call( true, true, static function () use ( $controller, $matrix_request ) {
 		return $controller->reconcile_item( $matrix_request( 'POST', '/live-lessons/(?P<id>[\d]+)/reconcile', array( 'id' => 530, 'action' => 'inspect', 'version' => 1, 'operation_id' => 'op-1' ) ) );
 	} ),
@@ -3887,9 +3831,6 @@ $matrix_delete_zoom = $matrix_call( true, false, static function () use ( $contr
 	$controller->stage_script = array( 'kept' => true );
 	return $controller->delete_item( $matrix_request( 'DELETE', $matrix_item, array( 'id' => 528, 'provider_id' => 'evt-forged-delete' ) ) );
 } );
-$matrix_duplicate = $matrix_call( true, false, static function () use ( $controller, $matrix_request ) {
-	return $controller->duplicate_item( $matrix_request( 'POST', '/live-lessons/(?P<id>[\d]+)/duplicate', array( 'id' => 530, 'topic_id' => 40, 'provider_id' => 'evt-forged-duplicate' ) ) );
-} );
 $matrix_attach_google = $matrix_call( true, false, static function () use ( $controller, $matrix_request, $matrix_uncertain ) {
 	return $controller->attach_item( $matrix_request( 'POST', $matrix_uncertain, array( 'id' => 530, 'provider_id' => 'evt-forged-attach', 'version' => 1, 'operation_id' => 'op-1' ) ) );
 } );
@@ -3940,7 +3881,6 @@ $matrix = array(
 	'ignored'  => array(
 		'delete_google' => $matrix_delete_google,
 		'delete_zoom'   => $matrix_delete_zoom,
-		'duplicate'     => $matrix_duplicate,
 	),
 	'attach'   => array(
 		'google'   => $matrix_attach_google,
@@ -4292,7 +4232,6 @@ echo json_encode(
 		'updates'  => $updates,
 		'pass10f'  => $pass10f,
 		'deletes'  => $deletes,
-		'duplicates' => $duplicates,
 		'reconciles' => $reconcile_cases,
 		'attaches' => $attach_cases,
 		'matrix'   => $matrix,
@@ -4321,7 +4260,7 @@ $canonical_keys = array( 'ID', 'post_type', 'post_status', 'post_parent', 'post_
 $child_types    = array( 'lesson', 'tutor_quiz', 'tutor_assignments', 'tutor-google-meet', 'tutor_zoom_meeting' );
 tutorpress_live_lessons_assert(
 	true === $binding_probe['data']['enabled']
-	&& 17 === $binding_probe['data']['files']
+	&& 16 === $binding_probe['data']['files']
 	&& true === $binding_probe['data']['false_null']
 	&& array() === $binding_probe['data']['false_calls']
 	&& 1 === $binding_probe['data']['definitions']
@@ -4465,11 +4404,11 @@ tutorpress_live_lessons_assert(
 	&& array() === $binding_probe['data']['provider']
 	&& array() === $binding_probe['data']['resolved']
 	&& array() === $binding_probe['data']['permissions']
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& $production_files === tutorpress_live_lessons_production_files()
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Controller', false ),
-	'request bindings keep the false gate, eighteen-file loader, and no controller or provider boundary'
+	'request bindings keep the false gate, seventeen-file loader, and no controller or provider boundary'
 );
 $topic_status = array( 'publish', 'draft', 'private', 'pending', 'future' );
 $envelope_calls = array();
@@ -5060,7 +4999,7 @@ $outcome_error = static function ( $row, $code, $message, $status ) {
 };
 $invalid_outcome_ok = 5 === count( $outcome['invalid'] );
 foreach ( $outcome['invalid'] as $invalid_outcome ) {
-	$invalid_outcome_ok = $invalid_outcome_ok && $outcome_quiet( $invalid_outcome ) && $outcome_error( $invalid_outcome, 'invalid_live_lesson', 'Invalid live lesson ID.', 404 );
+	$invalid_outcome_ok = $invalid_outcome_ok && $outcome_quiet( $invalid_outcome ) && $outcome_error( $invalid_outcome, 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 );
 }
 $duplicate_chain = static function ( $id, $project = true ) {
 	$calls = array( 'clock', 'token', 'user', array( 'post', $id ), array( 'post', 40 ), array( 'post', 15 ), array( 'can', 'edit_post', 15 ), array( 'read', $id, '_tutorpress_live_lesson_sync' ) );
@@ -5082,7 +5021,7 @@ tutorpress_live_lessons_assert(
 	&& $outcome_quiet( $outcome['null_delete'] )
 	&& $outcome_error( $outcome['null_delete'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $outcome_quiet( $outcome['null_duplicate'] )
-	&& $outcome_error( $outcome['null_duplicate'], 'duplicate_creation_failed', 'Failed to create duplicate live lesson.', 500 )
+	&& $outcome_error( $outcome['null_duplicate'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_quiet( $outcome['null_inspect'] )
 	&& $outcome_error( $outcome['null_inspect'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
 	&& $outcome_quiet( $outcome['envelope'] )
@@ -5123,48 +5062,29 @@ tutorpress_live_lessons_assert(
 	&& $outcome_error( $outcome['unsafe_compare'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
 	&& $invalid_outcome_ok
 	&& $outcome_quiet( $outcome['duplicate_closed'] )
-	&& $outcome_error( $outcome['duplicate_closed'], 'duplicate_data_error', 'Duplicate created but failed to retrieve data.', 500 )
+	&& $outcome_error( $outcome['duplicate_closed'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['duplicate'] )
-	&& $duplicate_chain( 540 ) === $outcome['duplicate']['calls']
-	&& 'response' === $outcome['duplicate']['packed']['kind']
-	&& true === $outcome['duplicate']['packed']['data']['success']
-	&& 'Google Meet lesson duplicated successfully.' === $outcome['duplicate']['packed']['data']['message']
-	&& array_merge( array(
-		'id'                 => 540,
-		'title'              => 'Stored title',
-		'description'        => 'Stored notes',
-		'type'               => 'google_meet',
-		'topicId'            => 40,
-		'courseId'           => 15,
-		'status'             => 'scheduled',
-		'sync_state'         => 'error',
-		'sync_version'       => 0,
-		'persisted_envelope' => false,
-		'operation'          => null,
-		'warning'            => null,
-		'error'              => null,
-		'resolution'         => null,
-		'record'             => null,
-	), tutorpress_live_lesson_empty_edit() ) === $outcome['duplicate']['packed']['data']['data']
+	&& array() === $outcome['duplicate']['calls']
+	&& $outcome_error( $outcome['duplicate'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['missing'] )
-	&& array( 'clock', 'token', 'user', array( 'post', 900 ) ) === $outcome['missing']['calls']
-	&& $outcome_error( $outcome['missing'], 'duplicate_data_error', 'Duplicate created but failed to retrieve data.', 500 )
+	&& array() === $outcome['missing']['calls']
+	&& $outcome_error( $outcome['missing'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['malformed'] )
-	&& array( 'clock', 'token', 'user', array( 'post', 545 ), array( 'post', 507 ), array( 'post', 591 ) ) === $outcome['malformed']['calls']
-	&& $outcome_error( $outcome['malformed'], 'duplicate_data_error', 'Duplicate created but failed to retrieve data.', 500 )
+	&& array() === $outcome['malformed']['calls']
+	&& $outcome_error( $outcome['malformed'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['unauthorized'] )
-	&& array( 'clock', 'token', 'user', array( 'post', 541 ), array( 'post', 517 ), array( 'post', 18 ), array( 'can', 'edit_post', 18 ) ) === $outcome['unauthorized']['calls']
-	&& $outcome_error( $outcome['unauthorized'], 'cannot_duplicate_live_lesson', 'You do not have permission to duplicate live lessons.', 403 )
+	&& array() === $outcome['unauthorized']['calls']
+	&& $outcome_error( $outcome['unauthorized'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['rejected_post'] )
-	&& $duplicate_chain( 543, false ) === $outcome['rejected_post']['calls']
-	&& $outcome_error( $outcome['rejected_post'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& array() === $outcome['rejected_post']['calls']
+	&& $outcome_error( $outcome['rejected_post'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& $outcome_held( $outcome['unprojectable'] )
-	&& $duplicate_chain( 542 ) === $outcome['unprojectable']['calls']
-	&& $outcome_error( $outcome['unprojectable'], 'duplicate_data_error', 'Duplicate created but failed to retrieve data.', 500 )
+	&& array() === $outcome['unprojectable']['calls']
+	&& $outcome_error( $outcome['unprojectable'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& is_string( $outcome_encoded )
 	&& false === strpos( $outcome_encoded, 'fake-credential-value' )
 	&& false === strpos( $outcome_encoded, 'access_token' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'REST outcome keeps bare errors and skips provider lifecycle ' . substr( (string) $outcome_encoded, 0, 500 )
 );
 tutorpress_live_lessons_pass( 'rest outcome preserves bare errors and skips provider lifecycle' );
@@ -5341,7 +5261,7 @@ tutorpress_live_lessons_assert(
 	&& is_string( $create_encoded )
 	&& false === strpos( $create_encoded, 'hidden-sentinel' )
 	&& false === strpos( $create_encoded, 'fake-credential-value' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'create delegation performs no provider, metadata, or direct post lifecycle'
 );
 tutorpress_live_lessons_pass( 'gate-true create delegates to the orchestrator' );
@@ -5618,7 +5538,7 @@ tutorpress_live_lessons_assert(
 	&& false === strpos( $update_encoded, 'hidden-sentinel' )
 	&& false === strpos( $update_encoded, 'fake-credential-value' )
 	&& false === strpos( $update_encoded, 'edit_posts' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'update delegation performs no provider, metadata, or direct post lifecycle'
 );
 tutorpress_live_lessons_pass( 'gate-true patch delegates by the canonical sync state' );
@@ -5770,7 +5690,7 @@ tutorpress_live_lessons_assert(
 	&& false === strpos( $delete_encoded, 'hidden-sentinel' )
 	&& false === strpos( $delete_encoded, 'fake-credential-value' )
 	&& false === strpos( $delete_encoded, 'forged-provider' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'delete delegation stages only through stage_delete and performs no provider or metadata lifecycle'
 );
 tutorpress_live_lessons_pass( 'gate-true delete delegates convergent deletion' );
@@ -5921,91 +5841,6 @@ $projected_duplicate = array_merge( array(
 	'resolution'         => null,
 	'record'             => null,
 ), tutorpress_live_lesson_empty_edit() );
-$source_caps = array( array( 'can', 'edit_post', 15 ) );
-$duplicate_encoded = json_encode( $duplicates );
-tutorpress_live_lessons_assert(
-	is_array( $duplicates ) && isset( $duplicates['false'] )
-	&& false === $duplicates['false']['entered']
-	&& true === $duplicates['proof'],
-	'false-gate duplicate stays unentered and delegate_duplicate keeps its scan'
-);
-tutorpress_live_lessons_assert(
-	$duplicate_failed( $duplicates['missing'], 'live_lesson_not_found', 'Live lesson not found.', 404 )
-	&& $duplicate_quiet( $duplicates['missing'], array( array( 'post', 501 ) ) )
-	&& $duplicate_failed( $duplicates['wrong'], 'invalid_post_type', 'Invalid post type. Must be a live lesson.', 400 )
-	&& $duplicate_quiet( $duplicates['wrong'], array( array( 'post', 502 ) ) )
-	&& $duplicate_failed( $duplicates['draft'], 'live_lesson_not_found', 'Live lesson not found.', 404 )
-	&& $duplicate_quiet( $duplicates['draft'], array( array( 'post', 542 ), array( 'post', 40 ), array( 'post', 15 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['private'], 'live_lesson_not_found', 'Live lesson not found.', 404 )
-	&& $duplicate_quiet( $duplicates['private'], array( array( 'post', 519 ), array( 'post', 40 ), array( 'post', 15 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['missing_topic'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['missing_topic'], array( array( 'post', 503 ), array( 'post', 590 ) ) )
-	&& $duplicate_failed( $duplicates['wrong_topic'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['wrong_topic'], array( array( 'post', 504 ), array( 'post', 505 ) ) )
-	&& $duplicate_failed( $duplicates['missing_course'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['missing_course'], array( array( 'post', 506 ), array( 'post', 507 ), array( 'post', 591 ) ) )
-	&& $duplicate_failed( $duplicates['wrong_course'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['wrong_course'], array( array( 'post', 508 ), array( 'post', 509 ), array( 'post', 510 ) ) )
-	&& $duplicate_failed( $duplicates['broken_item'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['broken_item'], array( array( 'post', 511 ), array( 'post', 512 ), array( 'post', 15 ) ) )
-	&& $duplicate_failed( $duplicates['broken_course'], 'invalid_topic', 'Invalid topic for this live lesson.', 404 )
-	&& $duplicate_quiet( $duplicates['broken_course'], array( array( 'post', 513 ), array( 'post', 514 ), array( 'post', 515 ) ) )
-	&& $duplicate_failed( $duplicates['denied'], 'rest_cannot_create', 'Sorry, you are not allowed to duplicate this live lesson.', 401 )
-	&& $duplicate_quiet( $duplicates['denied'], array( array( 'post', 541 ), array( 'post', 517 ), array( 'post', 18 ) ), array( array( 'can', 'edit_post', 18 ) ) ),
-	'missing relations, non-publish items, and denied source edit_post stop before duplicate delegation'
-);
-tutorpress_live_lessons_assert(
-	$duplicate_failed( $duplicates['zoom'], 'duplication_not_supported', 'Duplication is only supported for Google Meet lessons.', 400 )
-	&& $duplicate_quiet( $duplicates['zoom'], array( array( 'post', 528 ), array( 'post', 40 ), array( 'post', 15 ) ), $source_caps ),
-	'publish Zoom is rejected before the direct Google duplicate service'
-);
-tutorpress_live_lessons_assert(
-	$duplicate_failed( $duplicates['dest_missing'], 'invalid_topic', 'Invalid topic ID or topic does not belong to the specified course.', 404 )
-	&& $duplicate_quiet( $duplicates['dest_missing'], array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 699 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['dest_zero'], 'invalid_topic', 'Invalid topic ID or topic does not belong to the specified course.', 404 )
-	&& $duplicate_quiet( $duplicates['dest_zero'], array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['dest_wrong'], 'invalid_topic', 'Invalid topic ID or topic does not belong to the specified course.', 404 )
-	&& $duplicate_quiet( $duplicates['dest_wrong'], array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 502 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['dest_forged'], 'invalid_topic', 'Invalid topic ID or topic does not belong to the specified course.', 404 )
-	&& $duplicate_quiet( $duplicates['dest_forged'], array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 640 ), array( 'post', 641 ) ), $source_caps )
-	&& $duplicate_failed( $duplicates['dest_denied'], 'rest_cannot_create', 'Sorry, you are not allowed to duplicate this live lesson.', 401 )
-	&& $duplicate_quiet( $duplicates['dest_denied'], array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 81 ), array( 'post', 8 ) ), array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 8 ) ) ),
-	'missing, wrong, and forged destinations and denied target courses stop before duplicate delegation'
-);
-$default_posts = array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 540 ), array( 'post', 40 ), array( 'post', 15 ) );
-$default_caps  = array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) );
-$default_reads = array( array( 'read', 540, '_tutorpress_live_lesson_sync' ) );
-$prepared_caps = array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) );
-$prepared_posts = array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ) );
-tutorpress_live_lessons_assert(
-	$duplicate_once( $duplicates['default'], $source_topic, $source_course, array( $child_on_source ), 2, $default_posts, $default_caps, $default_reads )
-	&& $duplicate_query( 40 ) === $duplicates['default']['queries']
-	&& 'response' === $duplicates['default']['packed']['kind']
-	&& 'Google Meet lesson duplicated successfully.' === $duplicates['default']['packed']['data']['message']
-	&& $projected_duplicate === $duplicates['default']['packed']['data']['data']
-	&& $duplicate_once( $duplicates['explicit'], $explicit_topic, $source_course, array( $child_on_explicit ), 2, array( array( 'post', 530 ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', 71 ), array( 'post', 15 ), array( 'post', 540 ), array( 'post', 40 ), array( 'post', 15 ) ), $default_caps, $default_reads )
-	&& $duplicate_query( 71 ) === $duplicates['explicit']['queries']
-	&& $projected_duplicate === $duplicates['explicit']['packed']['data']['data']
-	&& $duplicate_once( $duplicates['null_result'], $source_topic, $source_course, array( $child_on_source ), 1, $prepared_posts, $prepared_caps, array() )
-	&& $duplicate_query( 40 ) === $duplicates['null_result']['queries']
-	&& $duplicate_failed( $duplicates['null_result'], 'duplicate_creation_failed', 'Failed to create duplicate live lesson.', 500 )
-	&& false === $duplicates['null_result']['same']
-	&& $duplicate_once( $duplicates['error_result'], $source_topic, $source_course, array( $child_on_source ), 1, $prepared_posts, $prepared_caps, array() )
-	&& true === $duplicates['error_result']['same']
-	&& $duplicate_failed( $duplicates['error_result'], 'duplicate_blocked', 'Duplicate blocked.', 409 ),
-	'a valid Google duplicate passes canonical rows once and hands integer, null, and error results to rest outcome'
-);
-tutorpress_live_lessons_assert(
-	array( 'source', 'topic', 'course', 'target', 'target_course', 'children', 'meta', 'can' ) === $duplicates['params']['live']
-	&& $duplicates['params']['live'] === $duplicates['params']['service']
-	&& is_string( $duplicate_encoded )
-	&& false === strpos( $duplicate_encoded, 'hidden-sentinel' )
-	&& false === strpos( $duplicate_encoded, 'fake-credential-value' )
-	&& false === strpos( $duplicate_encoded, 'forged-provider' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
-	'gate-true duplicate delegates only to the direct duplicate service and rest outcome'
-);
-tutorpress_live_lessons_pass( 'gate-true duplicate delegates direct Google duplication' );
 
 $reconciles = isset( $binding_probe['data']['reconciles'] ) && is_array( $binding_probe['data']['reconciles'] ) ? $binding_probe['data']['reconciles'] : array();
 $reconcile_failed = static function ( $row, $code, $message, $status ) {
@@ -6115,7 +5950,6 @@ $reconcile_routes = array(
 	'/live-lessons/zoom/users',
 	'/live-lessons/google-meet/settings',
 	'/live-lessons/(?P<id>[\d]+)',
-	'/live-lessons/(?P<id>[\d]+)/duplicate',
 );
 $google_service = 'TutorPress_Live_Lesson_Provider_Adapter:google_meet';
 $zoom_service   = 'TutorPress_Live_Lesson_Provider_Adapter:zoom';
@@ -6292,7 +6126,7 @@ tutorpress_live_lessons_assert(
 	&& false === strpos( $reconcile_encoded, 'hidden-sentinel' )
 	&& false === strpos( $reconcile_encoded, 'fake-credential-value' )
 	&& false === strpos( $reconcile_encoded, 'forged-provider' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'abandon_unknown uses bindings only and leaves the adapter ledger unchanged'
 );
 tutorpress_live_lessons_pass( 'gate-true reconciliation delegates ordinary actions' );
@@ -6467,7 +6301,7 @@ tutorpress_live_lessons_assert(
 	&& is_string( $attach_encoded )
 	&& false === strpos( $attach_encoded, 'hidden-sentinel' )
 	&& false === strpos( $attach_encoded, '"source":"client"' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'gate-true attachment delegates uncertain-create and legacy identity through separate orchestrator calls'
 );
 tutorpress_live_lessons_pass( 'gate-true attachment delegates uncertain-create and legacy identity' );
@@ -6863,7 +6697,7 @@ foreach ( $omitted_special as $omitted_method ) {
 $omitted_encoded = json_encode( $omitted_probe['data'] );
 tutorpress_live_lessons_assert(
 	true === $omitted_probe['data']['enabled']
-	&& 17 === $omitted_probe['data']['files']
+	&& 16 === $omitted_probe['data']['files']
 	&& $omitted_expect( $omitted_paths( 17 ), 17, true ) === $omitted_probe['data']['author']
 	&& $omitted_expect( $omitted_paths( 55 ), 55, true ) === $omitted_probe['data']['fallback'],
 	'omitted zoom credentials derive the course author, then the acting instructor ' . substr( (string) $omitted_encoded, 0, 500 )
@@ -6897,9 +6731,9 @@ tutorpress_live_lessons_assert(
 	&& false === strpos( $omitted_encoded, 'zoom-account' )
 	&& false === strpos( $omitted_encoded, 'zoom-key' )
 	&& false === strpos( $omitted_encoded, 'zoom-secret' )
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& false === class_exists( 'TutorPress_REST_Live_Lessons_Controller', false ),
-	'omitted zoom credentials stay out of encoded output and the false gate stays eighteen files'
+	'omitted zoom credentials stay out of encoded output and the false gate stays seventeen files'
 );
 tutorpress_live_lessons_pass( 'omitted zoom credentials resolve the owner and require preflight' );
 
@@ -7051,7 +6885,6 @@ $matrix_denied_ok = isset( $matrix['denied'] )
 	&& $matrix_denied_row( $matrix['denied']['synced_patch'], 'rest_cannot_edit' )
 	&& $matrix_denied_row( $matrix['denied']['unlinked_patch'], 'rest_cannot_edit' )
 	&& $matrix_denied_row( $matrix['denied']['delete'], 'rest_cannot_delete' )
-	&& $matrix_denied_row( $matrix['denied']['duplicate'], 'rest_cannot_create' )
 	&& $matrix_denied_row( $matrix['denied']['inspect'], 'rest_cannot_edit' )
 	&& $matrix_denied_row( $matrix['denied']['retry'], 'rest_cannot_edit' )
 	&& $matrix_denied_row( $matrix['denied']['resolve_owner'], 'rest_cannot_edit' )
@@ -7072,7 +6905,6 @@ tutorpress_live_lessons_assert(
 	&& $matrix_identity_free( $matrix_schema['create'] )
 	&& $matrix_identity_free( $matrix_schema['patch'] )
 	&& $matrix_identity_free( $matrix_schema['delete'] )
-	&& $matrix_identity_free( $matrix_schema['duplicate'] )
 	&& $matrix_identity_free( $matrix_schema['reconcile'] )
 	&& true === $matrix_required( $matrix_uncertain_schema, 'provider_id' )
 	&& true === $matrix_required( $matrix_uncertain_schema, 'version' )
@@ -7090,12 +6922,11 @@ tutorpress_live_lessons_assert(
 	&& $matrix_rejected( $matrix['supplied']['reconcile'] )
 	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet', 'google_meet' ) )
 	&& $matrix_delete_kept( $matrix['ignored']['delete_zoom'], 'zoom', array( 'zoom', 'zoom' ) )
-	&& $matrix_duplicate_kept( $matrix['ignored']['duplicate'] )
 	&& $matrix_attach_kept( $matrix['attach']['google'], 'google_meet' )
 	&& $matrix_attach_kept( $matrix['attach']['envelope'], 'zoom' )
 	&& $matrix_attach_kept( $matrix['attach']['zoom'], 'zoom' )
 	&& $matrix_attach_kept( $matrix['attach']['legacy'], 'google_meet' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'gate-true routes deny broad edit_posts before adapter resolution and keep disjoint identity schemas'
 );
 tutorpress_live_lessons_pass( 'gate-true routes deny broad edit_posts and keep disjoint identity schemas' );
@@ -7108,7 +6939,6 @@ $pass_2b_codes = array(
 	'synced_patch'    => 'rest_cannot_edit',
 	'unlinked_patch'  => 'rest_cannot_edit',
 	'delete'          => 'rest_cannot_delete',
-	'duplicate'       => 'rest_cannot_create',
 	'inspect'         => 'rest_cannot_edit',
 	'retry'           => 'rest_cannot_edit',
 	'resolve_owner'   => 'rest_cannot_edit',
@@ -7141,7 +6971,6 @@ tutorpress_live_lessons_assert(
 	&& $forged_rows === $mutation_probe['data']['forged']
 	&& $matrix_delete_kept( $matrix['ignored']['delete_google'], 'google_meet', array( 'zoom', 'google_meet', 'google_meet' ) )
 	&& $matrix_delete_kept( $matrix['ignored']['delete_zoom'], 'zoom', array( 'zoom', 'zoom' ) )
-	&& $matrix_duplicate_kept( $matrix['ignored']['duplicate'] )
 	&& true === $matrix_required( $matrix_uncertain_schema, 'provider_id' )
 	&& true === $matrix_required( $matrix_uncertain_schema, 'operation_id' )
 	&& false === $matrix_present( $matrix_uncertain_schema, 'selected_owner_id' )
@@ -7250,7 +7079,7 @@ tutorpress_live_lessons_assert(
 	&& false === strpos( $google_encoded, 'supplied-credential-value' )
 	&& false === strpos( $google_encoded, 'supplied-password-value' )
 	&& false === strpos( $google_encoded, 'supplied-api-key-value' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'gate-true Google settings delegate to the authorized owner through one settings call'
 );
 tutorpress_live_lessons_pass( 'gate-true Google settings delegate to the authorized owner' );
@@ -7873,7 +7702,7 @@ foreach ( array( 'hidden-sentinel', 'credential-token-value', 'credential-secret
 }
 tutorpress_live_lessons_assert(
 	true === $topic_case['enabled']
-	&& 17 === $topic_case['files']
+	&& 16 === $topic_case['files']
 	&& true === $topic_case['topics_controller']
 	&& true === $topic_case['protected']
 	&& true === $topic_case['guard']
@@ -7907,7 +7736,7 @@ tutorpress_live_lessons_assert(
 	&& array( 8, 7 ) === $topic_case['missing_course']['posts']
 	&& array() === $topic_case['missing_course']['caps']
 	&& $topic_quiet
-	&& 17 === count( tutorpress_live_lessons_production_files() )
+	&& 16 === count( tutorpress_live_lessons_production_files() )
 	&& false === class_exists( 'TutorPress_REST_Topics_Controller', false )
 	&& false === class_exists( 'TutorPress_REST_Controller', false )
 	&& false === in_array( 'includes/rest/class-topics-controller.php', tutorpress_live_lessons_production_files(), true ),
@@ -8029,7 +7858,7 @@ tutorpress_live_lessons_assert(
 	&& is_string( $topic_gate_encoded )
 	&& false === strpos( $topic_gate_encoded, 'hidden-sentinel' )
 	&& false !== strpos( (string) json_encode( $topic_auth['copies'] ), 'hidden-sentinel' )
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'a failed topic seam deletes the new topic and keeps hidden-sentinel inside child meta ' . substr( (string) $topic_gate_encoded, 0, 300 )
 );
 tutorpress_live_lessons_pass( 'gate-true topic duplication delegates all children' );
@@ -8151,7 +7980,7 @@ tutorpress_live_lessons_assert(
 	&& true === $topic_delete_complete['packed']['data']['success']
 	&& 'Topic deleted successfully.' === $topic_delete_complete['packed']['data']['message']
 	&& null === $topic_delete_complete['packed']['data']['data']
-	&& 17 === count( tutorpress_live_lessons_production_files() ),
+	&& 16 === count( tutorpress_live_lessons_production_files() ),
 	'a complete topic cascade returns the success message ' . substr( (string) json_encode( $topic_delete_complete['packed'] ), 0, 300 )
 );
 tutorpress_live_lessons_pass( 'gate-true topic cascade stops before the parent' );
@@ -8349,7 +8178,7 @@ $false_gate_data    = $false_gate['data'];
 $false_gate_routes  = isset( $false_gate_data['routes'] ) && is_array( $false_gate_data['routes'] ) ? $false_gate_data['routes'] : array();
 $false_gate_joined  = implode( "\n", $false_gate_routes );
 $false_gate_present = true;
-foreach ( array( '/live-lessons GET get_items', '/live-lessons POST mutate_schedule', '/live-lessons/(?P<id>[\d]+) GET get_item', '/live-lessons/(?P<id>[\d]+) PATCH mutate_schedule', '/live-lessons/(?P<id>[\d]+) DELETE delete_item', '/live-lessons/(?P<id>[\d]+)/duplicate POST duplicate_item', '/live-lessons/zoom/users GET get_zoom_users', '/live-lessons/google-meet/settings GET get_google_meet_settings' ) as $false_gate_route ) {
+foreach ( array( '/live-lessons GET get_items', '/live-lessons POST mutate_schedule', '/live-lessons/(?P<id>[\d]+) GET get_item', '/live-lessons/(?P<id>[\d]+) PATCH mutate_schedule', '/live-lessons/(?P<id>[\d]+) DELETE delete_item', '/live-lessons/zoom/users GET get_zoom_users', '/live-lessons/google-meet/settings GET get_google_meet_settings' ) as $false_gate_route ) {
 	$false_gate_present = $false_gate_present && in_array( $false_gate_route, $false_gate_routes, true );
 }
 $false_gate_calls = isset( $false_gate_data['calls'] ) && is_array( $false_gate_data['calls'] ) ? $false_gate_data['calls'] : array();

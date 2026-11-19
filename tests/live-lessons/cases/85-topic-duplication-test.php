@@ -543,13 +543,13 @@ TutorPress_Topic_Copy_Harness::$fail_commit = 'zero';
 $commit_zero_result = $topic_copy();
 $commit_zero_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_commit = false;
-tutorpress_live_lessons_assert( null === $commit_zero_result && $commit_failed( $commit_zero_events ) && $no_provider(), 'COMMIT zero rolls back after lock release and returns null' );
+tutorpress_live_lessons_assert( is_array( $commit_zero_result ) && isset( $commit_zero_result['non_live'], $commit_zero_result['live'] ) && is_int( $sql_at( $commit_zero_events, 'COMMIT' ) ) && null === $sql_at( $commit_zero_events, 'ROLLBACK' ) && $sql_at( $commit_zero_events, 'COMMIT' ) === count( $commit_zero_events ) - 1 && $no_provider(), 'COMMIT zero is a successful commit' );
 $reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_commit = 'string_zero';
 $commit_string_zero_result = $topic_copy();
 $commit_string_zero_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_commit = false;
-tutorpress_live_lessons_assert( null === $commit_string_zero_result && $commit_failed( $commit_string_zero_events ) && $no_provider(), 'COMMIT string zero rolls back after lock release and returns null' );
+tutorpress_live_lessons_assert( is_array( $commit_string_zero_result ) && isset( $commit_string_zero_result['non_live'], $commit_string_zero_result['live'] ) && is_int( $sql_at( $commit_string_zero_events, 'COMMIT' ) ) && null === $sql_at( $commit_string_zero_events, 'ROLLBACK' ) && $sql_at( $commit_string_zero_events, 'COMMIT' ) === count( $commit_string_zero_events ) - 1 && $no_provider(), 'COMMIT string zero is a successful commit' );
 $reset_topic();
 $cleanup_zoom = TutorPress_Live_Lessons_Store_Fake::$next_post_id + 3;
 TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $cleanup_zoom ] = true;
@@ -584,8 +584,8 @@ $pass_2e_commit_order = static function ( $events ) use ( $sql_at ) {
 	$rollback_at = $sql_at( $events, 'ROLLBACK' );
 	return 0 === $sql_at( $events, 'START TRANSACTION' ) && is_int( $commit_at ) && is_int( $rollback_at ) && $commit_at < $rollback_at && $rollback_at === count( $events ) - 1;
 };
-$pass_2e_commit_ok = null === $commit_result && null === $commit_wp_error_result && null === $commit_zero_result && null === $commit_string_zero_result;
-foreach ( array( $commit_events, $commit_wp_error_events, $commit_zero_events, $commit_string_zero_events ) as $pass_2e_events ) {
+$pass_2e_commit_ok = null === $commit_result && null === $commit_wp_error_result;
+foreach ( array( $commit_events, $commit_wp_error_events ) as $pass_2e_events ) {
 	$pass_2e_commit_ok = $pass_2e_commit_ok && $pass_2e_commit_order( $pass_2e_events );
 }
 tutorpress_live_lessons_assert( $pass_2e_commit_ok && $no_provider(), 'failed commit returns null after COMMIT then ROLLBACK on the fake ledger' );

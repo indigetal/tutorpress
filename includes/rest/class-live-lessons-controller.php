@@ -265,26 +265,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             ]
         );
 
-        // Duplicate live lesson
-        register_rest_route(
-            $this->namespace,
-            '/' . $this->rest_base . '/(?P<id>[\d]+)/duplicate',
-            [
-                [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [$this, 'duplicate_item'],
-                    'permission_callback' => [$this, 'check_lesson_permission'],
-                    'args'               => [
-                        'topic_id' => [
-                            'type'              => 'integer',
-                            'sanitize_callback' => 'absint',
-                            'description'       => __('Target topic ID for the duplicated lesson.', 'tutorpress'),
-                        ],
-                    ],
-                ],
-            ]
-        );
-
         register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/attach/uncertain-create', [[
             'methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'attach_item'], 'permission_callback' => [$this, 'check_lesson_permission'],
             'args' => ['provider_id' => ['required' => true, 'type' => 'string'], 'version' => ['required' => true, 'type' => 'integer'], 'operation_id' => ['required' => true, 'type' => 'string']],
@@ -674,64 +654,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      */
     protected function stage_live_delete(array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true, $local = null) {
         return TutorPress_Live_Lesson_Sync_Orchestrator::stage_delete($item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected, $linked, $local);
-    }
-
-    /**
-     * Gate-true direct Google duplicate. Invalid chains and Zoom stop first.
-     *
-     * @param WP_REST_Request $request Request.
-     * @return WP_REST_Response|WP_Error
-     */
-    private function delegate_duplicate($request) {
-        $bindings = $this->request_bindings();
-        $id = $this->scalar_id($request->get_param('id'));
-        $item = $id > 0 ? $bindings['lookup']($id) : null;
-        $missing = new WP_Error('live_lesson_not_found', __('Live lesson not found.', 'tutorpress'), ['status' => 404]);
-        if ($id < 1 || !is_array($item)) { return $missing; }
-        $type = isset($item['post_type']) ? $item['post_type'] : '';
-        if ('tutor-google-meet' !== $type && 'tutor_zoom_meeting' !== $type) { return new WP_Error('invalid_post_type', __('Invalid post type. Must be a live lesson.', 'tutorpress'), ['status' => 400]); }
-        $topic = $bindings['lookup']((int) (isset($item['post_parent']) ? $item['post_parent'] : 0));
-        if (!is_array($topic) || !isset($topic['post_type']) || 'topics' !== $topic['post_type']) { return new WP_Error('invalid_topic', __('Invalid topic for this live lesson.', 'tutorpress'), ['status' => 404]); }
-        $course = $bindings['lookup']((int) (isset($topic['post_parent']) ? $topic['post_parent'] : 0));
-        $linked = is_array($course) && isset($course['post_type'], $course['ID'], $topic['ID'], $item['post_parent'], $topic['post_parent']) && 'courses' === $course['post_type'] && (int) $item['post_parent'] === (int) $topic['ID'] && (int) $topic['post_parent'] === (int) $course['ID'];
-        if (!$linked) { return new WP_Error('invalid_topic', __('Invalid topic for this live lesson.', 'tutorpress'), ['status' => 404]); }
-        $can = static function ($capability, $post_id) use ($bindings) { return 'edit_post' === $capability && true === $bindings['can']((int) $post_id); };
-        if (null === TutorPress_Live_Lesson_Authorization::authorize($item, $topic, $course, $can)) { return new WP_Error('rest_cannot_create', __('Sorry, you are not allowed to duplicate this live lesson.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
-        if ('publish' !== (isset($item['post_status']) ? $item['post_status'] : '')) { return $missing; }
-        if ('tutor-google-meet' !== $type) { return new WP_Error('duplication_not_supported', __('Duplication is only supported for Google Meet lessons.', 'tutorpress'), ['status' => 400]); }
-        $raw = $request->get_param('topic_id');
-        $target = $topic;
-        $target_course = $course;
-        if (null !== $raw && '' !== $raw) {
-            $target_id = $this->scalar_id($raw);
-            $target = $target_id > 0 ? $bindings['lookup']($target_id) : null;
-            if (!is_array($target) || !isset($target['post_type'], $target['ID']) || 'topics' !== $target['post_type']) { return new WP_Error('invalid_topic', __('Invalid topic ID or topic does not belong to the specified course.', 'tutorpress'), ['status' => 404]); }
-            $target_course = $bindings['lookup']((int) (isset($target['post_parent']) ? $target['post_parent'] : 0));
-        }
-        $placed = is_array($target_course) && isset($target_course['post_type'], $target_course['ID'], $target['post_type'], $target['ID'], $target['post_parent']) && 'topics' === $target['post_type'] && 'courses' === $target_course['post_type'] && (int) $target['post_parent'] === (int) $target_course['ID'];
-        if (!$placed) { return new WP_Error('invalid_topic', __('Invalid topic ID or topic does not belong to the specified course.', 'tutorpress'), ['status' => 404]); }
-        if (null === TutorPress_Live_Lesson_Authorization::authorize_create($target, $target_course, $can)) { return new WP_Error('rest_cannot_create', __('Sorry, you are not allowed to duplicate this live lesson.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
-        $children = $bindings['children']((int) $target['ID']);
-        $metadata = $bindings['metadata']((int) $item['ID'], $type);
-        $result = $this->duplicate_live($item, $topic, $course, $target, $target_course, is_array($children) ? $children : [], is_array($metadata) ? $metadata : [], $can);
-        return $this->rest_outcome('duplicate', $result);
-    }
-
-    /**
-     * One direct Google duplicate. No provider call or metadata write.
-     *
-     * @param array<string,mixed> $source        Source item.
-     * @param array<string,mixed> $topic         Source topic.
-     * @param array<string,mixed> $course        Source course.
-     * @param array<string,mixed> $target        Destination topic.
-     * @param array<string,mixed> $target_course Destination course.
-     * @param array<int,mixed>    $children      Destination children.
-     * @param array<string,mixed> $meta          Sanitized Google metadata.
-     * @param callable            $can           edit_post callable.
-     * @return mixed
-     */
-    protected function duplicate_live(array $source, array $topic, array $course, array $target, array $target_course, array $children, array $meta, $can) {
-        return TutorPress_Live_Lesson_Duplicate_Service::duplicate($source, $topic, $course, $target, $target_course, $children, $meta, $can);
     }
 
     /** Version 0 and no operation for owner resolution. The other actions require both. */
@@ -1366,7 +1288,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     /**
      * Map a dormant mutation result to a bare error or a REST success envelope.
      *
-     * A positive duplicate id is the only post lookup. This helper does not
+     * This helper does not
      * resolve a provider, write metadata, or run a lifecycle method.
      *
      * @param mixed $action Requested action.
@@ -1377,8 +1299,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         if (is_wp_error($result)) { return $result; }
         $action = is_string($action) ? $action : '';
         if (null === $result) { return $this->outcome_failure($action); }
-        if ('duplicate' === $action && is_int($result) && $result > 0) { return $this->duplicate_projection($result); }
-        if ('duplicate' === $action && !is_array($result)) { return new WP_Error('invalid_live_lesson', __('Invalid live lesson ID.', 'tutorpress'), ['status' => 404]); }
         $stored = is_array($result) ? TutorPress_Live_Lesson_Sync_Envelope::envelope($result) : null;
         if (is_array($stored)) { return rest_ensure_response($this->format_response($stored, 'create' === $action ? __('Live lesson created successfully.', 'tutorpress') : ('update' === $action ? __('Live lesson retrieved successfully.', 'tutorpress') : __('Request successful.', 'tutorpress')))); }
         $normalized = is_array($result) ? TutorPress_Live_Lesson_Provider_Result::from($result) : null;
@@ -1392,7 +1312,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     private function outcome_failure($action) {
         if ('update' === $action) { return new WP_Error('live_lesson_update_failed', __('Failed to update live lesson.', 'tutorpress'), ['status' => 500]); }
         if ('delete' === $action) { return new WP_Error('live_lesson_delete_failed', __('Failed to delete live lesson.', 'tutorpress'), ['status' => 500]); }
-        if ('duplicate' === $action) { return new WP_Error('duplicate_creation_failed', __('Failed to create duplicate live lesson.', 'tutorpress'), ['status' => 500]); }
         if ('inspect' === $action) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
         return new WP_Error('live_lesson_creation_failed', __('Failed to create live lesson.', 'tutorpress'), ['status' => 500]);
     }
@@ -1407,25 +1326,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $zoom = ['duration_minutes', 'provider_id', 'start_at', 'timezone'] === $names && is_string($fields['provider_id']) && is_string($fields['start_at']) && is_string($fields['timezone']) && is_int($fields['duration_minutes']);
         $meet = ['end_at', 'provider_id', 'start_at', 'timezone'] === $names && is_string($fields['provider_id']) && is_string($fields['start_at']) && is_string($fields['end_at']) && is_string($fields['timezone']);
         return ['fields', 'match'] === $keys && is_bool($result['match']) && ($zoom || $meet) ? ['match' => $result['match'], 'fields' => $fields] : null;
-    }
-
-    /** Load one duplicated Google Meet post through the gated request boundary. */
-    private function duplicate_projection($id) {
-        $bindings = $this->request_bindings();
-        $failed = new WP_Error('duplicate_data_error', __('Duplicate created but failed to retrieve data.', 'tutorpress'), ['status' => 500]);
-        $item = is_array($bindings) ? $bindings['lookup']((int) $id) : null;
-        $parent = is_array($item) && isset($item['post_type'], $item['post_parent']) && 'tutor-google-meet' === $item['post_type'] ? (int) $item['post_parent'] : 0;
-        $topic = $parent > 0 ? $bindings['lookup']($parent) : null;
-        $course_id = is_array($topic) && isset($topic['post_type'], $topic['ID'], $topic['post_parent']) && 'topics' === $topic['post_type'] ? (int) $topic['post_parent'] : 0;
-        $course = $course_id > 0 ? $bindings['lookup']($course_id) : null;
-        $linked = is_array($course) && isset($course['post_type'], $course['ID']) && 'courses' === $course['post_type'] && (int) $item['post_parent'] === (int) $topic['ID'] && (int) $topic['post_parent'] === (int) $course['ID'];
-        if (!$linked) { return $failed; }
-        $can = static function ($capability, $post_id) use ($bindings) { return 'edit_post' === $capability && true === $bindings['can']((int) $post_id); };
-        if (null === TutorPress_Live_Lesson_Authorization::authorize($item, $topic, $course, $can)) { return new WP_Error('cannot_duplicate_live_lesson', __('You do not have permission to duplicate live lessons.', 'tutorpress'), ['status' => 403]); }
-        $envelope = $bindings['envelope']((int) $item['ID']);
-        if (false === $envelope) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
-        $projected = TutorPress_Live_Lesson_Response_Projector::project_item($item, $topic, $course, $can, $envelope, null);
-        return is_array($projected) ? rest_ensure_response($this->format_response($projected, __('Google Meet lesson duplicated successfully.', 'tutorpress'))) : $failed;
     }
 
     /** Created or updated lesson projection, or the matching failure when the post cannot be projected. */
@@ -1569,19 +1469,5 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
      */
     public function delete_item($request) {
         return $this->delegate_delete($request);
-    }
-
-    /**
-     * Duplicate a live lesson.
-     *
-     * Currently only supports Google Meet lessons as Zoom lessons don't have 
-     * duplicate functionality in Tutor LMS frontend course builder.
-     *
-     * @since 1.5.0
-     * @param WP_REST_Request $request The request object.
-     * @return WP_REST_Response|WP_Error Response object or error.
-     */
-    public function duplicate_item($request) {
-        return $this->delegate_duplicate($request);
     }
 } 

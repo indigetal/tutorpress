@@ -20,7 +20,6 @@ function tutorpress_live_lessons_production_files() {
 		'includes/live-lessons/class-tutorpress-live-lesson-collection-query.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-topic-projector.php',
 		'includes/live-lessons/class-tutorpress-topic-duplication-service.php',
-		'includes/live-lessons/class-tutorpress-live-lesson-duplicate-service.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-cascade-delete.php',
 		'includes/live-lessons/class-tutorpress-live-lesson-sync-orchestrator.php',
 	);

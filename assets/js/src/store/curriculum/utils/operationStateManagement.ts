@@ -291,13 +291,6 @@ export const OPERATION_CONFIGS = {
     entityIdField: "liveLessonId",
   } as OperationConfig,
 
-  duplicateLiveLesson: {
-    operationType: "duplicateLiveLesson",
-    statePath: "liveLessonDuplicationState",
-    startStatus: OPERATION_STATUSES.DUPLICATING,
-    entityIdField: "liveLessonId",
-  } as OperationConfig,
-
   // Topic operations
   fetchTopics: {
     operationType: "fetchTopics",

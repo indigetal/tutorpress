@@ -200,7 +200,7 @@ final class TutorPress_Topic_Duplication_Service {
 			return $result instanceof WP_Error ? $result : null;
 		}
 		$committed = $wpdb->query( 'COMMIT' );
-		if ( $committed instanceof WP_Error || false === $committed || 0 === $committed || '0' === $committed ) {
+		if ( $committed instanceof WP_Error || false === $committed ) {
 			$wpdb->query( 'ROLLBACK' );
 			return null;
 		}

@@ -256,7 +256,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
   const { createNotice } = useDispatch(noticesStore);
 
   // Get curriculum store actions for live lessons and content reordering
-  const { deleteLiveLesson, duplicateLiveLesson, reorderTopicContent } = useDispatch(CURRICULUM_STORE);
+  const { deleteLiveLesson, reorderTopicContent } = useDispatch(CURRICULUM_STORE);
 
   // Get content reorder state for loading and error handling
   const contentReorderState = useSelect((select) => (select(CURRICULUM_STORE) as any).getContentReorderState(), []);
@@ -465,15 +465,6 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
     }
   };
 
-  // Live lesson duplicate handler (Google Meet only)
-  const handleGoogleMeetDuplicate = (liveLessonId: number, topicId: number) => {
-    if (!(window.tutorpressAddons?.google_meet ?? false)) {
-      showGoogleMeetDisabledNotice();
-      return;
-    }
-    duplicateLiveLesson(liveLessonId, topicId, courseId || 0);
-  };
-
   // Handle double-click on title or summary
   const handleDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -609,9 +600,7 @@ export const TopicSection: React.FC<TopicSectionProps> = ({
                                   }
                                   handleQuizDuplicate(item.id, topic.id);
                                 }
-                              : item.type === "meet_lesson"
-                                ? () => handleGoogleMeetDuplicate(item.id, topic.id)
-                                : undefined // Zoom lessons don't support duplication
+                              : undefined // Zoom lessons don't support duplication
                     }
                     onDelete={
                       item.type === "lesson"
