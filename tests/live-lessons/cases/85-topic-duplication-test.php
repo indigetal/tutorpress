@@ -154,8 +154,8 @@ $broad       = static function ( $cap ) { return 'edit_posts' === $cap; };
 $lesson      = array( 'ID' => 30, 'post_type' => 'lesson', 'post_parent' => 8, 'menu_order' => 2, 'post_title' => 'Read', 'post_content' => 'Body', 'post_status' => 'publish', 'meta' => array( '_lesson_settings' => array( 'html5' ), '_edit_lock' => array( 'lock' ), '_edit_last' => array( '9' ) ) );
 $quiz        = array( 'ID' => 10, 'post_type' => 'tutor_quiz', 'post_parent' => 8, 'menu_order' => 2, 'post_title' => 'Check', 'post_content' => 'Q', 'post_status' => 'draft', 'meta' => array( 'quiz_option' => array( '1' ) ) );
 $assign      = array( 'ID' => 20, 'post_type' => 'tutor_assignments', 'post_parent' => 8, 'menu_order' => 0, 'post_title' => 'Work', 'post_content' => 'A', 'post_status' => 'private', 'meta' => array( 'assignment_option' => array( 'on' ) ) );
-$meet        = array( 'ID' => 40, 'post_type' => 'tutor-google-meet', 'post_parent' => 8, 'menu_order' => 5, 'post_title' => 'Meet', 'post_content' => 'G', 'post_status' => 'draft', 'post_author' => 3, 'meta' => array( 'tutor-google-meet-start-datetime' => array( '2026-09-21 15:04:00' ), 'tutor-google-meet-end-datetime' => array( '2026-09-21 16:04:00' ), 'tutor-google-meet-event-details' => array( '{"id":"evt-1","meet_link":"https://meet.example"}' ), 'tutor-google-meet-link' => array( 'https://meet.example' ), '_tutor_gmt_data' => array( '{"id":"gmt-1"}' ) ) );
-$zoom        = array( 'ID' => 15, 'post_type' => 'tutor_zoom_meeting', 'post_parent' => 8, 'menu_order' => 5, 'post_title' => 'Zoom', 'post_content' => 'Z', 'post_status' => 'draft', 'post_author' => 3, 'meta' => array( '_tutor_zm_start_date' => array( '2026-09-21' ), '_tutor_zm_start_datetime' => array( '2026-09-21 15:04:00' ), '_tutor_zm_duration' => array( '60' ), '_tutor_zm_duration_unit' => array( 'min' ), '_tutor_zm_for_course' => array( '7' ), '_tutor_zm_for_topic' => array( '8' ), '_tutor_zm_data' => array( '{"id":"z-1","host_id":"host-1","join_url":"https://zoom.example"}' ) ) );
+$meet        = array( 'ID' => 40, 'post_type' => 'tutor-google-meet', 'post_parent' => 8, 'menu_order' => 5, 'post_title' => 'Meet', 'post_content' => 'G', 'post_status' => 'draft', 'post_author' => 3, 'meta' => array( 'tutor-google-meet-start-datetime' => array( '2026-09-21 15:04:00' ), 'tutor-google-meet-end-datetime' => array( '2026-09-21 16:04:00' ), 'tutor-google-meet-event-details' => array( '{"id":"evt-1","meet_link":"https://meet.example","html_link":"https://calendar.example","timezone":"America/New_York","attendees":"Yes","start_datetime":"2026-09-21 15:04:00","end_datetime":"2026-09-21 16:04:00"}' ), 'tutor-google-meet-link' => array( 'https://meet.example' ), '_tutor_gmt_data' => array( '{"id":"gmt-1"}' ) ) );
+$zoom        = array( 'ID' => 15, 'post_type' => 'tutor_zoom_meeting', 'post_parent' => 8, 'menu_order' => 5, 'post_title' => 'Zoom', 'post_content' => 'Z', 'post_status' => 'draft', 'post_author' => 3, 'meta' => array( '_tutor_zm_start_date' => array( '2026-09-21' ), '_tutor_zm_start_datetime' => array( '2026-09-21 15:04:00' ), '_tutor_zm_duration' => array( '60' ), '_tutor_zm_duration_unit' => array( 'min' ), '_tutor_zm_for_course' => array( '7' ), '_tutor_zm_for_topic' => array( '8' ), '_tutor_zm_data' => array( '{"id":"z-1","timezone":"America/New_York","host_id":"host-1","password":"a\\\\b","join_url":"https://zoom.example","start_url":"https://zoom.example/s","start_time":"2026-09-21T19:04:00Z","duration":60,"settings":{"auto_recording":"local","waiting_room":true}}' ) ) );
 $other       = array( 'ID' => 99, 'post_type' => 'page', 'post_parent' => 8, 'menu_order' => 1 );
 $away        = array( 'ID' => 50, 'post_type' => 'lesson', 'post_parent' => 4, 'menu_order' => 0 );
 $children    = array( $meet, $zoom, $lesson, $quiz, $assign, $other, $away );
@@ -205,64 +205,36 @@ foreach ( TutorPress_Live_Lessons_Store_Fake::$meta as $row ) {
 	if ( (int) $row['post_id'] !== (int) $live[0]['ID'] && (int) $row['post_id'] !== (int) $live[1]['ID'] ) {
 		continue;
 	}
-	if ( '_tutorpress_live_lesson_sync' === $row['meta_key'] ) {
-		$envelopes[ $row['post_id'] ][] = $row['meta_value'];
-		continue;
-	}
 	$live_meta[ $row['post_id'] ][ $row['meta_key'] ] = $row['meta_value'];
 }
 ksort( $live_meta[ $live[0]['ID'] ] );
 ksort( $live_meta[ $live[1]['ID'] ] );
 tutorpress_live_lessons_assert( array( 'post_type' => 'tutor_zoom_meeting', 'post_title' => 'Zoom', 'post_content' => 'Z', 'post_status' => 'publish', 'post_author' => 42, 'post_parent' => 80, 'menu_order' => 4, 'ID' => $live[0]['ID'] ) === TutorPress_Live_Lessons_Store_Fake::$posts[ $live[0]['ID'] ] && array( 'post_type' => 'tutor-google-meet', 'post_title' => 'Meet', 'post_content' => 'G', 'post_status' => 'publish', 'post_author' => 42, 'post_parent' => 80, 'menu_order' => 5, 'ID' => $live[1]['ID'] ) === TutorPress_Live_Lessons_Store_Fake::$posts[ $live[1]['ID'] ], 'live copies are publish rows authored by the destination course' );
-tutorpress_live_lessons_assert( array( '_tutor_zm_duration' => '60', '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-21', '_tutor_zm_start_datetime' => '2026-09-21 15:04:00' ) === $live_meta[ $live[0]['ID'] ] && array( 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00' ) === $live_meta[ $live[1]['ID'] ] && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'live copies keep the schedule whitelist and make no provider, hook, or boundary call' );
-$zoom_envelope = json_decode( $envelopes[ $live[0]['ID'] ][0], true );
-$meet_envelope = json_decode( $envelopes[ $live[1]['ID'] ][0], true );
-$zoom_lock     = 'tutorpress_live_lesson_lock_' . $live[0]['ID'];
-$meet_lock     = 'tutorpress_live_lesson_lock_' . $live[1]['ID'];
-$now           = ( new DateTimeImmutable( 'now', new DateTimeZone( 'UTC' ) ) )->format( 'Y-m-d H:i:s' );
-$accept_lock   = static function () { return true; };
-tutorpress_live_lessons_assert( 1 === count( $envelopes[ $live[0]['ID'] ] ) && 1 === count( $envelopes[ $live[1]['ID'] ] ) && is_array( TutorPress_Live_Lesson_Sync_Envelope::envelope( $zoom_envelope ) ) && is_array( TutorPress_Live_Lesson_Sync_Envelope::envelope( $meet_envelope ) ) && 1 === $zoom_envelope['version'] && 'unlinked' === $zoom_envelope['state'] && 'zoom' === $zoom_envelope['provider'] && null === $zoom_envelope['provider_id'] && null === $zoom_envelope['operation'] && 42 === $zoom_envelope['owner_id'] && 1 === $meet_envelope['version'] && 'unlinked' === $meet_envelope['state'] && 'google_meet' === $meet_envelope['provider'] && null === $meet_envelope['provider_id'] && null === $meet_envelope['operation'] && 42 === $meet_envelope['owner_id'] && array( array( $zoom_lock, true ), array( $meet_lock, true ) ) === array( array( TutorPress_Topic_Copy_Harness::$releases[0][0], TutorPress_Topic_Copy_Harness::$releases[0][2] ), array( TutorPress_Topic_Copy_Harness::$releases[1][0], TutorPress_Topic_Copy_Harness::$releases[1][2] ) ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $zoom_lock ], TutorPress_Live_Lessons_Store_Fake::$options[ $meet_lock ] ) && array() === TutorPress_Topic_Copy_Harness::$deletes && null === TutorPress_Live_Lesson_Sync_Repository::takeover( (int) $live[0]['ID'], 'initialize', 'takeover-token', TutorPress_Topic_Copy_Harness::$releases[0][1], $now, $accept_lock ) && null === TutorPress_Live_Lesson_Sync_Repository::takeover( (int) $live[1]['ID'], 'initialize', 'takeover-token', TutorPress_Topic_Copy_Harness::$releases[1][1], $now, $accept_lock ), 'both live copies initialize one unlinked envelope and release each unexpired lock' );
-$lock_sql = 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)';
-tutorpress_live_lessons_assert( array( $lock_sql, $zoom_lock, TutorPress_Topic_Copy_Harness::$releases[0][1] ) === $GLOBALS['wpdb']->statements[0] && array( $lock_sql, $meet_lock, TutorPress_Topic_Copy_Harness::$releases[1][1] ) === $GLOBALS['wpdb']->statements[1], 'each lock release is one conditional delete of the exact stored bytes' );
-$posts_before = TutorPress_Live_Lessons_Store_Fake::$posts;
-$meta_before  = TutorPress_Live_Lessons_Store_Fake::$meta;
-$options_before = TutorPress_Live_Lessons_Store_Fake::$options;
-$zoom_id      = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-TutorPress_Topic_Copy_Harness::$fail_lock = true;
-TutorPress_Topic_Copy_Harness::$releases  = array();
-TutorPress_Topic_Copy_Harness::$deletes   = array();
-$acquire_failed = TutorPress_Topic_Duplication_Service::copy_live( $source, $course, $destination, $target, $children, $allow );
-TutorPress_Topic_Copy_Harness::$fail_lock = false;
-tutorpress_live_lessons_assert( null === $acquire_failed && $posts_before === TutorPress_Live_Lessons_Store_Fake::$posts && $meta_before === TutorPress_Live_Lessons_Store_Fake::$meta && $options_before === TutorPress_Live_Lessons_Store_Fake::$options && array() === TutorPress_Topic_Copy_Harness::$releases && array( array( $zoom_id, true ) ) === TutorPress_Topic_Copy_Harness::$deletes && $zoom_id + 1 === TutorPress_Live_Lessons_Store_Fake::$next_post_id && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'acquisition failure deletes the first live copy and does not release or initialize the next child' );
-$zoom_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-TutorPress_Topic_Copy_Harness::$fail_init = true;
-TutorPress_Topic_Copy_Harness::$releases  = array();
-TutorPress_Topic_Copy_Harness::$deletes   = array();
-$init_failed = TutorPress_Topic_Duplication_Service::copy_live( $source, $course, $destination, $target, $children, $allow );
-TutorPress_Topic_Copy_Harness::$fail_init = false;
-tutorpress_live_lessons_assert( null === $init_failed && $posts_before === TutorPress_Live_Lessons_Store_Fake::$posts && $meta_before === TutorPress_Live_Lessons_Store_Fake::$meta && $options_before === TutorPress_Live_Lessons_Store_Fake::$options && array( array( 'tutorpress_live_lesson_lock_' . $zoom_id, true ) ) === array( array( TutorPress_Topic_Copy_Harness::$releases[0][0], TutorPress_Topic_Copy_Harness::$releases[0][2] ) ) && 1 === count( TutorPress_Topic_Copy_Harness::$releases ) && array( array( $zoom_id, true ) ) === TutorPress_Topic_Copy_Harness::$deletes && $zoom_id + 1 === TutorPress_Live_Lessons_Store_Fake::$next_post_id && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'initialization failure releases the exact lock, deletes the copy, and stops' );
-$zoom_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $zoom_id ] = true;
-TutorPress_Topic_Copy_Harness::$fail_init = true;
-TutorPress_Topic_Copy_Harness::$releases  = array();
-TutorPress_Topic_Copy_Harness::$deletes   = array();
-$cleanup_failed = TutorPress_Topic_Duplication_Service::copy_live( $source, $course, $destination, $target, $children, $allow );
-TutorPress_Topic_Copy_Harness::$fail_init = false;
-unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $zoom_id ] );
-$cleanup_data = $cleanup_failed instanceof WP_Error ? $cleanup_failed->get_error_data() : null;
-$sync_rows    = 0;
-foreach ( TutorPress_Live_Lessons_Store_Fake::$meta as $row ) {
-	if ( (int) $row['post_id'] === $zoom_id && '_tutorpress_live_lesson_sync' === $row['meta_key'] ) {
-		++$sync_rows;
-	}
-}
-tutorpress_live_lessons_assert( is_array( $cleanup_data ) && $zoom_id === $cleanup_data['record_id'] && 9 === $cleanup_data['course_id'] && 80 === $cleanup_data['topic_id'] && 'error' === $cleanup_data['sync_state'] && 0 === $cleanup_data['sync_version'] && true === $cleanup_data['refetch_required'] && $zoom_id === $cleanup_data['projected_record']['id'] && 'error' === $cleanup_data['projected_record']['sync_state'] && 0 === $cleanup_data['projected_record']['sync_version'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $zoom_id ] ) && 'tutor_zoom_meeting' === TutorPress_Live_Lessons_Store_Fake::$posts[ $zoom_id ]['post_type'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $zoom_id + 1 ] ) && 0 === $sync_rows && array( array( 'tutorpress_live_lesson_lock_' . $zoom_id, true ) ) === array( array( TutorPress_Topic_Copy_Harness::$releases[0][0], TutorPress_Topic_Copy_Harness::$releases[0][2] ) ) && 1 === count( TutorPress_Topic_Copy_Harness::$releases ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_id ] ) && $zoom_id + 1 === TutorPress_Live_Lessons_Store_Fake::$next_post_id && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'cleanup failure keeps the copied child and returns the destination persisted-record error' );
-TutorPress_Live_Lessons_Store_Fake::$options['tutorpress_live_lesson_lock_1'] = 'owned-bytes';
-$release = new ReflectionMethod( 'TutorPress_Topic_Duplication_Service', 'delete_lock' );
-$kept    = $release->invoke( null, 'tutorpress_live_lesson_lock_1', 'replacement-bytes' );
-$still   = TutorPress_Live_Lessons_Store_Fake::$options['tutorpress_live_lesson_lock_1'];
-$deleted = $release->invoke( null, 'tutorpress_live_lesson_lock_1', 'owned-bytes' );
-tutorpress_live_lessons_assert( false === $kept && 'owned-bytes' === $still && true === $deleted && ! isset( TutorPress_Live_Lessons_Store_Fake::$options['tutorpress_live_lesson_lock_1'] ) && $lock_sql === $GLOBALS['wpdb']->statements[ count( $GLOBALS['wpdb']->statements ) - 1 ][0], 'a different stored lock value survives the conditional delete' );
+tutorpress_live_lessons_assert( array( '_tutor_zm_data' => '{"timezone":"America/New_York","host_id":"host-1","password":"a\\\\b","settings":{"auto_recording":"local","waiting_room":true}}', '_tutor_zm_duration' => '60', '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-21', '_tutor_zm_start_datetime' => '2026-09-21 15:04:00' ) === $live_meta[ $live[0]['ID'] ] && array( 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-event-details' => '{"timezone":"America/New_York","attendees":"Yes"}', 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00' ) === $live_meta[ $live[1]['ID'] ] && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'live copies keep the schedule keys, relation keys, and rewritten form blobs and make no provider, hook, or boundary call' );
+tutorpress_live_lessons_assert( ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $live[0]['ID'] ], TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $live[1]['ID'] ] ) && array() === TutorPress_Topic_Copy_Harness::$deletes, 'live copies write no lock and keep the inserted posts' );
+$op_calls  = TutorPress_Live_Lessons_Adapter_Fake::$calls;
+$op_hooks  = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$op_ledger = TutorPress_Live_Lessons_Boundary_Fake::$ledger;
+$sync      = static function ( $state, array $operation ) { return array( json_encode( array( 'state' => $state, 'operation' => $operation ) ) ); };
+$bare      = static function ( $id, $type, $order, array $meta ) { return array( 'ID' => $id, 'post_type' => $type, 'post_parent' => 8, 'menu_order' => $order, 'post_title' => 'Op', 'post_content' => 'O', 'post_status' => 'draft', 'meta' => $meta ); };
+$g_op      = array( 'start_local' => '2026-09-22 10:00:00', 'end_local' => '2026-09-22 11:00:00', 'timezone' => 'America/Chicago', 'provider_id' => 'evt-hidden', 'provider_target' => array( 'add_enrolled_students' => 'Yes', 'id' => 'evt-hidden', 'meet_link' => 'https://meet.example/h', 'html_link' => 'https://calendar.example/h' ) );
+$g_no      = $g_op; $g_no['start_local'] = '2026-09-23 12:00:00'; $g_no['end_local'] = '2026-09-23 13:00:00'; $g_no['provider_id'] = 'evt-hidden-no'; $g_no['provider_target']['add_enrolled_students'] = 'No';
+$z_op      = array( 'start_local' => '2026-09-22 10:00:00', 'timezone' => 'America/Chicago', 'duration' => array( 'value' => 90, 'unit' => 'minutes' ), 'provider_id' => 'z-hidden', 'provider_target' => array( 'host_id' => 'host-op', 'auto_recording' => 'cloud', 'waiting_room' => false, 'password' => 'secret-op', 'id' => 'z-hidden', 'join_url' => 'https://zoom.example/j', 'start_url' => 'https://zoom.example/s' ) );
+$z_hr      = $z_op; $z_hr['duration'] = array( 'value' => 2, 'unit' => 'hours' ); $z_hr['provider_target']['auto_recording'] = 'local'; $z_hr['provider_target']['waiting_room'] = true;
+$z_bad     = $z_op; $z_bad['duration'] = array( 'value' => 3, 'unit' => 'days' );
+$kept_zoom = $zoom; $kept_zoom['ID'] = 48; $kept_zoom['menu_order'] = 8; $kept_zoom['meta']['_tutorpress_live_lesson_sync'] = $sync( 'error', array( 'start_local' => '2027-01-01 00:00:00', 'timezone' => 'UTC', 'provider_id' => 'evt-other', 'duration' => array( 'value' => 15, 'unit' => 'minutes' ), 'provider_target' => array( 'host_id' => 'host-other', 'auto_recording' => 'none', 'waiting_room' => false, 'password' => 'other-pass' ) ) );
+$op_children = array( $bare( 41, 'tutor-google-meet', 1, array( '_tutorpress_live_lesson_sync' => $sync( 'pending', $g_op ) ) ), $bare( 42, 'tutor-google-meet', 2, array( '_tutorpress_live_lesson_sync' => $sync( 'error', $g_no ) ) ), $bare( 43, 'tutor_zoom_meeting', 3, array( '_tutorpress_live_lesson_sync' => $sync( 'pending', $z_op ) ) ), $bare( 44, 'tutor_zoom_meeting', 4, array( '_tutorpress_live_lesson_sync' => $sync( 'error', $z_hr ) ) ), $bare( 45, 'tutor_zoom_meeting', 5, array( '_tutorpress_live_lesson_sync' => $sync( 'pending', $z_bad ) ) ), $bare( 46, 'tutor-google-meet', 6, array() ), $bare( 47, 'tutor-google-meet', 7, array( '_tutorpress_live_lesson_sync' => $sync( 'synced', $g_op ) ) ), $kept_zoom );
+$op_live = TutorPress_Topic_Duplication_Service::copy_live( $source, $course, $destination, $target, $op_children, $allow );
+$op_meta = array();
+foreach ( $op_live as $op_copy ) { $op_meta[ $op_copy['ID'] ] = array(); }
+foreach ( TutorPress_Live_Lessons_Store_Fake::$meta as $row ) { if ( isset( $op_meta[ (int) $row['post_id'] ] ) ) { $op_meta[ (int) $row['post_id'] ][ $row['meta_key'] ] = $row['meta_value']; } }
+foreach ( $op_meta as $op_id => $op_bag ) { ksort( $op_meta[ $op_id ] ); }
+$op_ids = array( $op_live[0]['ID'], $op_live[1]['ID'], $op_live[2]['ID'], $op_live[3]['ID'], $op_live[4]['ID'], $op_live[5]['ID'], $op_live[6]['ID'], $op_live[7]['ID'] );
+$op_zoom_blob = '{"timezone":"America/Chicago","host_id":"host-op","settings":{"auto_recording":"cloud","waiting_room":false}}';
+$op_hour_blob = '{"timezone":"America/Chicago","host_id":"host-op","settings":{"auto_recording":"local","waiting_room":true}}';
+$op_locked = false;
+foreach ( $op_ids as $op_id ) { $op_locked = $op_locked || isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $op_id ] ) || isset( $op_meta[ $op_id ]['_tutorpress_live_lesson_sync'] ) || isset( $op_meta[ $op_id ]['tutor-google-meet-link'] ); }
+tutorpress_live_lessons_assert( array( 'tutor-google-meet-end-datetime' => '2026-09-22 11:00:00', 'tutor-google-meet-event-details' => '{"timezone":"America/Chicago","attendees":"Yes"}', 'tutor-google-meet-start-datetime' => '2026-09-22 10:00:00' ) === $op_meta[ $op_ids[0] ] && array( 'tutor-google-meet-end-datetime' => '2026-09-23 13:00:00', 'tutor-google-meet-event-details' => '{"timezone":"America/Chicago","attendees":"No"}', 'tutor-google-meet-start-datetime' => '2026-09-23 12:00:00' ) === $op_meta[ $op_ids[1] ] && array( '_tutor_zm_data' => $op_zoom_blob, '_tutor_zm_duration' => 90, '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-22', '_tutor_zm_start_datetime' => '2026-09-22 10:00:00' ) === $op_meta[ $op_ids[2] ] && array( '_tutor_zm_data' => $op_hour_blob, '_tutor_zm_duration' => 2, '_tutor_zm_duration_unit' => 'hr', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-22', '_tutor_zm_start_datetime' => '2026-09-22 10:00:00' ) === $op_meta[ $op_ids[3] ] && array( '_tutor_zm_data' => $op_zoom_blob, '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-22', '_tutor_zm_start_datetime' => '2026-09-22 10:00:00' ) === $op_meta[ $op_ids[4] ] && array() === $op_meta[ $op_ids[5] ] && array() === $op_meta[ $op_ids[6] ] && array( '_tutor_zm_data' => '{"timezone":"America/New_York","host_id":"host-1","password":"a\\\\b","settings":{"auto_recording":"local","waiting_room":true}}', '_tutor_zm_duration' => '60', '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-21', '_tutor_zm_start_datetime' => '2026-09-21 15:04:00' ) === $op_meta[ $op_ids[7] ] && false === $op_locked && $op_calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $op_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $op_ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && false === strpos( json_encode( $op_meta ), 'evt-hidden' ) && false === strpos( json_encode( $op_meta ), 'evt-other' ) && false === strpos( json_encode( $op_meta ), 'z-hidden' ) && false === strpos( json_encode( $op_meta ), 'secret-op' ) && false === strpos( json_encode( $op_meta ), 'other-pass' ) && false === strpos( json_encode( $op_meta ), 'meet.example' ) && false === strpos( json_encode( $op_meta ), 'zoom.example' ), 'a pending or error operation supplies the shown schedule, a stored schedule wins, and a missing or other state adds no schedule' );
 $equal_order = 4;
 $equal       = array();
 foreach ( array( $assign, $quiz, $lesson, $zoom, $meet, $other, $away ) as $child ) {
@@ -282,40 +254,22 @@ $matrix_ledger   = TutorPress_Live_Lessons_Boundary_Fake::$ledger;
 $matrix_non_live = TutorPress_Topic_Duplication_Service::copy_non_live( $source, $course, $destination, $target, $equal, $allow );
 TutorPress_Topic_Copy_Harness::$releases = array();
 TutorPress_Topic_Copy_Harness::$deletes  = array();
-$matrix_statements = count( $GLOBALS['wpdb']->statements );
 $matrix_live       = TutorPress_Topic_Duplication_Service::copy_live( $source, $course, $destination, $target, $equal, $allow );
 tutorpress_live_lessons_assert( array( 10, 15, 20, 30, 40 ) === $matrix_ids && array( 1, 2, 3, 4, 5 ) === $matrix_orders && array( 'tutor_quiz', 'tutor_assignments', 'lesson' ) === array( $matrix_non_live[0]['post_type'], $matrix_non_live[1]['post_type'], $matrix_non_live[2]['post_type'] ) && array( 1, 3, 4 ) === array( $matrix_non_live[0]['menu_order'], $matrix_non_live[1]['menu_order'], $matrix_non_live[2]['menu_order'] ) && 'draft' === TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[0]['ID'] ]['post_status'] && 'private' === TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[1]['ID'] ]['post_status'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[2]['ID'] ]['post_status'] && array( 'tutor_zoom_meeting', 'tutor-google-meet' ) === array( $matrix_live[0]['post_type'], $matrix_live[1]['post_type'] ) && array( 2, 5 ) === array( $matrix_live[0]['menu_order'], $matrix_live[1]['menu_order'] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_live[0]['ID'] ]['post_status'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_live[1]['ID'] ]['post_status'] && 42 === (int) TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_live[0]['ID'] ]['post_author'] && 42 === (int) TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_live[1]['ID'] ]['post_author'], 'equal source order copies mixed children by post ID onto the destination' );
 $matrix_zoom   = (int) $matrix_live[0]['ID'];
 $matrix_meet   = (int) $matrix_live[1]['ID'];
 $matrix_meta   = array( $matrix_zoom => array(), $matrix_meet => array() );
-$matrix_stored = array();
 foreach ( TutorPress_Live_Lessons_Store_Fake::$meta as $row ) {
 	$pid = (int) $row['post_id'];
 	if ( $pid !== $matrix_zoom && $pid !== $matrix_meet ) {
-		continue;
-	}
-	if ( '_tutorpress_live_lesson_sync' === $row['meta_key'] ) {
-		$matrix_stored[ $pid ][] = json_decode( $row['meta_value'], true );
 		continue;
 	}
 	$matrix_meta[ $pid ][ $row['meta_key'] ] = $row['meta_value'];
 }
 ksort( $matrix_meta[ $matrix_zoom ] );
 ksort( $matrix_meta[ $matrix_meet ] );
-$stripped = array( 'tutor-google-meet-event-details', 'tutor-google-meet-link', '_tutor_gmt_data', '_tutor_zm_data' );
-$present  = array_merge( array_keys( $matrix_meta[ $matrix_zoom ] ), array_keys( $matrix_meta[ $matrix_meet ] ) );
-tutorpress_live_lessons_assert( array( '_tutor_zm_duration' => '60', '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-21', '_tutor_zm_start_datetime' => '2026-09-21 15:04:00' ) === $matrix_meta[ $matrix_zoom ] && array( 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00' ) === $matrix_meta[ $matrix_meet ] && array() === array_values( array_intersect( $stripped, $present ) ), 'live copies keep the schedule whitelist and omit provider identity' );
-$matrix_rows      = array( TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[0]['ID'] ], TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_zoom ], TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[1]['ID'] ], TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_non_live[2]['ID'] ], TutorPress_Live_Lessons_Store_Fake::$posts[ $matrix_meet ] );
-$matrix_envelopes = array( $matrix_zoom => $matrix_stored[ $matrix_zoom ][0], $matrix_meet => $matrix_stored[ $matrix_meet ][0] );
-$projected        = TutorPress_Live_Lesson_Topic_Projector::project( $target, $destination, $allow, $matrix_rows, $matrix_envelopes );
-tutorpress_live_lessons_assert( is_array( $projected ) && 1 === count( $matrix_stored[ $matrix_zoom ] ) && 1 === count( $matrix_stored[ $matrix_meet ] ) && 1 === $matrix_envelopes[ $matrix_zoom ]['version'] && 'unlinked' === $matrix_envelopes[ $matrix_zoom ]['state'] && null === $matrix_envelopes[ $matrix_zoom ]['provider_id'] && null === $matrix_envelopes[ $matrix_zoom ]['operation'] && 1 === $matrix_envelopes[ $matrix_meet ]['version'] && 'unlinked' === $matrix_envelopes[ $matrix_meet ]['state'] && null === $matrix_envelopes[ $matrix_meet ]['provider_id'] && null === $matrix_envelopes[ $matrix_meet ]['operation'] && 'unlinked' === $projected[1]['sync_state'] && $projected[1]['sync_version'] === $matrix_envelopes[ $matrix_zoom ]['version'] && 2 === $projected[1]['menuOrder'] && 'publish' === $projected[1]['post_status'] && array() === $projected[1]['actions'] && 'unlinked' === $projected[4]['sync_state'] && $projected[4]['sync_version'] === $matrix_envelopes[ $matrix_meet ]['version'] && 5 === $projected[4]['menuOrder'] && 'publish' === $projected[4]['post_status'] && array() === $projected[4]['actions'] && ! isset( $projected[0]['sync_state'] ) && ! isset( $projected[2]['sync_state'] ) && ! isset( $projected[3]['sync_state'] ), 'stored version-1 envelopes project both live copies as publish and unlinked' );
-$zoom_lock  = 'tutorpress_live_lesson_lock_' . $matrix_zoom;
-$meet_lock  = 'tutorpress_live_lesson_lock_' . $matrix_meet;
-$hook_names = array();
-foreach ( TutorPress_Live_Lessons_Hook_Fake::$calls as $call ) {
-	$hook_names[] = $call[0];
-}
-tutorpress_live_lessons_assert( array( array( $zoom_lock, true ), array( $meet_lock, true ) ) === array( array( TutorPress_Topic_Copy_Harness::$releases[0][0], TutorPress_Topic_Copy_Harness::$releases[0][2] ), array( TutorPress_Topic_Copy_Harness::$releases[1][0], TutorPress_Topic_Copy_Harness::$releases[1][2] ) ) && 2 === count( TutorPress_Topic_Copy_Harness::$releases ) && array() === TutorPress_Topic_Copy_Harness::$deletes && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $zoom_lock ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $meet_lock ] ) && array( $lock_sql, $zoom_lock, TutorPress_Topic_Copy_Harness::$releases[0][1] ) === $GLOBALS['wpdb']->statements[ $matrix_statements ] && array( $lock_sql, $meet_lock, TutorPress_Topic_Copy_Harness::$releases[1][1] ) === $GLOBALS['wpdb']->statements[ $matrix_statements + 1 ] && ! in_array( 'tutorpress_live_lesson_duplicated', $hook_names, true ) && $matrix_calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $matrix_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $matrix_ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'matrix releases each exact token, calls no provider, and does not fire the direct-duplicate hook' );
+tutorpress_live_lessons_assert( array( '_tutor_zm_data' => '{"timezone":"America/New_York","host_id":"host-1","password":"a\\\\b","settings":{"auto_recording":"local","waiting_room":true}}', '_tutor_zm_duration' => '60', '_tutor_zm_duration_unit' => 'min', '_tutor_zm_for_course' => 9, '_tutor_zm_for_topic' => 80, '_tutor_zm_start_date' => '2026-09-21', '_tutor_zm_start_datetime' => '2026-09-21 15:04:00' ) === $matrix_meta[ $matrix_zoom ] && array( 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-event-details' => '{"timezone":"America/New_York","attendees":"Yes"}', 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00' ) === $matrix_meta[ $matrix_meet ] && $matrix_calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $matrix_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $matrix_ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'matrix copies keep the schedule keys, relation keys, and rewritten form blobs and make no provider, hook, or boundary call' );
+tutorpress_live_lessons_assert( array() === TutorPress_Topic_Copy_Harness::$releases && array() === TutorPress_Topic_Copy_Harness::$deletes && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $matrix_zoom ], TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $matrix_meet ] ), 'matrix copies write no lock and keep the inserted posts' );
 $topic_copy = static function () use ( $source, $course, $destination, $target, $children, $allow ) {
 	return TutorPress_Topic_Duplication_Service::copy_topic( $source, $course, $destination, $target, $children, $allow );
 };
@@ -399,7 +353,7 @@ if ( is_array( $copied ) && isset( $copied['non_live'], $copied['live'] ) && is_
 	}
 }
 $success_commit = $sql_at( $success_events, 'COMMIT' );
-tutorpress_live_lessons_assert( array( 'tutor_assignments', 'tutor_quiz', 'lesson' ) === $non_live_types && array( 'tutor_zoom_meeting', 'tutor-google-meet' ) === $live_types && 0 === $sql_at( $success_events, 'START TRANSACTION' ) && null === $sql_at( $success_events, 'ROLLBACK' ) && is_int( $success_commit ) && $success_commit === count( $success_events ) - 1 && $writes_before( $success_events, $success_commit ) && $envelopes_before_release( $success_events, 2 ) && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'copy_topic commits both copy groups after START, writes, and lock release' );
+tutorpress_live_lessons_assert( array( 'tutor_assignments', 'tutor_quiz', 'lesson' ) === $non_live_types && array( 'tutor_zoom_meeting', 'tutor-google-meet' ) === $live_types && 0 === $sql_at( $success_events, 'START TRANSACTION' ) && null === $sql_at( $success_events, 'ROLLBACK' ) && is_int( $success_commit ) && $success_commit === count( $success_events ) - 1 && $writes_before( $success_events, $success_commit ) && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger, 'copy_topic commits both copy groups after START and writes' );
 $reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_insert = 'wp_error';
 $wp_error_result = $topic_copy();
@@ -419,20 +373,13 @@ $zero_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_insert = null;
 tutorpress_live_lessons_assert( null === $zero_result && $zoom_insert_failed( $zero_events, 'zero' ), 'Zoom zero insert returns null and rolls back after START' );
 $reset_topic();
-TutorPress_Topic_Copy_Harness::$fail_insert = 'throw';
-$throw_result = $topic_copy();
-$throw_events = TutorPress_Topic_Copy_Harness::$events;
-TutorPress_Topic_Copy_Harness::$fail_insert = null;
-$throw_rollback = $sql_at( $throw_events, 'ROLLBACK' );
-tutorpress_live_lessons_assert( null === $throw_result && 0 === $sql_at( $throw_events, 'START TRANSACTION' ) && null === $sql_at( $throw_events, 'COMMIT' ) && is_int( $throw_rollback ) && $throw_rollback === count( $throw_events ) - 1 && $writes_before( $throw_events, $throw_rollback ) && $envelopes_before_release( $throw_events, 1 ), 'envelope throwable releases the acquired lock before ROLLBACK and returns null' );
-$reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_commit = true;
 $commit_result = $topic_copy();
 $commit_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_commit = false;
 $commit_at   = $sql_at( $commit_events, 'COMMIT' );
 $rollback_at = $sql_at( $commit_events, 'ROLLBACK' );
-tutorpress_live_lessons_assert( null === $commit_result && 0 === $sql_at( $commit_events, 'START TRANSACTION' ) && is_int( $commit_at ) && is_int( $rollback_at ) && $rollback_at === count( $commit_events ) - 1 && $commit_at < $rollback_at && $writes_before( $commit_events, $commit_at ) && $envelopes_before_release( $commit_events, 2 ), 'failed COMMIT rolls back after writes and lock release and returns null' );
+tutorpress_live_lessons_assert( null === $commit_result && 0 === $sql_at( $commit_events, 'START TRANSACTION' ) && is_int( $commit_at ) && is_int( $rollback_at ) && $rollback_at === count( $commit_events ) - 1 && $commit_at < $rollback_at && $writes_before( $commit_events, $commit_at ), 'failed COMMIT rolls back after writes and returns null' );
 $no_provider = static function () use ( $calls, $hooks, $ledger ) {
 	return $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger;
 };
@@ -453,42 +400,10 @@ $assign_insert_failed = static function ( $events, $mode ) use ( $sql_at, $write
 	$rollback = $sql_at( $events, 'ROLLBACK' );
 	return 0 === $sql_at( $events, 'START TRANSACTION' ) && null === $sql_at( $events, 'COMMIT' ) && is_int( $rollback ) && $rollback === count( $events ) - 1 && 1 === $assign && ! $release && ! $later && $writes_before( $events, $rollback );
 };
-$sync_write_failed = static function ( $events ) use ( $sql_at, $writes_before ) {
-	$zoom     = null;
-	$sync     = null;
-	$release  = null;
-	$releases = 0;
-	$meet     = false;
-	foreach ( $events as $index => $event ) {
-		if ( 'insert' === $event[0] && 'tutor_zoom_meeting' === $event[1] && is_int( $event[2] ) && null === $zoom ) {
-			$zoom = $index;
-		}
-		if ( 'insert' === $event[0] && 'tutor-google-meet' === $event[1] ) {
-			$meet = true;
-		}
-		if ( 'meta' === $event[0] && '_tutorpress_live_lesson_sync' === $event[2] && null === $sync ) {
-			$sync = $index;
-		}
-		if ( 'release' === $event[0] ) {
-			++$releases;
-			if ( null === $release ) {
-				$release = $index;
-			}
-		}
-	}
-	$rollback = $sql_at( $events, 'ROLLBACK' );
-	return 0 === $sql_at( $events, 'START TRANSACTION' ) && null === $sql_at( $events, 'COMMIT' ) && is_int( $zoom ) && is_int( $sync ) && is_int( $release ) && is_int( $rollback ) && $zoom < $sync && $sync < $release && $release < $rollback && $rollback === count( $events ) - 1 && 1 === $releases && ! $meet && $writes_before( $events, $rollback ) && 1 === TutorPress_Live_Lessons_Store_Fake::$meta_result_refusals;
-};
-$commit_failed = static function ( $events ) use ( $sql_at, $writes_before, $envelopes_before_release ) {
+$commit_failed = static function ( $events ) use ( $sql_at, $writes_before ) {
 	$commit_at   = $sql_at( $events, 'COMMIT' );
 	$rollback_at = $sql_at( $events, 'ROLLBACK' );
-	$release     = null;
-	foreach ( $events as $index => $event ) {
-		if ( 'release' === $event[0] && null === $release ) {
-			$release = $index;
-		}
-	}
-	return 0 === $sql_at( $events, 'START TRANSACTION' ) && is_int( $commit_at ) && is_int( $rollback_at ) && is_int( $release ) && $release < $rollback_at && $rollback_at === count( $events ) - 1 && $commit_at < $rollback_at && $writes_before( $events, $commit_at ) && $envelopes_before_release( $events, 2 );
+	return 0 === $sql_at( $events, 'START TRANSACTION' ) && is_int( $commit_at ) && is_int( $rollback_at ) && $rollback_at === count( $events ) - 1 && $commit_at < $rollback_at && $writes_before( $events, $commit_at );
 };
 $reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_assign = 'throw';
@@ -515,29 +430,11 @@ $assign_zero_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_assign = null;
 tutorpress_live_lessons_assert( null === $assign_zero_result && $assign_insert_failed( $assign_zero_events, 'zero' ) && $no_provider(), 'assignment zero insert returns null and rolls back with no lock release' );
 $reset_topic();
-TutorPress_Live_Lessons_Store_Fake::$meta_result = 'wp_error';
-$sync_wp_error_result = $topic_copy();
-$sync_wp_error_events = TutorPress_Topic_Copy_Harness::$events;
-TutorPress_Live_Lessons_Store_Fake::$meta_result = null;
-tutorpress_live_lessons_assert( null === $sync_wp_error_result && $sync_write_failed( $sync_wp_error_events ) && $no_provider(), 'sync WP_Error write releases the lock before ROLLBACK and returns null' );
-$reset_topic();
-TutorPress_Live_Lessons_Store_Fake::$meta_result = 'false';
-$sync_false_result = $topic_copy();
-$sync_false_events = TutorPress_Topic_Copy_Harness::$events;
-TutorPress_Live_Lessons_Store_Fake::$meta_result = null;
-tutorpress_live_lessons_assert( null === $sync_false_result && $sync_write_failed( $sync_false_events ) && $no_provider(), 'sync false write releases the lock before ROLLBACK and returns null' );
-$reset_topic();
-TutorPress_Live_Lessons_Store_Fake::$meta_result = 'zero';
-$sync_zero_result = $topic_copy();
-$sync_zero_events = TutorPress_Topic_Copy_Harness::$events;
-TutorPress_Live_Lessons_Store_Fake::$meta_result = null;
-tutorpress_live_lessons_assert( null === $sync_zero_result && $sync_write_failed( $sync_zero_events ) && $no_provider(), 'sync zero write releases the lock before ROLLBACK and returns null' );
-$reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_commit = 'wp_error';
 $commit_wp_error_result = $topic_copy();
 $commit_wp_error_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_commit = false;
-tutorpress_live_lessons_assert( null === $commit_wp_error_result && $commit_failed( $commit_wp_error_events ) && $no_provider(), 'COMMIT WP_Error rolls back after lock release and returns null' );
+tutorpress_live_lessons_assert( null === $commit_wp_error_result && $commit_failed( $commit_wp_error_events ) && $no_provider(), 'COMMIT WP_Error rolls back and returns null' );
 $reset_topic();
 TutorPress_Topic_Copy_Harness::$fail_commit = 'zero';
 $commit_zero_result = $topic_copy();
@@ -554,30 +451,22 @@ $reset_topic();
 $cleanup_zoom = TutorPress_Live_Lessons_Store_Fake::$next_post_id + 3;
 TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $cleanup_zoom ] = true;
 TutorPress_Topic_Copy_Harness::$fail_init = true;
-TutorPress_Topic_Copy_Harness::$events    = array();
 $cleanup = $topic_copy();
 $cleanup_events = TutorPress_Topic_Copy_Harness::$events;
 TutorPress_Topic_Copy_Harness::$fail_init = false;
 unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $cleanup_zoom ] );
-$cleanup_data     = $cleanup instanceof WP_Error ? $cleanup->get_error_data() : null;
-$cleanup_rollback = $sql_at( $cleanup_events, 'ROLLBACK' );
-$cleanup_release  = null;
-foreach ( $cleanup_events as $index => $event ) {
-	if ( array( 'release', 'tutorpress_live_lesson_lock_' . $cleanup_zoom, true ) === $event ) {
-		$cleanup_release = $index;
-	}
-}
-tutorpress_live_lessons_assert( is_array( $cleanup_data ) && $cleanup_zoom === $cleanup_data['record_id'] && 9 === $cleanup_data['course_id'] && 80 === $cleanup_data['topic_id'] && 'error' === $cleanup_data['sync_state'] && 0 === $cleanup_data['sync_version'] && ! isset( $cleanup_data['non_live'] ) && ! isset( $cleanup_data['live'] ) && 0 === $sql_at( $cleanup_events, 'START TRANSACTION' ) && null === $sql_at( $cleanup_events, 'COMMIT' ) && is_int( $cleanup_release ) && is_int( $cleanup_rollback ) && $cleanup_release < $cleanup_rollback && $cleanup_rollback === count( $cleanup_events ) - 1 && $calls === TutorPress_Live_Lessons_Adapter_Fake::$calls && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'cleanup failure returns the persisted-record error after lock release and ROLLBACK' );
+$cleanup_commit = $sql_at( $cleanup_events, 'COMMIT' );
+tutorpress_live_lessons_assert( is_array( $cleanup ) && isset( $cleanup['non_live'], $cleanup['live'] ) && is_int( $cleanup_commit ) && $cleanup_commit === count( $cleanup_events ) - 1 && null === $sql_at( $cleanup_events, 'ROLLBACK' ) && array() === TutorPress_Topic_Copy_Harness::$deletes && $no_provider(), 'init and delete flags still commit the copied topic and do not delete it' );
 tutorpress_live_lessons_pass( 'topic duplication source snapshot' );
 $pass_2e_no_commit = static function ( $events ) use ( $sql_at ) {
 	$rollback = $sql_at( $events, 'ROLLBACK' );
 	return 0 === $sql_at( $events, 'START TRANSACTION' ) && null === $sql_at( $events, 'COMMIT' ) && is_int( $rollback ) && $rollback === count( $events ) - 1;
 };
-$pass_2e_no_commit_ok = null === $assign_throw_result && null === $assign_wp_error_result && null === $assign_false_result && null === $sync_wp_error_result && null === $sync_false_result && null === $sync_zero_result;
-foreach ( array( $assign_throw_events, $assign_wp_error_events, $assign_false_events, $sync_wp_error_events, $sync_false_events, $sync_zero_events ) as $pass_2e_events ) {
+$pass_2e_no_commit_ok = null === $assign_throw_result && null === $assign_wp_error_result && null === $assign_false_result;
+foreach ( array( $assign_throw_events, $assign_wp_error_events, $assign_false_events ) as $pass_2e_events ) {
 	$pass_2e_no_commit_ok = $pass_2e_no_commit_ok && $pass_2e_no_commit( $pass_2e_events );
 }
-tutorpress_live_lessons_assert( $pass_2e_no_commit_ok && $no_provider(), 'assignment and sync failures return null with no COMMIT on the fake ledger' );
+tutorpress_live_lessons_assert( $pass_2e_no_commit_ok && $no_provider(), 'assignment failures return null with no COMMIT on the fake ledger' );
 tutorpress_live_lessons_pass( 'topic copy no-COMMIT rollback' );
 $pass_2e_commit_order = static function ( $events ) use ( $sql_at ) {
 	$commit_at   = $sql_at( $events, 'COMMIT' );

@@ -72,7 +72,7 @@ final class TutorPress_Topic_Duplication_Service {
 		return $copies;
 	}
 
-	/** Publish live copies, then initialize one unlinked envelope. No provider call. */
+	/** Publish live copies. No provider call. */
 	public static function copy_live( array $source, array $course, array $destination, array $target, array $children, $can ) {
 		$plan   = self::snapshot( $source, $course, $destination, $children, $can );
 		$author = isset( $destination['post_author'] ) ? (int) $destination['post_author'] : 0;
@@ -101,7 +101,8 @@ final class TutorPress_Topic_Duplication_Service {
 			if ( $inserted instanceof WP_Error || ! is_int( $inserted ) || $inserted < 1 ) {
 				return null;
 			}
-			$kept = array_fill_keys( $safe[ $child['post_type'] ], true );
+			$kept  = array_fill_keys( $safe[ $child['post_type'] ], true );
+			$wrote = false;
 			if ( isset( $child['meta'] ) && is_array( $child['meta'] ) ) {
 				foreach ( $child['meta'] as $key => $values ) {
 					if ( ! isset( $kept[ $key ] ) || ! is_array( $values ) ) {
@@ -109,6 +110,7 @@ final class TutorPress_Topic_Duplication_Service {
 					}
 					foreach ( $values as $value ) {
 						add_post_meta( $inserted, $key, wp_slash( $value ) );
+						$wrote = true;
 					}
 				}
 			}
@@ -116,53 +118,101 @@ final class TutorPress_Topic_Duplication_Service {
 				add_post_meta( $inserted, '_tutor_zm_for_course', (int) $destination['ID'] );
 				add_post_meta( $inserted, '_tutor_zm_for_topic', (int) $target['ID'] );
 			}
-			$copy['ID'] = $inserted;
-			$bound      = self::initialize_live( $copy, $destination, $target, $can );
-			if ( ! is_string( $bound ) ) {
-				return $bound;
+			$form = self::form_blob( $child );
+			if ( is_string( $form ) ) {
+				add_post_meta( $inserted, 'tutor_zoom_meeting' === $child['post_type'] ? '_tutor_zm_data' : 'tutor-google-meet-event-details', wp_slash( $form ) );
 			}
+			if ( ! $wrote ) {
+				self::copy_operation( $inserted, $child, is_string( $form ) );
+			}
+			$copy['ID'] = $inserted;
 			$copies[] = $copy;
 		}
 		return $copies;
 	}
 
-	/** Lock and initialize one unlinked envelope. Delete the copy when initialization fails. */
-	private static function initialize_live( array $copy, array $course, array $topic, $can ) {
-		$id       = isset( $copy['ID'] ) ? (int) $copy['ID'] : 0;
-		$provider = isset( $copy['post_type'] ) && 'tutor_zoom_meeting' === $copy['post_type'] ? 'zoom' : 'google_meet';
-		$author   = isset( $copy['post_author'] ) ? (int) $copy['post_author'] : 0;
-		$token    = bin2hex( random_bytes( 16 ) );
-		$expiry   = ( new DateTimeImmutable( 'now', new DateTimeZone( 'UTC' ) ) )->modify( '+5 minutes' )->format( 'Y-m-d H:i:s' );
-		$next     = array( 'schema_version' => 1, 'version' => 1, 'state' => 'unlinked', 'provider' => $provider, 'owner_id' => $author, 'provider_id' => null, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
-		$lock     = $id > 0 && $author > 0 ? TutorPress_Live_Lesson_Sync_Repository::acquire( $id, 'initialize', $token, $expiry, static function ( $name, $bytes ) { return add_option( $name, $bytes, '', false ); } ) : null;
-		$stored   = is_string( $lock ) ? TutorPress_Live_Lesson_Sync_Repository::during( $id, $token, $lock, static function () use ( $id, $lock, $token, $next ) {
-			return TutorPress_Live_Lesson_Sync_Repository::initialize( $id, $lock, $token, 0, $next, static function ( $post_id, $key ) { return self::meta_rows( $post_id, $key ); }, static function ( $post_id, $key, $value ) { return add_post_meta( $post_id, $key, wp_slash( $value ) ); }, static function () { return true; } );
-		}, static function ( $name, $prior ) { return self::delete_lock( $name, $prior ); } ) : null;
-		if ( is_string( $stored ) ) {
-			return $stored;
-		}
-		if ( true === wp_delete_post( $id, true ) ) {
+	/** Form fields for one live copy. No meeting id and no join link. */
+	private static function form_blob( array $child ) {
+		$zoom = 'tutor_zoom_meeting' === $child['post_type'];
+		$key  = $zoom ? '_tutor_zm_data' : 'tutor-google-meet-event-details';
+		$data = self::object_meta( $child, $key );
+		if ( ! is_array( $data ) ) {
 			return null;
 		}
-		$copy['post_status'] = 'publish';
-		return TutorPress_Live_Lesson_Response_Projector::persisted_result( $copy, $topic, $course, $can, null, null, array( 'persisted' => false, 'status' => 500 ) );
-	}
-
-	/** Rows shaped for envelope initialization. */
-	private static function meta_rows( $post_id, $key ) {
-		$values = get_post_meta( (int) $post_id, $key, false );
-		$rows   = array();
-		foreach ( is_array( $values ) ? $values : array() as $value ) {
-			$rows[] = array( 'post_id' => (int) $post_id, 'meta_value' => $value );
+		$blob = array();
+		foreach ( ( $zoom ? array( 'timezone', 'host_id', 'password' ) : array( 'timezone', 'attendees' ) ) as $field ) {
+			if ( isset( $data[ $field ] ) && is_string( $data[ $field ] ) ) {
+				$blob[ $field ] = $data[ $field ];
+			}
 		}
-		return $rows;
+		if ( $zoom ) {
+			$source   = isset( $data['settings'] ) && is_array( $data['settings'] ) ? $data['settings'] : array();
+			$settings = array();
+			if ( isset( $source['auto_recording'] ) && is_string( $source['auto_recording'] ) && in_array( $source['auto_recording'], array( 'local', 'cloud', 'none' ), true ) ) {
+				$settings['auto_recording'] = $source['auto_recording'];
+			}
+			if ( array_key_exists( 'waiting_room', $source ) && is_bool( $source['waiting_room'] ) ) {
+				$settings['waiting_room'] = $source['waiting_room'];
+			}
+			if ( array() !== $settings ) {
+				$blob['settings'] = $settings;
+			}
+		}
+		return self::encode_blob( $blob );
 	}
 
-	/** Delete the lock in one statement when the stored bytes still match. */
-	private static function delete_lock( $name, $prior ) {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior ) );
-		return 1 === (int) $wpdb->rows_affected;
+	/** Pending or error schedule when the copy wrote no schedule scalar. */
+	private static function copy_operation( $post_id, array $child, $has_blob ) {
+		$stored    = self::object_meta( $child, '_tutorpress_live_lesson_sync' );
+		$operation = is_array( $stored ) && isset( $stored['state'], $stored['operation'] ) && in_array( $stored['state'], array( 'pending', 'error' ), true ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
+		if ( ! is_array( $operation ) ) { return; }
+		$zoom     = 'tutor_zoom_meeting' === $child['post_type'];
+		$target   = isset( $operation['provider_target'] ) && is_array( $operation['provider_target'] ) ? $operation['provider_target'] : array();
+		$start    = isset( $operation['start_local'] ) && is_string( $operation['start_local'] ) ? $operation['start_local'] : '';
+		$end      = isset( $operation['end_local'] ) && is_string( $operation['end_local'] ) ? $operation['end_local'] : '';
+		$zone     = isset( $operation['timezone'] ) && is_string( $operation['timezone'] ) ? $operation['timezone'] : '';
+		$duration = isset( $operation['duration'] ) && is_array( $operation['duration'] ) ? $operation['duration'] : array();
+		$unit     = isset( $duration['unit'] ) && is_string( $duration['unit'] ) ? $duration['unit'] : '';
+		$minutes  = 'minutes' === $unit ? 'min' : ( 'hours' === $unit ? 'hr' : '' );
+		$meta     = array();
+		if ( $zoom && '' !== $start ) { $meta['_tutor_zm_start_datetime'] = $start; if ( 1 === preg_match( '/^(\d{4}-\d{2}-\d{2})/', $start, $found ) ) { $meta['_tutor_zm_start_date'] = $found[1]; } }
+		if ( $zoom && '' !== $minutes && isset( $duration['value'] ) && is_int( $duration['value'] ) ) { $meta['_tutor_zm_duration'] = $duration['value']; $meta['_tutor_zm_duration_unit'] = $minutes; }
+		if ( ! $zoom && '' !== $start ) { $meta['tutor-google-meet-start-datetime'] = $start; }
+		if ( ! $zoom && '' !== $end ) { $meta['tutor-google-meet-end-datetime'] = $end; }
+		if ( ! $has_blob ) {
+			$blob = array();
+			if ( '' !== $zone ) { $blob['timezone'] = $zone; }
+			if ( $zoom && isset( $target['host_id'] ) && is_string( $target['host_id'] ) && '' !== $target['host_id'] ) { $blob['host_id'] = $target['host_id']; }
+			$attendees = ! $zoom && isset( $target['add_enrolled_students'] ) && is_string( $target['add_enrolled_students'] ) ? $target['add_enrolled_students'] : '';
+			if ( in_array( $attendees, array( 'Yes', 'No' ), true ) ) { $blob['attendees'] = $attendees; }
+			$settings  = array();
+			$recording = $zoom && isset( $target['auto_recording'] ) && is_string( $target['auto_recording'] ) ? $target['auto_recording'] : '';
+			if ( in_array( $recording, array( 'local', 'cloud', 'none' ), true ) ) { $settings['auto_recording'] = $recording; }
+			if ( $zoom && array_key_exists( 'waiting_room', $target ) && is_bool( $target['waiting_room'] ) ) { $settings['waiting_room'] = $target['waiting_room']; }
+			if ( array() !== $settings ) { $blob['settings'] = $settings; }
+			$encoded = self::encode_blob( $blob );
+			if ( is_string( $encoded ) && array() !== $blob ) { $meta[ $zoom ? '_tutor_zm_data' : 'tutor-google-meet-event-details' ] = $encoded; }
+		}
+		foreach ( $meta as $key => $value ) { add_post_meta( $post_id, $key, wp_slash( $value ) ); }
+	}
+
+	/** JSON object for one copied form blob. */
+	private static function encode_blob( array $blob ) {
+		$encoded = json_encode( array() === $blob ? new stdClass() : $blob, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT );
+		return is_string( $encoded ) ? $encoded : null;
+	}
+
+	/** First child meta value when it is an array or a JSON object. */
+	private static function object_meta( array $child, $key ) {
+		if ( ! isset( $child['meta'][ $key ] ) || ! is_array( $child['meta'][ $key ] ) ) {
+			return null;
+		}
+		$value = reset( $child['meta'][ $key ] );
+		if ( is_array( $value ) ) {
+			return $value;
+		}
+		$decoded = is_string( $value ) && '' !== $value ? json_decode( $value, true ) : null;
+		return is_array( $decoded ) ? $decoded : null;
 	}
 
 	/** One transaction around both child-copy groups. */

@@ -513,7 +513,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return $staged;
 	}
 
-	/** CAS one pending delete, then delete locally only after normalized convergence. An open row with no provider id, or one reported unlinked, force-deletes before that gate. An empty row with Tutor meta is adopted under the lock and then deleted. A finished return releases the lock. */
+	/** CAS one pending delete, then delete locally only after normalized convergence. An open row with no provider id, or one reported unlinked, force-deletes before that gate. An empty row with no provider meta deletes locally after that gate. An empty row with Tutor meta is adopted under the lock and then deleted. A finished return releases the lock. */
 	public static function stage_delete( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $linked = true, $local = null ) {
 		if ( array_key_exists( 'provider_id', $input ) || array_key_exists( 'id', $input ) ) { return null; }
 		$course_id = TutorPress_Live_Lesson_Authorization::authorize( $item, $topic, $course, $can );
@@ -542,6 +542,9 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		}
 		$caps = $adapter->capabilities();
 		if ( ! is_array( $caps ) || true !== ( isset( $caps['delete_convergence'] ) ? $caps['delete_convergence'] : null ) ) { return null; }
+		if ( $empty && ! is_array( $local ) ) {
+			return self::delete_local( $post_id, $token, $now, 'synced', $prior, $provider, $course_id );
+		}
 		$adopt = false;
 		if ( $empty && is_array( $local ) && false !== $linked ) {
 			$owner_id = 'google_meet' === $provider ? TutorPress_Live_Lesson_Owner_Resolver::google( $course_id, isset( $input['acting_user_id'] ) ? $input['acting_user_id'] : 0 ) : self::zoom_input_owner( $course_id, $input );

@@ -823,6 +823,17 @@ $pass12d_zoom_stopped_item = $plant( 'tutor_zoom_meeting', null );
 $pass12d_zoom_stopped_saved = $stage_delete( $pass12d_zoom_stopped_item, $zoom_input, array( 'capabilities' => array( $zoom_caps ) ), 'token-pass12d-zoom-stopped', null, null, null, true, $pass12d_zoom_local );
 tutorpress_live_lessons_assert( null === $pass12d_zoom_stopped_saved && array( 'capabilities' ) === $methods() && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12d_zoom_stopped_item['ID'], '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_zoom_stopped_item['ID'] ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $pass12d_zoom_stopped_item['ID'] ] ), 'a zoom lesson with no sync row stops at the false capability and writes no seed' );
 
+$pass12d_null_caps = array( 'settings' => true, 'hosts' => false, 'delete_convergence' => false );
+$pass12d_null_stopped_item = $plant( 'tutor-google-meet', null );
+$pass12d_null_stopped_saved = $stage_delete( $pass12d_null_stopped_item, $google_input, array( 'capabilities' => array( $pass12d_null_caps ) ), 'token-pass12d-null-stopped' );
+tutorpress_live_lessons_assert( null === $pass12d_null_stopped_saved && array( 'capabilities' ) === $methods() && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12d_null_stopped_item['ID'], '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_null_stopped_item['ID'] ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $pass12d_null_stopped_item['ID'] ] ), 'an empty sync row with null provider meta stops at the false capability and keeps the post' );
+
+$pass12d_null_item = $plant( 'tutor-google-meet', null );
+$pass12d_null_id = $pass12d_null_item['ID'];
+$pass12d_null_removed = count( TutorPress_Topic_Copy_Harness::$deletes );
+$pass12d_null_saved = $stage_delete( $pass12d_null_item, $google_input, array( 'capabilities' => array( $google_caps ), 'delete' => array( $delete_result( 'confirmed' ) ) ), 'token-pass12d-null-meta' );
+tutorpress_live_lessons_assert( is_array( $pass12d_null_saved ) && 'confirmed' === $pass12d_null_saved['dispatch_state'] && null === $pass12d_null_saved['envelope'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $pass12d_null_id ] ) && array( array( $pass12d_null_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $pass12d_null_removed ) && array( 'capabilities' ) === $methods() && null === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass12d_null_id, '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $pass12d_null_id ] ), 'an empty sync row with null provider meta deletes locally and does not call delete' );
+
 $pass12d_zoom_hydrate = array( 'start_local' => '2026-09-21 10:00:00', 'end_local' => '2026-09-21 12:00:00', 'timezone' => 'America/New_York', 'provider_id' => 'evt-tutor', 'host_id' => 'host-1', 'duration' => array( 'value' => 2, 'unit' => 'hours' ) );
 $pass12d_zoom_item = $plant( 'tutor_zoom_meeting', null );
 $pass12d_zoom_id = $pass12d_zoom_item['ID'];
