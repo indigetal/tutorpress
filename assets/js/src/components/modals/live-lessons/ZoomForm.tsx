@@ -328,7 +328,7 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
             type={passwordVisible ? "text" : "password"}
             value={formData.password}
             onChange={(e) => updateField("password", e.target.value)}
-            placeholder={__("Optional meeting password", "tutorpress")}
+            required
             disabled={disabled}
             className="components-text-control__input"
             autoComplete="new-password"
@@ -342,7 +342,6 @@ export const ZoomForm: React.FC<ZoomFormProps> = ({ formData, onChange, disabled
             aria-label={passwordVisible ? __("Hide password", "tutorpress") : __("Show password", "tutorpress")}
           />
         </div>
-        <p className="components-base-control__help">{__("Leave empty for no password protection", "tutorpress")}</p>
       </div>
 
       {/* Host Selection */}

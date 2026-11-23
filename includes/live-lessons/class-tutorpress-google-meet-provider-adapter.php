@@ -54,6 +54,10 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 		return $kept;
 	}
 	private function redacted( $value ) { return is_string( $value ) && 1 === preg_match( '/token|secret|credential|password|api_key/i', $value ); }
+	private function calendar_event( array $body ) {
+		class_exists( '\Google\Service\Calendar\Event' );
+		return new \Google_Service_Calendar_Event( $body );
+	}
 	private function event_body( array $target, $zone, DateTimeImmutable $start, DateTimeImmutable $end ) {
 		$minutes = isset( $target['reminder_minutes'] ) && is_int( $target['reminder_minutes'] ) ? $target['reminder_minutes'] : 30;
 		return array( 'summary' => $this->meta_string( $target, 'title' ), 'description' => $this->meta_string( $target, 'content' ), 'start' => array( 'dateTime' => $start->format( DateTimeInterface::RFC3339 ), 'timeZone' => $zone ), 'end' => array( 'dateTime' => $end->format( DateTimeInterface::RFC3339 ), 'timeZone' => $zone ), 'attendees' => $this->request_attendees( $target ), 'reminders' => array( 'useDefault' => false, 'overrides' => array( array( 'method' => 'email', 'minutes' => $minutes ), array( 'method' => 'popup', 'minutes' => $minutes ) ) ), 'sendUpdates' => $this->request_string( $target, 'send_updates', 'all' ), 'transparency' => $this->request_string( $target, 'transparency', 'transparent' ), 'visibility' => $this->request_string( $target, 'visibility', 'public' ), 'status' => $this->request_string( $target, 'status', 'confirmed' ) );
@@ -68,14 +72,15 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 		$zone    = isset( $target['timezone'] ) ? $target['timezone'] : '';
 		$start   = TutorPress_Live_Lesson_Datetime::parse_wall_clock( isset( $target['start_local'] ) ? $target['start_local'] : '', $zone );
 		$end     = TutorPress_Live_Lesson_Datetime::parse_wall_clock( isset( $target['end_local'] ) ? $target['end_local'] : '', $zone );
-		$service = ( $start instanceof DateTimeImmutable && $end instanceof DateTimeImmutable && $end->getTimestamp() > $start->getTimestamp() ) ? $this->calendar( $owner_id ) : null;
+		$dates   = $start instanceof DateTimeImmutable && $end instanceof DateTimeImmutable && $end->getTimestamp() > $start->getTimestamp();
+		$service = $dates ? $this->calendar( $owner_id ) : null;
 		if ( ! is_object( $service ) ) {
-			return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'pre_dispatch_failure', 'provider_id' => null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'create' ) );
+			return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'pre_dispatch_failure', 'provider_id' => null, 'item' => null, 'diagnostics' => $dates ? array( 'error' => 'client' ) : array(), 'provenance' => 'create' ) );
 		}
 		try {
 			$body = $this->event_body( $target, $zone, $start, $end );
 			$body['conferenceData'] = array( 'createRequest' => array( 'requestId' => $this->meta_string( $target, 'conference_request_id' ) ) );
-			$created = $service->events->insert( $service->current_calendar, $body, array( 'conferenceDataVersion' => 1 ) );
+			$created = $service->events->insert( $service->current_calendar, $this->calendar_event( $body ), array( 'conferenceDataVersion' => 1 ) );
 		} catch ( Throwable $thrown ) {
 			$created = $thrown;
 		}
@@ -86,7 +91,7 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 			return $this->confirmed( 'create', $created->id, $created );
 		}
 		$code = is_object( $created ) && is_callable( array( $created, 'getCode' ) ) ? (int) $created->getCode() : ( is_array( $created ) && isset( $created['code'] ) && is_numeric( $created['code'] ) ? (int) $created['code'] : 0 );
-		return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => ( $code >= 400 && $code <= 499 ) ? 'definite_rejection' : 'uncertain', 'provider_id' => null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'create' ) );
+		return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => ( $code >= 400 && $code <= 499 ) ? 'definite_rejection' : 'uncertain', 'provider_id' => null, 'item' => null, 'diagnostics' => ( $code >= 400 && $code <= 499 ) ? array( 'error' => (string) $code ) : array(), 'provenance' => 'create' ) );
 	}
 	public function fetch( $owner_id, $provider_id ) {
 		$service = ( is_string( $provider_id ) && '' !== $provider_id ) ? $this->calendar( $owner_id ) : null;
@@ -104,7 +109,7 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 		$end     = TutorPress_Live_Lesson_Datetime::parse_wall_clock( isset( $target['end_local'] ) ? $target['end_local'] : '', $zone );
 		$service = ( is_string( $provider_id ) && '' !== $provider_id && $start instanceof DateTimeImmutable && $end instanceof DateTimeImmutable && $end->getTimestamp() > $start->getTimestamp() ) ? $this->calendar( $owner_id ) : null;
 		if ( ! is_object( $service ) ) { return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'pre_dispatch_failure', 'provider_id' => is_string( $provider_id ) && '' !== $provider_id ? $provider_id : null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'update' ) ); }
-		try { $updated = $service->events->update( $service->current_calendar, $provider_id, $this->event_body( $target, $zone, $start, $end ) ); }
+		try { $updated = $service->events->update( $service->current_calendar, $provider_id, $this->calendar_event( $this->event_body( $target, $zone, $start, $end ) ) ); }
 		catch ( Throwable $thrown ) { $updated = $thrown; }
 		return $this->classify_known( $updated, $provider_id, 'update' );
 	}

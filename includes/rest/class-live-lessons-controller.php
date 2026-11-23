@@ -428,15 +428,18 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             return $linked ? new WP_Error('rest_cannot_create', __('Sorry, you are not allowed to create live lessons in this course.', 'tutorpress'), ['status' => rest_authorization_required_code()]) : new WP_Error('invalid_topic', __('Invalid topic ID or topic does not belong to the specified course.', 'tutorpress'), ['status' => 404]);
         }
         $input = $this->map_mutation($request, $normalized, $course, $bindings['user_id']);
+        $password = $this->zoom_password_required($input);
+        if ($password instanceof WP_Error) {
+            return $password;
+        }
         $adapter = $this->provider_adapter(isset($input['provider']) ? $input['provider'] : '');
         $staged = $this->stage_live_create($topic, $course, $can, $input, is_array($children = $bindings['children']((int) $topic['ID'])) ? $children : [], $adapter, $bindings['clock'], $bindings['token']);
         $ready = $this->staged_create($staged);
         $result = is_array($ready) ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $staged;
-        $accepted = is_array($ready) && is_array($result) && isset($result['envelope']) ? $this->accepted_bytes($result['envelope']) : null;
-        if (is_array($accepted)) {
-            return $this->mutation_projection(isset($result['post_id']) ? (int) $result['post_id'] : 0);
+        if (is_array($result) && isset($result['provider_id']) && is_string($result['provider_id']) && '' !== $result['provider_id']) {
+            return $this->mutation_projection((int) $result['post_id']);
         }
-        return $this->rest_outcome('create', is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result);
+        return $this->rest_outcome('create', is_wp_error($result) ? $result : null);
     }
 
     /** @param mixed $value Request id. @return int */
@@ -453,7 +456,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
 
     /** @param mixed $result Staging result. @return array<string,mixed>|null */
     private function staged_create($result) {
-        return is_array($result) && isset($result['post_id'], $result['lock'], $result['owner_id'], $result['envelope']) && is_string($result['envelope']) && is_array($this->accepted_bytes($result['envelope'])) ? $result : null;
+        return is_array($result) && isset($result['post_id'], $result['owner_id'], $result['operation']) && is_array($result['operation']) ? $result : null;
     }
 
     /**
@@ -528,6 +531,10 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $provider = 'tutor_zoom_meeting' === $type ? 'zoom' : 'google_meet';
         $input = $this->map_mutation($request, $normalized, $course, $bindings['user_id']);
         $input['provider'] = $provider;
+        $password = $this->zoom_password_required($input);
+        if ($password instanceof WP_Error) {
+            return $password;
+        }
         $adapter = $this->provider_adapter($provider);
         $copy = null !== $stored || $this->load_provider_linked((int) $item['ID'], $type);
         $open = 'unlinked' === $state || false === $copy;
@@ -854,11 +861,26 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             'timezone'             => is_string($zone) ? $zone : '',
             'duration'             => $duration,
             'host_id'              => is_array($config) && isset($config['host']) && is_string($config['host']) ? $config['host'] : '',
+            'password'             => is_array($config) && isset($config['password']) && is_string($config['password']) ? sanitize_text_field($config['password']) : '',
             'settings'             => $kept,
             'acting_user_id'       => $actor > 0 ? $actor : 0,
             'course_author_id'     => $author > 0 ? $author : 0,
             'acting_instructor_id' => $actor > 0 ? $actor : 0,
         ];
+    }
+
+    /**
+     * Refuse a Zoom save whose sanitized password is empty.
+     *
+     * @param array<string,mixed> $input Mapped mutation.
+     * @return WP_Error|null
+     */
+    private function zoom_password_required(array $input) {
+        $password = isset($input['password']) && is_string($input['password']) ? $input['password'] : '';
+        if ('zoom' === (isset($input['provider']) ? $input['provider'] : '') && '' === $password) {
+            return new WP_Error('zoom_password_required', __('Meeting Password is required', 'tutorpress'), ['status' => 400]);
+        }
+        return null;
     }
 
     /**

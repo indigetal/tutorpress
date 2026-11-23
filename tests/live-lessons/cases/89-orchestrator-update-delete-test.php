@@ -331,6 +331,29 @@ $zoom_dispatched = $dispatch_update( $zoom_dispatch_staged, 'token-dispatch-upda
 $zoom_final = is_array( $zoom_dispatched ) ? json_decode( $zoom_dispatched['envelope'], true ) : null;
 $zoom_update_target = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
 tutorpress_live_lessons_assert( is_array( $zoom_final ) && 4 === $zoom_final['version'] && 'synced' === $zoom_final['state'] && 'update' === $zoom_final['provenance'] && 'evt-stored' === $zoom_final['provider_id'] && false === $zoom_final['reconciliation_required'] && array( 'update', array( 'owner_id' => 42, 'provider_id' => 'evt-stored', 'target' => $zoom_update_target ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls[0] && 'evt-stored' === $zoom_update_target['provider_id'] && false === array_key_exists( 'host_id', $zoom_update_target ) && 'host-1' === $zoom_update_target['provider_target']['host_id'] && array( 'update', 'compare_target', 'metadata_map' ) === $methods() && json_encode( array( 'id' => 'evt-stored', 'timezone' => 'America/New_York', 'host_id' => 'host-1' ) ) === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_dispatch_item['ID'], '_tutor_zm_data' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_dispatched['lock'], 'token-dispatch-update-zoom' ) && $zoom_dispatch_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && false === strpos( (string) $zoom_dispatched['envelope'], 'hidden-pass' ), 'confirmed zoom update keeps the nested host and re-reads the seven-key map' );
+$pass_input = $zoom_input;
+$pass_input['password'] = 'meeting-pass';
+$pass_item = $plant( 'tutor_zoom_meeting', $zoom_bytes );
+$pass_staged = $stage( $pass_item, $pass_input, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-update-zoom-pass' );
+$pass_bytes = is_array( $pass_staged ) ? (string) $pass_staged['envelope'] : '';
+$pass_row = is_array( $pass_staged ) ? json_decode( $pass_bytes, true ) : null;
+$pass_spy = new class() extends TutorPress_Live_Lessons_Adapter_Fake {
+	public $seen = null;
+	public function update( $owner_id, $provider_id, array $target ) {
+		$this->seen = $target;
+		return parent::update( $owner_id, $provider_id, $target );
+	}
+};
+$pass_dispatched = $dispatch_update( $pass_staged, 'token-update-zoom-pass', array( 'update' => array( $update_result( 'confirmed', 'evt-stored', $zoom_pass_item ) ), 'compare_target' => array( array( 'match' => true ) ), 'metadata_map' => array( $zoom_update_map ) ), null, null, $pass_spy );
+$pass_final = is_array( $pass_dispatched ) ? (string) $pass_dispatched['envelope'] : '';
+tutorpress_live_lessons_assert( is_array( $pass_staged ) && 'meeting-pass' === $pass_staged['password'] && is_array( $pass_row ) && $zoom_owner_target === $pass_row['operation']['provider_target'] && false === strpos( $pass_bytes, 'meeting-pass' ) && false === strpos( $pass_bytes, '"password"' ) && is_array( $pass_spy->seen ) && 'meeting-pass' === $pass_spy->seen['provider_target']['password'] && false === strpos( $pass_final, 'meeting-pass' ) && false === strpos( $pass_final, '"password"' ), 'a zoom update passes the typed password and the exchanged envelope has no password key' );
+$blank_input = $zoom_input;
+$blank_input['password'] = '';
+$blank_item = $plant( 'tutor_zoom_meeting', $zoom_bytes );
+$blank_staged = $stage( $blank_item, $blank_input, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-update-zoom-blank' );
+$blank_before = is_array( $blank_staged ) ? (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $blank_item['ID'], '_tutorpress_live_lesson_sync' ) : '';
+$blank_done = $dispatch_update( $blank_staged, 'token-update-zoom-blank', array( 'update' => array( $update_result( 'confirmed', 'evt-stored' ) ) ) );
+tutorpress_live_lessons_assert( is_array( $blank_staged ) && '' === $blank_staged['password'] && null === $blank_done && array() === $methods() && $blank_before === (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $blank_item['ID'], '_tutorpress_live_lesson_sync' ), 'an empty staged zoom password does not call the adapter' );
 
 $uncertain_item = $plant( 'tutor-google-meet', $google_bytes );
 $uncertain_staged = $stage( $uncertain_item, $google_input, array( 'preflight' => array( true ) ), 'token-dispatch-uncertain' );

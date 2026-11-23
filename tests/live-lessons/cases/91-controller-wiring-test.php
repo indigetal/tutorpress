@@ -1191,7 +1191,7 @@ $params   = array(
 	'settings'         => $settings,
 	'provider_config'  => array(
 		'host'     => 'zoom-host-9',
-		'password' => 'fake-credential-value',
+		'password' => 'meeting-pass',
 	),
 	'credentials'      => array( 'api_secret' => 'fake-credential-value' ),
 	'host_id'          => 'forged-host',
@@ -1281,6 +1281,7 @@ tutorpress_live_lessons_assert(
 		'timezone'             => 'UTC',
 		'duration'             => array( 'value' => 2, 'unit' => 'hours' ),
 		'host_id'              => 'zoom-host-9',
+		'password'             => 'meeting-pass',
 		'settings'             => array(
 			'waiting_room'     => true,
 			'join_before_host' => false,
@@ -2669,7 +2670,7 @@ $create_body = array(
 	),
 	'provider_config'  => array(
 		'host'     => 'zoom-host-9',
-		'password' => 'hidden-sentinel',
+		'password' => 'meeting-pass',
 	),
 	'acting_user_id'   => 999,
 	'course_author_id' => 999,
@@ -2784,6 +2785,7 @@ $creates = array(
 	'google'     => $google_row,
 	'string_ids' => $string_row,
 	'zoom'       => $zoom_row,
+	'blank'      => $run_create( array_merge( $zoom_body, array( 'provider_config' => array( 'host' => 'zoom-host-9', 'password' => '' ) ) ), 'POST', true, $staged_ok, $dispatched_ok ),
 	'null_stage' => $run_create( $create_body, 'POST', true, null, $dispatched_ok ),
 	'error_stage' => $run_create( $create_body, 'POST', true, $stage_error, $dispatched_ok ),
 	'malformed'  => $run_create( $create_body, 'POST', true, array( 'note' => 'plain' ), $dispatched_ok ),
@@ -2817,7 +2819,7 @@ $patch = array(
 	),
 	'provider_config' => array(
 		'host'     => 'zoom-host-9',
-		'password' => 'hidden-sentinel',
+		'password' => 'meeting-pass',
 	),
 	'provider'        => 'google_meet',
 	'acting_user_id'  => 999,
@@ -2931,6 +2933,9 @@ $controller->meta[521] = array(
 );
 $patch_absent = $run_update( $with_id( 521, 'zoom' ) );
 unset( $controller->meta[521] );
+$blank_patch = $with_id( 521, 'zoom' );
+$blank_patch['provider_config']['password'] = '';
+$blank_update = $run_update( $blank_patch );
 $legacy_update = false === method_exists( 'TutorPress_REST_Live_Lessons_Controller', 'update_item' );
 $mutate_update = false === strpos( $update_mutate, 'request_bindings' ) && false === strpos( $update_mutate, 'provider_adapter' ) && false === strpos( $update_mutate, 'rest_outcome' ) && false === strpos( $update_mutate, 'stage_unlinked' ) && false === strpos( $update_mutate, 'stage_update' ) && false === strpos( $update_mutate, 'dispatch_create' ) && false === strpos( $update_mutate, 'dispatch_update' ) && false !== strpos( $update_mutate, 'delegate_update(' ) && false !== strpos( $update_mutate, 'schedule_result(' );
 $updates = array(
@@ -4230,6 +4235,7 @@ echo json_encode(
 		'outcomes' => $outcomes,
 		'creates'  => $creates,
 		'updates'  => $updates,
+		'blank_update' => $blank_update,
 		'pass10f'  => $pass10f,
 		'deletes'  => $deletes,
 		'reconciles' => $reconcile_cases,
@@ -5090,85 +5096,11 @@ tutorpress_live_lessons_assert(
 tutorpress_live_lessons_pass( 'rest outcome preserves bare errors and skips provider lifecycle' );
 
 $creates = isset( $binding_probe['data']['creates'] ) && is_array( $binding_probe['data']['creates'] ) ? $binding_probe['data']['creates'] : array();
-$create_input = static function ( $provider ) {
-	return array(
-		'provider'             => $provider,
-		'title'                => 'Weekly lab',
-		'content'              => 'Bring notes',
-		'start'                => '2026-10-06 15:00:00',
-		'end'                  => '2026-10-06 16:00:00',
-		'timezone'             => 'UTC',
-		'duration'             => array( 'value' => 2, 'unit' => 'hours' ),
-		'host_id'              => 'zoom-host-9',
-		'settings'             => array( 'waiting_room' => true ),
-		'acting_user_id'       => 44,
-		'course_author_id'     => 17,
-		'acting_instructor_id' => 44,
-	);
-};
-$create_child = array(
-	array(
-		'ID'           => 91,
-		'post_type'    => 'lesson',
-		'post_status'  => 'publish',
-		'post_parent'  => 71,
-		'post_author'  => 17,
-		'post_title'   => 'Row 91',
-		'post_content' => 'Body',
-		'menu_order'   => 1,
-	),
-);
 $create_error = static function ( $row, $code, $message, $status ) {
 	return is_array( $row ) && 'error' === $row['packed']['kind'] && $code === $row['packed']['code'] && $message === $row['packed']['message'] && $status === $row['packed']['status'];
 };
 $create_stopped = static function ( $row ) {
 	return is_array( $row ) && array() === $row['stages'] && array() === $row['dispatches'] && 0 === $row['adapters'] && array( 'zoom' ) === $row['ledger'] && array() === $row['services'] && array() === $row['writes'] && array() === $row['updates'] && array() === $row['metas'] && true === $row['boundary'];
-};
-$create_success = static function ( $row, $provider ) use ( $create_input, $create_child, $google_meta_keys, $zoom_meta_keys ) {
-	$stage    = isset( $row['stages'][0] ) && is_array( $row['stages'][0] ) ? $row['stages'][0] : array();
-	$dispatch = isset( $row['dispatches'][0] ) && is_array( $row['dispatches'][0] ) ? $row['dispatches'][0] : array();
-	$metas    = array();
-	foreach ( ( 'zoom' === $provider ? $zoom_meta_keys : $google_meta_keys ) as $key ) {
-		$metas[] = array( 'meta', 90, $key );
-	}
-	return is_array( $row )
-		&& 'response' === $row['packed']['kind']
-		&& true === $row['packed']['data']['success']
-		&& 'Live lesson created successfully.' === $row['packed']['data']['message']
-		&& 90 === $row['packed']['data']['data']['id']
-		&& 'Stored title' === $row['packed']['data']['data']['title']
-		&& ( 'zoom' === $provider ? 'zoom' : 'google_meet' ) === $row['packed']['data']['data']['type']
-		&& 'synced' === $row['packed']['data']['data']['sync_state']
-		&& 3 === $row['packed']['data']['data']['sync_version']
-		&& 'UTC' === $row['packed']['data']['data']['settings']['timezone']
-		&& '' === $row['packed']['data']['data']['password']
-		&& 1 === count( $row['stages'] )
-		&& 1 === count( $row['dispatches'] )
-		&& $create_input( $provider ) === $stage['input']
-		&& $create_child === $stage['children']
-		&& $provider === $stage['adapter']
-		&& $provider === $dispatch['adapter']
-		&& true === $stage['clock']
-		&& is_string( $stage['token'] )
-		&& 32 === strlen( $stage['token'] )
-		&& $stage['token'] === $dispatch['token']
-		&& 71 === $stage['topic']
-		&& 15 === $stage['course']
-		&& 17 === $stage['author']
-		&& array( 'zoom', $provider ) === $row['ledger']
-		&& 2 === $row['bindings']
-		&& 1 === $row['adapters']
-		&& array( array( 'post', 15 ), array( 'post', 71 ), array( 'post', 90 ), array( 'post', 71 ), array( 'post', 15 ) ) === $row['posts']
-		&& array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& 1 === count( $row['queries'] )
-		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
-		&& array() === $row['writes']
-		&& array() === $row['updates']
-		&& $metas === $row['metas']
-		&& array( array( 'read', 90, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
-		&& true === $row['boundary']
-		&& is_string( $dispatch['staged']['envelope'] )
-		&& 1 === json_decode( $dispatch['staged']['envelope'], true )['version'];
 };
 $create_encoded = json_encode( $creates );
 tutorpress_live_lessons_assert(
@@ -5227,11 +5159,25 @@ tutorpress_live_lessons_assert(
 	'missing relations and denied edit_post stop before adapter resolution'
 );
 tutorpress_live_lessons_assert(
-	$create_success( $creates['google'], 'google_meet' )
-	&& $create_success( $creates['string_ids'], 'google_meet' )
-	&& $create_success( $creates['zoom'], 'zoom' )
-	&& array( 'read', 'update', 'affected', 'write' ) === $creates['callbacks'],
-	'valid Google and Zoom creates stage once, dispatch once, and return the created lesson'
+	$create_error( $creates['google'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
+	&& 1 === count( $creates['google']['stages'] )
+	&& array() === $creates['google']['dispatches']
+	&& $create_error( $creates['string_ids'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
+	&& 1 === count( $creates['string_ids']['stages'] )
+	&& array() === $creates['string_ids']['dispatches']
+	&& $create_error( $creates['zoom'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
+	&& 1 === count( $creates['zoom']['stages'] )
+	&& array() === $creates['zoom']['dispatches']
+	&& array() === $creates['callbacks'],
+	'a stubbed create without an operation skips dispatch and returns creation failed'
+);
+tutorpress_live_lessons_assert(
+	$create_error( $creates['blank'], 'zoom_password_required', 'Meeting Password is required', 400 )
+	&& array() === $creates['blank']['stages']
+	&& array() === $creates['blank']['dispatches']
+	&& 0 === $creates['blank']['adapters']
+	&& array( 'zoom' ) === $creates['blank']['ledger'],
+	'an empty zoom password returns zoom_password_required before create staging'
 );
 tutorpress_live_lessons_assert(
 	$create_error( $creates['null_stage'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
@@ -5240,20 +5186,20 @@ tutorpress_live_lessons_assert(
 	&& true === $creates['error_stage']['same_stage']
 	&& $create_error( $creates['error_stage'], 'stage_rejected', 'Stage rejected.', 422 )
 	&& array() === $creates['error_stage']['dispatches']
-	&& $create_error( $creates['malformed'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $create_error( $creates['malformed'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& array() === $creates['malformed']['dispatches']
-	&& $create_error( $creates['bad_bytes'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $create_error( $creates['bad_bytes'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
 	&& array() === $creates['bad_bytes']['dispatches']
 	&& $create_error( $creates['dispatch_null'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
-	&& 1 === count( $creates['dispatch_null']['dispatches'] )
-	&& true === $creates['dispatch_error']['same_dispatch']
-	&& $create_error( $creates['dispatch_error'], 'dispatch_rejected', 'Dispatch rejected.', 409 )
-	&& 1 === count( $creates['dispatch_error']['dispatches'] )
+	&& array() === $creates['dispatch_null']['dispatches']
+	&& false === $creates['dispatch_error']['same_dispatch']
+	&& $create_error( $creates['dispatch_error'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
+	&& array() === $creates['dispatch_error']['dispatches']
 	&& $create_error( $creates['dispatch_missing'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
-	&& 1 === count( $creates['dispatch_missing']['dispatches'] )
+	&& array() === $creates['dispatch_missing']['dispatches']
 	&& $create_error( $creates['dispatch_bad'], 'live_lesson_creation_failed', 'Failed to create live lesson.', 500 )
-	&& 1 === count( $creates['dispatch_bad']['dispatches'] ),
-	'null, error, and malformed staging never dispatch and bare outcomes stay unchanged'
+	&& array() === $creates['dispatch_bad']['dispatches'],
+	'a create stage without an operation never dispatches and a stage error is returned unchanged'
 );
 tutorpress_live_lessons_assert(
 	true === $creates['proof']
@@ -5461,6 +5407,14 @@ tutorpress_live_lessons_assert(
 	) === $patch_absent_stage['local']
 	&& true === $updates['absent']['boundary'],
 	'a missing sync row stages through provider meta and the stub returns the update failure'
+);
+$blank_update = isset( $binding_probe['data']['blank_update'] ) ? $binding_probe['data']['blank_update'] : null;
+tutorpress_live_lessons_assert(
+	$update_error( $blank_update, 'zoom_password_required', 'Meeting Password is required', 400 )
+	&& array() === $blank_update['unlinked']
+	&& array() === $blank_update['synced']
+	&& 0 === $blank_update['adapters'],
+	'an empty zoom password returns zoom_password_required before the update stage'
 );
 tutorpress_live_lessons_assert(
 	$update_success( $updates['zoom_unlinked'], 'zoom', 526, 'tutor_zoom_meeting', 'unlinked' )

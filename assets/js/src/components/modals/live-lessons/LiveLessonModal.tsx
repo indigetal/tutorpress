@@ -303,6 +303,10 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
         errors.push(__("Meeting host is required", "tutorpress"));
       }
 
+      if (!zoomForm.password.trim()) {
+        errors.push(__("Meeting Password is required", "tutorpress"));
+      }
+
       const startWall = serializeWallClock(zoomForm.date, zoomForm.time);
 
       if (!startWall) {
@@ -428,12 +432,13 @@ export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
       setRefreshWarning(failure.refreshWarning);
       const isUpdating = !!lessonId;
       const providerName = lessonType === "google_meet" ? "Google Meet" : "Zoom";
+      const serverMessage = error instanceof Error && error.message !== "" ? error.message : null;
 
       createNotice(
         "error",
         isUpdating
           ? __(`Failed to update ${providerName} lesson`, "tutorpress")
-          : __(`Failed to create ${providerName} lesson`, "tutorpress"),
+          : (serverMessage ?? __(`Failed to create ${providerName} lesson`, "tutorpress")),
         {
           type: "snackbar",
           isDismissible: true,

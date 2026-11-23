@@ -133,9 +133,9 @@
   /* Gray Scale (5 shades) - Complete gray system */
   --gray-100: #f9f9f9; /* Lightest - backgrounds, panels, alt sections */
   --gray-300: #e0e0e0; /* Light - borders, dividers, separators */
-  --gray-500: #999; /* Medium - muted text, disabled states, secondary elements */
-  --gray-700: #333; /* Dark - primary text, strong elements */
-  --gray-900: #1e1e1e; /* Very dark text, headings */
+  --gray-500: var(--wpds-color-foreground-content-neutral-weak, var(--wp-components-color-gray-700, #999)); /* Muted text. Follows the editor theme. */
+  --gray-700: var(--wpds-color-foreground-content-neutral, var(--wp-components-color-foreground, #333)); /* Primary text. Follows the editor theme. */
+  --gray-900: var(--wpds-color-foreground-content-neutral, var(--wp-components-color-foreground, #1e1e1e)); /* Headings. Follows the editor theme. */
 
   /* White (for completeness) */
   --white: #fff; /* Primary backgrounds, content areas */

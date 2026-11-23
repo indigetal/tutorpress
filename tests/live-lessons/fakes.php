@@ -209,6 +209,20 @@ class TutorPress_Live_Lessons_Store_Fake {
 		return false;
 	}
 
+	public static function delete_meta( $post_id, $key ) {
+		$removed = false;
+		foreach ( self::$meta as $i => $row ) {
+			if ( (int) $row['post_id'] === (int) $post_id && isset( $row['meta_key'] ) && $row['meta_key'] === $key ) {
+				unset( self::$meta[ $i ] );
+				$removed = true;
+			}
+		}
+		if ( $removed ) {
+			self::$meta = array_values( self::$meta );
+		}
+		return $removed;
+	}
+
 	public static function delete_post( $post_id ) {
 		if ( ! empty( self::$fail_deletes[ $post_id ] ) ) {
 			return false;
@@ -691,6 +705,19 @@ if ( ! function_exists( 'wp_unslash' ) ) {
 			return array_map( 'wp_unslash', $value );
 		}
 		return is_string( $value ) ? stripslashes( $value ) : $value;
+	}
+}
+
+if ( ! function_exists( 'delete_post_meta' ) ) {
+	function delete_post_meta( $post_id, $meta_key, $meta_value = '' ) {
+		unset( $meta_value );
+		return TutorPress_Live_Lessons_Store_Fake::delete_meta( $post_id, $meta_key );
+	}
+}
+
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $str ) {
+		return is_string( $str ) ? $str : '';
 	}
 }
 

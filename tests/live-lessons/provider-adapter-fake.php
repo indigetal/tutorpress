@@ -41,3 +41,12 @@ class TutorPress_Live_Lessons_Adapter_Fake implements TutorPress_Live_Lesson_Pro
 		return $safe;
 	}
 }
+
+if ( ! class_exists( 'Google_Service_Calendar_Event', false ) ) {
+	class Google_Service_Calendar_Event {
+		public $fields;
+		public function __construct( $fields = array() ) {
+			$this->fields = is_array( $fields ) ? $fields : array();
+		}
+	}
+}

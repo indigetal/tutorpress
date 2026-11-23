@@ -93,16 +93,8 @@ TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
 $inserted = TutorPress_Live_Lesson_Sync_Orchestrator::insert_locked( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-create' );
 $stored   = is_array( $inserted ) ? TutorPress_Live_Lessons_Store_Fake::$posts[ $inserted['post_id'] ] : array();
-tutorpress_live_lessons_assert( is_array( $inserted ) && 11 === $inserted['owner_id'] && 'not_dispatched' === $inserted['dispatch_state'] && TutorPress_Live_Lesson_Sync_Repository::owns( $inserted['lock'], 'token-create' ) && 'publish' === $stored['post_status'] && 8 === (int) $stored['post_parent'] && 42 === (int) $stored['post_author'] && 10 === (int) $stored['menu_order'] && 'tutor-google-meet' === $stored['post_type'] && 'Standup' === $stored['post_title'] && 'Notes' === $stored['post_content'] && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $inserted['post_id'], '_tutorpress_live_lesson_sync' ) && array( 'preflight' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && $before === $children, 'create insert stores a publish post and a not-dispatched lock' );
-$delete_count = count( TutorPress_Topic_Copy_Harness::$deletes );
-TutorPress_Topic_Copy_Harness::$fail_lock = true;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
-$locked_out = TutorPress_Live_Lesson_Sync_Orchestrator::insert_locked( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-fail' );
-$removed_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id - 1;
-TutorPress_Topic_Copy_Harness::$fail_lock = false;
-tutorpress_live_lessons_assert( null === $locked_out && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $removed_id ] ) && array( array( $removed_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $delete_count ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $removed_id, '_tutorpress_live_lesson_sync' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $removed_id ] ) && array( 'preflight' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $before === $children, 'a failed create lock force-deletes the publish post and returns no projected record' );
-tutorpress_live_lessons_pass( 'create insert locks a publish post' );
+tutorpress_live_lessons_assert( is_array( $inserted ) && 11 === $inserted['owner_id'] && is_int( $inserted['post_id'] ) && $inserted['post_id'] > 0 && ! array_key_exists( 'lock', $inserted ) && ! array_key_exists( 'dispatch_state', $inserted ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $inserted['post_id'] ] ) && 'publish' === $stored['post_status'] && 8 === (int) $stored['post_parent'] && 42 === (int) $stored['post_author'] && 10 === (int) $stored['menu_order'] && 'tutor-google-meet' === $stored['post_type'] && 'Standup' === $stored['post_title'] && 'Notes' === $stored['post_content'] && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $inserted['post_id'], '_tutorpress_live_lesson_sync' ) && array( 'preflight' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && $before === $children, 'create insert stores a publish post without a lock' );
+tutorpress_live_lessons_pass( 'create insert stores a publish post' );
 
 $meta_keys = static function ( $post_id ) {
 	$keys = array();
@@ -121,11 +113,8 @@ $google_settings = array( 'is_authorized' => true, 'has_credentials' => true, 's
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( $google_settings ) );
 $staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $meet_input, $children, $adapter, $now, 'token-stage-google' );
-$decoded = is_array( $staged ) ? json_decode( $staged['envelope'], true ) : null;
-$operation = is_array( $decoded ) && isset( $decoded['operation'] ) ? $decoded['operation'] : array();
-$sync_rows = is_array( $staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();
-$sync_bytes = isset( $sync_rows[0]['meta_value'] ) ? $sync_rows[0]['meta_value'] : '';
-tutorpress_live_lessons_assert( is_array( $staged ) && is_array( $decoded ) && $sync_bytes === $staged['envelope'] && $sync_bytes === TutorPress_Live_Lesson_Sync_Envelope::canonical_bytes( $decoded ) && is_array( TutorPress_Live_Lesson_Sync_Envelope::envelope( $decoded ) ) && 1 === $decoded['version'] && 'pending' === $decoded['state'] && 'google_meet' === $decoded['provider'] && 11 === $decoded['owner_id'] && null === $decoded['provider_id'] && null === $decoded['provenance'] && false === $decoded['reconciliation_required'] && 1 === preg_match( '/\A[0-9a-f]{32}\z/', $operation['operation_id'] ) && 'create' === $operation['kind'] && '2026-09-21 16:00:00' === $operation['started_at'] && 0 === $operation['base_version'] && 'not_dispatched' === $operation['dispatch_state'] && 7 === $operation['course_id'] && 8 === $operation['topic_id'] && 42 === $operation['post_author'] && 10 === $operation['menu_order'] && 'Standup' === $operation['title'] && 'Notes' === $operation['content'] && '2026-09-21 15:04:00' === $operation['start_local'] && '2026-09-21 16:04:00' === $operation['end_local'] && 'America/New_York' === $operation['timezone'] && array( 'unit' => 'minutes', 'value' => 60 ) === $operation['duration'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 15, 'send_updates' => 'none', 'status' => 'tentative', 'transparency' => 'opaque', 'visibility' => 'private' ) === $operation['provider_target'] && null === $operation['delete_hook'] && null === $operation['provider_id'] && TutorPress_Live_Lesson_Sync_Repository::owns( $staged['lock'], 'token-stage-google' ) && false === strpos( $sync_bytes, $secret ) && false === strpos( $sync_bytes, 'token-stage-google' ) && false === strpos( $sync_bytes, 'hidden-pass' ) && false === strpos( $sync_bytes, 'student@example.com' ) && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $staged['post_id'] ) && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && $before === $children, 'google create stages a version-1 pending snapshot before dispatch' );
+$operation = is_array( $staged ) && isset( $staged['operation'] ) && is_array( $staged['operation'] ) ? $staged['operation'] : array();
+tutorpress_live_lessons_assert( is_array( $staged ) && is_int( $staged['post_id'] ) && $staged['post_id'] > 0 && 11 === $staged['owner_id'] && 'google_meet' === $staged['provider'] && ! array_key_exists( 'envelope', $staged ) && ! array_key_exists( 'lock', $staged ) && ! array_key_exists( 'dispatch_state', $staged ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $staged['post_id'] ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $staged['post_id'], '_tutorpress_live_lesson_sync' ) && 1 === preg_match( '/\A[0-9a-f]{32}\z/', $operation['operation_id'] ) && 'create' === $operation['kind'] && '2026-09-21 16:00:00' === $operation['started_at'] && 0 === $operation['base_version'] && 'not_dispatched' === $operation['dispatch_state'] && 7 === $operation['course_id'] && 8 === $operation['topic_id'] && 42 === $operation['post_author'] && 10 === $operation['menu_order'] && 'Standup' === $operation['title'] && 'Notes' === $operation['content'] && '2026-09-21 15:04:00' === $operation['start_local'] && '2026-09-21 16:04:00' === $operation['end_local'] && 'America/New_York' === $operation['timezone'] && array( 'value' => 60, 'unit' => 'minutes' ) === $operation['duration'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 15, 'send_updates' => 'none', 'status' => 'tentative', 'transparency' => 'opaque', 'visibility' => 'private' ) === $operation['provider_target'] && null === $operation['delete_hook'] && null === $operation['provider_id'] && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $ledger === TutorPress_Live_Lessons_Boundary_Fake::$ledger && $before === $children, 'google create stages an in-memory operation without a sync row' );
 function get_user_meta( $user_id, $key, $single = false ) {
 	if ( class_exists( 'TutorPress_Zoom_Users_Legacy', false ) ) {
 		TutorPress_Zoom_Users_Legacy::$meta++;
@@ -159,10 +148,8 @@ $room_input['settings'] = array( 'password' => 'hidden-pass', 'auto_recording' =
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'validate_host' => array( true ) );
 $room_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $room_input, $children, $adapter, $now, 'token-stage-zoom' );
-$room_decoded = is_array( $room_staged ) ? json_decode( $room_staged['envelope'], true ) : null;
-$room_operation = is_array( $room_decoded ) && isset( $room_decoded['operation'] ) ? $room_decoded['operation'] : array();
-$room_bytes = is_array( $room_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $room_staged['post_id'], '_tutorpress_live_lesson_sync' ) : '';
-tutorpress_live_lessons_assert( is_array( $room_decoded ) && 'zoom' === $room_decoded['provider'] && 42 === $room_decoded['owner_id'] && null === $room_decoded['provider_id'] && 'pending' === $room_decoded['state'] && 1 === $room_decoded['version'] && array( 'unit' => 'hours', 'value' => 2 ) === $room_operation['duration'] && '2026-09-21 17:04:00' === $room_operation['end_local'] && '2026-09-21 15:04:00' === $room_operation['start_local'] && 42 === $room_operation['post_author'] && $zoom_owner_target === $room_operation['provider_target'] && 'not_dispatched' === $room_operation['dispatch_state'] && null === $room_operation['delete_hook'] && $room_bytes === $room_staged['envelope'] && false === strpos( (string) $room_bytes, 'hidden-pass' ) && false === strpos( (string) $room_bytes, $secret ) && false === strpos( (string) $room_bytes, 'token-stage-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $room_staged['post_id'] ), 'zoom create stages the typed duration and omits the password' );
+$room_operation = is_array( $room_staged ) && isset( $room_staged['operation'] ) && is_array( $room_staged['operation'] ) ? $room_staged['operation'] : array();
+tutorpress_live_lessons_assert( is_array( $room_staged ) && is_int( $room_staged['post_id'] ) && $room_staged['post_id'] > 0 && 42 === $room_staged['owner_id'] && 'zoom' === $room_staged['provider'] && ! array_key_exists( 'envelope', $room_staged ) && ! array_key_exists( 'lock', $room_staged ) && ! array_key_exists( 'dispatch_state', $room_staged ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $room_staged['post_id'] ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $room_staged['post_id'], '_tutorpress_live_lesson_sync' ) && array( 'value' => 2, 'unit' => 'hours' ) === $room_operation['duration'] && '2026-09-21 17:04:00' === $room_operation['end_local'] && '2026-09-21 15:04:00' === $room_operation['start_local'] && 42 === $room_operation['post_author'] && $zoom_owner_target === $room_operation['provider_target'] && 'not_dispatched' === $room_operation['dispatch_state'] && null === $room_operation['delete_hook'] && null === $room_operation['provider_id'] && array( 'preflight', 'validate_host' ) === $methods(), 'zoom create stages the typed duration and omits the password' );
 $evil = $draft;
 $evil['provider_id'] = 'evt-evil';
 $before_evil = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
@@ -186,8 +173,8 @@ $unstaged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $co
 $open_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id - 1;
 $open_release = $release_for( $open_id, $open_from );
 TutorPress_Topic_Copy_Harness::$fail_init = false;
-tutorpress_live_lessons_assert( null === $unstaged && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $open_id ] ) && array( array( $open_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $open_deletes ) && is_array( $open_release ) && false !== strpos( $open_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $open_release[2], 'token-stage-open' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $open_id ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $open_id, '_tutorpress_live_lesson_sync' ) && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $before === $children, 'a failed pending snapshot force-deletes inside the lock and returns no projected record' );
-tutorpress_live_lessons_pass( 'create stages a version-1 pending envelope' );
+tutorpress_live_lessons_assert( is_array( $unstaged ) && $open_id === $unstaged['post_id'] && 11 === $unstaged['owner_id'] && 'google_meet' === $unstaged['provider'] && ! array_key_exists( 'envelope', $unstaged ) && ! array_key_exists( 'lock', $unstaged ) && ! array_key_exists( 'dispatch_state', $unstaged ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $open_id ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $open_id, '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $open_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $open_id ]['post_status'] && 'Standup' === TutorPress_Live_Lessons_Store_Fake::$posts[ $open_id ]['post_title'] && 'Notes' === TutorPress_Live_Lessons_Store_Fake::$posts[ $open_id ]['post_content'] && array() === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $open_deletes ) && null === $open_release && isset( $unstaged['operation'] ) && is_array( $unstaged['operation'] ) && array( 'value' => 60, 'unit' => 'minutes' ) === $unstaged['operation']['duration'] && 'not_dispatched' === $unstaged['operation']['dispatch_state'] && null === $unstaged['operation']['delete_hook'] && null === $unstaged['operation']['provider_id'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'transparent', 'visibility' => 'public' ) === $unstaged['operation']['provider_target'] && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $before === $children, 'a null settings payload still stages the publish post without a lock' );
+tutorpress_live_lessons_pass( 'create stages an in-memory operation' );
 
 $stuck_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
 $stuck_from = count( $GLOBALS['wpdb']->statements );
@@ -197,242 +184,24 @@ TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
 $stuck = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-stage-stuck' );
 $stuck_release = $release_for( $stuck_id, $stuck_from );
-$stuck_data = $stuck instanceof WP_Error ? $stuck->get_error_data() : array();
-$stuck_record = isset( $stuck_data['projected_record'] ) ? $stuck_data['projected_record'] : null;
-$stuck_json = json_encode( $stuck_data );
 TutorPress_Topic_Copy_Harness::$fail_init = false;
 unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $stuck_id ] );
-tutorpress_live_lessons_assert( $stuck instanceof WP_Error && 'live_lesson_persisted_error' === $stuck->get_error_code() && is_array( $stuck_record ) && $stuck_id === $stuck_record['id'] && 'error' === $stuck_record['sync_state'] && 0 === $stuck_record['sync_version'] && null === $stuck_record['operation'] && false === $stuck_record['persisted_envelope'] && $stuck_id === $stuck_data['record_id'] && 7 === $stuck_data['course_id'] && 8 === $stuck_data['topic_id'] && null === $stuck_data['operation_id'] && 'error' === $stuck_data['sync_state'] && 0 === $stuck_data['sync_version'] && false === $stuck_data['persisted'] && true === $stuck_data['refetch_required'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ]['post_status'] && is_array( $stuck_release ) && TutorPress_Live_Lesson_Sync_Repository::owns( $stuck_release[2], 'token-stage-stuck' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $stuck_id ] ) && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && false === strpos( $stuck_json, $secret ) && false === strpos( $stuck_json, 'dispatch_possible' ) && false === strpos( $stuck_json, 'confirmed' ) && $before === $children, 'failed envelope cleanup returns the persisted record and releases the exact lock' );
+tutorpress_live_lessons_assert( is_array( $stuck ) && $stuck_id === $stuck['post_id'] && 11 === $stuck['owner_id'] && 'google_meet' === $stuck['provider'] && ! array_key_exists( 'envelope', $stuck ) && ! array_key_exists( 'lock', $stuck ) && ! array_key_exists( 'dispatch_state', $stuck ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $stuck_id ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $stuck_id, '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ]['post_status'] && 'Standup' === TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ]['post_title'] && 'Notes' === TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_id ]['post_content'] && null === $stuck_release && isset( $stuck['operation'] ) && is_array( $stuck['operation'] ) && array( 'value' => 60, 'unit' => 'minutes' ) === $stuck['operation']['duration'] && 'not_dispatched' === $stuck['operation']['dispatch_state'] && null === $stuck['operation']['delete_hook'] && null === $stuck['operation']['provider_id'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'transparent', 'visibility' => 'public' ) === $stuck['operation']['provider_target'] && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $before === $children, 'a blocked delete still stages the publish post without a lock' );
 
 $orphan_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
 $orphan_from = count( $GLOBALS['wpdb']->statements );
 TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $orphan_id ] = true;
 TutorPress_Topic_Copy_Harness::$fail_lock = true;
 TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ) );
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
 $orphan = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-stage-orphan' );
-$orphan_data = $orphan instanceof WP_Error ? $orphan->get_error_data() : array();
-$orphan_record = isset( $orphan_data['projected_record'] ) ? $orphan_data['projected_record'] : null;
 TutorPress_Topic_Copy_Harness::$fail_lock = false;
 unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $orphan_id ] );
-tutorpress_live_lessons_assert( $orphan instanceof WP_Error && is_array( $orphan_record ) && $orphan_id === $orphan_record['id'] && 'error' === $orphan_record['sync_state'] && 0 === $orphan_record['sync_version'] && null === $orphan_record['operation'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ]['post_status'] && null === $release_for( $orphan_id, $orphan_from ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $orphan_id ] ) && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && false === strpos( json_encode( $orphan_data ), $secret ) && array( 'preflight' ) === $methods(), 'failed lock cleanup returns the persisted record without a lock release' );
-
-$throw_from = count( $GLOBALS['wpdb']->statements );
-$throw_deletes = count( TutorPress_Topic_Copy_Harness::$deletes );
-TutorPress_Topic_Copy_Harness::$fail_insert = 'throw';
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
-$thrown = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-stage-throw' );
-$throw_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id - 1;
-$throw_release = $release_for( $throw_id, $throw_from );
-TutorPress_Topic_Copy_Harness::$fail_insert = null;
-tutorpress_live_lessons_assert( null === $thrown && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $throw_id ] ) && array( array( $throw_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $throw_deletes ) && is_array( $throw_release ) && TutorPress_Live_Lesson_Sync_Repository::owns( $throw_release[2], 'token-stage-throw' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $throw_id ] ) && false === strpos( json_encode( TutorPress_Live_Lessons_Store_Fake::$posts ), 'envelope failed' ) && false === strpos( json_encode( TutorPress_Live_Lessons_Store_Fake::$options ), 'envelope failed' ) && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && array( 'preflight', 'settings' ) === $methods(), 'a thrown envelope write is discarded and the locked insert is force-deleted' );
-tutorpress_live_lessons_pass( 'pre-dispatch initialization cleanup' );
+tutorpress_live_lessons_assert( is_array( $orphan ) && $orphan_id === $orphan['post_id'] && 11 === $orphan['owner_id'] && 'google_meet' === $orphan['provider'] && ! array_key_exists( 'envelope', $orphan ) && ! array_key_exists( 'lock', $orphan ) && ! array_key_exists( 'dispatch_state', $orphan ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $orphan_id ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $orphan_id, '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ]['post_status'] && 'Standup' === TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ]['post_title'] && 'Notes' === TutorPress_Live_Lessons_Store_Fake::$posts[ $orphan_id ]['post_content'] && null === $release_for( $orphan_id, $orphan_from ) && isset( $orphan['operation'] ) && is_array( $orphan['operation'] ) && array( 'value' => 60, 'unit' => 'minutes' ) === $orphan['operation']['duration'] && 'not_dispatched' === $orphan['operation']['dispatch_state'] && null === $orphan['operation']['delete_hook'] && null === $orphan['operation']['provider_id'] && array( 'add_enrolled_students' => 'No', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'transparent', 'visibility' => 'public' ) === $orphan['operation']['provider_target'] && array( 'preflight', 'settings' ) === $methods() && $hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && $before === $children, 'a blocked lock still stages the publish post without a lock' );
 
 $sync_read     = array( 'TutorPress_Live_Lessons_Store_Fake', 'meta_rows' );
 $sync_update   = static function ( $post_id, $key, $meta_id, $value, $prior ) { return TutorPress_Live_Lessons_Store_Fake::update_meta_bytes( $post_id, $key, $meta_id, $value, $prior ); };
 $sync_affected = static function () { return TutorPress_Live_Lessons_Store_Fake::$affected; };
-$sync_write    = static function ( $post_id, $key, $value ) {
-	$rows = TutorPress_Live_Lessons_Store_Fake::meta_rows( $post_id, $key );
-	if ( 1 === count( $rows ) && isset( $rows[0]['meta_value'] ) && (string) $rows[0]['meta_value'] === (string) $value ) {
-		return false;
-	}
-	if ( 1 === count( $rows ) ) {
-		return TutorPress_Live_Lessons_Store_Fake::update_meta_bytes( $post_id, $key, $rows[0]['meta_id'], $value, $rows[0]['meta_value'] );
-	}
-	return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, $value );
-};
-$dispatch      = static function ( $staged, $token, $adapter, $update = null, $write = null, array $context = array() ) use ( $sync_read, $sync_update, $sync_affected, $sync_write ) {
-	return TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $staged, $token, $adapter, $sync_read, null === $update ? $sync_update : $update, $sync_affected, null === $write ? $sync_write : $write, isset( $context['topic'] ) ? $context['topic'] : array(), isset( $context['course'] ) ? $context['course'] : array(), array_key_exists( 'can', $context ) ? $context['can'] : null );
-};
-$stage_for = static function ( array $input, array $queue, $token ) use ( $topic, $course, $allow, $children, $adapter, $now ) {
-	TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-	if ( isset( $input['provider'] ) && 'google_meet' === $input['provider'] && ! array_key_exists( 'settings', $queue ) ) {
-		$queue['settings'] = array( null );
-	}
-	TutorPress_Live_Lessons_Adapter_Fake::$queue = $queue;
-	return TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $input, $children, $adapter, $now, $token );
-};
-$confirmed = array( 'outcome' => 'confirmed', 'provider_id' => 'evt-1', 'item' => array( 'start_at' => '2026-09-21T15:04:00-04:00', 'end_at' => '2026-09-21T16:04:00-04:00', 'timezone' => 'America/New_York', 'duration_minutes' => 60, 'join_url' => 'https://meet.example/a', 'details' => array( 'id' => 'decoy-id' ) ), 'diagnostics' => array( 'error' => 'ignore-me' ), 'provenance' => 'create' );
-$google_map = array( 'tutor-google-meet-link' => 'https://meet.example/a', 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00' );
-$ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-google' );
-$spy = new class( $ready['post_id'] ) extends TutorPress_Live_Lessons_Adapter_Fake {
-	public $seen = null;
-	private $post_id;
-	public function __construct( $post_id ) { $this->post_id = (int) $post_id; }
-	public function create( $owner_id, array $target ) {
-		$this->seen = json_decode( (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $this->post_id, '_tutorpress_live_lesson_sync' ), true );
-		return parent::create( $owner_id, $target );
-	}
-};
-$google_from = count( $GLOBALS['wpdb']->statements );
-$google_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$dispatched = $dispatch( $ready, 'token-dispatch-google', $spy );
-$done = is_array( $dispatched ) ? json_decode( $dispatched['envelope'], true ) : null;
-$done_operation = is_array( $done ) && isset( $done['operation'] ) ? $done['operation'] : array();
-$create_target = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
-$stored_link = is_array( $dispatched ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $dispatched['post_id'], 'tutor-google-meet-link' ) : '';
-$google_release = is_array( $dispatched ) ? $release_for( $dispatched['post_id'], $google_from ) : null;
-$google_hook = is_array( $dispatched ) ? array( 'tutor_google_meet_after_save_meeting', array( (int) $dispatched['post_id'] ) ) : array();
-tutorpress_live_lessons_assert( is_array( $spy->seen ) && 2 === $spy->seen['version'] && 'pending' === $spy->seen['state'] && 'dispatch_possible' === $spy->seen['operation']['dispatch_state'] && is_array( $done ) && 3 === $done['version'] && 'synced' === $done['state'] && 'evt-1' === $done['provider_id'] && 'create' === $done['provenance'] && false === $done['reconciliation_required'] && null === $done['error'] && 'evt-1' === $done_operation['provider_id'] && 'confirmed' === $done_operation['dispatch_state'] && 'No' === $create_target['add_enrolled_students'] && 'No' === $create_target['provider_target']['add_enrolled_students'] && 'https://meet.example/a' === $stored_link && array( 'create', 'metadata_map' ) === $methods() && is_array( $google_release ) && false !== strpos( $google_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $google_release[2], 'token-dispatch-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $dispatched['post_id'] ] ) && array( $google_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $google_hooks ) ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $dispatched['post_id'] ]['post_status'] && false === strpos( json_encode( $done ), 'decoy-id' ) && false === strpos( json_encode( $done ), 'ignore-me' ) && false === strpos( json_encode( $google_hook ), $secret ), 'confirmed google create copies scalars, writes the re-read map, releases the lock, and ignores the save hook return' );
-if ( ! class_exists( 'TutorPress_Live_Lessons_Enrolled_Fake', false ) ) {
-	class TutorPress_Live_Lessons_Enrolled_Fake {
-		public static $students = array();
-		public static $args = array();
-		public function get_students_data_by_course_id( $course_id, $order, $all ) {
-			self::$args = array( $course_id, $order, $all );
-			return self::$students;
-		}
-	}
-}
-if ( ! function_exists( 'tutor_utils' ) ) {
-	function tutor_utils() {
-		return new TutorPress_Live_Lessons_Enrolled_Fake();
-	}
-}
-$enrolled_blank = new stdClass();
-$enrolled_blank->display_name = '';
-$enrolled_blank->username = 'ada';
-$enrolled_blank->user_email = 'ada@example.com';
-$enrolled_named = new stdClass();
-$enrolled_named->display_name = 'Grace';
-$enrolled_named->username = 'grace';
-$enrolled_named->user_email = 'grace@example.com';
-$enrolled_rows = array( array( 'displayName' => 'ada', 'email' => 'ada@example.com', 'responseStatus' => 'needsAction' ), array( 'displayName' => 'Grace', 'email' => 'grace@example.com', 'responseStatus' => 'needsAction' ) );
-$enrolled_keys = array( 'add_enrolled_students' => 'Yes', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'transparent', 'visibility' => 'public' );
-TutorPress_Live_Lessons_Enrolled_Fake::$students = array( $enrolled_blank, $enrolled_named, 'skip' );
-$enrolled_input = $draft;
-$enrolled_input['settings'] = array( 'add_enrolled_students' => 'Yes' );
-$enrolled_ready = $stage_for( $enrolled_input, array( 'preflight' => array( true ) ), 'token-dispatch-enrolled' );
-$enrolled_staged = is_array( $enrolled_ready ) ? $enrolled_ready['envelope'] : '';
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$enrolled_done = $dispatch( $enrolled_ready, 'token-dispatch-enrolled', $adapter );
-$enrolled_target = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
-$enrolled_bytes = is_array( $enrolled_done ) ? $enrolled_done['envelope'] : '';
-$enrolled_decoded = is_string( $enrolled_bytes ) ? json_decode( $enrolled_bytes, true ) : null;
-$enrolled_operation = is_array( $enrolled_decoded ) && isset( $enrolled_decoded['operation'] ) && is_array( $enrolled_decoded['operation'] ) ? $enrolled_decoded['operation'] : array();
-$enrolled_staged_decoded = json_decode( (string) $enrolled_staged, true );
-$enrolled_method = new ReflectionMethod( 'TutorPress_Live_Lesson_Sync_Orchestrator', 'dispatch_target' );
-if ( PHP_VERSION_ID < 80100 ) {
-	$enrolled_method->setAccessible( true );
-}
-$enrolled_returned = is_array( $enrolled_staged_decoded ) && isset( $enrolled_staged_decoded['operation'] ) && is_array( $enrolled_staged_decoded['operation'] ) ? $enrolled_method->invoke( null, $enrolled_staged_decoded['operation'] ) : array();
-$enrolled_sent = array( array( 'displayName' => 'ada', 'email' => 'ada@example.com' ), array( 'displayName' => 'Grace', 'email' => 'grace@example.com' ) );
-tutorpress_live_lessons_assert( $enrolled_rows === ( isset( $enrolled_returned['attendees'] ) ? $enrolled_returned['attendees'] : null ) && $enrolled_sent === ( isset( $enrolled_target['attendees'] ) ? $enrolled_target['attendees'] : null ) && array( 7, 'ID', true ) === TutorPress_Live_Lessons_Enrolled_Fake::$args && $enrolled_keys === ( isset( $enrolled_operation['provider_target'] ) ? $enrolled_operation['provider_target'] : null ) && false === array_key_exists( 'attendees', isset( $enrolled_operation['provider_target'] ) && is_array( $enrolled_operation['provider_target'] ) ? $enrolled_operation['provider_target'] : array() ) && false === strpos( (string) $enrolled_staged, 'ada@example.com' ) && false === strpos( (string) $enrolled_staged, 'grace@example.com' ) && false === strpos( (string) $enrolled_bytes, 'ada@example.com' ) && false === strpos( (string) $enrolled_bytes, 'grace@example.com' ), 'a yes google dispatch sends enrolled students and leaves their emails out of the envelope' );
-TutorPress_Live_Lessons_Enrolled_Fake::$students = array();
-tutorpress_live_lessons_pass( 'google dispatch sends enrolled students' );
-$rewrite_returns = array();
-$rewrite_write   = static function ( $post_id, $key, $value ) use ( $sync_write, &$rewrite_returns ) {
-	$wrote             = $sync_write( $post_id, $key, $value );
-	$rewrite_returns[] = $wrote;
-	return $wrote;
-};
-$rewrite_method = new ReflectionMethod( 'TutorPress_Live_Lesson_Sync_Orchestrator', 'map_stored' );
-if ( PHP_VERSION_ID < 80100 ) {
-	$rewrite_method->setAccessible( true );
-}
-$rewritten    = $rewrite_method->invoke( null, $dispatched['post_id'], $google_map, $rewrite_write, $sync_read );
-$rewrite_rows = array();
-foreach ( array_keys( $google_map ) as $rewrite_key ) {
-	$rewrite_rows[ $rewrite_key ] = count( TutorPress_Live_Lessons_Store_Fake::meta_rows( $dispatched['post_id'], $rewrite_key ) );
-}
-tutorpress_live_lessons_assert( true === $rewritten && array( false, false ) === $rewrite_returns && array( 'tutor-google-meet-link' => 1, 'tutor-google-meet-start-datetime' => 1 ) === $rewrite_rows && 1 === count( TutorPress_Live_Lessons_Store_Fake::meta_rows( $dispatched['post_id'], '_tutorpress_live_lesson_sync' ) ), 'an unchanged provider-meta rewrite succeeds and leaves one row per key' );
-
-$zoom_ready = $stage_for( $room_input, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-dispatch-zoom' );
-$zoom_from = count( $GLOBALS['wpdb']->statements );
-$zoom_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-$zoom_confirmed = $confirmed;
-$zoom_confirmed['item']['details'] = array( 'id' => 'decoy-id', 'password' => 'hidden-pass' );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $zoom_confirmed ), 'metadata_map' => array( array( '_tutor_zm_data' => '{"id":"evt-1"}' ) ) );
-$zoom_done = $dispatch( $zoom_ready, 'token-dispatch-zoom', $adapter );
-$zoom_target = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
-$zoom_envelope = is_array( $zoom_done ) ? json_decode( $zoom_done['envelope'], true ) : null;
-$zoom_release = is_array( $zoom_done ) ? $release_for( $zoom_done['post_id'], $zoom_from ) : null;
-$zoom_hook = is_array( $zoom_done ) ? array( 'tutor_zoom_after_save_meeting', array( (int) $zoom_done['post_id'] ) ) : array();
-tutorpress_live_lessons_assert( is_array( $zoom_envelope ) && 'synced' === $zoom_envelope['state'] && 'evt-1' === $zoom_envelope['provider_id'] && 'host-1' === $zoom_target['provider_target']['host_id'] && false === array_key_exists( 'host_id', $zoom_target ) && '{"id":"evt-1"}' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_done['post_id'], '_tutor_zm_data' ) && array( 'create', 'metadata_map' ) === $methods() && is_array( $zoom_release ) && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_release[2], 'token-dispatch-zoom' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_done['post_id'] ] ) && array( $zoom_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $zoom_hooks ) ) && false === strpos( (string) $zoom_done['envelope'], 'hidden-pass' ), 'zoom create keeps the nested provider target and fires the zoom save hook' );
-
-$blocked_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-block' );
-$blocked_before = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $blocked_ready['post_id'], '_tutorpress_live_lesson_sync' );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-tutorpress_live_lessons_assert( null === $dispatch( $blocked_ready, 'token-dispatch-block', $adapter, static function () { return false; } ) && array() === $methods() && $blocked_before === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $blocked_ready['post_id'], '_tutorpress_live_lesson_sync' ) && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $blocked_ready['post_id'] ), 'a failed dispatch swap does not call the adapter' );
-
-$uncertain_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-uncertain' );
-$uncertain_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( array( 'outcome' => 'uncertain', 'provider_id' => null, 'item' => null, 'diagnostics' => array( 'error' => 'decoy-id' ), 'provenance' => 'create' ) ) );
-$uncertain = $dispatch( $uncertain_ready, 'token-dispatch-uncertain', $adapter );
-$uncertain_envelope = is_array( $uncertain ) ? json_decode( $uncertain['envelope'], true ) : null;
-$uncertain_post = is_array( $uncertain ) ? TutorPress_Live_Lessons_Store_Fake::$posts[ $uncertain['post_id'] ] : array();
-$uncertain_projected = is_array( $uncertain ) ? TutorPress_Live_Lesson_Response_Projector::project_item( $uncertain_post, $topic, $course, $allow, $uncertain_envelope, null ) : null;
-tutorpress_live_lessons_assert( is_array( $uncertain_envelope ) && is_array( $uncertain_projected ) && $uncertain['post_id'] === $uncertain_projected['id'] && 'error' === $uncertain_projected['sync_state'] && 3 === $uncertain_envelope['version'] && 'error' === $uncertain_envelope['state'] && null === $uncertain_envelope['provider_id'] && null === $uncertain_envelope['provenance'] && true === $uncertain_envelope['reconciliation_required'] && 'provider_create_failed' === $uncertain_envelope['error'] && 'dispatch_possible' === $uncertain_envelope['operation']['dispatch_state'] && 'publish' === $uncertain_post['post_status'] && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $uncertain['post_id'] ) && array( 'create' ) === $methods() && TutorPress_Live_Lesson_Sync_Repository::owns( $uncertain['lock'], 'token-dispatch-uncertain' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $uncertain['post_id'] ] ) && false === strpos( json_encode( $uncertain_envelope ), 'decoy-id' ) && $uncertain_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an id-less uncertain create stays a discoverable publish error and writes no provider meta' );
-
-$throw_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-throw' );
-$throw_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-$throwing = new class() extends TutorPress_Live_Lessons_Adapter_Fake {
-	public function create( $owner_id, array $target ) { throw new RuntimeException( 'calendar exploded token' ); }
-};
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-$exploded = $dispatch( $throw_ready, 'token-dispatch-throw', $throwing );
-$exploded_envelope = is_array( $exploded ) ? json_decode( $exploded['envelope'], true ) : null;
-$exploded_bytes = is_array( $exploded ) ? $exploded['envelope'] : '';
-tutorpress_live_lessons_assert( is_array( $exploded_envelope ) && 'error' === $exploded_envelope['state'] && 'provider_create_failed' === $exploded_envelope['error'] && null === $exploded_envelope['provider_id'] && true === $exploded_envelope['reconciliation_required'] && false === strpos( $exploded_bytes, 'calendar exploded' ) && false === strpos( $exploded_bytes, 'token' ) && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $exploded['post_id'] ) && array() === $methods() && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $exploded['post_id'] ] ) && $throw_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a thrown create discards the exception text' );
-
-$mismatch_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-mismatch' );
-$mismatch_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$mismatch = $dispatch( $mismatch_ready, 'token-dispatch-mismatch', $adapter, null, static function ( $post_id, $key, $value ) { unset( $value ); return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, 'wrong' ); } );
-$mismatch_envelope = is_array( $mismatch ) ? json_decode( $mismatch['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $mismatch_envelope ) && 'error' === $mismatch_envelope['state'] && true === $mismatch_envelope['reconciliation_required'] && 'create' === $mismatch_envelope['provenance'] && 'dispatch_possible' === $mismatch_envelope['operation']['dispatch_state'] && 'evt-1' === $mismatch_envelope['provider_id'] && 'wrong' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $mismatch['post_id'], 'tutor-google-meet-link' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $mismatch['post_id'] ] ) && $mismatch_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a mismatched metadata re-read does not transition synced' );
-$rejected_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-rejected' );
-$rejected_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( array( 'outcome' => 'definite_rejection', 'provider_id' => null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'create' ) ) );
-$rejected = $dispatch( $rejected_ready, 'token-dispatch-rejected', $adapter );
-$rejected_envelope = is_array( $rejected ) ? json_decode( $rejected['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $rejected_envelope ) && 'error' === $rejected_envelope['state'] && false === $rejected_envelope['reconciliation_required'] && null === $rejected_envelope['provider_id'] && 'provider_create_failed' === $rejected_envelope['error'] && 'dispatch_possible' === $rejected_envelope['operation']['dispatch_state'] && array( 'create' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $rejected['post_id'] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $rejected['post_id'] ] ) && $rejected_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a definite rejection stays an error without reconciliation' );
-$raw_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-raw' );
-$raw = $confirmed;
-$raw['provider_id'] = 'evt-raw';
-$raw['extra'] = true;
-$raw_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $raw ), 'metadata_map' => array( $google_map ) );
-$normalized = $dispatch( $raw_ready, 'token-dispatch-raw', $adapter );
-$normalized_envelope = is_array( $normalized ) ? json_decode( $normalized['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $normalized_envelope ) && 'error' === $normalized_envelope['state'] && null === $normalized_envelope['provider_id'] && true === $normalized_envelope['reconciliation_required'] && array( 'create' ) === $methods() && false === strpos( json_encode( $normalized_envelope ), 'evt-raw' ) && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $normalized['post_id'] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $normalized['post_id'] ] ) && $raw_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unnormalized create result is rejected before identity is read' );
-tutorpress_live_lessons_pass( 'provider create dispatch finalizes synced metadata' );
-
-$hook_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-hook' );
-$hook_from = count( $GLOBALS['wpdb']->statements );
-$hook_calls = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$hooked = $dispatch( $hook_ready, 'token-dispatch-hook', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$hook_data = $hooked instanceof WP_Error ? $hooked->get_error_data() : array();
-$hook_record = isset( $hook_data['projected_record'] ) ? $hook_data['projected_record'] : null;
-$hook_release = isset( $hook_data['record_id'] ) ? $release_for( $hook_data['record_id'], $hook_from ) : null;
-$hook_bytes = isset( $hook_data['record_id'] ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_data['record_id'], '_tutorpress_live_lesson_sync' ) : '';
-$hook_envelope = is_string( $hook_bytes ) ? json_decode( $hook_bytes, true ) : null;
-$hook_json = json_encode( $hook_data );
-tutorpress_live_lessons_assert( $hooked instanceof WP_Error && 'live_lesson_persisted_transition' === $hooked->get_error_code() && 'Live lesson transition failed.' === $hooked->get_error_message() && true === $hook_data['persisted'] && true === $hook_data['refetch_required'] && is_array( $hook_record ) && 'synced' === $hook_record['sync_state'] && 3 === $hook_record['sync_version'] && $hook_data['record_id'] === $hook_record['id'] && is_array( $hook_envelope ) && 3 === $hook_envelope['version'] && 'synced' === $hook_envelope['state'] && 'evt-1' === $hook_envelope['provider_id'] && 'confirmed' === $hook_envelope['operation']['dispatch_state'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $hook_data['record_id'] ]['post_status'] && 'https://meet.example/a' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_data['record_id'], 'tutor-google-meet-link' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $hook_data['record_id'] ] ) && is_array( $hook_release ) && false !== strpos( $hook_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $hook_release[2], 'token-dispatch-hook' ) && array( array( 'tutor_google_meet_after_save_meeting', array( (int) $hook_data['record_id'] ) ) ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $hook_calls ) ) && false === strpos( (string) $hook_json, 'hook-exploded-secret' ) && false === strpos( (string) $hook_bytes, 'hook-exploded-secret' ) && false === strpos( (string) $hook_json, 'exactly' ), 'a thrown save hook keeps the synced record and returns a persisted transition error' );
-
-$bare_ready = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-dispatch-bare' );
-$bare_calls = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$bare = $dispatch( $bare_ready, 'token-dispatch-bare', $adapter );
-$bare_bytes = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $bare_ready['post_id'], '_tutorpress_live_lesson_sync' );
-$bare_envelope = is_string( $bare_bytes ) ? json_decode( $bare_bytes, true ) : null;
-$bare_json = json_encode( TutorPress_Live_Lessons_Store_Fake::$posts[ $bare_ready['post_id'] ] );
-tutorpress_live_lessons_assert( null === $bare && is_array( $bare_envelope ) && 'synced' === $bare_envelope['state'] && 3 === $bare_envelope['version'] && 'evt-1' === $bare_envelope['provider_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $bare_ready['post_id'] ] ) && 1 === count( array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $bare_calls ) ) ) && false === strpos( (string) $bare_bytes, 'hook-exploded-secret' ) && false === strpos( (string) $bare_json, 'hook-exploded-secret' ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $bare_ready['post_id'] ]['post_status'], 'an unauthorized hook failure releases the lock and returns no projected record' );
-tutorpress_live_lessons_pass( 'synced create releases the lock before the provider save hook' );
 
 $plant_unlinked = static function ( $post_type, $provider, $menu_order ) {
 	$id    = TutorPress_Live_Lessons_Store_Fake::insert_publish_post( array( 'post_type' => $post_type, 'post_parent' => 8, 'post_title' => 'Copied', 'post_content' => 'Body', 'menu_order' => $menu_order, 'post_author' => 42 ) );
@@ -462,15 +231,6 @@ $google_decoded = is_array( $google_saved ) ? json_decode( $google_saved['envelo
 $google_operation = is_array( $google_decoded ) && isset( $google_decoded['operation'] ) ? $google_decoded['operation'] : array();
 $google_bytes = is_array( $google_saved ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $google_saved['post_id'], '_tutorpress_live_lesson_sync' ) : '';
 tutorpress_live_lessons_assert( is_array( $google_saved ) && $google_item['ID'] === $google_saved['post_id'] && $google_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && 'Copied' === TutorPress_Live_Lessons_Store_Fake::$posts[ $google_item['ID'] ]['post_title'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $google_item['ID'] ]['post_status'] && is_array( $google_decoded ) && is_array( TutorPress_Live_Lesson_Sync_Envelope::envelope( $google_decoded ) ) && 1 === $google_decoded['schema_version'] && 2 === $google_decoded['version'] && 'pending' === $google_decoded['state'] && 'google_meet' === $google_decoded['provider'] && 11 === $google_decoded['owner_id'] && null === $google_decoded['provider_id'] && null === $google_decoded['provenance'] && false === $google_decoded['reconciliation_required'] && 1 === $google_operation['base_version'] && 'create' === $google_operation['kind'] && 'not_dispatched' === $google_operation['dispatch_state'] && 4 === $google_operation['menu_order'] && 'Standup' === $google_operation['title'] && 'Notes' === $google_operation['content'] && '2026-09-21 16:00:00' === $google_operation['started_at'] && array( 'unit' => 'minutes', 'value' => 60 ) === $google_operation['duration'] && null === $google_operation['delete_hook'] && null === $google_operation['provider_id'] && $google_bytes === $google_saved['envelope'] && TutorPress_Live_Lesson_Sync_Repository::owns( $google_saved['lock'], 'token-unlinked-google' ) && isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $google_item['ID'] ] ) && array( array( 'preflight', array( 'owner_id' => 11 ) ), array( 'settings', array( 'owner_id' => 11 ) ) ) === TutorPress_Live_Lessons_Adapter_Fake::$calls && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $google_item['ID'] ) && $google_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && false === strpos( (string) $google_bytes, $secret ) && false === strpos( (string) $google_bytes, 'hidden-pass' ) && false === strpos( (string) $google_bytes, 'student@example.com' ) && false === strpos( (string) $google_bytes, 'token-unlinked-google' ), 'google unlinked save stages a version-2 pending create on the same post' );
-$google_from = count( $GLOBALS['wpdb']->statements );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$google_dispatch = $dispatch( $google_saved, 'token-unlinked-google', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$google_final = is_array( $google_dispatch ) ? json_decode( $google_dispatch['envelope'], true ) : null;
-$google_create = isset( TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] ) ? TutorPress_Live_Lessons_Adapter_Fake::$calls[0][1]['target'] : array();
-$google_release = is_array( $google_dispatch ) ? $release_for( $google_dispatch['post_id'], $google_from ) : null;
-$google_hook = is_array( $google_dispatch ) ? array( 'tutor_google_meet_after_save_meeting', array( (int) $google_dispatch['post_id'] ) ) : array();
-tutorpress_live_lessons_assert( is_array( $google_final ) && $google_item['ID'] === $google_dispatch['post_id'] && $google_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && 'Copied' === TutorPress_Live_Lessons_Store_Fake::$posts[ $google_item['ID'] ]['post_title'] && 4 === $google_final['version'] && 'synced' === $google_final['state'] && 'create' === $google_final['provenance'] && 'evt-1' === $google_final['provider_id'] && 'confirmed' === $google_final['operation']['dispatch_state'] && null === $google_create['provider_id'] && false === strpos( json_encode( $google_create ), 'evt-evil' ) && 'https://meet.example/a' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $google_item['ID'], 'tutor-google-meet-link' ) && array( 'create', 'metadata_map' ) === $methods() && is_array( $google_release ) && false !== strpos( $google_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $google_release[2], 'token-unlinked-google' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $google_item['ID'] ] ) && array( $google_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $google_hooks ) ) && 1 === count( $google_hook[1] ), 'unlinked google create keeps the post, writes the map, releases the lock, then fires the save hook' );
 list( $zoom_item, $zoom_prior ) = $plant_unlinked( 'tutor_zoom_meeting', 'zoom', 6 );
 $zoom_save = $zoom;
 $zoom_save['title'] = 'Room';
@@ -483,13 +243,13 @@ $zoom_decoded = is_array( $zoom_saved ) ? json_decode( $zoom_saved['envelope'], 
 $zoom_operation = is_array( $zoom_decoded ) && isset( $zoom_decoded['operation'] ) ? $zoom_decoded['operation'] : array();
 $zoom_bytes = is_array( $zoom_saved ) ? TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_saved['post_id'], '_tutorpress_live_lesson_sync' ) : '';
 tutorpress_live_lessons_assert( $zoom_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && is_array( $zoom_decoded ) && 2 === $zoom_decoded['version'] && 'pending' === $zoom_decoded['state'] && 'zoom' === $zoom_decoded['provider'] && 42 === $zoom_decoded['owner_id'] && null === $zoom_decoded['provider_id'] && 6 === $zoom_operation['menu_order'] && array( 'unit' => 'hours', 'value' => 2 ) === $zoom_operation['duration'] && '2026-09-21 17:04:00' === $zoom_operation['end_local'] && $zoom_owner_target === $zoom_operation['provider_target'] && 'not_dispatched' === $zoom_operation['dispatch_state'] && $zoom_bytes === $zoom_saved['envelope'] && TutorPress_Live_Lesson_Sync_Repository::owns( $zoom_saved['lock'], 'token-unlinked-zoom' ) && array( 'preflight', 'validate_host' ) === $methods() && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $zoom_item['ID'] ) && false === strpos( (string) $zoom_bytes, 'hidden-pass' ) && false === strpos( (string) $zoom_bytes, $secret ) && $zoom_stage_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'topic zoom unlinked save is allowed' );
-$zoom_hook_before = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( array( '_tutor_zm_data' => '{"id":"evt-1"}' ) ) );
-$zoom_final_dispatch = $dispatch( $zoom_saved, 'token-unlinked-zoom', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$zoom_final = is_array( $zoom_final_dispatch ) ? json_decode( $zoom_final_dispatch['envelope'], true ) : null;
-$zoom_hook = is_array( $zoom_final_dispatch ) ? array( 'tutor_zoom_after_save_meeting', array( (int) $zoom_final_dispatch['post_id'] ) ) : array();
-tutorpress_live_lessons_assert( is_array( $zoom_final ) && $zoom_item['ID'] === $zoom_final_dispatch['post_id'] && $zoom_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && 4 === $zoom_final['version'] && 'synced' === $zoom_final['state'] && 'evt-1' === $zoom_final['provider_id'] && '{"id":"evt-1"}' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $zoom_item['ID'], '_tutor_zm_data' ) && array( $zoom_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $zoom_hook_before ) ) && 1 === count( $zoom_hook[1] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $zoom_item['ID'] ] ), 'unlinked zoom create keeps the post and fires only the zoom save hook' );
+$pass_save = $zoom_save;
+$pass_save['password'] = 'meeting-pass';
+list( $pass_item ) = $plant_unlinked( 'tutor_zoom_meeting', 'zoom', 7 );
+$pass_saved = $stage_copy( $pass_item, $pass_save, array( 'preflight' => array( true ), 'validate_host' => array( true ) ), 'token-unlinked-zoom-pass' );
+$pass_bytes = is_array( $pass_saved ) ? (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass_saved['post_id'], '_tutorpress_live_lesson_sync' ) : '';
+$pass_row = is_array( $pass_saved ) ? json_decode( $pass_saved['envelope'], true ) : null;
+tutorpress_live_lessons_assert( is_array( $pass_saved ) && 'meeting-pass' === $pass_saved['password'] && is_array( $pass_row ) && $zoom_owner_target === $pass_row['operation']['provider_target'] && false === strpos( $pass_bytes, 'meeting-pass' ) && false === strpos( $pass_bytes, '"password"' ), 'an unlinked zoom envelope has no password key' );
 $evil_copy = $google_save;
 $evil_copy['provider'] = 'google_meet';
 $evil_copy['provider_id'] = 'evt-evil';
@@ -525,62 +285,6 @@ $swap_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
 $swapped = $stage_copy( $swap_item[0], $google_save, array( 'preflight' => array( true ) ), 'token-unlinked-swap', static function () { return false; } );
 $swap_release = $release_for( $swap_item[0]['ID'], $swap_from );
 tutorpress_live_lessons_assert( null === $swapped && $swap_item[1] === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $swap_item[0]['ID'], '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $swap_item[0]['ID'] ] ) && $swap_deletes === count( TutorPress_Topic_Copy_Harness::$deletes ) && is_array( $swap_release ) && false !== strpos( $swap_release[0], 'CONVERT(option_value USING BINARY)' ) && TutorPress_Live_Lesson_Sync_Repository::owns( $swap_release[2], 'token-unlinked-swap' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $swap_item[0]['ID'] ] ) && $swap_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a failed unlinked exchange releases the exact lock and keeps the copy' );
-$unlinked_error = static function ( array $queue, $token, $adapter, $write = null ) use ( $google_save, $stage_copy, $dispatch, $plant_unlinked ) {
-	$planted = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-	$staged  = $stage_copy( $planted[0], $google_save, array( 'preflight' => array( true ) ), $token );
-	$hooks   = TutorPress_Live_Lessons_Hook_Fake::$calls;
-	TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-	TutorPress_Live_Lessons_Adapter_Fake::$queue = $queue;
-	$result = is_array( $staged ) ? $dispatch( $staged, $token, $adapter, null, $write ) : null;
-	return array( $planted[0], $result, $hooks );
-};
-list( $uncertain_item, $uncertain_saved, $uncertain_hooks ) = $unlinked_error( array( 'create' => array( array( 'outcome' => 'uncertain', 'provider_id' => null, 'item' => null, 'diagnostics' => array( 'error' => 'decoy-id' ), 'provenance' => 'create' ) ) ), 'token-unlinked-uncertain', $adapter );
-$uncertain_envelope = is_array( $uncertain_saved ) ? json_decode( $uncertain_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $uncertain_envelope ) && $uncertain_item['ID'] === $uncertain_saved['post_id'] && 4 === $uncertain_envelope['version'] && 'error' === $uncertain_envelope['state'] && null === $uncertain_envelope['provider_id'] && true === $uncertain_envelope['reconciliation_required'] && 'provider_create_failed' === $uncertain_envelope['error'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $uncertain_item['ID'] ]['post_status'] && array( '_tutorpress_live_lesson_sync' ) === $meta_keys( $uncertain_item['ID'] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $uncertain_item['ID'] ] ) && $uncertain_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls && false === strpos( json_encode( $uncertain_envelope ), 'decoy-id' ), 'an unlinked id-less uncertain create releases the lock without a save hook' );
-list( $thrown_item, $thrown_saved, $thrown_hooks ) = $unlinked_error( array(), 'token-unlinked-throw', $throwing );
-$thrown_envelope = is_array( $thrown_saved ) ? json_decode( $thrown_saved['envelope'], true ) : null;
-$thrown_bytes = is_array( $thrown_saved ) ? $thrown_saved['envelope'] : '';
-tutorpress_live_lessons_assert( is_array( $thrown_envelope ) && $thrown_item['ID'] === $thrown_saved['post_id'] && 4 === $thrown_envelope['version'] && 'error' === $thrown_envelope['state'] && true === $thrown_envelope['reconciliation_required'] && false === strpos( (string) $thrown_bytes, 'calendar exploded' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $thrown_item['ID'] ] ) && $thrown_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unlinked thrown create discards the exception text and does not fire a save hook' );
-list( $rejected_item, $rejected_saved, $rejected_hooks ) = $unlinked_error( array( 'create' => array( array( 'outcome' => 'definite_rejection', 'provider_id' => null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'create' ) ) ), 'token-unlinked-rejected', $adapter );
-$rejected_envelope = is_array( $rejected_saved ) ? json_decode( $rejected_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $rejected_envelope ) && 4 === $rejected_envelope['version'] && 'error' === $rejected_envelope['state'] && false === $rejected_envelope['reconciliation_required'] && null === $rejected_envelope['provider_id'] && 'dispatch_possible' === $rejected_envelope['operation']['dispatch_state'] && $rejected_item['ID'] === $rejected_saved['post_id'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $rejected_item['ID'] ] ) && $rejected_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unlinked definite rejection releases the lock without a save hook' );
-list( $mismatch_item, $mismatch_saved, $mismatch_hooks ) = $unlinked_error( array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) ), 'token-unlinked-mismatch', $adapter, static function ( $post_id, $key, $value ) { unset( $value ); return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, 'wrong' ); } );
-$mismatch_envelope = is_array( $mismatch_saved ) ? json_decode( $mismatch_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $mismatch_envelope ) && 4 === $mismatch_envelope['version'] && 'error' === $mismatch_envelope['state'] && 'evt-1' === $mismatch_envelope['provider_id'] && 'dispatch_possible' === $mismatch_envelope['operation']['dispatch_state'] && 'wrong' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $mismatch_item['ID'], 'tutor-google-meet-link' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $mismatch_item['ID'] ] ) && $mismatch_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unlinked metadata mismatch releases the lock without a save hook' );
-$raw_unlinked = $confirmed;
-$raw_unlinked['provider_id'] = 'evt-raw';
-$raw_unlinked['extra'] = true;
-list( $raw_item, $raw_saved, $raw_hooks ) = $unlinked_error( array( 'create' => array( $raw_unlinked ), 'metadata_map' => array( $google_map ) ), 'token-unlinked-raw', $adapter );
-$raw_envelope = is_array( $raw_saved ) ? json_decode( $raw_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $raw_envelope ) && 4 === $raw_envelope['version'] && 'error' === $raw_envelope['state'] && null === $raw_envelope['provider_id'] && true === $raw_envelope['reconciliation_required'] && false === strpos( json_encode( $raw_envelope ), 'evt-raw' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $raw_item['ID'] ] ) && $raw_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'an unlinked extra-key result releases the lock without a save hook' );
-$hook_plant = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$hook_staged = $stage_copy( $hook_plant[0], $google_save, array( 'preflight' => array( true ) ), 'token-unlinked-hook' );
-$hook_before = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$hooked = $dispatch( $hook_staged, 'token-unlinked-hook', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$hook_data = $hooked instanceof WP_Error ? $hooked->get_error_data() : array();
-$hook_bytes = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_plant[0]['ID'], '_tutorpress_live_lesson_sync' );
-$hook_envelope = is_string( $hook_bytes ) ? json_decode( $hook_bytes, true ) : null;
-tutorpress_live_lessons_assert( $hooked instanceof WP_Error && 'live_lesson_persisted_transition' === $hooked->get_error_code() && true === $hook_data['persisted'] && is_array( $hook_envelope ) && 4 === $hook_envelope['version'] && 'synced' === $hook_envelope['state'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $hook_plant[0]['ID'] ]['post_status'] && 'https://meet.example/a' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_plant[0]['ID'], 'tutor-google-meet-link' ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $hook_plant[0]['ID'] ] ) && false === strpos( json_encode( $hook_data ), 'hook-exploded-secret' ) && 1 === count( array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $hook_before ) ) ), 'an unlinked hook failure keeps the synced post and returns a persisted transition' );
-$bare_plant = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$bare_staged = $stage_copy( $bare_plant[0], $google_save, array( 'preflight' => array( true ) ), 'token-unlinked-bare' );
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$bare = $dispatch( $bare_staged, 'token-unlinked-bare', $adapter );
-$bare_envelope = json_decode( (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $bare_plant[0]['ID'], '_tutorpress_live_lesson_sync' ), true );
-tutorpress_live_lessons_assert( null === $bare && is_array( $bare_envelope ) && 4 === $bare_envelope['version'] && 'synced' === $bare_envelope['state'] && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $bare_plant[0]['ID'] ]['post_status'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $bare_plant[0]['ID'] ] ) && false === strpos( (string) TutorPress_Live_Lessons_Store_Fake::meta_bytes( $bare_plant[0]['ID'], '_tutorpress_live_lesson_sync' ), 'hook-exploded-secret' ), 'an unlinked hook failure without topic context returns null after release' );
-$release_plant = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$release_staged = $stage_copy( $release_plant[0], $google_save, array( 'preflight' => array( true ) ), 'token-unlinked-release' );
-$release_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
-TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $release_plant[0]['ID'] ] = 'replaced-lock-bytes';
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-$release_saved = $dispatch( $release_staged, 'token-unlinked-release', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$release_envelope = is_array( $release_saved ) ? json_decode( $release_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $release_envelope ) && 4 === $release_envelope['version'] && 'synced' === $release_envelope['state'] && $release_plant[0]['ID'] === $release_saved['post_id'] && 'replaced-lock-bytes' === TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $release_plant[0]['ID'] ] && $release_hooks === TutorPress_Live_Lessons_Hook_Fake::$calls, 'a failed unlinked release returns the synced post and does not fire the save hook' );
 tutorpress_live_lessons_pass( 'unlinked explicit save stages a pending create' );
 
 $lock_sql = 'DELETE FROM wp_options WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)';
@@ -612,123 +316,7 @@ $token_delete = static function ( $post_id, $token, $lock, array $marked ) use (
 	$name = 'tutorpress_live_lesson_lock_' . (int) $post_id;
 	return 1 === count( $statements ) && $lock_sql === $statements[0][0] && $name === $statements[0][1] && $lock === $statements[0][2] && TutorPress_Live_Lesson_Sync_Repository::owns( $statements[0][2], $token ) && array( $marked[1] ) === $hooks_at;
 };
-$queue_create = static function () use ( $confirmed, $google_map ) {
-	TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-	TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $confirmed ), 'metadata_map' => array( $google_map ) );
-};
 unset( TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] );
-
-$done = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-done' );
-$done_id = $done['post_id'];
-$done_next = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$done_mark = $mark();
-$queue_create();
-$done_saved = $dispatch( $done, 'token-matrix-pending-done', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$done_envelope = is_array( $done_saved ) ? json_decode( $done_saved['envelope'], true ) : null;
-$done_hook = array( 'tutor_google_meet_after_save_meeting', array( (int) $done_id ) );
-tutorpress_live_lessons_assert( is_array( $done_envelope ) && 3 === $done_envelope['version'] && 'synced' === $done_envelope['state'] && $done_id === $done_saved['post_id'] && $done_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && $token_delete( $done_id, 'token-matrix-pending-done', $done['lock'], $done_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $done_id ] ) && array( $done_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, $done_mark[1] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $done_id ]['post_status'], 'pending completion deletes the acquired token before the save hook' );
-
-$thrown_create = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-throw' );
-$thrown_id = $thrown_create['post_id'];
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-$thrown_mark = $mark();
-$thrown_saved = $dispatch( $thrown_create, 'token-matrix-pending-throw', $throwing );
-$thrown_envelope = is_array( $thrown_saved ) ? json_decode( $thrown_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $thrown_envelope ) && 'error' === $thrown_envelope['state'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $thrown_id ] ) && $token_delete( $thrown_id, 'token-matrix-pending-throw', $thrown_create['lock'], $thrown_mark ) && $thrown_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls && false === strpos( (string) $thrown_saved['envelope'], 'calendar exploded' ), 'a pending provider throw releases the lock with one prepared delete and no save hook' );
-
-$hook_create = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-hook' );
-$hook_id = $hook_create['post_id'];
-$hook_mark = $mark();
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-$queue_create();
-$hook_saved = $dispatch( $hook_create, 'token-matrix-pending-hook', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$hook_bytes = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_id, '_tutorpress_live_lesson_sync' );
-$hook_state = is_string( $hook_bytes ) ? json_decode( $hook_bytes, true ) : null;
-unset( TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] );
-tutorpress_live_lessons_assert( $hook_saved instanceof WP_Error && 'live_lesson_persisted_transition' === $hook_saved->get_error_code() && is_array( $hook_state ) && 3 === $hook_state['version'] && 'synced' === $hook_state['state'] && $token_delete( $hook_id, 'token-matrix-pending-hook', $hook_create['lock'], $hook_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $hook_id ] ) && 'https://meet.example/a' === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $hook_id, 'tutor-google-meet-link' ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $hook_id ]['post_status'] && false === strpos( json_encode( $hook_saved->get_error_data() ), 'hook-exploded-secret' ) && false === strpos( (string) $hook_bytes, 'hook-exploded-secret' ), 'a pending hook throw follows one token delete and keeps the synced post' );
-
-$acquire_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$acquire_mark = $mark();
-$acquire_deletes = count( TutorPress_Topic_Copy_Harness::$deletes );
-TutorPress_Topic_Copy_Harness::$fail_lock = true;
-$acquire_saved = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-acquire' );
-TutorPress_Topic_Copy_Harness::$fail_lock = false;
-tutorpress_live_lessons_assert( null === $acquire_saved && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $acquire_id ] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $acquire_id ] ) && $quiet( $acquire_mark ) && array( array( $acquire_id, true ) ) === array_slice( TutorPress_Topic_Copy_Harness::$deletes, $acquire_deletes ), 'a failed pending acquire force-deletes and stores no token' );
-$kept_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$kept_mark = $mark();
-TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $kept_id ] = true;
-TutorPress_Topic_Copy_Harness::$fail_lock = true;
-$kept_saved = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-kept' );
-TutorPress_Topic_Copy_Harness::$fail_lock = false;
-unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $kept_id ] );
-$kept_data = $kept_saved instanceof WP_Error ? $kept_saved->get_error_data() : array();
-tutorpress_live_lessons_assert( $kept_saved instanceof WP_Error && 'live_lesson_persisted_error' === $kept_saved->get_error_code() && false === $kept_data['persisted'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $kept_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $kept_id ]['post_status'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $kept_id ] ) && $quiet( $kept_mark ), 'a failed pending acquire whose force-delete fails returns the persisted-record error and adds no delete' );
-$init_id = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$init_mark = $mark();
-TutorPress_Topic_Copy_Harness::$fail_init = true;
-$init_saved = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-init' );
-TutorPress_Topic_Copy_Harness::$fail_init = false;
-$init_lock = isset( $GLOBALS['wpdb']->statements[ $init_mark[0] ][2] ) ? $GLOBALS['wpdb']->statements[ $init_mark[0] ][2] : '';
-tutorpress_live_lessons_assert( null === $init_saved && ! isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $init_id ] ) && $token_delete( $init_id, 'token-matrix-pending-init', $init_lock, $init_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $init_id ] ) && $init_mark[1] === count( TutorPress_Live_Lessons_Hook_Fake::$calls ), 'pending envelope initialization failure releases only that token after a successful force-delete' );
-$stuck_init = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$stuck_mark = $mark();
-TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $stuck_init ] = true;
-TutorPress_Topic_Copy_Harness::$fail_init = true;
-$stuck_saved = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-init-kept' );
-TutorPress_Topic_Copy_Harness::$fail_init = false;
-unset( TutorPress_Live_Lessons_Store_Fake::$fail_deletes[ $stuck_init ] );
-$stuck_lock = isset( $GLOBALS['wpdb']->statements[ $stuck_mark[0] ][2] ) ? $GLOBALS['wpdb']->statements[ $stuck_mark[0] ][2] : '';
-$stuck_error = $stuck_saved instanceof WP_Error ? $stuck_saved->get_error_data() : array();
-tutorpress_live_lessons_assert( $stuck_saved instanceof WP_Error && 'live_lesson_persisted_error' === $stuck_saved->get_error_code() && false === $stuck_error['persisted'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $stuck_init ] ) && $token_delete( $stuck_init, 'token-matrix-pending-init-kept', $stuck_lock, $stuck_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $stuck_init ] ) && $stuck_mark[1] === count( TutorPress_Live_Lessons_Hook_Fake::$calls ), 'pending envelope initialization failure still releases only that token when force-delete fails' );
-
-$stale = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-stale' );
-$stale_name = 'tutorpress_live_lesson_lock_' . $stale['post_id'];
-$stale_envelope = $stale['envelope'];
-$stale_next = TutorPress_Live_Lesson_Sync_Repository::takeover( $stale['post_id'], 'create', 'token-matrix-pending-next', $stale['lock'], $expired, $option_update );
-$stale_mark = $mark();
-$stale_released = TutorPress_Live_Lesson_Sync_Repository::release( $stale['post_id'], 'token-matrix-pending-stale', $stale['lock'], $release_sql );
-tutorpress_live_lessons_assert( is_string( $stale_next ) && $stale_next === TutorPress_Live_Lessons_Store_Fake::$options[ $stale_name ] && TutorPress_Live_Lesson_Sync_Repository::owns( $stale_next, 'token-matrix-pending-next' ) && false === $stale_released && $token_delete( $stale['post_id'], 'token-matrix-pending-stale', $stale['lock'], $stale_mark ) && $stale_next === TutorPress_Live_Lessons_Store_Fake::$options[ $stale_name ] && $stale_envelope === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $stale['post_id'], '_tutorpress_live_lesson_sync' ), 'pending stale release leaves the replacement lock and the staged envelope' );
-
-$died = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-matrix-pending-died' );
-$died_name = 'tutorpress_live_lesson_lock_' . $died['post_id'];
-$died_mark = $mark();
-$died_held = TutorPress_Live_Lessons_Store_Fake::$options[ $died_name ];
-$died_envelope = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $died['post_id'], '_tutorpress_live_lesson_sync' );
-$died_same = $quiet( $died_mark ) && $died['lock'] === $died_held && $died['envelope'] === $died_envelope && $died_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls;
-$died_next = $died_same ? TutorPress_Live_Lesson_Sync_Repository::takeover( $died['post_id'], 'create', 'token-matrix-pending-later', $died['lock'], $expired, $option_update ) : null;
-tutorpress_live_lessons_assert( $died_same && is_string( $died_next ) && $died_next === TutorPress_Live_Lessons_Store_Fake::$options[ $died_name ] && TutorPress_Live_Lesson_Sync_Repository::owns( $died_next, 'token-matrix-pending-later' ) && $died_envelope === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $died['post_id'], '_tutorpress_live_lesson_sync' ) && $quiet( $died_mark ) && $died_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'pending process death keeps the staged envelope until takeover replaces only the lock' );
-
-$copy_done = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$copy_saved = $stage_copy( $copy_done[0], $google_save, array( 'preflight' => array( true ) ), 'token-matrix-unlinked-done' );
-$copy_id = $copy_done[0]['ID'];
-$copy_next = TutorPress_Live_Lessons_Store_Fake::$next_post_id;
-$copy_mark = $mark();
-$queue_create();
-$copy_final = $dispatch( $copy_saved, 'token-matrix-unlinked-done', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$copy_envelope = is_array( $copy_final ) ? json_decode( $copy_final['envelope'], true ) : null;
-$copy_hook = array( 'tutor_google_meet_after_save_meeting', array( (int) $copy_id ) );
-tutorpress_live_lessons_assert( is_array( $copy_envelope ) && 4 === $copy_envelope['version'] && 'synced' === $copy_envelope['state'] && $copy_id === $copy_final['post_id'] && $copy_next === TutorPress_Live_Lessons_Store_Fake::$next_post_id && $token_delete( $copy_id, 'token-matrix-unlinked-done', $copy_saved['lock'], $copy_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $copy_id ] ) && array( $copy_hook ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, $copy_mark[1] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $copy_id ]['post_status'], 'unlinked completion deletes the acquired token before the save hook' );
-
-$copy_throw = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$copy_throw_saved = $stage_copy( $copy_throw[0], $google_save, array( 'preflight' => array( true ) ), 'token-matrix-unlinked-throw' );
-$copy_throw_id = $copy_throw[0]['ID'];
-TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
-$copy_throw_mark = $mark();
-$copy_throw_final = $dispatch( $copy_throw_saved, 'token-matrix-unlinked-throw', $throwing );
-$copy_throw_envelope = is_array( $copy_throw_final ) ? json_decode( $copy_throw_final['envelope'], true ) : null;
-tutorpress_live_lessons_assert( is_array( $copy_throw_envelope ) && 'error' === $copy_throw_envelope['state'] && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $copy_throw_id ] ) && $token_delete( $copy_throw_id, 'token-matrix-unlinked-throw', $copy_throw_saved['lock'], $copy_throw_mark ) && $copy_throw_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls && false === strpos( (string) $copy_throw_final['envelope'], 'calendar exploded' ), 'an unlinked provider throw releases the lock with one prepared delete and no save hook' );
-
-$copy_hook_plant = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$copy_hook_saved = $stage_copy( $copy_hook_plant[0], $google_save, array( 'preflight' => array( true ) ), 'token-matrix-unlinked-hook' );
-$copy_hook_id = $copy_hook_plant[0]['ID'];
-$copy_hook_mark = $mark();
-TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] = array( new RuntimeException( 'hook-exploded-secret' ) );
-$queue_create();
-$copy_hook_final = $dispatch( $copy_hook_saved, 'token-matrix-unlinked-hook', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$copy_hook_bytes = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $copy_hook_id, '_tutorpress_live_lesson_sync' );
-$copy_hook_state = is_string( $copy_hook_bytes ) ? json_decode( $copy_hook_bytes, true ) : null;
-unset( TutorPress_Live_Lessons_Hook_Fake::$throws['tutor_google_meet_after_save_meeting'] );
-tutorpress_live_lessons_assert( $copy_hook_final instanceof WP_Error && 'live_lesson_persisted_transition' === $copy_hook_final->get_error_code() && is_array( $copy_hook_state ) && 4 === $copy_hook_state['version'] && 'synced' === $copy_hook_state['state'] && $token_delete( $copy_hook_id, 'token-matrix-unlinked-hook', $copy_hook_saved['lock'], $copy_hook_mark ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $copy_hook_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $copy_hook_id ]['post_status'] && false === strpos( json_encode( $copy_hook_final->get_error_data() ), 'hook-exploded-secret' ) && false === strpos( (string) $copy_hook_bytes, 'hook-exploded-secret' ), 'an unlinked hook throw follows one token delete and keeps the synced post' );
 
 $copy_lock = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
 $copy_lock_mark = $mark();
@@ -762,22 +350,70 @@ $copy_died_envelope = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $copy_died
 $copy_died_same = $quiet( $copy_died_mark ) && $copy_died['lock'] === $copy_died_held && $copy_died['envelope'] === $copy_died_envelope && $copy_died_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls;
 $copy_died_next = $copy_died_same ? TutorPress_Live_Lesson_Sync_Repository::takeover( $copy_died['post_id'], 'create', 'token-matrix-unlinked-later', $copy_died['lock'], $expired, $option_update ) : null;
 tutorpress_live_lessons_assert( $copy_died_same && is_string( $copy_died_next ) && $copy_died_next === TutorPress_Live_Lessons_Store_Fake::$options[ $copy_died_name ] && $copy_died_envelope === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $copy_died['post_id'], '_tutorpress_live_lesson_sync' ) && $quiet( $copy_died_mark ) && $copy_died_mark[4] === TutorPress_Live_Lessons_Adapter_Fake::$calls, 'unlinked process death keeps the staged envelope until takeover replaces only the lock' );
-$pass_2d_create = $draft;
-$pass_2d_create['provider_id'] = 'evt-evil';
-$pass_2d_unlinked = $google_save;
-$pass_2d_unlinked['provider_id'] = 'evt-evil';
-$pass_2d_copy = $plant_unlinked( 'tutor-google-meet', 'google_meet', 4 );
-$pass_2d_rejected = $stage_for( $pass_2d_create, array( 'preflight' => array( true ) ), 'token-2d-create-id' );
-$pass_2d_copy_rejected = $stage_copy( $pass_2d_copy[0], $pass_2d_unlinked, array( 'preflight' => array( true ) ), 'token-2d-unlinked-id' );
-$pass_2d_staged = $stage_for( $draft, array( 'preflight' => array( true ) ), 'token-2d-early' );
-$pass_2d_name = 'tutorpress_live_lesson_lock_' . $pass_2d_staged['post_id'];
-$pass_2d_early = TutorPress_Live_Lesson_Sync_Repository::takeover( $pass_2d_staged['post_id'], 'create', 'token-2d-early-next', $pass_2d_staged['lock'], '2026-09-21 16:00:00', $option_update );
-$pass_2d_held = TutorPress_Live_Lessons_Store_Fake::$options[ $pass_2d_name ];
-$pass_2d_envelope = TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass_2d_staged['post_id'], '_tutorpress_live_lesson_sync' );
-$pass_2d_mark = $mark();
-$queue_create();
-$pass_2d_saved = $dispatch( $pass_2d_staged, 'token-2d-early', $adapter, null, null, array( 'topic' => $topic, 'course' => $course, 'can' => $allow ) );
-$pass_2d_row = is_array( $pass_2d_saved ) ? json_decode( $pass_2d_saved['envelope'], true ) : null;
-tutorpress_live_lessons_assert( null === $pass_2d_rejected && null === $pass_2d_copy_rejected && $pass_2d_copy[1] === TutorPress_Live_Lessons_Store_Fake::meta_bytes( $pass_2d_copy[0]['ID'], '_tutorpress_live_lesson_sync' ) && null === $pass_2d_early && $pass_2d_staged['lock'] === $pass_2d_held && $pass_2d_staged['envelope'] === $pass_2d_envelope && is_array( $pass_2d_row ) && 'synced' === $pass_2d_row['state'] && $token_delete( $pass_2d_staged['post_id'], 'token-2d-early', $pass_2d_staged['lock'], $pass_2d_mark ) && array( array( 'tutor_google_meet_after_save_meeting', array( (int) $pass_2d_staged['post_id'] ) ) ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, $pass_2d_mark[1] ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ $pass_2d_name ] ), 'a takeover before expiry stays null, ordinary provider-id input stays rejected, and completion records the save hook after the exact-token delete' );
+$cleared_id = TutorPress_Live_Lessons_Store_Fake::insert_publish_post( array( 'post_type' => 'tutor-google-meet', 'post_title' => 'Partial' ) );
+TutorPress_Live_Lessons_Store_Fake::add_meta( $cleared_id, 'tutor-google-meet-link', 'https://meet.example/a' );
+delete_post_meta( $cleared_id, 'tutor-google-meet-link' );
+tutorpress_live_lessons_assert( array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $cleared_id, 'tutor-google-meet-link' ), 'delete_post_meta removes one stored key' );
+$stored_write = static function ( $post_id, $key, $value ) { return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, $value ); };
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
+$stored_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-stored-create' );
+$stored_item = array( 'details' => array( 'id' => 'evt-1' ), 'duration_minutes' => 60, 'end_at' => '2026-09-21T16:04:00-04:00', 'join_url' => 'https://meet.example/a', 'start_at' => '2026-09-21T15:04:00-04:00', 'timezone' => 'America/New_York' );
+$stored_result = array( 'diagnostics' => array( 'error' => 'ignore-me' ), 'item' => $stored_item, 'outcome' => 'confirmed', 'provenance' => 'create', 'provider_id' => 'evt-1' );
+$stored_map = array( 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00', 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-event-details' => '{"id":"evt-1"}', 'tutor-google-meet-link' => 'https://meet.example/a' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $stored_result ), 'metadata_map' => array( $stored_map ) );
+$stored_hooks = TutorPress_Live_Lessons_Hook_Fake::$calls;
+$stored_done = TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $stored_staged, 'token-stored-create', $adapter, $sync_read, $sync_update, $sync_affected, $stored_write, $topic, $course, $allow );
+$stored_id = is_array( $stored_staged ) ? $stored_staged['post_id'] : 0;
+tutorpress_live_lessons_assert( is_array( $stored_done ) && 'evt-1' === $stored_done['provider_id'] && ! array_key_exists( 'envelope', $stored_done ) && ! isset( TutorPress_Live_Lessons_Store_Fake::$options[ 'tutorpress_live_lesson_lock_' . $stored_id ] ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $stored_id, '_tutorpress_live_lesson_sync' ) && 'https://meet.example/a' === TutorPress_Live_Lessons_Store_Fake::meta_rows( $stored_id, 'tutor-google-meet-link' )[0]['meta_value'] && false !== strpos( (string) TutorPress_Live_Lessons_Store_Fake::meta_rows( $stored_id, 'tutor-google-meet-event-details' )[0]['meta_value'], 'evt-1' ) && array( 'create', 'metadata_map' ) === $methods() && array( array( 'tutor_google_meet_after_save_meeting', array( $stored_id ) ) ) === array_slice( TutorPress_Live_Lessons_Hook_Fake::$calls, count( $stored_hooks ) ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $stored_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $stored_id ]['post_status'], 'a stored google create writes the tutor meta and the provider id without a sync row' );
+$pass_spy = new class() extends TutorPress_Live_Lessons_Adapter_Fake {
+	public $seen = null;
+	public function create( $owner_id, array $target ) {
+		$this->seen = isset( $target['provider_target']['password'] ) ? $target['provider_target']['password'] : null;
+		return parent::create( $owner_id, $target );
+	}
+};
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'validate_host' => array( true ) );
+$pass_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $pass_save, $children, $pass_spy, $now, 'token-zoom-pass' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( array( 'diagnostics' => array(), 'item' => null, 'outcome' => 'pre_dispatch_failure', 'provenance' => 'create', 'provider_id' => null ) ) );
+$pass_id = is_array( $pass_staged ) ? $pass_staged['post_id'] : 0;
+TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $pass_staged, 'token-zoom-pass', $pass_spy, $sync_read, $sync_update, $sync_affected, $stored_write, $topic, $course, $allow );
+tutorpress_live_lessons_assert( is_array( $pass_staged ) && 'meeting-pass' === $pass_spy->seen && array( 'create' ) === $methods() && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $pass_id, '_tutorpress_live_lesson_sync' ) && $zoom_owner_target === $pass_staged['operation']['provider_target'], 'a zoom create passes the typed password and writes no sync row' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+$pass_staged['password'] = '';
+$blank_done = TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $pass_staged, 'token-zoom-pass', $pass_spy, $sync_read, $sync_update, $sync_affected, $stored_write, $topic, $course, $allow );
+tutorpress_live_lessons_assert( null === $blank_done && array() === $methods(), 'an empty staged zoom password does not call the adapter' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
+$rejected_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-rejected-create' );
+$rejected_result = array( 'diagnostics' => array( 'error' => '400' ), 'item' => null, 'outcome' => 'definite_rejection', 'provenance' => 'create', 'provider_id' => null );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $rejected_result ) );
+$rejected_done = TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $rejected_staged, 'token-rejected-create', $adapter, $sync_read, $sync_update, $sync_affected, $stored_write, $topic, $course, $allow );
+$rejected_id = is_array( $rejected_staged ) ? $rejected_staged['post_id'] : 0;
+tutorpress_live_lessons_assert( is_wp_error( $rejected_done ) && 'google_meet_rejected' === $rejected_done->get_error_code() && false !== strpos( $rejected_done->get_error_message(), '400' ) && 500 === $rejected_done->get_error_data()['status'] && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $rejected_id ] ) && 'publish' === TutorPress_Live_Lessons_Store_Fake::$posts[ $rejected_id ]['post_status'] && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $rejected_id, '_tutorpress_live_lesson_sync' ) && array( 'create' ) === $methods(), 'a calendar 400 returns google_meet_rejected and leaves the post' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
+$client_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-client-create' );
+$client_result = array( 'diagnostics' => array(), 'item' => null, 'outcome' => 'uncertain', 'provenance' => 'create', 'provider_id' => null );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $client_result ) );
+$client_done = TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $client_staged, 'token-client-create', $adapter, $sync_read, $sync_update, $sync_affected, $stored_write, $topic, $course, $allow );
+tutorpress_live_lessons_assert( is_wp_error( $client_done ) && 'google_meet_client_unusable' === $client_done->get_error_code() && 'The Google client could not be used.' === $client_done->get_error_message(), 'an uncertain google create returns google_meet_client_unusable' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
+$kept_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $topic, $course, $allow, $draft, $children, $adapter, $now, 'token-kept-create' );
+$kept_item = array( 'details' => array( 'id' => 'evt-kept' ), 'duration_minutes' => 60, 'end_at' => '2026-09-21T16:04:00-04:00', 'join_url' => 'https://meet.example/a', 'start_at' => '2026-09-21T15:04:00-04:00', 'timezone' => 'America/New_York' );
+$kept_result = array( 'diagnostics' => array( 'error' => 'ignore-me' ), 'item' => $kept_item, 'outcome' => 'confirmed', 'provenance' => 'create', 'provider_id' => 'evt-kept' );
+$kept_map = array( 'tutor-google-meet-start-datetime' => '2026-09-21 15:04:00', 'tutor-google-meet-end-datetime' => '2026-09-21 16:04:00', 'tutor-google-meet-event-details' => '{"id":"evt-kept"}', 'tutor-google-meet-link' => 'https://meet.example/a' );
+TutorPress_Live_Lessons_Adapter_Fake::$calls = array();
+TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'create' => array( $kept_result ), 'metadata_map' => array( $kept_map ) );
+$kept_write = static function ( $post_id, $key, $value ) { return TutorPress_Live_Lessons_Store_Fake::add_meta( $post_id, $key, 'tutor-google-meet-event-details' === $key ? 'wrong' : $value ); };
+$kept_done = TutorPress_Live_Lesson_Sync_Orchestrator::dispatch_create( $kept_staged, 'token-kept-create', $adapter, $sync_read, $sync_update, $sync_affected, $kept_write, $topic, $course, $allow );
+$kept_id = is_array( $kept_staged ) ? $kept_staged['post_id'] : 0;
+tutorpress_live_lessons_assert( is_wp_error( $kept_done ) && 'google_meet_event_exists' === $kept_done->get_error_code() && false !== strpos( $kept_done->get_error_message(), 'evt-kept' ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $kept_id, 'tutor-google-meet-start-datetime' ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $kept_id, 'tutor-google-meet-end-datetime' ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $kept_id, 'tutor-google-meet-event-details' ) && array() === TutorPress_Live_Lessons_Store_Fake::meta_rows( $kept_id, '_tutorpress_live_lesson_sync' ) && isset( TutorPress_Live_Lessons_Store_Fake::$posts[ $kept_id ] ), 'a failed meta write returns google_meet_event_exists and clears the stored keys' );
 $GLOBALS['wpdb'] = $saved_wpdb;
 tutorpress_live_lessons_pass( 'create and unlinked locks release by exact token' );

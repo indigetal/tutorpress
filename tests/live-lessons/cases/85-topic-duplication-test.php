@@ -491,8 +491,8 @@ $slash_input   = array( 'provider' => 'google_meet', 'acting_user_id' => 11, 'ti
 TutorPress_Live_Lessons_Adapter_Fake::$queue = array( 'preflight' => array( true ), 'settings' => array( null ) );
 $slash_staged = TutorPress_Live_Lesson_Sync_Orchestrator::stage_pending( $slash_topic, $slash_course, $slash_allow, $slash_input, array(), new TutorPress_Live_Lessons_Adapter_Fake(), $slash_now, 'token-slash' );
 TutorPress_Live_Lessons_Adapter_Fake::$queue = $slash_queue;
-$slash_rows = is_array( $slash_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $slash_staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();
-$slash_raw  = isset( $slash_rows[0]['meta_value'] ) ? $slash_rows[0]['meta_value'] : null;
-$slash_op   = is_string( $slash_raw ) ? json_decode( $slash_raw, true ) : null;
-tutorpress_live_lessons_assert( is_array( $slash_staged ) && 1 === count( $slash_rows ) && $slash_raw === $slash_staged['envelope'] && is_array( $slash_op ) && isset( $slash_op['operation'] ) && $slash_title === $slash_op['operation']['title'] && $slash_content === $slash_op['operation']['content'], 'slash-safe envelope insert round-trips a quoted, backslash, newline, and Cafe title and content' );
-tutorpress_live_lessons_pass( 'slash-safe envelope insert' );
+$slash_rows      = is_array( $slash_staged ) ? TutorPress_Live_Lessons_Store_Fake::meta_rows( $slash_staged['post_id'], '_tutorpress_live_lesson_sync' ) : array();
+$slash_operation = is_array( $slash_staged ) && isset( $slash_staged['operation'] ) && is_array( $slash_staged['operation'] ) ? $slash_staged['operation'] : array();
+$slash_post      = is_array( $slash_staged ) ? TutorPress_Live_Lessons_Store_Fake::$posts[ $slash_staged['post_id'] ] : array();
+tutorpress_live_lessons_assert( is_array( $slash_staged ) && array() === $slash_rows && ! array_key_exists( 'envelope', $slash_staged ) && $slash_title === $slash_operation['title'] && $slash_content === $slash_operation['content'] && $slash_title === $slash_post['post_title'] && $slash_content === $slash_post['post_content'], 'slash-safe create keeps a quoted, backslash, newline, and Cafe title and content without a sync row' );
+tutorpress_live_lessons_pass( 'slash-safe create insert' );
