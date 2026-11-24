@@ -329,7 +329,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$item  = $adapter->hydrate_item( array( 'tutor-google-meet-event-details' => $blob ) );
 		$item  = is_array( $item ) ? $item : array();
 		$owner = self::google_owner_settings( $adapter, $owner_id );
-		$kept  = array( 'send_updates' => $owner['send_updates'], 'status' => isset( $item['status'] ) && is_string( $item['status'] ) ? $item['status'] : '', 'transparency' => isset( $item['transparency'] ) && is_string( $item['transparency'] ) ? $item['transparency'] : '', 'visibility' => isset( $item['visibility'] ) && is_string( $item['visibility'] ) ? $item['visibility'] : '' );
+		$kept  = array( 'send_updates' => $owner['send_updates'], 'status' => isset( $item['status'] ) && is_string( $item['status'] ) && '' !== $item['status'] ? $item['status'] : $owner['status'], 'transparency' => isset( $item['transparency'] ) && is_string( $item['transparency'] ) && '' !== $item['transparency'] ? $item['transparency'] : $owner['transparency'], 'visibility' => isset( $item['visibility'] ) && is_string( $item['visibility'] ) && '' !== $item['visibility'] ? $item['visibility'] : $owner['visibility'] );
 		if ( isset( $item['reminder_minutes'] ) && is_int( $item['reminder_minutes'] ) ) {
 			$kept['reminder_minutes'] = $item['reminder_minutes'];
 		}
@@ -413,7 +413,7 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		return self::remember_password( $valid, $input );
 	}
 
-	/** CAS one pending update onto an existing synced publish post. The post is not replaced. */
+	/** Build one in-memory update or create from Tutor meta. The post is not replaced. */
 	public static function stage_update( array $item, array $topic, array $course, $can, array $input, $adapter, DateTimeImmutable $now, $token, $read, $update, $affected, $local = null ) {
 		if ( array_key_exists( 'provider_id', $input ) || array_key_exists( 'id', $input ) ) {
 			return null;
@@ -425,19 +425,9 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		if ( null === $course_id || '' === $provider || $post_id < 1 || 'publish' !== ( isset( $item['post_status'] ) ? $item['post_status'] : '' ) || $author < 1 || ! is_string( $token ) || '' === $token || ! is_callable( $read ) || ! is_callable( $update ) || ! is_callable( $affected ) || ! $adapter instanceof TutorPress_Live_Lesson_Provider_Adapter ) {
 			return null;
 		}
-		$rows    = $read( $post_id, '_tutorpress_live_lesson_sync' );
-		$empty   = is_array( $rows ) && array() === $rows;
-		$prior   = is_array( $rows ) && 1 === count( $rows ) && isset( $rows[0]['meta_id'], $rows[0]['meta_value'], $rows[0]['post_id'] ) && (int) $rows[0]['post_id'] === $post_id && is_string( $rows[0]['meta_value'] ) ? $rows[0]['meta_value'] : null;
-		$stored  = is_string( $prior ) ? json_decode( $prior, true ) : null;
-		$version = is_array( $stored ) && isset( $stored['version'] ) && is_int( $stored['version'] ) ? $stored['version'] : 0; $known = is_array( $stored ) && isset( $stored['provider_id'] ) && is_string( $stored['provider_id'] ) ? $stored['provider_id'] : ''; $previous = is_array( $stored ) && isset( $stored['operation'] ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
-		$state   = is_array( $stored ) && isset( $stored['state'] ) ? $stored['state'] : '';
-		if ( is_array( $stored ) && 'error' === $state && array_key_exists( 'provider_id', $stored ) && null === $stored['provider_id'] ) {
-			return self::stage_unlinked( $item, $topic, $course, $can, $input, $adapter, $now, $token, $read, $update, $affected );
-		}
-		$open = 'synced' === $state || 'error' === $state || ( 'pending' === $state && self::lock_expired( $post_id, $now ) );
-		if ( ( ! $empty || ! is_array( $local ) ) && ( ! is_array( $stored ) || $version < 1 || ! isset( $stored['state'], $stored['provider'] ) || ! $open || '' === $known || $stored['provider'] !== $provider || ! is_array( $previous ) ) ) {
-			return null;
-		}
+		$hydrated = is_array( $local ) ? $adapter->hydrate_item( $local ) : null;
+		$baseline = is_array( $hydrated ) ? $hydrated : array();
+		$known    = is_array( $hydrated ) && isset( $hydrated['provider_id'] ) && is_string( $hydrated['provider_id'] ) && '' !== $hydrated['provider_id'] ? $hydrated['provider_id'] : '';
 		$owner_id = 'google_meet' === $provider ? TutorPress_Live_Lesson_Owner_Resolver::google( $course_id, isset( $input['acting_user_id'] ) ? $input['acting_user_id'] : 0 ) : self::zoom_input_owner( $course_id, $input );
 		if ( null === $owner_id || true !== $adapter->preflight( $owner_id ) ) {
 			return null;
@@ -448,10 +438,6 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 			if ( null === $host || true !== $adapter->validate_host( $owner_id, $host['host_id'] ) ) { return null; }
 			$host_id = $host['host_id'];
 		}
-		$hydrated = is_array( $local ) ? $adapter->hydrate_item( $local ) : null;
-		$baseline = is_array( $hydrated ) ? $hydrated : $previous;
-		$known    = is_array( $hydrated ) && isset( $hydrated['provider_id'] ) && is_string( $hydrated['provider_id'] ) && '' !== $hydrated['provider_id'] ? $hydrated['provider_id'] : $known;
-		if ( $empty && ( ! is_array( $hydrated ) || '' === $known ) ) { return null; }
 		$start = array_key_exists( 'start', $input ) ? $input['start'] : ( isset( $baseline['start_local'] ) ? $baseline['start_local'] : '' ); $zone = array_key_exists( 'timezone', $input ) ? $input['timezone'] : ( isset( $baseline['timezone'] ) ? $baseline['timezone'] : '' );
 		$end = array_key_exists( 'end', $input ) ? $input['end'] : ( isset( $baseline['end_local'] ) ? $baseline['end_local'] : '' ); $typed = array_key_exists( 'duration', $input ) ? $input['duration'] : ( isset( $baseline['duration'] ) ? $baseline['duration'] : array() );
 		$duration = 'zoom' === $provider && is_array( $typed ) ? TutorPress_Live_Lesson_Datetime::zoom_duration( isset( $typed['value'] ) ? $typed['value'] : null, isset( $typed['unit'] ) ? $typed['unit'] : '' ) : null; $changed = $start !== ( isset( $baseline['start_local'] ) ? $baseline['start_local'] : null ) || $zone !== ( isset( $baseline['timezone'] ) ? $baseline['timezone'] : null ) || ( 'google_meet' === $provider ? $end !== ( isset( $baseline['end_local'] ) ? $baseline['end_local'] : null ) : $typed !== ( isset( $baseline['duration'] ) ? $baseline['duration'] : null ) );
@@ -460,30 +446,38 @@ final class TutorPress_Live_Lesson_Sync_Orchestrator {
 		$schedule = self::create_schedule( $valid );
 		$target   = is_array( $schedule ) ? ( 'google_meet' === $provider ? self::create_target( $valid, $input, self::google_update_source( $adapter, $owner_id, $post_id, $read ) ) : self::create_target( $valid, $input ) ) : null;
 		if ( null === $target || ! isset( $item['menu_order'] ) || ! is_int( $item['menu_order'] ) || $item['menu_order'] < 0 ) { return null; }
-		$lock = self::held_lock( $post_id, 'update', $token, $now, $state );
-		if ( ! is_string( $lock ) ) { return null; }
-		if ( $empty ) {
-			$seed    = array( 'schema_version' => 1, 'version' => 1, 'state' => 'synced', 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'provenance' => null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => null );
-			$prior   = TutorPress_Live_Lesson_Sync_Repository::initialize( $post_id, $lock, $token, 0, $seed, $read, static function ( $id, $key, $value ) { return add_post_meta( $id, $key, wp_slash( $value ) ); }, static function () { return true; } );
-			$stored  = is_string( $prior ) ? json_decode( $prior, true ) : null;
-			$version = is_array( $stored ) && isset( $stored['version'] ) && is_int( $stored['version'] ) ? $stored['version'] : 0;
-			if ( ! is_string( $prior ) || 1 !== $version ) {
-				TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) { global $wpdb; $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior_lock ) ); return 1 === (int) $wpdb->rows_affected; } );
-				return null;
-			}
-		}
-		$operation = array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => 'update', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => $version, 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'dispatch_state' => 'not_dispatched', 'course_id' => $course_id, 'topic_id' => (int) $topic['ID'], 'post_author' => $author, 'menu_order' => $item['menu_order'], 'title' => isset( $input['title'] ) && is_string( $input['title'] ) ? $input['title'] : ( isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '' ), 'content' => isset( $input['content'] ) && is_string( $input['content'] ) ? $input['content'] : ( isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '' ), 'start_local' => $schedule['start_local'], 'end_local' => $schedule['end_local'], 'timezone' => $schedule['timezone'], 'duration' => $schedule['duration'], 'provider_target' => $target, 'delete_hook' => null );
-		$next      = array( 'schema_version' => 1, 'version' => $version + 1, 'state' => 'pending', 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => $known, 'provenance' => isset( $stored['provenance'] ) && is_string( $stored['provenance'] ) ? $stored['provenance'] : null, 'error' => null, 'warning' => null, 'reconciliation_required' => false, 'operation' => $operation );
-		$bytes     = TutorPress_Live_Lesson_Sync_Repository::exchange( $post_id, $lock, $token, 'update', $stored['state'], $version, $prior, $next, $read, $update, $affected );
-		if ( ! is_string( $bytes ) ) {
-			TutorPress_Live_Lesson_Sync_Repository::release( $post_id, $token, $lock, static function ( $name, $prior_lock ) { global $wpdb; $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND CONVERT(option_value USING BINARY) = CONVERT(%s USING BINARY)", $name, $prior_lock ) ); return 1 === (int) $wpdb->rows_affected; } );
-			return null;
-		}
-		return self::remember_password( array( 'post_id' => $post_id, 'lock' => $lock, 'dispatch_state' => 'not_dispatched', 'envelope' => $bytes, 'provider' => $provider, 'owner_id' => $owner_id, 'course_id' => $course_id ), $input );
+		$operation = array( 'operation_id' => bin2hex( random_bytes( 16 ) ), 'kind' => '' !== $known ? 'update' : 'create', 'started_at' => $now->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), 'base_version' => 0, 'provider' => $provider, 'owner_id' => $owner_id, 'provider_id' => '' !== $known ? $known : null, 'dispatch_state' => 'not_dispatched', 'course_id' => $course_id, 'topic_id' => (int) $topic['ID'], 'post_author' => $author, 'menu_order' => $item['menu_order'], 'title' => isset( $input['title'] ) && is_string( $input['title'] ) ? $input['title'] : ( isset( $item['post_title'] ) && is_string( $item['post_title'] ) ? $item['post_title'] : '' ), 'content' => isset( $input['content'] ) && is_string( $input['content'] ) ? $input['content'] : ( isset( $item['post_content'] ) && is_string( $item['post_content'] ) ? $item['post_content'] : '' ), 'start_local' => $schedule['start_local'], 'end_local' => $schedule['end_local'], 'timezone' => $schedule['timezone'], 'duration' => $schedule['duration'], 'provider_target' => $target, 'delete_hook' => null );
+		return self::remember_password( array( 'post_id' => $post_id, 'owner_id' => $owner_id, 'provider' => $provider, 'operation' => $operation ), $input );
 	}
 
-	/** Dispatch one staged pending update. A finished return releases the lock and does not fire a save hook. */
+	/** Dispatch one staged pending update. A finished envelope return releases the lock and does not fire a save hook. */
 	public static function dispatch_update( array $staged, $token, $adapter, $read, $update, $affected, $write ) {
+		if ( ! array_key_exists( 'envelope', $staged ) ) {
+			$operation = isset( $staged['operation'] ) && is_array( $staged['operation'] ) ? $staged['operation'] : null;
+			$stored_id = is_array( $operation ) && isset( $operation['provider_id'] ) && is_string( $operation['provider_id'] ) ? $operation['provider_id'] : '';
+			$owner_id  = is_array( $operation ) && isset( $operation['owner_id'] ) ? (int) $operation['owner_id'] : 0;
+			if ( ! is_array( $operation ) || '' === $stored_id || $owner_id < 1 || ! isset( $staged['post_id'], $staged['owner_id'] ) || (int) $staged['owner_id'] !== $owner_id || ! $adapter instanceof TutorPress_Live_Lesson_Provider_Adapter || ! is_callable( $read ) || ! is_callable( $write ) ) { return null; }
+			$target = self::password_target( $staged, self::dispatch_target( $operation ) );
+			if ( null === $target ) { return null; }
+			$result = null;
+			try {
+				$result = TutorPress_Live_Lesson_Provider_Result::from( $adapter->update( $owner_id, $stored_id, $target ) );
+			} catch ( Throwable $thrown ) {
+				unset( $thrown );
+			}
+			$outcome  = is_array( $result ) ? $result['outcome'] : 'uncertain';
+			$compared = 'confirmed' === $outcome ? $adapter->compare_target( $result, $target ) : null;
+			$matched  = is_array( $compared ) && true === ( isset( $compared['match'] ) ? $compared['match'] : null ) && $stored_id === TutorPress_Live_Lesson_Provider_Result::identity( $result );
+			$map      = $matched ? $adapter->metadata_map( $result, $target ) : null;
+			$synced   = is_array( $map ) && self::map_stored( (int) $staged['post_id'], $map, $write, $read );
+			if ( ! $synced ) { return null; }
+			$title   = isset( $operation['title'] ) && is_string( $operation['title'] ) ? $operation['title'] : '';
+			$content = isset( $operation['content'] ) && is_string( $operation['content'] ) ? $operation['content'] : '';
+			$updated = wp_update_post( array( 'ID' => (int) $staged['post_id'], 'post_title' => $title, 'post_content' => $content ), true );
+			if ( is_wp_error( $updated ) || (int) $updated !== (int) $staged['post_id'] ) { return null; }
+			$staged['provider_id'] = $stored_id;
+			return $staged;
+		}
 		$prior     = isset( $staged['envelope'] ) && is_string( $staged['envelope'] ) ? json_decode( $staged['envelope'], true ) : null;
 		$operation = is_array( $prior ) && isset( $prior['operation'] ) && is_array( $prior['operation'] ) ? $prior['operation'] : null;
 		$version   = is_array( $prior ) && isset( $prior['version'] ) && is_int( $prior['version'] ) ? $prior['version'] : 0;

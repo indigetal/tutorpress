@@ -2889,7 +2889,13 @@ $conflict_patch['startDateTime']  = '2026-10-06 16:00:00';
 $bad_end_patch                    = $with_id( 526, 'google_meet' );
 unset( $bad_end_patch['end_date_time'] );
 $bad_end_patch['endDateTime'] = '2026-10-06T16:00:00';
-$zoom_unlinked = $run_update( $with_id( '526', 'google_meet' ), true, $staged_ok, $dispatched_ok );
+$update_open                    = $staged_ok;
+$update_open['operation']       = array( 'provider_id' => null );
+$update_stored                  = $staged_ok;
+$update_stored['operation']     = array( 'provider_id' => 'evt-stored' );
+$update_dispatched              = $dispatched_ok;
+$update_dispatched['provider_id'] = 'evt-stored';
+$zoom_unlinked = $run_update( $with_id( '526', 'google_meet' ), true, $update_open, $update_dispatched );
 $controller->calls = array();
 $update_callbacks  = array();
 if ( 4 === count( $controller->last_callbacks ) ) {
@@ -2909,12 +2915,12 @@ $update_sync_go  = $method_body( 'dispatch_live_synced' );
 $update_open_go  = $method_body( 'dispatch_live_create' );
 $update_mutate   = $method_body( 'mutate_schedule' );
 $update_path     = $update_delegate . $update_shape . $update_unlinked . $update_synced . $update_sync_go . $update_open_go;
-$update_forbidden = array( 'wp_insert_post', 'wp_delete_post', 'wp_update_post', 'update_post_meta', 'add_post_meta', 'delete_post_meta', 'get_post_meta', 'metadata_map', 'preflight(', '->create(', '->update(', '->delete(', '->fetch(', 'list_hosts', 'GoogleEvent', 'TUTOR_ZOOM', 'hydrate_', 'load_service', 'edit_posts', "get_param('type')", 'get_param("type")', 'provider_id', 'event_id', 'meeting_id' );
+$update_forbidden = array( 'wp_insert_post', 'wp_delete_post', 'wp_update_post', 'update_post_meta', 'add_post_meta', 'delete_post_meta', 'get_post_meta', 'metadata_map', 'preflight(', '->create(', '->update(', '->delete(', '->fetch(', 'list_hosts', 'GoogleEvent', 'TUTOR_ZOOM', 'hydrate_', 'load_service', 'edit_posts', "get_param('type')", 'get_param("type")', 'event_id', 'meeting_id' );
 $update_clean = false !== strpos( $update_delegate, "'edit_post' === \$capability" ) && false !== strpos( $update_delegate, "\$input['provider'] = \$provider" ) && false !== strpos( $update_delegate, 'tutor_zoom_meeting' ) && false !== strpos( $update_delegate, 'google_meet' );
 foreach ( $update_forbidden as $update_needle ) {
 	$update_clean = $update_clean && false === strpos( $update_path, $update_needle );
 }
-$update_marks = array( "['lookup']", 'invalid_post_type', 'invalid_topic', "'edit_post' === \$capability", 'authorize(', "'publish'", "['envelope']", 'map_mutation(', "['provider'] = \$provider", 'provider_adapter(', 'stage_live_unlinked(', 'stage_live_synced(', 'dispatch_live_create(', 'dispatch_live_synced(', "rest_outcome('update'" );
+$update_marks = array( "['lookup']", 'invalid_post_type', 'invalid_topic', "'edit_post' === \$capability", 'authorize(', "'publish'", 'map_mutation(', "['provider'] = \$provider", 'provider_adapter(', 'stage_live_synced(', 'dispatch_live_synced(', 'dispatch_live_create(', "rest_outcome('update'" );
 $update_order = true;
 $update_cursor = -1;
 foreach ( $update_marks as $update_mark ) {
@@ -2922,7 +2928,7 @@ foreach ( $update_marks as $update_mark ) {
 	$update_order  = $update_order && false !== $update_at && $update_at > $update_cursor;
 	$update_cursor = false === $update_at ? $update_cursor : $update_at;
 }
-$update_pairs = 1 === substr_count( $update_unlinked, 'stage_unlinked(' ) && false === strpos( $update_unlinked, 'stage_update(' ) && false === strpos( $update_unlinked, 'dispatch_' ) && 1 === substr_count( $update_synced, 'stage_update(' ) && false === strpos( $update_synced, 'stage_unlinked(' ) && false === strpos( $update_synced, 'dispatch_' ) && 1 === substr_count( $update_open_go, 'dispatch_create(' ) && false === strpos( $update_open_go, 'dispatch_update(' ) && 1 === substr_count( $update_sync_go, 'dispatch_update(' ) && false === strpos( $update_sync_go, 'dispatch_create(' ) && 1 === substr_count( $update_delegate, 'stage_live_unlinked(' ) && 1 === substr_count( $update_delegate, 'stage_live_synced(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_create(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_synced(' );
+$update_pairs = 1 === substr_count( $update_unlinked, 'stage_unlinked(' ) && false === strpos( $update_unlinked, 'stage_update(' ) && false === strpos( $update_unlinked, 'dispatch_' ) && 1 === substr_count( $update_synced, 'stage_update(' ) && false === strpos( $update_synced, 'stage_unlinked(' ) && false === strpos( $update_synced, 'dispatch_' ) && 1 === substr_count( $update_open_go, 'dispatch_create(' ) && false === strpos( $update_open_go, 'dispatch_update(' ) && 1 === substr_count( $update_sync_go, 'dispatch_update(' ) && false === strpos( $update_sync_go, 'dispatch_create(' ) && 0 === substr_count( $update_delegate, 'stage_live_unlinked(' ) && 1 === substr_count( $update_delegate, 'stage_live_synced(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_create(' ) && 1 === substr_count( $update_delegate, 'dispatch_live_synced(' );
 $controller->meta[521] = array(
 	'_tutor_zm_data' => array(
 		'id'         => 'zm-9',
@@ -2962,17 +2968,17 @@ $updates = array(
 	'pending'      => $run_update( $with_id( 522, 'google_meet' ) ),
 	'error_state'  => $run_update( $with_id( 523, 'google_meet' ) ),
 	'zoom_unlinked' => $zoom_unlinked,
-	'google_unlinked' => $run_update( $with_id( 610, 'zoom' ), true, $staged_ok, $dispatched_ok ),
-	'zoom_synced'  => $run_update( $with_id( 528, 'google_meet' ), true, $staged_ok, $dispatched_ok ),
-	'google_synced' => $run_update( $with_id( '611', 'zoom' ), true, $staged_ok, $dispatched_ok ),
+	'google_unlinked' => $run_update( $with_id( 610, 'zoom' ), true, $update_open, $update_dispatched ),
+	'zoom_synced'  => $run_update( $with_id( 528, 'google_meet' ), true, $update_stored, $update_dispatched ),
+	'google_synced' => $run_update( $with_id( '611', 'zoom' ), true, $update_stored, $update_dispatched ),
 	'null_stage'   => $run_update( $with_id( 526, 'google_meet' ), true, null, $dispatched_ok ),
 	'error_stage'  => $run_update( $with_id( 526, 'google_meet' ), true, $stage_error, $dispatched_ok ),
 	'malformed'    => $run_update( $with_id( 526, 'google_meet' ), true, array( 'note' => 'plain' ), $dispatched_ok ),
 	'bad_bytes'    => $run_update( $with_id( 526, 'google_meet' ), true, array( 'post_id' => 90, 'lock' => 'lock-token', 'owner_id' => 42, 'envelope' => 'not-json' ), $dispatched_ok ),
-	'dispatch_null' => $run_update( $with_id( 526, 'google_meet' ), true, $staged_ok, null ),
-	'dispatch_error' => $run_update( $with_id( 526, 'google_meet' ), true, $staged_ok, $dispatch_error ),
-	'dispatch_missing' => $run_update( $with_id( 526, 'google_meet' ), true, $staged_ok, array( 'post_id' => 90 ) ),
-	'dispatch_bad' => $run_update( $with_id( 526, 'google_meet' ), true, $staged_ok, array( 'envelope' => 'not-json', 'post_id' => 90 ) ),
+	'dispatch_null' => $run_update( $with_id( 526, 'google_meet' ), true, $update_open, null ),
+	'dispatch_error' => $run_update( $with_id( 526, 'google_meet' ), true, $update_open, $dispatch_error ),
+	'dispatch_missing' => $run_update( $with_id( 526, 'google_meet' ), true, $update_open, array( 'post_id' => 90 ) ),
+	'dispatch_bad' => $run_update( $with_id( 526, 'google_meet' ), true, $update_open, array( 'envelope' => 'not-json', 'post_id' => 90 ) ),
 	'synced_null'  => $run_update( $with_id( 528, 'google_meet' ), true, null, $dispatched_ok ),
 	'callbacks'    => $update_callbacks,
 	'lifecycle'    => array( $google->lifecycle, $zoom->lifecycle ),
@@ -5223,6 +5229,7 @@ $update_input = static function ( $provider ) {
 		'timezone'             => 'UTC',
 		'duration'             => array( 'value' => 2, 'unit' => 'hours' ),
 		'host_id'              => 'zoom-host-9',
+		'password'             => 'meeting-pass',
 		'settings'             => array( 'waiting_room' => true ),
 		'acting_user_id'       => 44,
 		'course_author_id'     => 17,
@@ -5238,25 +5245,32 @@ $update_stopped = static function ( $row ) {
 $update_quiet = static function ( $row, $posts, $caps = array() ) use ( $update_stopped ) {
 	return $update_stopped( $row ) && $posts === $row['posts'] && $caps === $row['caps'] && 1 === $row['bindings'] && array() === $row['queries'];
 };
-$update_envelope = static function ( $row, $id ) use ( $update_error ) {
-	return $update_error( $row, 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+$update_envelope = static function ( $row, $id ) use ( $update_error, $zoom_meta_keys ) {
+	$metas = array();
+	foreach ( $zoom_meta_keys as $key ) {
+		$metas[] = array( 'meta', $id, $key );
+	}
+	$stage = isset( $row['synced'][0] ) ? $row['synced'][0] : array();
+	return $update_error( $row, 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
 		&& array( array( 'post', $id ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
 		&& array( array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& array( array( 'read', $id, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
+		&& array() === $row['reads']
 		&& 1 === $row['bindings']
-		&& 0 === $row['adapters']
-		&& array( 'zoom' ) === $row['ledger']
-		&& array() === $row['services']
+		&& 1 === $row['adapters']
+		&& array( 'zoom', 'zoom' ) === $row['ledger']
+		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) ) === $row['services']
 		&& array() === $row['unlinked']
-		&& array() === $row['synced']
+		&& 1 === count( $row['synced'] )
+		&& null === $stage['local']
 		&& array() === $row['dispatches']
-		&& array() === $row['synced_dispatch'];
+		&& array() === $row['synced_dispatch']
+		&& $metas === $row['metas'];
 };
 $update_success = static function ( $row, $provider, $item, $post_type, $kind ) use ( $update_input, $google_meta_keys, $zoom_meta_keys ) {
-	$stage    = 'unlinked' === $kind ? ( isset( $row['unlinked'][0] ) ? $row['unlinked'][0] : array() ) : ( isset( $row['synced'][0] ) ? $row['synced'][0] : array() );
+	$stage    = isset( $row['synced'][0] ) ? $row['synced'][0] : array();
 	$dispatch = 'unlinked' === $kind ? ( isset( $row['dispatches'][0] ) ? $row['dispatches'][0] : array() ) : ( isset( $row['synced_dispatch'][0] ) ? $row['synced_dispatch'][0] : array() );
 	$opposite = 'unlinked' === $kind
-		? array() === $row['synced'] && array() === $row['synced_dispatch'] && array() === $row['stages'] && 1 === count( $row['unlinked'] ) && 1 === count( $row['dispatches'] )
+		? array() === $row['unlinked'] && array() === $row['synced_dispatch'] && array() === $row['stages'] && 1 === count( $row['synced'] ) && 1 === count( $row['dispatches'] )
 		: array() === $row['unlinked'] && array() === $row['dispatches'] && array() === $row['stages'] && 1 === count( $row['synced'] ) && 1 === count( $row['synced_dispatch'] );
 	$metas    = array();
 	foreach ( ( 'zoom' === $provider ? $zoom_meta_keys : $google_meta_keys ) as $key ) {
@@ -5292,13 +5306,13 @@ $update_success = static function ( $row, $provider, $item, $post_type, $kind ) 
 		&& 1 === $row['adapters']
 		&& array( array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ), array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
 		&& array( array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ), array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& array( array( 'read', $item, '_tutorpress_live_lesson_sync' ), array( 'read', $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
+		&& array( array( 'read', $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
 		&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
 		&& array() === $row['queries']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
-		&& ( 'synced' === $kind ? array_merge( $metas, $metas ) : $metas ) === $row['metas']
-		&& ( 'synced' !== $kind || null === $stage['local'] )
+		&& array_merge( $metas, $metas ) === $row['metas']
+		&& null === $stage['local']
 		&& true === $row['boundary']
 		&& true === $opposite
 		&& is_string( $dispatch['staged']['envelope'] )
@@ -5371,7 +5385,7 @@ tutorpress_live_lessons_assert(
 	'missing relations, non-publish items, and denied edit_post stop before envelope and adapter resolution'
 );
 $patch_absent_stage = isset( $updates['absent']['synced'][0] ) ? $updates['absent']['synced'][0] : array();
-$patch_absent_metas = array( array( 'meta', 521, '_tutor_zm_data' ) );
+$patch_absent_metas = array();
 foreach ( $zoom_meta_keys as $patch_absent_key ) {
 	$patch_absent_metas[] = array( 'meta', 521, $patch_absent_key );
 }
@@ -5379,7 +5393,7 @@ tutorpress_live_lessons_assert(
 	$update_envelope( $updates['rejected'], 520 )
 	&& $update_envelope( $updates['pending'], 522 )
 	&& $update_envelope( $updates['error_state'], 523 ),
-	'rejected, pending, and error envelopes do not resolve an adapter'
+	'rejected, pending, and error lessons stage through provider meta and return the update failure'
 );
 tutorpress_live_lessons_assert(
 	$update_error( $updates['absent'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
@@ -5387,12 +5401,12 @@ tutorpress_live_lessons_assert(
 	&& array() === $updates['absent']['unlinked']
 	&& array() === $updates['absent']['dispatches']
 	&& array() === $updates['absent']['synced_dispatch']
-	&& 2 === $updates['absent']['adapters']
-	&& array( 'zoom', 'zoom', 'zoom' ) === $updates['absent']['ledger']
-	&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ), array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) ) === $updates['absent']['services']
+	&& 1 === $updates['absent']['adapters']
+	&& array( 'zoom', 'zoom' ) === $updates['absent']['ledger']
+	&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:zoom' ) ) === $updates['absent']['services']
 	&& array( array( 'post', 521 ), array( 'post', 40 ), array( 'post', 15 ) ) === $updates['absent']['posts']
 	&& array( array( 'can', 'edit_post', 15 ) ) === $updates['absent']['caps']
-	&& array( array( 'read', 521, '_tutorpress_live_lesson_sync' ) ) === $updates['absent']['reads']
+	&& array() === $updates['absent']['reads']
 	&& $patch_absent_metas === $updates['absent']['metas']
 	&& 1 === $updates['absent']['bindings']
 	&& 521 === $patch_absent_stage['item']
@@ -5418,55 +5432,53 @@ tutorpress_live_lessons_assert(
 );
 tutorpress_live_lessons_assert(
 	$update_success( $updates['zoom_unlinked'], 'zoom', 526, 'tutor_zoom_meeting', 'unlinked' )
-	&& true === $updates['zoom_unlinked']['unlinked'][0]['linked']
 	&& $update_success( $updates['google_unlinked'], 'google_meet', 610, 'tutor-google-meet', 'unlinked' )
-	&& true === $updates['google_unlinked']['unlinked'][0]['linked']
 	&& $update_success( $updates['zoom_synced'], 'zoom', 528, 'tutor_zoom_meeting', 'synced' )
 	&& $update_success( $updates['google_synced'], 'google_meet', 611, 'tutor-google-meet', 'synced' )
 	&& array( 'read', 'update', 'affected', 'write' ) === $updates['callbacks'],
 	'canonical unlinked and synced items use only their matching stage and dispatch pair'
 );
 $pass10f_row   = isset( $binding_probe['data']['pass10f']['copy'] ) && is_array( $binding_probe['data']['pass10f']['copy'] ) ? $binding_probe['data']['pass10f']['copy'] : array();
-$pass10f_stage = isset( $pass10f_row['unlinked'][0] ) && is_array( $pass10f_row['unlinked'][0] ) ? $pass10f_row['unlinked'][0] : array();
+$pass10f_stage = isset( $pass10f_row['synced'][0] ) && is_array( $pass10f_row['synced'][0] ) ? $pass10f_row['synced'][0] : array();
 tutorpress_live_lessons_assert(
-	isset( $pass10f_row['unlinked'], $pass10f_row['synced'], $pass10f_row['synced_dispatch'], $pass10f_row['dispatches'] )
-	&& 1 === count( $pass10f_row['unlinked'] )
-	&& array() === $pass10f_row['synced']
+	$update_error( $pass10f_row, 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
+	&& 1 === count( $pass10f_row['synced'] )
+	&& array() === $pass10f_row['unlinked']
+	&& array() === $pass10f_row['dispatches']
 	&& array() === $pass10f_row['synced_dispatch']
-	&& 1 === count( $pass10f_row['dispatches'] )
-	&& false === $pass10f_stage['linked']
 	&& 613 === $pass10f_stage['item']
 	&& 'tutor-google-meet' === $pass10f_stage['type']
-	&& 'google_meet' === $pass10f_stage['adapter'],
-	'a Google lesson with an event id and no link row starts a new meeting'
+	&& 'google_meet' === $pass10f_stage['adapter']
+	&& array( 'tutor-google-meet-event-details' => array( 'id' => 'evt-copy-10f' ) ) === $pass10f_stage['local'],
+	'a Google lesson with a stored event id stages that id and does not dispatch'
 );
 $pass10f_shared_row   = isset( $binding_probe['data']['pass10f']['shared'] ) && is_array( $binding_probe['data']['pass10f']['shared'] ) ? $binding_probe['data']['pass10f']['shared'] : array();
-$pass10f_shared_stage = isset( $pass10f_shared_row['unlinked'][0] ) && is_array( $pass10f_shared_row['unlinked'][0] ) ? $pass10f_shared_row['unlinked'][0] : array();
+$pass10f_shared_stage = isset( $pass10f_shared_row['synced'][0] ) && is_array( $pass10f_shared_row['synced'][0] ) ? $pass10f_shared_row['synced'][0] : array();
 $pass10f_args         = isset( $binding_probe['data']['pass10f']['args'] ) && is_array( $binding_probe['data']['pass10f']['args'] ) ? $binding_probe['data']['pass10f']['args'] : array();
 tutorpress_live_lessons_assert(
-	isset( $pass10f_shared_row['unlinked'], $pass10f_shared_row['synced'], $pass10f_shared_row['synced_dispatch'], $pass10f_shared_row['dispatches'] )
-	&& 1 === count( $pass10f_shared_row['unlinked'] )
-	&& array() === $pass10f_shared_row['synced']
+	$update_error( $pass10f_shared_row, 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
+	&& 1 === count( $pass10f_shared_row['synced'] )
+	&& array() === $pass10f_shared_row['unlinked']
+	&& array() === $pass10f_shared_row['dispatches']
 	&& array() === $pass10f_shared_row['synced_dispatch']
-	&& 1 === count( $pass10f_shared_row['dispatches'] )
-	&& false === $pass10f_shared_stage['linked']
 	&& 612 === $pass10f_shared_stage['item']
 	&& 'tutor_zoom_meeting' === $pass10f_shared_stage['type']
 	&& 'zoom' === $pass10f_shared_stage['adapter']
-	&& array( array( 'tutor_zoom_meeting', '_tutor_zm_data', 612, '%88021%' ) ) === $pass10f_args,
-	'a Zoom lesson that shares its meeting id starts a new meeting'
+	&& array( '_tutor_zm_data' => array( 'id' => '88021' ) ) === $pass10f_shared_stage['local']
+	&& array() === $pass10f_args,
+	'a Zoom lesson that shares its meeting id stages that id and does not dispatch'
 );
 tutorpress_live_lessons_assert(
 	$update_error( $updates['null_stage'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
-	&& 1 === count( $updates['null_stage']['unlinked'] )
+	&& 1 === count( $updates['null_stage']['synced'] )
 	&& array() === $updates['null_stage']['dispatches']
-	&& array() === $updates['null_stage']['synced']
+	&& array() === $updates['null_stage']['unlinked']
 	&& true === $updates['error_stage']['same_stage']
 	&& $update_error( $updates['error_stage'], 'stage_rejected', 'Stage rejected.', 422 )
 	&& array() === $updates['error_stage']['dispatches']
-	&& $update_error( $updates['malformed'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $update_error( $updates['malformed'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
 	&& array() === $updates['malformed']['dispatches']
-	&& $update_error( $updates['bad_bytes'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $update_error( $updates['bad_bytes'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
 	&& array() === $updates['bad_bytes']['dispatches']
 	&& $update_error( $updates['dispatch_null'], 'live_lesson_update_failed', 'Failed to update live lesson.', 500 )
 	&& 1 === count( $updates['dispatch_null']['dispatches'] )
@@ -5483,7 +5495,7 @@ tutorpress_live_lessons_assert(
 	&& array() === $updates['synced_null']['synced_dispatch']
 	&& array() === $updates['synced_null']['unlinked']
 	&& array() === $updates['synced_null']['dispatches'],
-	'null, error, and noncanonical staging never dispatch and bare update outcomes stay unchanged'
+	'a null or rejected stage does not dispatch, and a create dispatch without a provider id returns the update failure'
 );
 tutorpress_live_lessons_assert(
 	true === $updates['proof']

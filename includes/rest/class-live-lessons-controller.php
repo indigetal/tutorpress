@@ -503,7 +503,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
     }
 
     /**
-     * Delegate one authorized PATCH by the canonical stored sync state.
+     * Delegate one authorized PATCH. A stored provider id updates that meeting. No stored id creates one.
      *
      * @param WP_REST_Request     $request    Request.
      * @param array<string,mixed> $normalized Normalized schedule.
@@ -525,9 +525,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
         $can = static function ($capability, $post_id) use ($bindings) { return 'edit_post' === $capability && true === $bindings['can']((int) $post_id); };
         if (null === TutorPress_Live_Lesson_Authorization::authorize($item, $topic, $course, $can)) { return new WP_Error('rest_cannot_edit', __('Sorry, you are not allowed to edit this live lesson.', 'tutorpress'), ['status' => rest_authorization_required_code()]); }
         if ('publish' !== (isset($item['post_status']) ? $item['post_status'] : '')) { return $missing; }
-        $stored = $bindings['envelope']((int) $item['ID']);
-        $state = is_array($stored) && isset($stored['state']) ? $stored['state'] : '';
-        if (null !== $stored && 'unlinked' !== $state && 'synced' !== $state) { return new WP_Error('live_lesson_sync_invalid', __('Live lesson sync envelope is invalid.', 'tutorpress'), ['status' => 409]); }
         $provider = 'tutor_zoom_meeting' === $type ? 'zoom' : 'google_meet';
         $input = $this->map_mutation($request, $normalized, $course, $bindings['user_id']);
         $input['provider'] = $provider;
@@ -536,16 +533,15 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             return $password;
         }
         $adapter = $this->provider_adapter($provider);
-        $copy = null !== $stored || $this->load_provider_linked((int) $item['ID'], $type);
-        $open = 'unlinked' === $state || false === $copy;
-        $staged = $open ? $this->stage_live_unlinked($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], ...($copy ? array() : array(false))) : $this->stage_live_synced($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['metadata']((int) $item['ID'], $type));
+        $staged = $this->stage_live_synced($item, $topic, $course, $can, $input, $adapter, $bindings['clock'], $bindings['token'], $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['metadata']((int) $item['ID'], $type));
         $ready = $this->staged_create($staged);
-        $result = is_array($ready) ? ($open ? $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can) : $this->dispatch_live_synced($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'])) : $staged;
-        $accepted = is_array($ready) && is_array($result) && isset($result['envelope']) ? $this->accepted_bytes($result['envelope']) : null;
-        if (is_array($accepted)) {
+        $operation = is_array($ready) && isset($ready['operation']) && is_array($ready['operation']) ? $ready['operation'] : array();
+        $stored_id = isset($operation['provider_id']) && is_string($operation['provider_id']) ? $operation['provider_id'] : '';
+        $result = is_array($ready) ? ('' !== $stored_id ? $this->dispatch_live_synced($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write']) : $this->dispatch_live_create($ready, $bindings['token'], $adapter, $bindings['read'], $bindings['update'], $bindings['affected'], $bindings['write'], $topic, $course, $can)) : $staged;
+        if (is_array($result) && isset($result['provider_id']) && is_string($result['provider_id']) && '' !== $result['provider_id']) {
             return $this->mutation_projection((int) $item['ID'], 'update');
         }
-        return $this->rest_outcome('update', is_array($ready) && !is_wp_error($result) && null !== $result ? null : $result);
+        return $this->rest_outcome('update', is_wp_error($result) ? $result : null);
     }
 
     /**
