@@ -59,7 +59,6 @@ import { useSortableList } from "../../../hooks/common/useSortableList";
 import { QuizModal } from "../../modals/QuizModal";
 import { LiveLessonModal } from "../../modals/live-lessons";
 import { isH5pPluginActive } from "../../../utils/addonChecker";
-import { liveLessonRowPresentation } from "../../../utils/liveLessonReconciliation";
 import { store as noticesStore } from "@wordpress/notices";
 import { useDispatch, useSelect } from "@wordpress/data";
 import { useError } from "../../../hooks/useError";
@@ -152,7 +151,6 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
 }): JSX.Element => {
   const hasVideo = item.type === "lesson" && Boolean(item.video?.has_video);
   const displayDuration = hasVideo ? item.video?.display_duration : "";
-  const recovery = liveLessonRowPresentation(item, window.tutorPressCurriculum?.liveLessonSyncEnabled);
 
   return (
     <div className={`tutorpress-content-item ${className || ""}`} style={style}>
@@ -180,9 +178,6 @@ const ContentItemRow: React.FC<ContentItemRowProps> = ({
                 }}
               />
             </span>
-          )}
-          {recovery.badge !== null && (
-            <span className="tutorpress-content-item-video-meta tutorpress-live-lesson-sync">{recovery.badge}</span>
           )}
         </FlexBlock>
         <div className="tpress-item-actions-right">

@@ -18,9 +18,9 @@ foreach ( array( 2 => $meet, 3 => $zoom ) as $index => $source ) {
 	$added = array_keys( $row );
 	sort( $added );
 	$base = array_keys( $source );
-	$base = array_merge( $base, array( 'actions', 'menuOrder', 'sync_state', 'sync_version' ) );
+	$base = array_merge( $base, array( 'actions', 'menuOrder' ) );
 	sort( $base );
-	tutorpress_live_lessons_assert( $base === $added && $source['id'] === $row['id'] && $source['title'] === $row['title'] && $source['type'] === $row['type'] && $source['menu_order'] === $row['menu_order'] && $source['status'] === $row['status'] && 'error' === $row['sync_state'] && 0 === $row['sync_version'] && $source['menu_order'] === $row['menuOrder'] && is_array( $row['actions'] ), 'live topic rows keep legacy fields and add only the shared summary' );
+	tutorpress_live_lessons_assert( $base === $added && $source['id'] === $row['id'] && $source['title'] === $row['title'] && $source['type'] === $row['type'] && $source['menu_order'] === $row['menu_order'] && $source['status'] === $row['status'] && false === array_key_exists( 'sync_state', $row ) && false === array_key_exists( 'sync_version', $row ) && $source['menu_order'] === $row['menuOrder'] && is_array( $row['actions'] ), 'live topic rows keep legacy fields and add only menu order and actions' );
 }
 $statuses = array( 'draft', 'private', 'pending', 'future' );
 $held     = array();
@@ -30,7 +30,7 @@ foreach ( $statuses as $index => $post_status ) {
 $held_rows = TutorPress_Live_Lesson_Topic_Projector::project( $topic, $course, $allow, $held, array() );
 foreach ( $held as $index => $source ) {
 	$row = $held_rows[ $index ];
-	tutorpress_live_lessons_assert( $source['status'] === $row['status'] && $source['post_status'] === $row['post_status'] && $source['type'] === $row['type'] && $source['menu_order'] === $row['menuOrder'] && 'error' === $row['sync_state'] && 0 === $row['sync_version'] && is_array( $row['actions'] ), 'non-publish live topic rows keep their status and receive the shared summary' );
+	tutorpress_live_lessons_assert( $source['status'] === $row['status'] && $source['post_status'] === $row['post_status'] && $source['type'] === $row['type'] && $source['menu_order'] === $row['menuOrder'] && false === array_key_exists( 'sync_state', $row ) && false === array_key_exists( 'sync_version', $row ) && is_array( $row['actions'] ), 'non-publish live topic rows keep their status and receive menu order and actions' );
 }
 $wrong_topic = array( 'ID' => 8, 'post_type' => 'topics', 'post_parent' => 4 );
 $broad      = static function ( $cap ) { return 'edit_posts' === $cap; };

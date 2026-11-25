@@ -29,9 +29,7 @@ final class TutorPress_Live_Lesson_Topic_Projector {
 				$projected[] = $row;
 				continue;
 			}
-			$row['sync_state']   = $summary['sync_state'];
-			$row['sync_version'] = $summary['sync_version'];
-			$row['menuOrder']    = $summary['menuOrder'];
+			$row['menuOrder'] = $summary['menuOrder'];
 			$row['actions']      = $summary['actions'];
 			$projected[]         = $row;
 		}

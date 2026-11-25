@@ -1238,9 +1238,7 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
                 if (!isset($live[$type]) || 'publish' !== (isset($child['post_status']) ? $child['post_status'] : '') || !isset($child['ID'])) {
                     continue;
                 }
-                $stored              = $bindings['envelope']((int) $child['ID']);
-                $child['sync_state'] = is_array($stored) && isset($stored['state']) ? $stored['state'] : 'error';
-                $lessons[]           = $child;
+                $lessons[] = $child;
             }
         }
         $args = [];

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Publish-record projection. Sync state stays visible. */
+/** Publish-record projection. */
 class TutorPress_Live_Lesson_Response_Projector {
 	/** Null unless the item context is authorized and publish. */
 	public static function project_item( array $item, array $topic, array $course, $can, $envelope, $metadata ) {
@@ -17,13 +17,13 @@ class TutorPress_Live_Lesson_Response_Projector {
 		if ( null === TutorPress_Live_Lesson_Authorization::authorize( $item, $topic, $course, $can ) || 'publish' !== ( isset( $item['post_status'] ) ? $item['post_status'] : '' ) || ( null !== $envelope && ! is_array( $stored ) ) ) {
 			return null;
 		}
-		$operation        = is_array( $stored ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
+		$operation        = is_array( $stored ) && isset( $stored['operation'] ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
 		$target           = is_array( $operation ) ? array( 'title' => $operation['title'], 'content' => $operation['content'], 'start_local' => $operation['start_local'], 'end_local' => $operation['end_local'], 'timezone' => $operation['timezone'], 'duration' => $operation['duration'], 'provider_target' => $operation['provider_target'] ) : null;
 		$from_target      = is_array( $stored ) && in_array( $stored['state'], array( 'pending', 'error' ), true ) && ! is_array( $metadata );
 		$record           = $from_target ? $target : ( is_array( $metadata ) ? $metadata : null );
-		$edit             = $from_target ? self::target_fields( is_array( $target ) ? $target : array() ) : self::reader_fields( $item, is_array( $metadata ) ? $metadata : array() );
+		$edit             = self::reader_fields( $item, is_array( $metadata ) ? $metadata : array() );
 		$edit['password'] = self::blob_password( $metadata );
-		return array_merge( array( 'id' => (int) $item['ID'], 'title' => isset( $item['post_title'] ) ? $item['post_title'] : '', 'description' => isset( $item['post_content'] ) ? $item['post_content'] : '', 'type' => 'tutor_zoom_meeting' === $item['post_type'] ? 'zoom' : 'google_meet', 'topicId' => (int) $topic['ID'], 'courseId' => (int) $course['ID'], 'status' => 'scheduled', 'sync_state' => is_array( $stored ) ? $stored['state'] : 'error', 'sync_version' => TutorPress_Live_Lesson_Sync_Envelope::expected_version( null === $envelope ? null : $stored ), 'persisted_envelope' => is_array( $stored ), 'operation' => is_array( $operation ) ? array( 'operation_id' => $operation['operation_id'], 'kind' => $operation['kind'], 'dispatch_state' => $operation['dispatch_state'] ) : null, 'warning' => is_array( $stored ) ? $stored['warning'] : null, 'error' => is_array( $stored ) ? $stored['error'] : null, 'resolution' => null, 'record' => self::safe( $record ) ), $edit );
+		return array_merge( array( 'id' => (int) $item['ID'], 'title' => isset( $item['post_title'] ) ? $item['post_title'] : '', 'description' => isset( $item['post_content'] ) ? $item['post_content'] : '', 'type' => 'tutor_zoom_meeting' === $item['post_type'] ? 'zoom' : 'google_meet', 'topicId' => (int) $topic['ID'], 'courseId' => (int) $course['ID'], 'status' => 'scheduled', 'warning' => is_array( $stored ) ? $stored['warning'] : null, 'error' => is_array( $stored ) ? $stored['error'] : null, 'resolution' => null, 'record' => self::safe( $record ) ), $edit );
 	}
 
 	/** String password from an array _tutor_zm_data blob. */
@@ -38,14 +38,6 @@ class TutorPress_Live_Lesson_Response_Projector {
 		$adapter = $zoom ? new TutorPress_Zoom_Provider_Adapter( null, null, null, null, null, null, null ) : new TutorPress_Google_Meet_Provider_Adapter( null, null, null, null, null );
 		$row     = $adapter->hydrate_item( $metadata );
 		return self::edit_fields( $row, isset( $row['duration'] ) && is_array( $row['duration'] ) ? $row['duration'] : null );
-	}
-
-	/** In-progress schedule when no provider meta is stored. */
-	private static function target_fields( array $target ) {
-		$provider = isset( $target['provider_target'] ) && is_array( $target['provider_target'] ) ? $target['provider_target'] : array();
-		$row      = array_merge( $provider, array( 'start_local' => self::text( $target, 'start_local' ), 'end_local' => self::text( $target, 'end_local' ), 'timezone' => self::text( $target, 'timezone' ) ) );
-		$duration = isset( $target['duration'] ) && is_array( $target['duration'] ) ? $target['duration'] : null;
-		return self::edit_fields( $row, $duration );
 	}
 
 	/** Start, end, duration, settings, and host. */
@@ -95,10 +87,11 @@ class TutorPress_Live_Lesson_Response_Projector {
 		if ( ! is_array( $full ) ) {
 			return null;
 		}
+		$stored = null === $envelope ? null : TutorPress_Live_Lesson_Sync_Envelope::envelope( $envelope );
 		return array(
 			'id'           => $full['id'],
-			'sync_state'   => $full['sync_state'],
-			'sync_version' => $full['sync_version'],
+			'sync_state'   => is_array( $stored ) ? $stored['state'] : 'error',
+			'sync_version' => TutorPress_Live_Lesson_Sync_Envelope::expected_version( null === $envelope ? null : $stored ),
 			'menuOrder'    => isset( $item['menu_order'] ) ? (int) $item['menu_order'] : 0,
 			'actions'      => self::actions( $envelope ),
 		);
@@ -124,6 +117,8 @@ class TutorPress_Live_Lesson_Response_Projector {
 			$projected['persisted'] = true;
 			return $projected;
 		}
+		$stored    = null === $envelope ? null : TutorPress_Live_Lesson_Sync_Envelope::envelope( $envelope );
+		$operation = is_array( $stored ) && isset( $stored['operation'] ) && is_array( $stored['operation'] ) ? $stored['operation'] : null;
 		return new WP_Error(
 			isset( $outcome['code'] ) && is_string( $outcome['code'] ) ? $outcome['code'] : 'live_lesson_persisted_error',
 			'Live lesson persistence failed.',
@@ -132,9 +127,9 @@ class TutorPress_Live_Lesson_Response_Projector {
 				'record_id'         => $projected['id'],
 				'course_id'         => $projected['courseId'],
 				'topic_id'          => $projected['topicId'],
-				'operation_id'      => is_array( $projected['operation'] ) ? $projected['operation']['operation_id'] : null,
-				'sync_state'        => $projected['sync_state'],
-				'sync_version'      => $projected['sync_version'],
+				'operation_id'      => is_array( $operation ) ? $operation['operation_id'] : null,
+				'sync_state'        => is_array( $stored ) ? $stored['state'] : 'error',
+				'sync_version'      => TutorPress_Live_Lesson_Sync_Envelope::expected_version( null === $envelope ? null : $stored ),
 				'persisted'         => false,
 				'refetch_required'  => true,
 				'warning'           => $warning,

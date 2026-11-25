@@ -36,7 +36,11 @@ final class TutorPress_Live_Lesson_Collection_Query {
 			if ( '' !== $type && $providers[ $post_type ] !== $type ) {
 				continue;
 			}
-			$matched[] = array( 'id' => (int) $lesson['ID'], 'courseId' => (int) $course_id, 'topicId' => (int) $lesson['post_parent'], 'type' => $providers[ $post_type ], 'status' => 'scheduled', 'sync_state' => isset( $lesson['sync_state'] ) ? $lesson['sync_state'] : 'error' );
+			$row = array( 'id' => (int) $lesson['ID'], 'courseId' => (int) $course_id, 'topicId' => (int) $lesson['post_parent'], 'type' => $providers[ $post_type ], 'status' => 'scheduled' );
+			if ( isset( $lesson['sync_state'] ) ) {
+				$row['sync_state'] = $lesson['sync_state'];
+			}
+			$matched[] = $row;
 		}
 		$per_page = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
 		$page     = isset( $args['page'] ) ? (int) $args['page'] : 1;

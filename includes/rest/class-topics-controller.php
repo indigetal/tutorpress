@@ -383,8 +383,6 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
             return $rows;
         }
 
-        $live = ['tutor-google-meet' => true, 'tutor_zoom_meeting' => true];
-        $envelopes = [];
         $projected = [];
         foreach ($content_items as $index => $item) {
             $projected[] = array_merge($rows[$index], [
@@ -393,21 +391,9 @@ class TutorPress_REST_Topics_Controller extends TutorPress_REST_Controller {
                 'post_status' => $item->post_status,
                 'post_parent' => (int) $item->post_parent,
             ]);
-            if (!isset($live[$item->post_type])) {
-                continue;
-            }
-            $stored = get_post_meta($item->ID, '_tutorpress_live_lesson_sync', true);
-            if (is_string($stored)) {
-                $decoded = json_decode($stored, true);
-                $stored  = is_array($decoded) ? $decoded : null;
-            }
-            $accepted = is_array($stored) ? TutorPress_Live_Lesson_Sync_Envelope::envelope($stored) : null;
-            if (is_array($accepted)) {
-                $envelopes[(int) $item->ID] = $accepted;
-            }
         }
 
-        $result = TutorPress_Live_Lesson_Topic_Projector::project($topic, $course, $can, $projected, $envelopes);
+        $result = TutorPress_Live_Lesson_Topic_Projector::project($topic, $course, $can, $projected, []);
         if (!is_array($result)) {
             return $rows;
         }

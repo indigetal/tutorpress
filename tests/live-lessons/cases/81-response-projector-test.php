@@ -32,27 +32,37 @@ $legacy_edit = array();
 foreach ( array_keys( tutorpress_live_lesson_empty_edit() ) as $legacy_key ) {
 	$legacy_edit[ $legacy_key ] = $legacy[ $legacy_key ];
 }
-tutorpress_live_lessons_assert( is_array( $legacy ) && 'error' === $legacy['sync_state'] && 0 === $legacy['sync_version'] && false === $legacy['persisted_envelope'] && null === $legacy['resolution'] && tutorpress_live_lesson_empty_edit() === $legacy_edit && 'scheduled' === $legacy['status'] && 9 === $legacy['id'], 'absence is version-zero legacy error and stays discoverable' );
+$legacy_sync_absent = is_array( $legacy ) && false === array_key_exists( 'sync_state', $legacy ) && false === array_key_exists( 'sync_version', $legacy ) && false === array_key_exists( 'persisted_envelope', $legacy ) && false === array_key_exists( 'operation', $legacy );
+tutorpress_live_lessons_assert( $legacy_sync_absent && null === $legacy['resolution'] && tutorpress_live_lesson_empty_edit() === $legacy_edit && 'scheduled' === $legacy['status'] && 9 === $legacy['id'], 'absence keeps the empty edit and does not project sync keys' );
 foreach ( array( 'pending', 'error', 'unlinked' ) as $state ) {
 	$projected = $project( array_replace( $base, array( 'state' => $state ) ), null, $can );
-	tutorpress_live_lessons_assert( is_array( $projected ) && $state === $projected['sync_state'] && 1 === $projected['sync_version'] && true === $projected['persisted_envelope'], $state . ' stays discoverable' );
+	tutorpress_live_lessons_assert( is_array( $projected ) && false === array_key_exists( 'sync_state', $projected ) && false === array_key_exists( 'sync_version', $projected ) && false === array_key_exists( 'persisted_envelope', $projected ) && false === array_key_exists( 'operation', $projected ), $state . ' stays discoverable without sync keys' );
 }
 $operation = array( 'operation_id' => 'op-1', 'kind' => 'create', 'started_at' => '2026-09-21 15:04:00', 'base_version' => 1, 'provider' => 'zoom', 'owner_id' => 42, 'provider_id' => null, 'dispatch_state' => 'not_dispatched', 'course_id' => 7, 'topic_id' => 8, 'post_author' => 42, 'menu_order' => 3, 'title' => 'Live', 'content' => 'Notes', 'start_local' => '2026-09-21 15:04:00', 'end_local' => '2026-09-21 16:04:00', 'timezone' => 'UTC', 'duration' => array( 'value' => 60, 'unit' => 'minutes' ), 'provider_target' => array( 'auto_recording' => 'none', 'enforce_login' => false, 'host_id' => 'host-1', 'host_video' => false, 'join_before_host' => true, 'mute_upon_entry' => false, 'participant_video' => false, 'waiting_room' => true ), 'delete_hook' => null );
-$pending   = $project( array_replace( $base, array( 'operation' => $operation ) ), null, $can );
-$encoded   = json_encode( $pending );
-$target_edit = tutorpress_live_lesson_empty_edit();
-$target_edit['startDateTime'] = '2026-09-21 15:04:00';
-$target_edit['endDateTime'] = '2026-09-21 16:04:00';
-$target_edit['duration'] = array( 'value' => 60, 'unit' => 'minutes' );
-$target_edit['settings']['autoRecording'] = 'none';
-$target_edit['settings']['waitingRoom'] = true;
-$target_edit['providerConfig']['host'] = 'host-1';
-$pending_edit = array();
-foreach ( array_keys( tutorpress_live_lesson_empty_edit() ) as $pending_key ) {
-	$pending_edit[ $pending_key ] = $pending[ $pending_key ];
+$zoom_operation = array_replace( $operation, array( 'timezone' => 'America/New_York' ) );
+$pending        = $project( array_replace( $base, array( 'operation' => $zoom_operation ) ), null, $can );
+$encoded        = json_encode( $pending );
+$pending_edit   = array();
+if ( is_array( $pending ) ) {
+	foreach ( array_keys( tutorpress_live_lesson_empty_edit() ) as $pending_key ) {
+		$pending_edit[ $pending_key ] = $pending[ $pending_key ];
+	}
 }
-tutorpress_live_lessons_assert( is_array( $pending ) && 'Live' === $pending['record']['title'] && 'host-1' === $pending['record']['provider_target']['host_id'] && 'op-1' === $pending['operation']['operation_id'] && 'safe' === $pending['error'] && 'note' === $pending['warning'] && is_string( $encoded ) && false === strpos( $encoded, 'token' ) && $target_edit === $pending_edit && '' === $pending['password'] && ! isset( $pending['record']['password'] ), 'pending projection uses the sanitized operation target' );
+tutorpress_live_lessons_assert( is_array( $pending ) && 'Live' === $pending['record']['title'] && 'host-1' === $pending['record']['provider_target']['host_id'] && false === array_key_exists( 'sync_state', $pending ) && false === array_key_exists( 'sync_version', $pending ) && false === array_key_exists( 'persisted_envelope', $pending ) && false === array_key_exists( 'operation', $pending ) && 'safe' === $pending['error'] && 'note' === $pending['warning'] && is_string( $encoded ) && false === strpos( $encoded, 'token' ) && tutorpress_live_lesson_empty_edit() === $pending_edit && '' === $pending['password'] && ! isset( $pending['record']['password'] ), 'pending projection keeps the sanitized operation record and an empty edit' );
+$meet_operation = array_replace( $operation, array( 'provider' => 'google_meet', 'timezone' => 'America/New_York', 'provider_target' => array( 'add_enrolled_students' => 'Yes', 'reminder_minutes' => 30, 'send_updates' => 'all', 'status' => 'confirmed', 'transparency' => 'opaque', 'visibility' => 'public' ) ) );
+$meet_item      = $item;
+$meet_item['post_type'] = 'tutor-google-meet';
+$meet           = TutorPress_Live_Lesson_Response_Projector::project_item( $meet_item, $topic, $course, $can, array_replace( $base, array( 'state' => 'error', 'provider' => 'google_meet', 'operation' => $meet_operation ) ), null );
+$meet_edit      = array();
+if ( is_array( $meet ) ) {
+	foreach ( array_keys( tutorpress_live_lesson_empty_edit() ) as $meet_key ) {
+		$meet_edit[ $meet_key ] = $meet[ $meet_key ];
+	}
+}
+tutorpress_live_lessons_assert( is_array( $meet ) && tutorpress_live_lesson_empty_edit() === $meet_edit && false === array_key_exists( 'sync_state', $meet ) && false === array_key_exists( 'sync_version', $meet ) && false === array_key_exists( 'persisted_envelope', $meet ) && false === array_key_exists( 'operation', $meet ), 'an error google operation with no tutor meta does not fill the edit' );
 $with_password = array( '_tutor_zm_data' => array( 'password' => 'pw-sentinel', 'host_id' => 'host-9', 'timezone' => 'UTC', 'start_time' => '2026-09-21T15:04:00Z', 'duration' => 60, 'settings' => array( 'auto_recording' => 'cloud', 'waiting_room' => true ) ), '_tutor_zm_duration_unit' => 'min' );
+$absent        = $project( null, $with_password, $can );
+tutorpress_live_lessons_assert( is_array( $absent ) && 'pw-sentinel' === $absent['password'] && 'host-9' === $absent['providerConfig']['host'] && '2026-09-21 15:04:00' === $absent['startDateTime'] && false === array_key_exists( 'sync_state', $absent ) && false === array_key_exists( 'sync_version', $absent ) && false === array_key_exists( 'persisted_envelope', $absent ) && false === array_key_exists( 'operation', $absent ), 'a lesson with no sync row projects tutor meta and does not project sync_state' );
 $opened = $project( array_replace( $base, array( 'state' => 'synced' ) ), $with_password, $can );
 $opened_summary = TutorPress_Live_Lesson_Response_Projector::project_summary( $item, $topic, $course, $can, array_replace( $base, array( 'state' => 'synced' ) ) );
 $opened_summary_json = json_encode( $opened_summary );
@@ -78,7 +88,7 @@ $hidden  = TutorPress_Live_Lesson_Response_Projector::persisted_result( $item, $
 $failed  = TutorPress_Live_Lesson_Response_Projector::persisted_result( $item, $topic, $course, $can, $base, null, array( 'persisted' => false, 'status' => 500 ), null );
 $failed_data = $failed instanceof WP_Error ? $failed->get_error_data() : null;
 tutorpress_live_lessons_assert( null === TutorPress_Live_Lesson_Response_Projector::persisted_result( $item, $topic, $course, function () { return false; }, null, null, array( 'persisted' => true ), 'refresh' ), 'unauthorized persistence projects nothing' );
-tutorpress_live_lessons_assert( is_array( $kept ) && true === $kept['persisted'] && 'synced' === $kept['sync_state'] && 'schedule refreshed late' === $kept['warning'] && true === $kept['refetch_required'] && ! ( $kept instanceof WP_Error ), 'refresh warning keeps a persisted success' );
+tutorpress_live_lessons_assert( is_array( $kept ) && true === $kept['persisted'] && false === array_key_exists( 'sync_state', $kept ) && 'schedule refreshed late' === $kept['warning'] && true === $kept['refetch_required'] && ! ( $kept instanceof WP_Error ), 'refresh warning keeps a persisted success' );
 tutorpress_live_lessons_assert( is_array( $hidden ) && 'refresh_failed' === $hidden['warning'] && true === $hidden['persisted'] && $failed instanceof WP_Error && is_array( $failed_data ) && false === $failed_data['persisted'] && 9 === $failed_data['projected_record']['id'] && 'pending' === $failed_data['sync_state'], 'a secret refresh warning is replaced and a failed persistence stays failed' );
 tutorpress_live_lessons_pass( 'persisted outcome keeps precedence over refresh' );
 $descriptor_clean = static function ( $summary ) {

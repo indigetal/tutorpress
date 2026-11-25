@@ -4578,20 +4578,16 @@ $authorized_calls   = array(
 	array( 'posts', $collection_query( 15, array( 'topics' ) ) ),
 	array( 'posts', $collection_query( 40, $child_types ) ),
 );
-foreach ( array( 201, 202, 203, 204, 205, 206 ) as $envelope_id ) {
-	$authorized_calls[] = array( 'read', $envelope_id, '_tutorpress_live_lesson_sync' );
-}
 $authorized_calls[] = array( 'posts', $collection_query( 41, $child_types ) );
-$authorized_calls[] = array( 'read', 212, '_tutorpress_live_lesson_sync' );
 $authorized_calls[] = array( 'can', 'edit_post', 15 );
 $collection_rows    = array(
-	array( 'id' => 201, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled', 'sync_state' => 'pending' ),
-	array( 'id' => 202, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled', 'sync_state' => 'error' ),
-	array( 'id' => 203, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled', 'sync_state' => 'unlinked' ),
-	array( 'id' => 204, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled', 'sync_state' => 'synced' ),
-	array( 'id' => 205, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled', 'sync_state' => 'error' ),
-	array( 'id' => 206, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled', 'sync_state' => 'error' ),
-	array( 'id' => 212, 'courseId' => 15, 'topicId' => 41, 'type' => 'zoom', 'status' => 'scheduled', 'sync_state' => 'synced' ),
+	array( 'id' => 201, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled' ),
+	array( 'id' => 202, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled' ),
+	array( 'id' => 203, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled' ),
+	array( 'id' => 204, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled' ),
+	array( 'id' => 205, 'courseId' => 15, 'topicId' => 40, 'type' => 'google_meet', 'status' => 'scheduled' ),
+	array( 'id' => 206, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled' ),
+	array( 'id' => 212, 'courseId' => 15, 'topicId' => 41, 'type' => 'zoom', 'status' => 'scheduled' ),
 );
 $collection_page = array(
 	'success' => true,
@@ -4606,7 +4602,7 @@ $filtered_page = array(
 	'message' => 'Live lessons retrieved successfully.',
 	'data'    => array(
 		'data'       => array(
-			array( 'id' => 204, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled', 'sync_state' => 'synced' ),
+			array( 'id' => 204, 'courseId' => 15, 'topicId' => 40, 'type' => 'zoom', 'status' => 'scheduled' ),
 		),
 		'pagination' => array( 'total' => 3, 'page' => 2, 'per_page' => 1, 'total_pages' => 3 ),
 	),
@@ -4665,7 +4661,7 @@ tutorpress_live_lessons_assert(
 	&& array( 'zoom' ) === $binding_probe['data']['filtered']['ledger']
 	&& array() === $binding_probe['data']['filtered']['services']
 	&& array() === $binding_probe['data']['filtered']['metas'],
-	'authorized collection keeps every publish sync state and passes only collection arguments'
+	'authorized collection passes only collection arguments'
 );
 tutorpress_live_lessons_assert(
 	'error' === $binding_probe['data']['null_query']['packed']['kind']
@@ -7602,32 +7598,22 @@ $topic_held = array(
 	array( 'id' => 34, 'title' => 'Held future', 'type' => 'zoom_lesson', 'menu_order' => 9, 'status' => 'future' ),
 );
 $topic_legacy_actions = array();
-$topic_summarize = static function ( $row, $state, $version, $actions ) {
-	$row['sync_state']   = $state;
-	$row['sync_version'] = $version;
-	$row['menuOrder']    = $row['menu_order'];
-	$row['actions']      = $actions;
+$topic_summarize = static function ( $row, $actions ) {
+	$row['menuOrder'] = $row['menu_order'];
+	$row['actions']   = $actions;
 	return $row;
 };
 $topic_true = array(
 	$topic_lesson,
 	$topic_h5p,
 	$topic_draft,
-	$topic_summarize( $topic_meet, 'error', 0, $topic_legacy_actions ),
-	$topic_summarize( $topic_zoom, 'synced', 6, array() ),
+	$topic_summarize( $topic_meet, $topic_legacy_actions ),
+	$topic_summarize( $topic_zoom, array() ),
 );
 foreach ( $topic_held as $topic_held_row ) {
-	$topic_true[] = $topic_summarize( $topic_held_row, 'error', 0, $topic_legacy_actions );
+	$topic_true[] = $topic_summarize( $topic_held_row, $topic_legacy_actions );
 }
 $topic_broad = array_merge( $topic_core, $topic_held );
-$topic_sync  = array(
-	array( 21, true ),
-	array( 22, true ),
-	array( 31, true ),
-	array( 32, true ),
-	array( 33, true ),
-	array( 34, true ),
-);
 $topic_actions_clean = static function ( $rows ) {
 	foreach ( $rows as $row ) {
 		if ( ! isset( $row['actions'] ) ) {
@@ -7670,7 +7656,7 @@ tutorpress_live_lessons_assert(
 	&& true === $topic_case['protected']
 	&& true === $topic_case['guard']
 	&& array_slice( $topic_true, 0, 5 ) === $topic_case['false']['rows']
-	&& array( array( 21, true ), array( 22, true ) ) === $topic_case['false']['sync']
+	&& array() === $topic_case['false']['sync']
 	&& array( 8, 7 ) === $topic_case['false']['posts']
 	&& $topic_edit_post_only( $topic_case['false']['caps'] )
 	&& array( $topic_query ) === $topic_case['false']['query'],
@@ -7678,7 +7664,7 @@ tutorpress_live_lessons_assert(
 );
 tutorpress_live_lessons_assert(
 	$topic_true === $topic_case['true']['rows']
-	&& $topic_sync === $topic_case['true']['sync']
+	&& array() === $topic_case['true']['sync']
 	&& array( 8, 7 ) === $topic_case['true']['posts']
 	&& $topic_edit_post_only( $topic_case['true']['caps'] )
 	&& $topic_actions_clean( $topic_case['true']['rows'] )
