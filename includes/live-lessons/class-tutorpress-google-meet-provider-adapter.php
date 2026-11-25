@@ -118,7 +118,8 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 		if ( ! is_object( $service ) ) { return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'pre_dispatch_failure', 'provider_id' => is_string( $provider_id ) && '' !== $provider_id ? $provider_id : null, 'item' => null, 'diagnostics' => array(), 'provenance' => 'delete' ) ); }
 		try { $deleted = $service->events->delete( $service->current_calendar, $provider_id ); }
 		catch ( Throwable $thrown ) { $deleted = $thrown; }
-		if ( true === $deleted ) { return $this->closed( $provider_id ); }
+		$status = ( is_object( $deleted ) && is_callable( array( $deleted, 'getStatusCode' ) ) ) ? (int) $deleted->getStatusCode() : 0;
+		if ( $status >= 200 && $status <= 299 ) { return $this->closed( $provider_id ); }
 		return $this->classify_known( $deleted, $provider_id, 'delete' );
 	}
 	private function confirmed( $provenance, $id, $event ) {
@@ -171,7 +172,7 @@ class TutorPress_Google_Meet_Provider_Adapter implements TutorPress_Live_Lesson_
 	}
 	private function classify_known( $result, $provider_id, $provenance ) {
 		$code = is_object( $result ) && is_callable( array( $result, 'getCode' ) ) ? (int) $result->getCode() : ( is_array( $result ) && isset( $result['code'] ) && is_numeric( $result['code'] ) ? (int) $result['code'] : 0 );
-		if ( 404 === $code ) { return $this->absent( $provenance, $provider_id ); }
+		if ( 404 === $code || ( 410 === $code && 'delete' === $provenance ) ) { return $this->absent( $provenance, $provider_id ); }
 		if ( 'delete' !== $provenance && is_object( $result ) && isset( $result->id ) && is_string( $result->id ) && $result->id === $provider_id ) { return $this->confirmed( $provenance, $provider_id, $result ); }
 		return TutorPress_Live_Lesson_Provider_Result::from( array( 'outcome' => 'uncertain', 'provider_id' => $provider_id, 'item' => null, 'diagnostics' => array(), 'provenance' => $provenance ) );
 	}

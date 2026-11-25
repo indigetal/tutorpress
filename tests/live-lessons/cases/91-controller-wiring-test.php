@@ -3033,7 +3033,7 @@ $delete_bytes = static function ( $state, $provider, $provider_id ) use ( $sync_
 };
 list( $confirmed_bytes, $confirmed_envelope ) = $delete_bytes( 'pending', 'google_meet', 'meet-1' );
 list( $unconfirmed_bytes, $unconfirmed_envelope ) = $delete_bytes( 'error', 'zoom', 'meeting-9' );
-$confirmed_stage = array( 'post_id' => 530, 'lock' => 'lock-token', 'dispatch_state' => 'confirmed', 'envelope' => $confirmed_bytes, 'provider' => 'google_meet', 'owner_id' => 42, 'course_id' => 15 );
+$confirmed_stage = array( 'post_id' => 530, 'provider' => 'google_meet', 'provider_id' => 'meet-1', 'outcome' => 'confirmed' );
 $unconfirmed_stage = array( 'post_id' => 528, 'lock' => 'lock-token', 'dispatch_state' => 'dispatch_possible', 'envelope' => $unconfirmed_bytes, 'provider' => 'zoom', 'owner_id' => 42, 'course_id' => 15 );
 $run_delete = static function ( $params, $gate = true, $stage = null ) use ( $controller, $pack_result, $named_calls ) {
 	$controller->gate                = $gate;
@@ -3153,7 +3153,7 @@ $deletes = array(
 	'bad_bytes'      => $run_delete( $delete_body( 530, 'zoom' ), true, array( 'dispatch_state' => 'confirmed', 'envelope' => 'not-json' ) ),
 	'unconfirmed'    => $run_delete( $delete_body( 528, 'google_meet' ), true, $unconfirmed_stage ),
 	'confirmed'      => $run_delete( $delete_body( 530, 'zoom' ), true, $confirmed_stage ),
-	'null_envelope'  => $run_delete( $delete_body( 530, 'zoom' ), true, array( 'dispatch_state' => 'confirmed', 'envelope' => null ) ),
+	'null_envelope'  => $run_delete( $delete_body( 530, 'zoom' ), true, array( 'outcome' => 'confirmed' ) ),
 	'confirmed_envelope' => $confirmed_envelope,
 	'unconfirmed_envelope' => $unconfirmed_envelope,
 	'params'         => array( 'stage' => $stage_names, 'authorize' => array_slice( $auth_names, 0, 4 ), 'orchestrator' => $orch_names ),
@@ -5555,17 +5555,17 @@ $delete_once = static function ( $row, $provider, $item, $post_type ) use ( $del
 		&& 1 === $row['bindings']
 		&& array( array( 'post', $item ), array( 'post', 40 ), array( 'post', 15 ) ) === $row['posts']
 		&& array( array( 'can', 'edit_post', 15 ) ) === $row['caps']
-		&& array( array( 'read', (int) $item, '_tutorpress_live_lesson_sync' ) ) === $row['reads']
+		&& array() === $row['reads']
 		&& array() === $row['queries']
 		&& array() === $row['writes']
 		&& array() === $row['updates']
 		&& true === $row['boundary']
 		&& array( 'acting_user_id', 'course_author_id', 'acting_instructor_id' ) === array_keys( $stage['input'] )
 		&& ( 530 === (int) $item
-			? array( 'zoom', 'google_meet', 'google_meet' ) === $row['ledger']
-				&& 2 === $row['adapters']
-				&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ), array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) ) === $row['services']
-				&& array( array( 'meta', 530, 'tutor-google-meet-event-details' ), array( 'meta', 530, 'tutor-google-meet-start-datetime' ), array( 'meta', 530, 'tutor-google-meet-end-datetime' ), array( 'meta', 530, 'tutor-google-meet-event-details' ), array( 'meta', 530, 'tutor-google-meet-link' ) ) === $row['metas']
+			? array( 'zoom', 'google_meet' ) === $row['ledger']
+				&& 1 === $row['adapters']
+				&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:google_meet' ) ) === $row['services']
+				&& array( array( 'meta', 530, 'tutor-google-meet-start-datetime' ), array( 'meta', 530, 'tutor-google-meet-end-datetime' ), array( 'meta', 530, 'tutor-google-meet-event-details' ), array( 'meta', 530, 'tutor-google-meet-link' ) ) === $row['metas']
 			: array( 'zoom', $provider ) === $row['ledger']
 				&& 1 === $row['adapters']
 				&& array( array( 'service', 'TutorPress_Live_Lesson_Provider_Adapter:' . $provider ) ) === $row['services']
@@ -5608,24 +5608,21 @@ tutorpress_live_lessons_assert(
 	&& 'response' === $deletes['google']['packed']['kind']
 	&& 'Live lesson deleted successfully.' === $deletes['google']['packed']['data']['message']
 	&& $delete_once( $deletes['zoom'], 'zoom', 528, 'tutor_zoom_meeting' )
-	&& 'response' === $deletes['zoom']['packed']['kind']
-	&& 'Request successful.' === $deletes['zoom']['packed']['data']['message']
-	&& $deletes['unconfirmed_envelope'] === $deletes['zoom']['packed']['data']['data'],
+	&& $delete_error( $deletes['zoom'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 ),
 	'canonical Google and Zoom items stage once through their stored adapters'
 );
 tutorpress_live_lessons_assert(
 	$delete_error( $deletes['null_stage'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $delete_once( $deletes['null_stage'], 'google_meet', 530, 'tutor-google-meet' )
-	&& true === $deletes['error_stage']['same']
-	&& $delete_error( $deletes['error_stage'], 'stage_rejected', 'Stage rejected.', 422 )
+	&& false === $deletes['error_stage']['same']
+	&& $delete_error( $deletes['error_stage'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $delete_once( $deletes['error_stage'], 'google_meet', 530, 'tutor-google-meet' )
-	&& $delete_error( $deletes['malformed'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $delete_error( $deletes['malformed'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $delete_once( $deletes['malformed'], 'google_meet', 530, 'tutor-google-meet' )
-	&& $delete_error( $deletes['bad_bytes'], 'live_lesson_sync_invalid', 'Live lesson sync envelope is invalid.', 409 )
+	&& $delete_error( $deletes['bad_bytes'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $delete_once( $deletes['bad_bytes'], 'google_meet', 530, 'tutor-google-meet' )
 	&& $delete_once( $deletes['unconfirmed'], 'zoom', 528, 'tutor_zoom_meeting' )
-	&& 'Request successful.' === $deletes['unconfirmed']['packed']['data']['message']
-	&& $deletes['unconfirmed_envelope'] === $deletes['unconfirmed']['packed']['data']['data']
+	&& $delete_error( $deletes['unconfirmed'], 'live_lesson_delete_failed', 'Failed to delete live lesson.', 500 )
 	&& $delete_once( $deletes['confirmed'], 'google_meet', 530, 'tutor-google-meet' )
 	&& 'Live lesson deleted successfully.' === $deletes['confirmed']['packed']['data']['message']
 	&& array(
