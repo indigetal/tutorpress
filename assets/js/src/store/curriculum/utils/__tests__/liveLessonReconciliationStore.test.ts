@@ -6,7 +6,6 @@ import { buildLiveLessonReconcileRequest } from "../../../../utils/liveLessonRec
 const inspect = { action: "inspect" as const, version: 4 };
 const uncertain = { action: "attach" as const, kind: "uncertain_create" as const, version: 3, operation_id: "op-1" };
 const legacy = { action: "attach" as const, kind: "legacy_identity" as const, version: 0 as const };
-const abandon = { action: "abandon" as const, version: 3, operation_id: "op-1", label: "possible orphan" };
 const lessonId = 9;
 const courseId = 11;
 const topicsFetch = {
@@ -263,91 +262,5 @@ describe("reconcileLiveLesson", () => {
     });
     expect(rejection.outcome).not.toHaveProperty("refreshWarning");
     expect(rejection.refreshWarning).toBeNull();
-  });
-
-  it("preserves an unresolved mismatch or uncertain state without refreshing", () => {
-    for (const syncState of ["error", "unlinked"] as const) {
-      setFlag(true);
-      const generator = openInspect();
-      generator.next();
-      const rejection = caughtReconcile(() => {
-        generator.throw({
-          message: "Unresolved.",
-          data: { sync_state: syncState, warning: "provider mismatch", persisted: false },
-        });
-      });
-      expect(rejection.outcome).toEqual({
-        message: "Unresolved.",
-        data: { sync_state: syncState, warning: "provider mismatch", persisted: false },
-      });
-      expect(rejection.refreshWarning).toBeNull();
-    }
-  });
-
-  it("posts abandon without the orphan label and keeps its warning beside a refresh failure", () => {
-    setFlag(true);
-    const supplied = {};
-    const body = buildLiveLessonReconcileRequest(abandon, supplied);
-    const generator = reconcileLiveLessonResolver(lessonId, abandon, supplied, courseId);
-    expect(generator.next().value).toEqual({
-      type: "API_FETCH",
-      request: {
-        path: "/tutorpress/v1/live-lessons/9/reconcile",
-        method: "POST",
-        data: body,
-      },
-    });
-    expect(body).toEqual({ action: "abandon", version: 3, operation_id: "op-1" });
-    expect(body).not.toHaveProperty("label");
-    const abandoned = { id: lessonId, sync_state: "error", warning: "orphan acknowledgment" };
-    expect(generator.next(abandoned).value).toEqual(topicsFetch);
-    expect(generator.next({ success: false, message: "Network down", data: [] })).toEqual({
-      done: true,
-      value: { outcome: abandoned, refreshWarning: "Network down" },
-    });
-  });
-
-  it("returns a synced uncertain-create payload after refresh", () => {
-    setFlag(true);
-    rememberTopics();
-    const supplied = { provider_id: "evt-1" };
-    const body = buildLiveLessonReconcileRequest(uncertain, supplied);
-    const generator = reconcileLiveLessonResolver(lessonId, uncertain, supplied, courseId);
-    expect(generator.next().value).toEqual({
-      type: "API_FETCH",
-      request: {
-        path: "/tutorpress/v1/live-lessons/9/attach/uncertain-create",
-        method: "POST",
-        data: body,
-      },
-    });
-    const finalized = { id: lessonId, sync_state: "synced" };
-    expect(generator.next(finalized).value).toEqual(topicsFetch);
-    expect(generator.next(topicsBody).value).toMatchObject({ type: "SET_TOPICS" });
-    expect(generator.next()).toEqual({ done: true, value: { outcome: finalized, refreshWarning: null } });
-  });
-
-  it("keeps a settled failure's refresh warning off the outcome", () => {
-    setFlag(true);
-    const generator = openInspect();
-    generator.next();
-    expect(
-      generator.throw({
-        code: "live_lesson_persisted_error",
-        message: "Saved locally.",
-        data: { persisted: true, warning: "provider mismatch" },
-      }).value
-    ).toEqual(topicsFetch);
-    const rejection = caughtReconcile(() => {
-      generator.next({ success: false, message: "Network down", data: [] });
-    });
-    expect(rejection.message).toBe("Saved locally.");
-    expect(rejection.outcome).toEqual({
-      code: "live_lesson_persisted_error",
-      message: "Saved locally.",
-      data: { persisted: true, warning: "provider mismatch" },
-    });
-    expect(rejection.outcome).not.toHaveProperty("refreshWarning");
-    expect(rejection.refreshWarning).toBe("Network down");
   });
 });

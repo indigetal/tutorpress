@@ -265,18 +265,6 @@ class TutorPress_REST_Live_Lessons_Controller extends TutorPress_REST_Controller
             ]
         );
 
-        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/attach/uncertain-create', [[
-            'methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'attach_item'], 'permission_callback' => [$this, 'check_lesson_permission'],
-            'args' => ['provider_id' => ['required' => true, 'type' => 'string'], 'version' => ['required' => true, 'type' => 'integer'], 'operation_id' => ['required' => true, 'type' => 'string']],
-        ]]);
-        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/attach/legacy', [[
-            'methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'attach_item'], 'permission_callback' => [$this, 'check_lesson_permission'],
-            'args' => ['provider_id' => ['required' => true, 'type' => 'string'], 'version' => ['required' => true, 'type' => 'integer'], 'selected_owner_id' => ['type' => 'integer']],
-        ]]);
-        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/reconcile', [[
-            'methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'reconcile_item'], 'permission_callback' => [$this, 'check_lesson_permission'],
-            'args' => ['action' => ['required' => true, 'type' => 'string', 'enum' => ['inspect', 'retry', 'resolve_owner', 'abandon_unknown']], 'version' => ['required' => true, 'type' => 'integer'], 'operation_id' => ['type' => 'string', 'validate_callback' => [$this, 'validate_reconcile_operation']]],
-        ]]);
     }
 
     /**

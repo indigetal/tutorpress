@@ -27,11 +27,8 @@ import type {
 import { GoogleMeetForm } from "./GoogleMeetForm";
 import { ZoomForm } from "./ZoomForm";
 import { addZoomDuration, hydrateWallClock, serializeWallClock, wallClockMinutes, zoomDuration } from "../../../utils/liveLessonDateTime";
-import { deriveLiveLessonRecoveryActions } from "../../../utils/liveLessonReconciliation";
 
 const CURRICULUM_STORE = "tutorpress/curriculum";
-
-type LiveLessonRecoveryAction = ReturnType<typeof deriveLiveLessonRecoveryActions>[number];
 
 function canonicalLiveLessonSave(value: unknown): { refreshWarning: string | null } | null {
   if (typeof value !== "object" || value === null) return null;
@@ -44,10 +41,9 @@ function canonicalLiveLessonSave(value: unknown): { refreshWarning: string | nul
 
 function liveLessonSaveFailure(error: unknown): {
   refreshWarning: string | null;
-  actions: LiveLessonRecoveryAction[];
   projectedRecord: object | null;
 } {
-  const empty = { refreshWarning: null, actions: [] as LiveLessonRecoveryAction[], projectedRecord: null };
+  const empty = { refreshWarning: null, projectedRecord: null };
   if (typeof error !== "object" || error === null) return empty;
   const source = error as { refreshWarning?: unknown; outcome?: unknown };
   const refreshWarning = typeof source.refreshWarning === "string" && source.refreshWarning !== "" ? source.refreshWarning : null;
@@ -55,14 +51,12 @@ function liveLessonSaveFailure(error: unknown): {
   if (typeof outcome !== "object" || outcome === null) return { ...empty, refreshWarning };
   const data = (outcome as { data?: unknown }).data;
   if (typeof data !== "object" || data === null) return { ...empty, refreshWarning };
-  const failure = data as { persisted?: unknown; projected_record?: unknown; actions?: unknown };
+  const failure = data as { persisted?: unknown; projected_record?: unknown };
   const projectedRecord =
     failure.persisted === true && typeof failure.projected_record === "object" && failure.projected_record !== null
       ? failure.projected_record
       : null;
-  const actions =
-    window.tutorPressCurriculum?.liveLessonSyncEnabled === true ? deriveLiveLessonRecoveryActions(failure.actions) : [];
-  return { refreshWarning, actions, projectedRecord };
+  return { refreshWarning, projectedRecord };
 }
 
 export const LiveLessonModal: React.FC<LiveLessonModalProps> = ({
