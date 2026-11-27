@@ -1,0 +1,28 @@
+name: JavaScript unit tests
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  test:
+    name: Typecheck and run the supported unit suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run check-types
+
+      - name: Run the unit tests
+        run: npm run test:unit

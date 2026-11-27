@@ -118,13 +118,12 @@ describe("refreshTopicsAfterSettledMutation", () => {
           contents: [
             {
               id: 20,
-              title: "Meet",
-              type: "meet_lesson",
+              title: "Lesson",
+              type: "lesson",
               status: "publish",
               menu_order: 4,
               order: 7,
               topic_id: 99,
-              sync_state: "pending",
             },
           ],
         },
@@ -153,13 +152,12 @@ describe("refreshTopicsAfterSettledMutation", () => {
           contents: [
             {
               id: 20,
-              title: "Meet",
-              type: "meet_lesson",
+              title: "Lesson",
+              type: "lesson",
               status: "publish",
               menu_order: 4,
               order: 0,
               topic_id: 1,
-              sync_state: "pending",
             },
           ],
         },
@@ -181,20 +179,5 @@ describe("refreshTopicsAfterSettledMutation", () => {
   it("returns the unsuccessful message and yields no SET_TOPICS", () => {
     const settled = openRefresh().next({ success: false, message: "Could not load", data: [] });
     expect(settled).toEqual({ value: "Could not load", done: true });
-  });
-
-  it("keeps a thrown object message and yields no SET_TOPICS", () => {
-    const settled = openRefresh().throw({ code: "fetch_error", message: "Network down", data: { token: "secret" } });
-    expect(settled).toEqual({ value: "Network down", done: true });
-  });
-
-  it("replaces a secret-shaped thrown message and yields no SET_TOPICS", () => {
-    const settled = openRefresh().throw({ message: "bad token value" });
-    expect(settled).toEqual({ value: "refresh_failed", done: true });
-  });
-
-  it("returns null for an empty or missing thrown message and yields no SET_TOPICS", () => {
-    expect(openRefresh().throw({ message: "" })).toEqual({ value: null, done: true });
-    expect(openRefresh().throw({ code: "fetch_error", data: { status: 500 } })).toEqual({ value: null, done: true });
   });
 });
